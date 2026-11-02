@@ -1,8 +1,11 @@
+using System.Globalization;
+using Revalue.Server.Ai;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
+using Revalue.Server.Features.Foundation.Limits;
 
 namespace Revalue.Server.Features.Validate;
 
@@ -29,6 +32,107 @@ public sealed record AbilityChangeDto(
 /// <summary>見えた力の API が返すもの。履歴は新しい順。</summary>
 public sealed record AbilitiesDto(IReadOnlyList<AbilityDto> Abilities, IReadOnlyList<AbilityChangeDto> History);
 
+/// <summary>話し終えた場面の「この話から見えた力」の 1 つ（根拠あり）。</summary>
+public sealed record SeenAbilityDto(string Key, string Name, IReadOnlyList<QuoteDto> Quotes);
+
+/// <summary>「もう少し聞かせてほしいこと」の 1 つ（要確認）。<paramref name="Hints"/> は足りない行動の手がかり。</summary>
+public sealed record MoreToHearDto(string Key, string Name, IReadOnlyList<QuoteDto> Quotes, IReadOnlyList<string> Hints);
+
+/// <summary>「まだ聞けていない力」の 1 つ（未確認）。名前だけ。</summary>
+public sealed record AbilityNameDto(string Key, string Name);
+
+/// <summary>話し終えた場面から見えたこと（validate-7（見えた力と、もう少し聞きたいことを示す））。</summary>
+public sealed record EpisodeInsightsDto(
+    IReadOnlyList<SeenAbilityDto> Seen, IReadOnlyList<MoreToHearDto> MoreToHear, IReadOnlyList<AbilityNameDto> NotYet, bool CanResume);
+
+/// <summary>訂正を送る API の本文。</summary>
+public sealed record CorrectionRequest(string? Text);
+
+/// <summary>場面ごとの「見えたこと」と、続きを話せるか（03-validate.md の「話し終えたとき」「続きを話す」）。</summary>
+public static class EpisodeInsights
+{
+    /// <summary>続きの問いのターンの一手の名前。</summary>
+    public const string ResumeMove = "resume";
+
+    /// <summary>話し終えた場面で、力の確かめに使わない印がないときだけ返す。ほかは null。</summary>
+    public static EpisodeInsightsDto? From(EpisodeItem episode)
+    {
+        if (!IsCheckable(episode))
+        {
+            return null;
+        }
+
+        var results = AbilityStates.Evaluate(episode.Evidence);
+        return new EpisodeInsightsDto(
+            results.Where(r => r.State == AbilityState.Confirmed)
+                .Select(r => new SeenAbilityDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability), QuoteDto.From(r.Shown)))
+                .ToList(),
+            results.Where(r => r.State == AbilityState.NeedsCheck)
+                .Select(r => new MoreToHearDto(
+                    ActionRef.Key(r.Ability),
+                    AbilityText.Name(r.Ability),
+                    QuoteDto.From(r.Shown),
+                    r.Missing.Select(n => AbilityText.Hint(new ActionRef(r.Ability, n))).ToList()))
+                .ToList(),
+            results.Where(r => r.State == AbilityState.NotYet)
+                .Select(r => new AbilityNameDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability)))
+                .ToList(),
+            CanResume(episode));
+    }
+
+    /// <summary>続きを話せるか: 話し終えた、印がない、要確認の力が 1 つ以上ある。</summary>
+    public static bool CanResume(EpisodeItem episode) =>
+        IsCheckable(episode) && AbilityStates.Evaluate(episode.Evidence).Any(r => r.State == AbilityState.NeedsCheck);
+
+    /// <summary>
+    /// 続きの問いで聞く行動。要確認の力のうち行動の多いもの（同じ数なら <see cref="Ability"/> の順）の、番号の小さい足りない行動で、
+    /// この場面で聞いた回数が上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）に届いていないもの。なければ null（手がかりを添えずに聞く）。
+    /// </summary>
+    public static ActionRef? ResumeTarget(EpisodeItem episode)
+    {
+        var asked = ValidationContext.From(episode.Turns, episode.Evidence).AskedCounts;
+        return AbilityStates.Evaluate(episode.Evidence)
+            .Where(r => r.State == AbilityState.NeedsCheck)
+            .OrderByDescending(r => r.Shown.Count)
+            .ThenBy(r => r.Ability)
+            .SelectMany(r => r.Missing.Select(n => new ActionRef(r.Ability, n)))
+            .FirstOrDefault(a => asked.GetValueOrDefault(a) < NextMovePolicy.MaxAskPerAction);
+    }
+
+    /// <summary>
+    /// 続きを話す場面を作る（まだ保存しない）。続きを話せない場面なら null。
+    /// 聞ける足りない行動がない（どれも 2 回聞いた、一般論の根拠だけで 3 つそろった）ときは、手がかりを添えない問いで始める（Claude の判断）。
+    /// </summary>
+    public static EpisodeItem? Reopen(EpisodeItem episode, DateTimeOffset now)
+    {
+        if (!CanResume(episode))
+        {
+            return null;
+        }
+
+        var target = ResumeTarget(episode);
+        var question = new Turn
+        {
+            Role = TurnRoles.Assistant,
+            Text = target is null ? AbilityText.ResumeOpenQuestion : AbilityText.ResumeQuestion(target),
+            Choices = AbilityText.ResumeChoices,
+            Move = ResumeMove,
+            Target = target?.ToString(),
+            At = now,
+        };
+        return episode with
+        {
+            Status = EpisodeStatus.Talking,
+            FinishedAt = null,
+            TurnLimit = episode.UserTurnCount + NextMovePolicy.ResumeExtraTurns,
+            Turns = [.. episode.Turns, question],
+        };
+    }
+
+    private static bool IsCheckable(EpisodeItem episode) =>
+        episode.Status == EpisodeStatus.Finished && !episode.ExcludedFromValidation;
+}
+
 /// <summary>/api/abilities の API。AI を呼ばない。</summary>
 public static class ValidateEndpoints
 {
@@ -51,6 +155,134 @@ public static class ValidateEndpoints
 
         abilities.MapPost("/{name}/restore", (string name, HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
             SetExcludedAsync(name, excluded: false, http, store, time, ct));
+
+        var episodes = api.MapGroup("/episodes").RequireConsent();
+
+        // 訂正を受け取り、場面全体を読み直す。AI を呼ぶので送信回数の上限を付ける
+        episodes.MapPost("/{id}/corrections", async (
+            string id,
+            CorrectionRequest? request,
+            HttpContext http,
+            IDataStore store,
+            IConversationAi ai,
+            TimeProvider time,
+            ILoggerFactory loggers,
+            CancellationToken ct) =>
+        {
+            var text = request?.Text?.Trim();
+            if (string.IsNullOrEmpty(text) || new StringInfo(text).LengthInTextElements > TalkStream.MaxAnswerLength)
+            {
+                return Problems.Create(StatusCodes.Status400BadRequest, Problems.InvalidAnswer, "The correction is empty or too long.");
+            }
+
+            var userKey = http.User.GetUserKey()!;
+            var episode = await DiscoverEndpoints.FindAsync(store, userKey, id, ct);
+            if (episode is null)
+            {
+                return DiscoverEndpoints.NotFound();
+            }
+
+            if (Unavailable(episode) is { } unavailable)
+            {
+                return unavailable;
+            }
+
+            var logger = loggers.CreateLogger(typeof(CorrectionRound));
+            var correction = new Turn { Role = TurnRoles.User, Text = text, AnswerKind = AnswerKind.Correction, At = time.GetUtcNow() };
+            var outcome = await CorrectionRound.RunAsync(ai, [.. episode.Turns, correction], ct);
+            if (outcome.ErrorKind is { } kind)
+            {
+                logger.LogWarning("Reading the correction ended with {Kind}.", kind);
+                return Problems.Create(
+                    StatusCodes.Status503ServiceUnavailable,
+                    Problems.AiUnavailable,
+                    "The AI could not read the correction.",
+                    new Dictionary<string, object?> { ["kind"] = kind });
+            }
+
+            // つらい状態のサインなら、AI の返事を使わず決まった言葉で応え、印を付ける。根拠は変えない
+            var distress = outcome.Reading!.Has(AnswerSignal.Distress);
+            Turn[] added = distress
+                ?
+                [
+                    correction,
+                    new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.DistressText, Move = TalkStream.MoveName(MoveKind.Distress), At = time.GetUtcNow() },
+                ]
+                : [correction];
+
+            // 読んでから書くまでに場面が変わっていたら（ほかの画面の訂正、続き、飛ばす）書かない
+            var saved = await store.TryUpdateAsync<EpisodeItem>(userKey, id, current =>
+                Unavailable(current) is not null || current.Turns.Count != episode.Turns.Count
+                    ? null
+                    : current with
+                    {
+                        Turns = [.. current.Turns, .. added],
+                        ExcludedFromValidation = distress,
+                        Evidence = distress ? current.Evidence : outcome.Evidence,
+                    }, ct);
+            if (saved is null)
+            {
+                return await ConflictAsync(store, userKey, id, ct);
+            }
+
+            await AbilityBook.TryRecomputeAsync(store, userKey, ChangeReason.Correction, id, time, logger, ct);
+            return TypedResults.Ok(EpisodeDto.From(saved));
+        }).RequireDailyLimit();
+
+        // 要確認の力がある話し終えた場面を、話している途中に戻し、続きの問いを足す。AI は呼ばない
+        episodes.MapPost("/{id}/resume", async (string id, HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
+        {
+            var userKey = http.User.GetUserKey()!;
+            var episode = await DiscoverEndpoints.FindAsync(store, userKey, id, ct);
+            if (episode is null)
+            {
+                return DiscoverEndpoints.NotFound();
+            }
+
+            if (Unavailable(episode) is { } unavailable)
+            {
+                return unavailable;
+            }
+
+            if (!EpisodeInsights.CanResume(episode))
+            {
+                return DiscoverEndpoints.AlreadyFinished();
+            }
+
+            var outcome = await EpisodeStarter.ResumeAsync(store, userKey, id, current => EpisodeInsights.Reopen(current, time.GetUtcNow()), ct);
+            return outcome switch
+            {
+                null => await ConflictAsync(store, userKey, id, ct),
+                { InProgress: { } other } => DiscoverEndpoints.InProgress(other.Id),
+                { Started: { } resumed } => TypedResults.Ok(EpisodeDto.From(resumed)),
+                _ => throw new InvalidOperationException("Resuming returned no episode."),
+            };
+        });
+    }
+
+    /// <summary>訂正も続きもできない場面なら、その理由の 409。話している途中なら、その場面の id 付き。できるなら null。</summary>
+    private static IResult? Unavailable(EpisodeItem episode)
+    {
+        if (episode.Status == EpisodeStatus.Talking)
+        {
+            return DiscoverEndpoints.InProgress(episode.Id);
+        }
+
+        return episode.ExcludedFromValidation
+            ? Problems.Create(StatusCodes.Status409Conflict, Problems.EpisodeExcluded, "The episode is not used for checking abilities.")
+            : null;
+    }
+
+    /// <summary>読んでから書くまでに場面が変わったときの応答。消えていれば 404、それ以外は 409。</summary>
+    private static async Task<IResult> ConflictAsync(IDataStore store, string userKey, string id, CancellationToken ct)
+    {
+        var current = await DiscoverEndpoints.FindAsync(store, userKey, id, ct);
+        if (current is null)
+        {
+            return DiscoverEndpoints.NotFound();
+        }
+
+        return Unavailable(current) ?? DiscoverEndpoints.AlreadyFinished();
     }
 
     private static async Task<IResult> SetExcludedAsync(

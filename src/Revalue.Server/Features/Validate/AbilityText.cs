@@ -48,5 +48,12 @@ public static class AbilityText
 
     /// <summary>続きを話すときの、コードが決めた問い（Claude の判断）。</summary>
     public static string ResumeQuestion(ActionRef action) =>
-        "この場面の続きを聞かせてください。" + Hint(action) + "について、覚えていることはありますか？";
+        ResumeLead + Hint(action) + "について、覚えていることはありますか？";
+
+    /// <summary>
+    /// 続きを話すときの、手がかりを添えない問い。足りない行動をどれも 2 回聞いたときなどに使う（同じ行動を 3 回聞かない。Claude の判断）。
+    /// </summary>
+    public const string ResumeOpenQuestion = ResumeLead + "その日のことで、ほかに覚えていることはありますか？";
+
+    private const string ResumeLead = "この場面の続きを聞かせてください。";
 }

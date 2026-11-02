@@ -64,6 +64,9 @@ public static class NextMovePolicy
     /// <summary>1 場面の往復の上限の既定。この数の答えへの返事で場面を締める。</summary>
     public const int MaxUserTurns = 8;
 
+    /// <summary>続きを話すときに、往復の上限に足す数（Claude の判断）。</summary>
+    public const int ResumeExtraTurns = 4;
+
     /// <summary>同じ場面で同じ行動を聞く回数の上限。問い詰めないため（Claude の判断）。</summary>
     public const int MaxAskPerAction = 2;
 

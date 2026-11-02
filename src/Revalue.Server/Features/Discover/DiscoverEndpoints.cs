@@ -12,13 +12,15 @@ namespace Revalue.Server.Features.Discover;
 /// 場面のやりとりすべて。<c>Notice</c> は、最後の返事がつらい状態のサインへの応えのときだけ付ける相談窓口の知らせ
 /// （開き直しても、窓口と続け方が出るように。Claude の判断）。
 /// </summary>
+/// <remarks><c>Insights</c> は、話し終えた場面で、力の確かめに使わない印がないときだけ入れる（03-validate.md の「話し終えたとき」）。</remarks>
 public sealed record EpisodeDto(
     string Id,
     string Status,
     DateTimeOffset StartedAt,
     DateTimeOffset? FinishedAt,
     IReadOnlyList<Turn> Turns,
-    SupportNotice? Notice)
+    SupportNotice? Notice,
+    EpisodeInsightsDto? Insights)
 {
     public static EpisodeDto From(EpisodeItem e) => new(
         e.Id,
@@ -28,10 +30,12 @@ public sealed record EpisodeDto(
         e.Turns,
         e.Turns.LastOrDefault() is { Role: TurnRoles.Assistant } last && last.Move == TalkStream.MoveName(MoveKind.Distress)
             ? SupportNotice.Distress
-            : null);
+            : null,
+        EpisodeInsights.From(e));
 }
 
-public sealed record EpisodeSummaryDto(string Id, string Status, DateTimeOffset StartedAt, int UserTurnCount, string Preview);
+/// <summary>一覧の 1 件。<c>CanResume</c> は、続きを話せる場面か（03-validate.md の「続きを話す」）。</summary>
+public sealed record EpisodeSummaryDto(string Id, string Status, DateTimeOffset StartedAt, int UserTurnCount, string Preview, bool CanResume);
 
 /// <summary>/api/episodes の API。ここにあるものは AI を呼ばない（答えを送る API は別）。</summary>
 public static class DiscoverEndpoints
@@ -48,7 +52,7 @@ public static class DiscoverEndpoints
             var items = await store.ListByTypeAsync<EpisodeItem>(http.User.GetUserKey()!, EpisodeItem.ItemType, ct);
             return TypedResults.Ok(items
                 .OrderByDescending(e => e.StartedAt)
-                .Select(e => new EpisodeSummaryDto(e.Id, e.Status, e.StartedAt, e.UserTurnCount, Preview(e)))
+                .Select(e => new EpisodeSummaryDto(e.Id, e.Status, e.StartedAt, e.UserTurnCount, Preview(e), EpisodeInsights.CanResume(e)))
                 .ToList());
         });
 
@@ -199,10 +203,10 @@ public static class DiscoverEndpoints
     private static IResult Created(EpisodeItem episode) =>
         TypedResults.Created($"/api/episodes/{episode.Id}", EpisodeDto.From(episode));
 
-    private static IResult NotFound() =>
+    internal static IResult NotFound() =>
         Problems.Create(StatusCodes.Status404NotFound, Problems.NotFound, "Not found.");
 
-    private static IResult InProgress(string episodeId) =>
+    internal static IResult InProgress(string episodeId) =>
         Problems.Create(
             StatusCodes.Status409Conflict,
             Problems.EpisodeInProgress,

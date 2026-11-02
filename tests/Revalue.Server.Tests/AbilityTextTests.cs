@@ -14,6 +14,7 @@ public sealed class AbilityTextTests
         .. AllActions().Select(AbilityText.Hint),
         .. AllActions().Select(AbilityText.ResumeQuestion),
         .. AbilityText.ResumeChoices,
+        AbilityText.ResumeOpenQuestion,
     ];
 
     [Fact(DisplayName = "common-1（使わない言葉を出さない）: 力の名前、手がかり、続きの問いに使わない言葉がない")]
