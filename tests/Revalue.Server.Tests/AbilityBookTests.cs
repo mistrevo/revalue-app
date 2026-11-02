@@ -64,6 +64,49 @@ public sealed class AbilityBookTests
         E(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました"),
     ];
 
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 消した場面の確かめに使わない履歴だけを外し、残っている場面の同じ履歴は残す")]
+    public async Task ForgetsOnlyDeletedEpisodeSetAside()
+    {
+        var (store, clock) = Create();
+        await Consent(store);
+        Evidence[] noticingAll =
+        [
+            E(Ability.Noticing, 1, "顔色がいつもと違うと気づきました"),
+            E(Ability.Noticing, 2, "熱っぽい様子でした"),
+            E(Ability.Noticing, 3, "前の日と比べて元気がありませんでした"),
+        ];
+        // 残る場面: 見立てる力がそろったあと、サインで確かめに使わなくなった
+        var kept = await SaveEpisode(store, clock.GetUtcNow(), noticingAll);
+        await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, kept.Id, clock, Ct);
+        await store.TryUpdateAsync<EpisodeItem>(User, kept.Id, e => e with { ExcludedFromValidation = true }, Ct);
+        await AbilityBook.RecomputeAsync(store, User, ChangeReason.SetAside, kept.Id, clock, Ct);
+        // 消す場面: 調整する力がそろったあと、サインで確かめに使わなくなり、残さずに飛ばした
+        var deleted = await SaveEpisode(store, clock.GetUtcNow().AddMinutes(1), CoordinatingAll);
+        await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, deleted.Id, clock, Ct);
+        await store.TryUpdateAsync<EpisodeItem>(User, deleted.Id, e => e with { ExcludedFromValidation = true }, Ct);
+        await AbilityBook.RecomputeAsync(store, User, ChangeReason.SetAside, deleted.Id, clock, Ct);
+        var read = await store.GetVersionedAsync<EpisodeItem>(User, deleted.Id, Ct);
+        Assert.True(await store.TryDeleteAsync(User, deleted.Id, read!.ETag, Ct));
+        clock.Advance(TimeSpan.FromMinutes(5));
+
+        var book = await AbilityBook.RecomputeAfterDeletingAsync(store, User, deleted.Id, clock, Ct);
+
+        Assert.Equal(
+            [
+                (Ability.Noticing, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, kept.Id),
+                (Ability.Noticing, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.SetAside, kept.Id),
+                (Ability.Coordinating, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, deleted.Id),
+                (Ability.Coordinating, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.Skip, deleted.Id),
+            ],
+            book.History.Select(h => (h.Ability, h.From, h.To, h.Reason, h.EpisodeId)));
+        Assert.Equal(clock.GetUtcNow(), book.History[^1].At);
+        Assert.All(Enum.GetValues<Ability>(), a => Assert.Equal(AbilityState.NotYet, book.StateOf(a)));
+
+        // 外す行がなく、状態も変わらなければ書かない
+        var again = await AbilityBook.RecomputeAfterDeletingAsync(store, User, deleted.Id, clock, Ct);
+        Assert.Equal(book.History, again.History);
+    }
+
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 状態が変わった力だけ、いつ、前と後、なぜを履歴に残す")]
     public async Task HistoryKeepsOnlyChangedAbilities()
     {

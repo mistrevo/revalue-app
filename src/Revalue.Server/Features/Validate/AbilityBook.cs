@@ -80,8 +80,35 @@ public static class AbilityBook
     /// その人の場面（力の確かめに使わない印のないもの）から、力ごとにいちばん進んだ状態を出し、前と違う力だけ履歴に足して保存する。
     /// 了解の記録がない（全部消したあと）ときは、何も書かずに <see cref="ConsentMissingException"/> を投げる。
     /// </summary>
-    public static async Task<AbilityBookItem> RecomputeAsync(
-        IDataStore store, string userKey, ChangeReason reason, string? episodeId, TimeProvider time, CancellationToken ct)
+    public static Task<AbilityBookItem> RecomputeAsync(
+        IDataStore store, string userKey, ChangeReason reason, string? episodeId, TimeProvider time, CancellationToken ct) =>
+        RecomputeCoreAsync(store, userKey, reason, episodeId, deletedEpisode: false, time, ct);
+
+    /// <summary>
+    /// 場面を消して飛ばしたあとに計算し直す（03-validate.md の「力の状態」）。理由は「場面を残さずに別の話にした」。
+    /// 消した場面の「つらい状態のサインが出て、その場面を確かめに使わないことにした」履歴を外す。サインの出た時が、
+    /// 本人が残さないと選んだ場面のあとに残らないようにするため。外した行のぶんの状態の移り変わりは、
+    /// 外した行がなかったときの状態から、いまの状態への「場面を残さずに別の話にした」として残す（履歴の前と後がつながるように。Claude の判断）。
+    /// </summary>
+    public static Task<AbilityBookItem> RecomputeAfterDeletingAsync(
+        IDataStore store, string userKey, string episodeId, TimeProvider time, CancellationToken ct) =>
+        RecomputeCoreAsync(store, userKey, ChangeReason.Skip, episodeId, deletedEpisode: true, time, ct);
+
+    /// <summary>
+    /// <see cref="RecomputeAsync"/> を呼び、失敗しても例外にしない。1 往復の返事や、飛ばす・訂正の保存は成功のままにするため（Claude の判断）。
+    /// ログには種類だけを書く。
+    /// </summary>
+    public static Task TryRecomputeAsync(
+        IDataStore store, string userKey, ChangeReason reason, string? episodeId, TimeProvider time, ILogger logger, CancellationToken ct) =>
+        TryAsync(() => RecomputeAsync(store, userKey, reason, episodeId, time, ct), logger);
+
+    /// <summary><see cref="RecomputeAfterDeletingAsync"/> を呼び、失敗しても例外にしない（<see cref="TryRecomputeAsync"/> と同じ）。</summary>
+    public static Task TryRecomputeAfterDeletingAsync(
+        IDataStore store, string userKey, string episodeId, TimeProvider time, ILogger logger, CancellationToken ct) =>
+        TryAsync(() => RecomputeAfterDeletingAsync(store, userKey, episodeId, time, ct), logger);
+
+    private static async Task<AbilityBookItem> RecomputeCoreAsync(
+        IDataStore store, string userKey, ChangeReason reason, string? episodeId, bool deletedEpisode, TimeProvider time, CancellationToken ct)
     {
         for (var attempt = 0; attempt < DataStoreExtensions.MaxUpdateAttempts; attempt++)
         {
@@ -90,18 +117,21 @@ public static class AbilityBook
             var states = Enum.GetValues<Ability>().ToDictionary(a => a, a => Best(episodes, a)?.Result.State ?? AbilityState.NotYet);
 
             var current = read?.Item ?? New(userKey);
+            var forgotten = deletedEpisode && episodeId is not null ? ForgetSetAside(current, episodeId) : null;
+            var history = forgotten?.History ?? current.History;
+            var recorded = forgotten?.Recorded ?? current.States;
             var now = time.GetUtcNow();
             var changes = states
-                .Where(s => current.StateOf(s.Key) != s.Value)
+                .Where(s => recorded.GetValueOrDefault(s.Key, AbilityState.NotYet) != s.Value)
                 .OrderBy(s => s.Key)
-                .Select(s => new AbilityChange(now, s.Key, current.StateOf(s.Key), s.Value, reason, episodeId))
+                .Select(s => new AbilityChange(now, s.Key, recorded.GetValueOrDefault(s.Key, AbilityState.NotYet), s.Value, reason, episodeId))
                 .ToList();
-            if (read is not null && changes.Count == 0)
+            if (read is not null && changes.Count == 0 && forgotten is null)
             {
                 return read.Item;
             }
 
-            var next = current with { States = states, History = Trim([.. current.History, .. changes]) };
+            var next = current with { States = states, History = Trim([.. history, .. changes]) };
             var written = read is null
                 ? await store.TryCreateAsync(next, ct)
                 : await store.TryReplaceAsync(next, read.ETag, ct);
@@ -115,15 +145,56 @@ public static class AbilityBook
     }
 
     /// <summary>
-    /// <see cref="RecomputeAsync"/> を呼び、失敗しても例外にしない。1 往復の返事や、飛ばす・訂正の保存は成功のままにするため（Claude の判断）。
-    /// ログには種類だけを書く。
+    /// 消した場面の「確かめに使わないことにした」履歴を外す。外す行がなければ null。
+    /// 外した力ごとに、外した行のあとの同じ力の外す・戻すの行は、外した行がなかったときの状態（外した行の前の状態）に書き直し、
+    /// 履歴が最後に示す状態（<c>Recorded</c>）もその状態にする。外した行のあとに、ほかの場面からその力の移り変わりがあれば、
+    /// そこから先は書き直さず、本の状態のままにする（Claude の判断）。
     /// </summary>
-    public static async Task TryRecomputeAsync(
-        IDataStore store, string userKey, ChangeReason reason, string? episodeId, TimeProvider time, ILogger logger, CancellationToken ct)
+    private static (List<AbilityChange> History, Dictionary<Ability, AbilityState> Recorded)? ForgetSetAside(AbilityBookItem book, string episodeId)
+    {
+        if (!book.History.Any(h => IsForgotten(h, episodeId)))
+        {
+            return null;
+        }
+
+        var history = new List<AbilityChange>(book.History.Count);
+        var recorded = Enum.GetValues<Ability>().ToDictionary(a => a, book.StateOf);
+        var rewriting = new Dictionary<Ability, AbilityState>();
+        foreach (var change in book.History)
+        {
+            if (IsForgotten(change, episodeId))
+            {
+                rewriting.TryAdd(change.Ability, change.From);
+                recorded[change.Ability] = change.From;
+                continue;
+            }
+
+            if (rewriting.TryGetValue(change.Ability, out var before))
+            {
+                if (change.Reason is ChangeReason.Exclude or ChangeReason.Restore)
+                {
+                    history.Add(change with { From = before, To = before });
+                    continue;
+                }
+
+                rewriting.Remove(change.Ability);
+                recorded[change.Ability] = book.StateOf(change.Ability);
+            }
+
+            history.Add(change);
+        }
+
+        return (history, recorded);
+    }
+
+    private static bool IsForgotten(AbilityChange change, string episodeId) =>
+        change.Reason == ChangeReason.SetAside && change.EpisodeId == episodeId;
+
+    private static async Task TryAsync(Func<Task> recompute, ILogger logger)
     {
         try
         {
-            await RecomputeAsync(store, userKey, reason, episodeId, time, ct);
+            await recompute();
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

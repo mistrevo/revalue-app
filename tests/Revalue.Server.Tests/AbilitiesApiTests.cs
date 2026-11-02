@@ -244,6 +244,73 @@ public sealed class AbilitiesApiTests
         Assert.Equal(id, latest.GetProperty("episodeId").GetString());
     }
 
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: つらい状態のサインが出た場面を残さずに飛ばすと、確かめに使わないことにした履歴も残さない")]
+    public async Task SkipAfterDistressLeavesNoSetAside()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var id = await Start(client);
+        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        await Send(client, id, CoordinatingAnswer);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+        await Send(client, id, "もう消えたいと思うことがあります");
+        Assert.Contains(
+            (await Abilities(client)).GetProperty("history").EnumerateArray(),
+            h => h.GetProperty("reason").GetString() == "setAside");
+
+        var skipped = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
+
+        Assert.Equal(HttpStatusCode.Created, skipped.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/episodes/{id}", Ct)).StatusCode);
+        var dto = await Abilities(client);
+        Assert.Equal("notYet", Ability(dto, "coordinating").GetProperty("life").GetString());
+
+        // サインの出た時を、消した場面のあとに残さない。保存した生の中身にも残さない
+        var history = dto.GetProperty("history").EnumerateArray().ToList();
+        Assert.DoesNotContain(history, h => h.GetProperty("reason").GetString() == "setAside");
+        var book = Assert.Single(await ValidateTestKit.StoredContent(store), j => j.Contains("\"type\":\"abilityBook\"", StringComparison.Ordinal));
+        Assert.DoesNotContain("setAside", book, StringComparison.Ordinal);
+
+        // 状態の移り変わりは、場面を残さずに別の話にしたとして残す（履歴の前と後がつながる）
+        Assert.Equal(
+            [("skip", "confirmed", "notYet"), ("talk", "notYet", "confirmed")],
+            history.Select(h => (h.GetProperty("reason").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString())));
+        Assert.All(history, h => Assert.Equal("coordinating", h.GetProperty("key").GetString()));
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 飛ばして消した場面の確かめに使わない履歴を外しても、ほかの場面の履歴とその後の外す・戻すは残す")]
+    public async Task SkipAfterDistressKeepsOtherHistory()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var finished = await ValidateTestKit.FinishedEpisode(client, ai, Candidate(Features.Validate.Ability.Noticing, 1, "夫と母の予定がぶつかって"));
+        var id = await Start(client);
+        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        await Send(client, id, CoordinatingAnswer);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+        await Send(client, id, "もう消えたいと思うことがあります");
+        await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct);
+
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+
+        var history = (await Abilities(client)).GetProperty("history").EnumerateArray()
+            .Select(h => (h.GetProperty("key").GetString(), h.GetProperty("reason").GetString(), h.GetProperty("from").GetString(),
+                h.GetProperty("to").GetString(), h.GetProperty("episodeId").GetString()))
+            .ToList();
+        // サインのあとに外した行も、サインで下がった状態を読み取れないよう、外した行がなかったときの状態に書き直す
+        Assert.Equal(
+            [
+                ("coordinating", "skip", "confirmed", "notYet", id),
+                ("coordinating", "exclude", "confirmed", "confirmed", null),
+                ("coordinating", "talk", "notYet", "confirmed", id),
+                ("noticing", "talk", "notYet", "needsCheck", finished),
+            ],
+            history);
+    }
+
     [Fact(DisplayName = "common-2（ログに中身を書かない）: 見えた力の API はログに引用を書かない")]
     public async Task LogsHaveNoQuotes()
     {

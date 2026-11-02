@@ -134,6 +134,7 @@ public static class DiscoverEndpoints
             // 続きを話している場面（03-validate.md の「続きを話す」）は消さず、続きで足したやりとりと根拠だけを残さずに、
             // 話し終えた姿に戻す。前に話し終えていた分は、飛ばす前の確かめ「このやりとりは残さずに」の外にあるため（Claude の判断）
             var removed = false;
+            var deleted = false;
             for (var attempt = 0; attempt < DataStoreExtensions.MaxUpdateAttempts && !removed; attempt++)
             {
                 var read = await FindVersionedAsync(store, userKey, id, ct);
@@ -148,9 +149,14 @@ public static class DiscoverEndpoints
                     return AlreadyFinished();
                 }
 
-                removed = EpisodeInsights.Rewind(read.Item, time.GetUtcNow()) is { } rewound
-                    ? await store.TryReplaceAsync(rewound, read.ETag, ct)
-                    : await store.TryDeleteAsync(userKey, id, read.ETag, ct);
+                if (EpisodeInsights.Rewind(read.Item, time.GetUtcNow()) is { } rewound)
+                {
+                    removed = await store.TryReplaceAsync(rewound, read.ETag, ct);
+                }
+                else
+                {
+                    removed = deleted = await store.TryDeleteAsync(userKey, id, read.ETag, ct);
+                }
             }
 
             if (!removed)
@@ -158,8 +164,18 @@ public static class DiscoverEndpoints
                 throw new InvalidOperationException($"Could not skip the episode after {DataStoreExtensions.MaxUpdateAttempts} attempts.");
             }
 
-            // 消した場面の根拠を、利用者ごとの力の状態から外す。失敗しても、飛ばすのは成功のまま
-            await AbilityBook.TryRecomputeAsync(store, userKey, ChangeReason.Skip, id, time, loggers.CreateLogger(typeof(AbilityBook)), ct);
+            // 消した場面の根拠を、利用者ごとの力の状態から外す。失敗しても、飛ばすのは成功のまま。
+            // 場面ごと消したときは、その場面の「確かめに使わないことにした」履歴も残さない（03-validate.md の「力の状態」）。
+            // 続きを話す前の姿に戻したときは、場面が残るので、その履歴も残す
+            var abilityLogger = loggers.CreateLogger(typeof(AbilityBook));
+            if (deleted)
+            {
+                await AbilityBook.TryRecomputeAfterDeletingAsync(store, userKey, id, time, abilityLogger, ct);
+            }
+            else
+            {
+                await AbilityBook.TryRecomputeAsync(store, userKey, ChangeReason.Skip, id, time, abilityLogger, ct);
+            }
 
             // 消したあと、ほかの画面で新しい場面が始まっていたら、2 つ目は作らずに 409 でその場面を知らせる
             var outcome = await EpisodeStarter.StartAsync(

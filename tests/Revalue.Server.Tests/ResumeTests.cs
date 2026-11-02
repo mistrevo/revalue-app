@@ -281,6 +281,10 @@ public sealed class ResumeTests
         Assert.DoesNotContain(after.Turns, t => t.Text.Contains("眠れなくて", StringComparison.Ordinal));
         Assert.True(after.ExcludedFromValidation);
         Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("insights").ValueKind);
+
+        // 場面は残る（確かめには使わない）ので、確かめに使わないことにした履歴も残す。場面ごと消したときだけ外す
+        var history = Array(await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct), "history");
+        Assert.Contains(history, h => h.GetProperty("reason").GetString() == "setAside" && h.GetProperty("episodeId").GetString() == id);
     }
 
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 印を書き換える直前にほかの画面で印が変わったら、続けた場面を話し終えた状態に戻す")]
