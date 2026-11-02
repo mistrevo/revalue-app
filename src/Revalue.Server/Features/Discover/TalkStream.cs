@@ -36,6 +36,16 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
     /// <summary>1 つの答えの長さの上限（文字。絵文字などの合成された文字は 1 文字と数える）。</summary>
     public const int MaxAnswerLength = 2000;
 
+    /// <summary>
+    /// 1 つの答えの中身の長さ（UTF-16）の上限。結合文字を重ねると、見た目は 1 文字のまま長くできるため。
+    /// 合成された絵文字（家族の絵文字は 8）を上限の数だけ並べても受け取れる長さにする（Claude の判断）。
+    /// </summary>
+    public const int MaxAnswerUtf16Length = MaxAnswerLength * 8;
+
+    /// <summary>答えの長さが上限の中か。見た目の文字数と中身の長さの両方を見る。</summary>
+    public static bool WithinLength(string text) =>
+        text.Length <= MaxAnswerUtf16Length && new StringInfo(text).LengthInTextElements <= MaxAnswerLength;
+
     public const string DeltaEvent = "delta";
     public const string ChoicesEvent = "choices";
     public const string NoticeEvent = "notice";
@@ -54,7 +64,7 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
     public static (string Text, AnswerKind Kind)? Validate(MessageRequest? request)
     {
         var text = request?.Text?.Trim();
-        if (string.IsNullOrEmpty(text) || new StringInfo(text).LengthInTextElements > MaxAnswerLength)
+        if (string.IsNullOrEmpty(text) || !WithinLength(text))
         {
             return null;
         }
