@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Revalue.Server.Ai;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
 
@@ -25,9 +26,9 @@ public sealed record SupportNotice(string Kind, string Text, string LinkUrl, str
 public sealed record MessageRequest(string? Text, string? Kind);
 
 /// <summary>
-/// 1 往復の流れ。読み取り → 次の一手 → 返事（<see cref="TalkRound"/>）→ 保存 を順に行い、画面へ SSE のイベントで少しずつ送る。
+/// 1 往復の流れ。読み取り → 根拠の照らし合わせ → 次の一手 → 返事（<see cref="TalkRound"/>）→ 保存 を順に行い、画面へ SSE のイベントで少しずつ送る。
 /// イベント: delta（本文のかけら）、choices（選択肢）、notice（相談窓口）、done（終わりの知らせ）、error（失敗・拒否）。
-/// 利用者の答えと返事は、返事を最後まで受け取れたときだけ保存する。
+/// 利用者の答えと返事と根拠は、返事を最後まで受け取れたときだけ保存する。
 /// ログには話した内容も AI の返事も書かない。書くのは、エラーの種類だけ。
 /// </summary>
 public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvider time, ILogger<TalkStream> logger)
@@ -76,14 +77,17 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
         var answer = new Turn { Role = TurnRoles.User, Text = text, AnswerKind = kind, At = time.GetUtcNow() };
         IReadOnlyList<Turn> turns = [.. episode.Turns, answer];
         var move = MoveKind.AskWhatYouDid;
+        IReadOnlyList<Evidence> evidence = episode.Evidence;
 
-        // 読み取り → 次の一手 → 返事 は TalkRound（評価と同じ処理）。ここでは、起きたことを SSE に変え、保存する
-        await foreach (var step in TalkRound.RunAsync(ai, turns, episode.UserTurnCount + 1, time, ct))
+        // 読み取り → 根拠の照らし合わせ → 次の一手 → 返事 は TalkRound（評価と同じ処理）。ここでは、起きたことを SSE に変え、保存する
+        var context = new RoundContext(turns, episode.Evidence, episode.UserTurnCount + 1, episode.TurnLimit);
+        await foreach (var step in TalkRound.RunAsync(ai, context, time, ct))
         {
             switch (step)
             {
                 case RoundStep.Decided decided:
-                    move = decided.Move;
+                    move = decided.Move.Kind;
+                    evidence = decided.Evidence;
                     break;
 
                 case RoundStep.Text piece:
@@ -113,11 +117,11 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
 
                 case RoundStep.Replied replied:
                 {
-                    // 返事を最後まで受け取れたときだけ、答えと返事の 2 ターンを足す。
-                    // つらい状態のサインが出た場面には、力の確かめに使わない印を付ける
+                    // 返事を最後まで受け取れたときだけ、答えと返事の 2 ターンと根拠を足す。
+                    // つらい状態のサインが出た場面には、力の確かめに使わない印を付け、根拠は足さない
                     var distress = move == MoveKind.Distress;
                     var close = move == MoveKind.Close;
-                    var saved = await SaveAsync(episode, answer, replied.Reply, finish: close, excluded: distress, ct);
+                    var saved = await SaveAsync(episode, answer, replied.Reply, distress ? null : evidence, finish: close, excluded: distress, ct);
                     if (saved is null)
                     {
                         // サインを読み取った往復は、保存できなくても窓口を添える（discover-10）
@@ -151,7 +155,9 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
     /// 消した中身を作り直したり、やりとりを上書きしたりしないよう、保存せずに null を返す（Claude の判断）。
     /// 確かめてから書くまでを、版（ETag）が合うときだけ置き換える操作で一続きにする。
     /// </summary>
-    private async Task<EpisodeItem?> SaveAsync(EpisodeItem episode, Turn answer, Turn reply, bool finish, bool excluded, CancellationToken ct)
+    /// <param name="evidence">保存する根拠（前の根拠に新しいものを足したもの）。null なら場面の根拠を変えない。</param>
+    private async Task<EpisodeItem?> SaveAsync(
+        EpisodeItem episode, Turn answer, Turn reply, IReadOnlyList<Evidence>? evidence, bool finish, bool excluded, CancellationToken ct)
     {
         try
         {
@@ -164,6 +170,7 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
                         Status = finish ? EpisodeStatus.Finished : current.Status,
                         FinishedAt = finish ? time.GetUtcNow() : current.FinishedAt,
                         ExcludedFromValidation = current.ExcludedFromValidation || excluded,
+                        Evidence = evidence ?? current.Evidence,
                     }, ct);
             if (updated is null)
             {

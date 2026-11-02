@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
 
@@ -81,6 +82,11 @@ public sealed record EpisodeItem : Item
 
     /// <summary>この場面の往復の上限。この数の答えへの返事で場面を締める。続きを話すときに増やす。</summary>
     public int TurnLimit { get; init; } = NextMovePolicy.MaxUserTurns;
+
+    /// <summary>
+    /// この場面で確かめた、核となる行動の根拠（照らし合わせを通ったもの）。会話の途中では足していき、訂正のときだけ読み直した結果で置き換える。
+    /// </summary>
+    public IReadOnlyList<Evidence> Evidence { get; init; } = [];
 
     /// <summary>利用者が答えた数（往復の数）。</summary>
     [JsonIgnore]

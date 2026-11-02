@@ -6,6 +6,7 @@ using Anthropic;
 using Anthropic.Models.Beta.Messages;
 using Microsoft.Extensions.Options;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Ai;
 
@@ -19,7 +20,8 @@ public sealed class ClaudeOptions
 /// <summary>
 /// 本物の会話の AI（Anthropic の公式 C# SDK）。
 /// 読み取りは構造化出力（effort medium）、返事はストリーミング（effort low）。
-/// システムプロンプトは Prompts/*.md の固定の文で、キャッシュの印を付ける。次の一手は会話の最後に system メッセージで足す。
+/// システムプロンプトは Prompts/*.md の固定の文で、キャッシュの印を付ける。次の一手（と足りない行動の手がかり）は会話の最後に system メッセージで足す。
+/// 読み取りには、やりとりを本人の答えの番号と答え方つきの 1 つの文にして渡す（根拠の候補が何番目の答えかを返せるように）。
 /// 断られたときに別のモデルが代わりに答えるよう、server-side fallback（既定の形）を有効にする。
 /// ログに書くのは、かかった時間、トークン数、止まった理由、エラーの種類だけ。話した内容と AI の返答は書かない。
 /// 数え役（<see cref="IAiUsageMeter"/>）を渡されたら、トークン数も渡す（評価だけが使う）。
@@ -37,6 +39,8 @@ public sealed class ClaudeConversationAi(
     private const int ReplyMaxTokens = 4096;
 
     private static readonly string[] SignalNames = ["concreteEvent", "generalOnly", "dontKnow", "familyIllness", "distress"];
+
+    private static readonly string[] EvidenceFields = ["ability", "action", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer"];
 
     private readonly string _listenerPrompt = PromptFiles.Read(PromptFiles.Listener);
     private readonly string _readerPrompt = PromptFiles.Read(PromptFiles.Reader);
@@ -82,7 +86,7 @@ public sealed class ClaudeConversationAi(
         return ParseReading(text);
     }
 
-    public async IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Turn> turns, MoveKind move, [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Turn> turns, NextMove move, [EnumeratorCancellation] CancellationToken ct)
     {
         var watch = Stopwatch.StartNew();
         long? firstTextMs = null;
@@ -160,13 +164,16 @@ public sealed class ClaudeConversationAi(
         }
     }
 
-    /// <summary>読み取りのリクエスト。構造化出力で 5 つの見分けを true/false で受け取る。</summary>
+    /// <summary>
+    /// 読み取りのリクエスト。構造化出力で、5 つの見分けを true/false で、核となる行動の根拠の候補を配列で受け取る。
+    /// やりとりは 1 つの user メッセージの文にする（Claude の判断）。
+    /// </summary>
     internal static MessageCreateParams BuildReadParams(string model, string systemPrompt, IReadOnlyList<Turn> turns) => new()
     {
         Model = model,
         MaxTokens = ReadMaxTokens,
         System = System(systemPrompt),
-        Messages = Conversation(turns),
+        Messages = [new BetaUserMessageParam { Content = Transcript(turns) }],
         OutputConfig = new BetaOutputConfig
         {
             Effort = Effort.Medium,
@@ -176,11 +183,17 @@ public sealed class ClaudeConversationAi(
         Betas = [ServerSideFallbackBeta],
     };
 
-    /// <summary>返事のリクエスト。次の一手は、会話の最後に system メッセージで足す。</summary>
-    internal static MessageCreateParams BuildReplyParams(string model, string systemPrompt, IReadOnlyList<Turn> turns, MoveKind move)
+    /// <summary>
+    /// 返事のリクエスト。次の一手は、会話の最後に system メッセージで足す。足りない行動を聞く一手では、
+    /// 聞く行動を普通の言葉にした手がかりだけを <c>&lt;hint&gt;</c> で添える（核となる行動の一覧は渡さない）。
+    /// </summary>
+    internal static MessageCreateParams BuildReplyParams(string model, string systemPrompt, IReadOnlyList<Turn> turns, NextMove move)
     {
         var messages = Conversation(turns);
-        messages.Add(new BetaSystemMessageParam { Content = $"<next_move>{move}</next_move>" });
+        var instruction = move is { Kind: MoveKind.AskMissingAction, Target: { } target }
+            ? $"<next_move>{move.Kind}</next_move>\n<hint>{AbilityText.Hint(target)}</hint>"
+            : $"<next_move>{move.Kind}</next_move>";
+        messages.Add(new BetaSystemMessageParam { Content = instruction });
         return new MessageCreateParams
         {
             Model = model,
@@ -193,7 +206,10 @@ public sealed class ClaudeConversationAi(
         };
     }
 
-    /// <summary>読み取りの JSON を、答えの種類に直す。読めなければ失敗として扱う。</summary>
+    /// <summary>
+    /// 読み取りの JSON を、答えの種類と根拠の候補に直す。答えの種類が読めなければ失敗として扱う。
+    /// 根拠の候補は、形の合わない要素を捨てる（例外にしない）。<c>evidence</c> がなければ候補なし。
+    /// </summary>
     internal static TurnReading ParseReading(string json)
     {
         try
@@ -214,12 +230,80 @@ public sealed class ClaudeConversationAi(
             Add("dontKnow", AnswerSignal.DontKnow);
             Add("familyIllness", AnswerSignal.FamilyIllness);
             Add("distress", AnswerSignal.Distress);
-            return new TurnReading(signals);
+            return new TurnReading(signals, ParseCandidates(root));
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)
         {
             throw new ConversationAiException(ConversationAiException.Failure, e);
         }
+    }
+
+    private static List<EvidenceCandidate> ParseCandidates(JsonElement root)
+    {
+        var candidates = new List<EvidenceCandidate>();
+        if (!root.TryGetProperty("evidence", out var evidence) || evidence.ValueKind != JsonValueKind.Array)
+        {
+            return candidates;
+        }
+
+        foreach (var item in evidence.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.Object
+                && ActionRef.TryParseAbility(String(item, "ability"), out var ability)
+                && Int(item, "action") is { } action
+                && String(item, "quote") is { } quote
+                && Int(item, "answer") is { } answer
+                && Int(item, "event") is { } @event
+                && Bool(item, "general") is { } general
+                && String(item, "linkedQuote") is { } linkedQuote
+                && Int(item, "linkedAnswer") is { } linkedAnswer)
+            {
+                candidates.Add(new EvidenceCandidate(ability, action, quote, answer, @event, general, linkedQuote, linkedAnswer));
+            }
+        }
+
+        return candidates;
+
+        static string? String(JsonElement e, string name) =>
+            e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+        static int? Int(JsonElement e, string name) =>
+            e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : null;
+
+        static bool? Bool(JsonElement e, string name) =>
+            e.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : null;
+    }
+
+    /// <summary>
+    /// 読み取りに渡す、やりとりの文。聞き手の言葉は「聞き手: 」で始め、答えの例を添える。本人の答えには番号（本人の答えだけを
+    /// 1 から数える）と答え方（自由に書いた、選択肢から選んだ、訂正）を付ける。全体を &lt;conversation&gt; で囲む（Claude の判断）。
+    /// </summary>
+    internal static string Transcript(IReadOnlyList<Turn> turns)
+    {
+        var parts = new List<string>();
+        var answer = 0;
+        foreach (var turn in turns)
+        {
+            if (turn.Role == TurnRoles.User)
+            {
+                answer++;
+                var how = turn.AnswerKind switch
+                {
+                    AnswerKind.Choice => "選択肢から選んだ",
+                    AnswerKind.Correction => "訂正",
+                    _ => "自由に書いた",
+                };
+                parts.Add($"[答え {answer}]（{how}）{turn.Text}");
+            }
+            else
+            {
+                parts.Add(turn.Choices is { Count: > 0 } choices
+                    ? $"聞き手: {turn.Text}\n（答えの例: {string.Join(" / ", choices)}）"
+                    : $"聞き手: {turn.Text}");
+            }
+        }
+
+        return "<conversation>\n" + string.Join("\n\n", parts) + "\n</conversation>\n\nいちばん最後の答えが、いまの答えです。";
     }
 
     private static List<BetaTextBlockParam> System(string prompt) =>
@@ -261,13 +345,38 @@ public sealed class ClaudeConversationAi(
             .ToList();
     }
 
-    private static Dictionary<string, JsonElement> ReadingSchema() => new()
+    private static Dictionary<string, JsonElement> ReadingSchema()
     {
-        ["type"] = JsonSerializer.SerializeToElement("object"),
-        ["properties"] = JsonSerializer.SerializeToElement(SignalNames.ToDictionary(n => n, _ => new { type = "boolean" })),
-        ["required"] = JsonSerializer.SerializeToElement(SignalNames),
-        ["additionalProperties"] = JsonSerializer.SerializeToElement(false),
-    };
+        var properties = SignalNames.ToDictionary(n => n, _ => (object)new { type = "boolean" });
+        properties["evidence"] = new
+        {
+            type = "array",
+            items = new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object>
+                {
+                    ["ability"] = new { type = "string", @enum = Enum.GetValues<Ability>().Select(ActionRef.Key).ToArray() },
+                    ["action"] = new { type = "integer" },
+                    ["quote"] = new { type = "string" },
+                    ["answer"] = new { type = "integer" },
+                    ["event"] = new { type = "integer" },
+                    ["general"] = new { type = "boolean" },
+                    ["linkedQuote"] = new { type = "string" },
+                    ["linkedAnswer"] = new { type = "integer" },
+                },
+                ["required"] = EvidenceFields,
+                ["additionalProperties"] = false,
+            },
+        };
+        return new Dictionary<string, JsonElement>
+        {
+            ["type"] = JsonSerializer.SerializeToElement("object"),
+            ["properties"] = JsonSerializer.SerializeToElement(properties),
+            ["required"] = JsonSerializer.SerializeToElement(SignalNames.Append("evidence")),
+            ["additionalProperties"] = JsonSerializer.SerializeToElement(false),
+        };
+    }
 
     private void LogFailure(string role, Exception e, Stopwatch watch) =>
         // 例外の中身（メッセージ）には応答の本文が入ることがあるので、種類だけを書く

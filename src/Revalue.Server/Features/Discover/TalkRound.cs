@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Revalue.Server.Ai;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
 
@@ -10,8 +11,8 @@ public abstract record RoundStep
     {
     }
 
-    /// <summary>読み取りと次の一手が決まった。</summary>
-    public sealed record Decided(TurnReading Reading, MoveKind Move) : RoundStep;
+    /// <summary>読み取りと次の一手が決まった。<paramref name="Evidence"/> は、前の根拠に照らし合わせを通った新しい根拠を足したもの。</summary>
+    public sealed record Decided(TurnReading Reading, NextMove Move, IReadOnlyList<Evidence> Evidence) : RoundStep;
 
     /// <summary>返事の本文のかけら。画面にそのまま流してよい（選択肢は含まない）。</summary>
     public sealed record Text(string Piece) : RoundStep;
@@ -31,18 +32,24 @@ public abstract record RoundStep
     public sealed record Replied(Turn Reply, bool UsedFallbackChoices) : RoundStep;
 }
 
+/// <summary>1 往復に渡すもの。</summary>
+/// <param name="Turns">ここまでのやりとり。最後は、いま届いた利用者の答え。</param>
+/// <param name="Known">この場面で前の往復までに確かめた根拠。</param>
+/// <param name="UserTurnNumber">いまの答えが何往復目か（1 から）。</param>
+/// <param name="TurnLimit">この場面の往復の上限。</param>
+public sealed record RoundContext(IReadOnlyList<Turn> Turns, IReadOnlyList<Evidence> Known, int UserTurnNumber, int TurnLimit);
+
 /// <summary>
-/// 1 往復の中身（保存を除く）。読み取り → 次の一手 → 返事 → 本文と選択肢に分ける、を順に行い、起きたことを返す。
+/// 1 往復の中身（保存を除く）。読み取り → 根拠の照らし合わせ → 次の一手 → 返事 → 本文と選択肢に分ける、を順に行い、起きたことを返す。
 /// 製品（<see cref="TalkStream"/>）と評価（evals/Revalue.Evals の EvalRunner）の両方がこれを使う。
 /// 流れの順番と、失敗したときの扱いを 1 か所に置き、製品と評価がずれないようにする。
 /// </summary>
 public static class TalkRound
 {
-    /// <param name="turns">ここまでのやりとり。最後は、いま届いた利用者の答え。</param>
-    /// <param name="userTurnNumber">いまの答えが何往復目か（1 から）。</param>
     public static async IAsyncEnumerable<RoundStep> RunAsync(
-        IConversationAi ai, IReadOnlyList<Turn> turns, int userTurnNumber, TimeProvider time, [EnumeratorCancellation] CancellationToken ct)
+        IConversationAi ai, RoundContext context, TimeProvider time, [EnumeratorCancellation] CancellationToken ct)
     {
+        var turns = context.Turns;
         // 1. 読み取り。失敗したら、つらい状態のサインを見落としているかもしれないので、窓口を添える
         TurnReading? reading = null;
         RoundStep.Failed? readFailed = null;
@@ -61,9 +68,13 @@ public static class TalkRound
             yield break;
         }
 
-        // 2. 次の一手
-        var move = NextMovePolicy.Decide(reading, userTurnNumber).Kind;
-        yield return new RoundStep.Decided(reading, move);
+        // 2. 根拠の照らし合わせ。前の往復の根拠は残し、新しく通ったものを足す（読み取りが往復ごとに揺れても見立てが行ったり来たりしないように）
+        var evidence = EvidenceSet.Merge(context.Known, EvidenceChecker.Check(turns, reading.Candidates));
+
+        // 3. 次の一手
+        var next = NextMovePolicy.Decide(reading, context.UserTurnNumber, ValidationContext.From(turns, evidence), context.TurnLimit);
+        var move = next.Kind;
+        yield return new RoundStep.Decided(reading, next, evidence);
 
         // つらい状態のサインには AI の返事を使わず、決まった言葉で応える
         if (move == MoveKind.Distress)
@@ -74,10 +85,10 @@ public static class TalkRound
             yield break;
         }
 
-        // 3. 返事。本文だけを少しずつ返し、選択肢は最後に分ける
+        // 4. 返事。本文だけを少しずつ返し、選択肢は最後に分ける
         var splitter = new ReplyStreamSplitter();
         RoundStep.Failed? replyFailed = null;
-        var reply = ai.StreamReplyAsync(turns, move, ct).GetAsyncEnumerator(ct);
+        var reply = ai.StreamReplyAsync(turns, next, ct).GetAsyncEnumerator(ct);
         await using (reply)
         {
             while (true)
@@ -132,6 +143,7 @@ public static class TalkRound
                 Text = parts.Body,
                 Choices = close ? null : parts.Choices,
                 Move = TalkStream.MoveName(move),
+                Target = next.Target?.ToString(),
                 At = time.GetUtcNow(),
             },
             UsedFallbackChoices: !close && parts.UsedFallback);

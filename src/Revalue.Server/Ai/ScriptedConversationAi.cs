@@ -1,11 +1,14 @@
 using System.Runtime.CompilerServices;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Ai;
 
 /// <summary>
 /// 決まった返事を返す偽物の AI。開発（Development）で画面を通すためと、テストのためのもの。Claude を呼ばない。
 /// 読み取りは目印の言葉で決め、返事は一手ごとの決まった文を数かけらに分けて返す。言い方の品質は問わない。
+/// 開発で「見えたこと」を確かめられるよう、いまの答え（自由に書いた答えか訂正）に行動の目印の言葉があれば、
+/// その答えの文全体を引用にした根拠の候補を返す（出来事 1、一般論でない。Claude の判断）。
 /// </summary>
 public sealed class ScriptedConversationAi : IConversationAi
 {
@@ -14,9 +17,24 @@ public sealed class ScriptedConversationAi : IConversationAi
     private static readonly string[] IllnessMarkers = ["病院", "熱", "入院", "病気", "通院"];
     private static readonly string[] GeneralMarkers = ["いつも", "毎日"];
 
+    /// <summary>根拠の候補を返す目印の言葉と、その行動。</summary>
+    private static readonly (string[] Markers, Ability Ability, int Action)[] ActionMarkers =
+    [
+        (["いつもと違う", "気づ"], Ability.Noticing, 1),
+        (["様子", "顔色"], Ability.Noticing, 2),
+        (["前は", "いつもは"], Ability.Noticing, 3),
+        (["都合"], Ability.Coordinating, 1),
+        (["頼", "お願い", "声をかけ"], Ability.Coordinating, 2),
+        (["代わり", "合わせ"], Ability.Coordinating, 3),
+        (["重な"], Ability.Prioritizing, 1),
+        (["先に", "後回し"], Ability.Prioritizing, 2),
+        (["だから", "ので"], Ability.Prioritizing, 3),
+    ];
+
     public Task<TurnReading> ReadAsync(IReadOnlyList<Turn> turns, CancellationToken ct)
     {
-        var answer = turns.LastOrDefault(t => t.Role == TurnRoles.User)?.Text ?? "";
+        var last = turns.LastOrDefault(t => t.Role == TurnRoles.User);
+        var answer = last?.Text ?? "";
         var signals = new HashSet<AnswerSignal>();
         if (ContainsAny(answer, DistressMarkers))
         {
@@ -43,10 +61,24 @@ public sealed class ScriptedConversationAi : IConversationAi
             signals.Add(AnswerSignal.ConcreteEvent);
         }
 
-        return Task.FromResult(new TurnReading(signals));
+        return Task.FromResult(new TurnReading(signals, Candidates(last, turns.Count(t => t.Role == TurnRoles.User))));
     }
 
-    public async IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Turn> turns, MoveKind move, [EnumeratorCancellation] CancellationToken ct)
+    private static List<EvidenceCandidate> Candidates(Turn? last, int answerNumber)
+    {
+        // 選んだ答えは、それだけでは根拠にしないので、候補を返さない
+        if (last is null || last.AnswerKind == AnswerKind.Choice)
+        {
+            return [];
+        }
+
+        return ActionMarkers
+            .Where(m => ContainsAny(last.Text, m.Markers))
+            .Select(m => new EvidenceCandidate(m.Ability, m.Action, last.Text, answerNumber, 1, false, "", 0))
+            .ToList();
+    }
+
+    public async IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Turn> turns, NextMove move, [EnumeratorCancellation] CancellationToken ct)
     {
         var (body, choices) = Script(move);
         var text = choices is null
@@ -63,8 +95,11 @@ public sealed class ScriptedConversationAi : IConversationAi
         }
     }
 
-    private static (string Body, string[]? Choices) Script(MoveKind move) => move switch
+    private static (string Body, string[]? Choices) Script(NextMove move) => move.Kind switch
     {
+        MoveKind.AskMissingAction when move.Target is { } target => (
+            $"（開発用の決まった返事）話してくれてありがとうございます。{AbilityText.Hint(target)}について、覚えていることはありますか？",
+            ["少し覚えている", "よく覚えていない", "ほかのことを話したい"]),
         MoveKind.AskWhatYouDid => (
             "（開発用の決まった返事）話してくれてありがとうございます。その場面で、あなたが最初にしたことは何でしたか？",
             ["まず家のことをした", "人に連絡した", "よく覚えていない"]),

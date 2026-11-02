@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Revalue.Server.Ai;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Evals;
 
@@ -41,6 +42,7 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
             new() { Role = TurnRoles.Assistant, Text = DiscoverText.Opening, Choices = DiscoverText.OpeningChoices, Move = "opening", At = now },
         };
         var replies = new List<ReplyRecord>();
+        IReadOnlyList<Evidence> evidence = [];
         var supportShown = false;
         string? error = null;
 
@@ -76,7 +78,8 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
             RoundStep.Replied? replied = null;
             RoundStep.Failed? failed = null;
             long? firstTextMs = null;
-            await foreach (var step in TalkRound.RunAsync(ai, conversation, userTurnNumber, TimeProvider.System, ct))
+            var context = new RoundContext(conversation, evidence, userTurnNumber, NextMovePolicy.MaxUserTurns);
+            await foreach (var step in TalkRound.RunAsync(ai, context, TimeProvider.System, ct))
             {
                 switch (step)
                 {
@@ -103,7 +106,7 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
                 break;
             }
 
-            var move = decided.Move;
+            var move = decided.Move.Kind;
             var reply = replied.Reply;
             firstTextMs ??= watch.ElapsedMilliseconds;
             if (move == MoveKind.Distress)
@@ -123,6 +126,7 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
 
             turns.Add(userTurn);
             turns.Add(reply);
+            evidence = decided.Evidence;
             if (move == MoveKind.Close)
             {
                 break;

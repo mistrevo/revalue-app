@@ -1,3 +1,5 @@
+using Revalue.Server.Features.Validate;
+
 namespace Revalue.Server.Ai;
 
 /// <summary>読み取りで見分ける、答えの種類。一つの答えが複数に当たることがある。</summary>
@@ -19,28 +21,32 @@ public enum AnswerSignal
     Distress,
 }
 
-/// <summary>いまの答えの読み取り。画面には出さない。</summary>
-public sealed record TurnReading(IReadOnlySet<AnswerSignal> Signals)
+/// <summary>
+/// いまの答えの読み取り。画面には出さない。
+/// <see cref="Candidates"/> は、場面のやりとり全体から見つけた核となる行動の根拠の候補。コードが照らし合わせるまでは使わない。
+/// null なら候補なしとして扱う。
+/// </summary>
+public sealed record TurnReading(IReadOnlySet<AnswerSignal> Signals, IReadOnlyList<EvidenceCandidate>? Candidates = null)
 {
     public bool Has(AnswerSignal signal) => Signals.Contains(signal);
 }
 
 /// <summary>
-/// 会話の AI。1 往復ごとに、まず読み取り（答えの種類）を受け取り、次に、コードが決めた一手を言葉にさせる。
+/// 会話の AI。1 往復ごとに、まず読み取り（答えの種類と根拠の候補）を受け取り、次に、コードが決めた一手を言葉にさせる。
 /// テストと開発では偽物（<see cref="ScriptedConversationAi"/>）に差し替える。
 /// </summary>
 public interface IConversationAi
 {
-    /// <summary>いまの答えの種類を読み取る。<paramref name="turns"/> の最後は、いま届いた利用者の答え。</summary>
+    /// <summary>いまの答えの種類と、場面全体の根拠の候補を読み取る。<paramref name="turns"/> の最後は、いま届いた利用者の答え（訂正のときは訂正）。</summary>
     /// <exception cref="ConversationAiException">AI が断った、または失敗した。</exception>
     Task<TurnReading> ReadAsync(IReadOnlyList<Features.Discover.Turn> turns, CancellationToken ct);
 
     /// <summary>
     /// 決まった一手を言葉にした返事を、書いた順に少しずつ返す。本文のあとに区切りの行と選択肢を書く（締めの返事を除く）。
-    /// <paramref name="turns"/> の最後は、いま届いた利用者の答え。
+    /// <paramref name="turns"/> の最後は、いま届いた利用者の答え。足りない行動を聞く一手では、<see cref="Features.Discover.NextMove.Target"/> の手がかりだけを渡す。
     /// </summary>
     /// <exception cref="ConversationAiException">AI が断った、または失敗した。途中まで返したあとに投げることもある。</exception>
-    IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Features.Discover.Turn> turns, Features.Discover.MoveKind move, CancellationToken ct);
+    IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Features.Discover.Turn> turns, Features.Discover.NextMove move, CancellationToken ct);
 }
 
 /// <summary>AI の呼び出しがうまくいかなかった。<see cref="Kind"/> は <see cref="Refusal"/>（AI が断った）か <see cref="Failure"/>（不調）。</summary>
