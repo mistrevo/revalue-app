@@ -287,13 +287,13 @@ infra/README.md                                       最初の 1 回の手順
   - `class ApiError extends Error { status: number; type?: string; resetAt?: string }`、`isDailyLimit(e: unknown): e is ApiError`
   - ログインの URL の定数: `LOGIN_URL = '/.auth/login/google?post_login_redirect_uri=/start'`、`LOGOUT_URL = '/.auth/logout?post_logout_redirect_uri=/'`
 
-- [ ] **Step 1: 雛形を作り、`npm --prefix src/web run build` で `src/Revalue.Server/wwwroot/index.html` ができることを確かめる**
+- [x] **Step 1: 雛形を作り、`npm --prefix src/web run build` で `src/Revalue.Server/wwwroot/index.html` ができることを確かめる**
 
-- [ ] **Step 2: 失敗するテストを書く**
+- [x] **Step 2: 失敗するテストを書く**
   - `common-1（使わない言葉を出さない）: copy.ts に使わない言葉がない` — `copy` の文字列をすべて平らにして、`src/shared/forbidden-words.json` のどの語も含まない
   - `api.ts`: `getMe` は 401 で null、200 で `Me`。429 の ProblemDetails で `ApiError` を投げ、`isDailyLimit` が true、`resetAt` が入る（`fetch` を差し替える）
 
-- [ ] **Step 3: 失敗を確かめる** → **Step 4: 実装する** → **Step 5: `npm --prefix src/web test` が通ることを確かめ、コミットする**
+- [x] **Step 3: 失敗を確かめる** → **Step 4: 実装する** → **Step 5: `npm --prefix src/web test` が通ることを確かめ、コミットする**
   `画面の雛形と文言、API の呼び出しを作る（common-1 使わない言葉を出さない）`
 
 ---
