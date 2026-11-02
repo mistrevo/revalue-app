@@ -552,6 +552,36 @@ public sealed class EvalsTests
         Assert.False(normalized.Passed);
     }
 
+    [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 評価は、読み取りが返した短すぎる引用の数を、合格の線のない参考の数字として数える")]
+    public async Task ShortQuotesAreCounted()
+    {
+        var ai = new FakeConversationAi
+        {
+            Reading = turns => new TurnReading(
+                new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent },
+                turns[^1].AnswerKind == AnswerKind.Correction
+                    ? [new EvidenceCandidate(Ability.Coordinating, 1, "夫と", 1, 1, false, "", 0)]
+                    :
+                    [
+                        new EvidenceCandidate(Ability.Coordinating, 1, "て", 1, 1, false, "", 0),
+                        new EvidenceCandidate(Ability.Coordinating, 2, "私から声をかけて", 1, 1, false, "", 0),
+                    ]),
+        };
+        var script = ValidateScript(
+            "noticing=notYet, coordinating=notYet, prioritizing=notYet", answers: [Free(CoordinatingAnswer), Correction("夫と義母に電話したのは私です")]);
+
+        var run = await Run(ai, script);
+        var summary = EvalSummary.From([run]);
+
+        // 1 往復目の 2 つと、訂正の読み直しの 1 つ。短すぎるのは「て」と「夫と」
+        Assert.Equal((3, 2), (run.Candidates, run.ShortCandidates));
+        var item = Assert.Single(summary.Reference, i => i.Name.Contains("短すぎて捨てた"));
+        Assert.Equal((2, 3), (item.Count, item.Total));
+        Assert.True(item.CountsViolations);
+        Assert.Null(item.Passed);
+        Assert.DoesNotContain(run.Final.SelectMany(f => f.Shown), e => EvidenceChecker.Letters(e.Quote) < EvidenceChecker.MinQuoteLetters);
+    }
+
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 評価は、訂正の前と後の状態を記録する")]
     public async Task CorrectionStatesAreRecorded()
     {

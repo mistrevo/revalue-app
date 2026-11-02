@@ -60,7 +60,7 @@ public sealed class EvidenceTests
     public void OutOfRangeCandidatesAreDropped()
     {
         IReadOnlyList<Turn> turns = [Asked("昨日はどうでしたか？"), Answered("顔色がいつもと違うと気づきました")];
-        const string quote = "顔色";
+        const string quote = "顔色がいつもと違う";
 
         var kept = EvidenceChecker.Check(turns,
         [
@@ -74,6 +74,52 @@ public sealed class EvidenceTests
         ]);
 
         Assert.Empty(kept);
+
+        // 同じ言葉でも、番号が範囲の中なら残る（捨てたのが番号のためだと確かめる）
+        Assert.Single(EvidenceChecker.Check(turns, [Candidate(quote)]));
+    }
+
+    [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 空白と記号を除いて 4 文字に満たない引用は、本人の答えに含まれていても捨てる")]
+    public void TooShortQuoteIsDropped()
+    {
+        IReadOnlyList<Turn> turns =
+        [
+            Asked("昨日はどんな一日でしたか？"),
+            Answered("用事が重なっていて、先に買い物をすませてから、洗濯をしました"),
+            Asked("そのとき、何をしましたか？", "順番を決めた", "よく覚えていない", "ほかのこと"),
+            Answered("順番を決めた", AnswerKind.Choice),
+        ];
+
+        Assert.Equal(4, EvidenceChecker.MinQuoteLetters);
+        Assert.Empty(EvidenceChecker.Check(turns,
+        [
+            Candidate("て", ability: Ability.Prioritizing, action: 1),
+            Candidate("て", ability: Ability.Prioritizing, action: 2),
+            Candidate("て", ability: Ability.Prioritizing, action: 3),
+            Candidate("先に", ability: Ability.Prioritizing, action: 2),
+            // 句読点は数えない（て、先、に の 3 文字）
+            Candidate("て、先に", ability: Ability.Prioritizing, action: 2),
+            // 選んだ答えに結びつく言葉も、短すぎれば捨てる
+            Candidate("順番を決めた", answer: 2, ability: Ability.Prioritizing, action: 2, linkedQuote: "先に", linkedAnswer: 1),
+        ]));
+
+        var kept = EvidenceChecker.Check(turns,
+        [
+            Candidate("先に買い", ability: Ability.Prioritizing, action: 2),
+            Candidate("順番を決めた", answer: 2, ability: Ability.Prioritizing, action: 2, linkedQuote: "先に買い物", linkedAnswer: 1),
+        ]);
+        Assert.Equal(["先に買い", "順番を決めた"], kept.Select(e => e.Quote));
+    }
+
+    [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 引用の長さは、空白と記号を除いた文字で数え、合成された文字は 1 文字と数える")]
+    public void QuoteLettersCountTextElements()
+    {
+        Assert.Equal(3, EvidenceChecker.Letters("て、先に"));
+        Assert.Equal(4, EvidenceChecker.Letters(" 朝 8 時 に "));
+        // 濁点を合成した「が」「ば」は 1 文字（6 つの文字コードで 4 文字）
+        Assert.Equal(4, EvidenceChecker.Letters("がんばる"));
+        Assert.Equal(2, EvidenceChecker.Letters("「はい」！？👍"));
+        Assert.Equal(0, EvidenceChecker.Letters(""));
     }
 
     [Fact(DisplayName = "validate-5（選んだだけでは根拠にしない）: 選んだ答えは、結びつく自由な答えの言葉がなければ捨てる")]

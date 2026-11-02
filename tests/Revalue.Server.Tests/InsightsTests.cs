@@ -41,6 +41,23 @@ public sealed class InsightsTests
         Assert.True(insights.GetProperty("canResume").GetBoolean());
     }
 
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りが 3 つの行動に 1 文字の引用を返しても、根拠ありにしない")]
+    public async Task OneLetterQuotesDoNotConfirm()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai,
+            Candidate(Ability.Prioritizing, 1, "て"), Candidate(Ability.Prioritizing, 2, "て"), Candidate(Ability.Prioritizing, 3, "て"));
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+
+        Assert.Empty(Array(insights, "seen"));
+        Assert.Empty(Array(insights, "moreToHear"));
+        Assert.Contains(Array(insights, "notYet"), a => a.GetProperty("key").GetString() == "prioritizing");
+        Assert.Empty((await Saved(factory, "g-1", id)).Evidence);
+    }
+
     [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 話している途中と、力の確かめに使わない印のある場面には見えたことを入れない")]
     public async Task NoInsightsWhileTalkingOrExcluded()
     {

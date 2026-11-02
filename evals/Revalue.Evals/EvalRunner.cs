@@ -45,6 +45,15 @@ public sealed record EpisodeRun(EpisodeScript Script, IReadOnlyList<ReplyRecord>
 
     public IReadOnlyList<CorrectionRecord> Corrections { get; init; } = [];
 
+    /// <summary>読み取り（1 往復と訂正の読み直し）が返した根拠の候補の数。</summary>
+    public int Candidates { get; init; }
+
+    /// <summary>
+    /// そのうち、引用か結びつく言葉が短すぎた候補の数（<see cref="EvidenceChecker.IsTooShort"/>。照らし合わせで捨てる）。
+    /// 読み取りの指示を直す手がかりにする。
+    /// </summary>
+    public int ShortCandidates { get; init; }
+
     /// <summary>同じやりとりを汎用の AI に渡した結果。比べないときは null。</summary>
     public GenericResult? Generic { get; init; }
 }
@@ -67,6 +76,8 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
         IReadOnlyList<Evidence> evidence = [];
         var supportShown = false;
         string? error = null;
+        var candidates = 0;
+        var shortCandidates = 0;
 
         var stopped = false;
         foreach (var answer in script.Answers.Where(a => !a.IsCorrection))
@@ -128,6 +139,12 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
                 }
             }
 
+            if (decided?.Reading.Candidates is { } found)
+            {
+                candidates += found.Count;
+                shortCandidates += found.Count(EvidenceChecker.IsTooShort);
+            }
+
             if (failed is not null || decided is null || replied is null)
             {
                 // 製品で窓口を添える失敗（読み取りの失敗、返事を AI が断った）なら、窓口を出したと数える
@@ -182,6 +199,12 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
             }
 
             turns.Add(correction);
+            if (outcome.Reading.Candidates is { } reread)
+            {
+                candidates += reread.Count;
+                shortCandidates += reread.Count(EvidenceChecker.IsTooShort);
+            }
+
             if (outcome.Reading.Has(AnswerSignal.Distress))
             {
                 // サインなら、決まった言葉と相談窓口を出し、根拠は変えない
@@ -201,6 +224,8 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
             Final = AbilityStates.Evaluate(evidence),
             BeforeCorrection = beforeCorrection,
             Corrections = corrections,
+            Candidates = candidates,
+            ShortCandidates = shortCandidates,
         };
     }
 

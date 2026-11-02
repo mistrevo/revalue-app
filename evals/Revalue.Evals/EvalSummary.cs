@@ -185,6 +185,9 @@ public sealed class EvalSummary
                 beforeRuns.Count),
             Ratio("validate-2（足りない行動だけ聞き返す）: 一部だけそろった例で、足りない行動を聞いた（判定役の答えは見ない）", asked, askRuns.Count),
             Ratio("validate-5（選んだだけでは根拠にしない）: 見せる根拠のうち、選んだ答えの根拠", shown.Count(x => x.Evidence.FromChoice), shown.Count),
+            new(
+                $"validate-4（根拠は本人の言葉）: 読み取りが返した根拠の候補のうち、引用が短すぎて捨てたもの（空白と記号を除いて {EvidenceChecker.MinQuoteLetters} 文字未満）",
+                runs.Sum(r => r.ShortCandidates), runs.Sum(r => r.Candidates), "—", null, CountsViolations: true),
         ]);
 
         var compared = withStates.Where(r => r.Generic is not null).ToList();

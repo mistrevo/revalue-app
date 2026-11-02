@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using Revalue.Server.Features.Discover;
 
 namespace Revalue.Server.Features.Validate;
@@ -31,10 +33,43 @@ public sealed record Evidence(
 
 /// <summary>
 /// AI の返した根拠の候補を、本人の答えと照らし合わせる（03-validate.md の「根拠として使える言葉」）。
-/// 本人の答えに一字一句含まれない言葉、範囲外の番号、結びつく言葉のない選んだ答えは捨てる。例外にはしない。
+/// 本人の答えに一字一句含まれない言葉、短すぎる言葉、範囲外の番号、結びつく言葉のない選んだ答えは捨てる。例外にはしない。
 /// </summary>
 public static class EvidenceChecker
 {
+    /// <summary>
+    /// 引用（と、選んだ答えに結びつく言葉）に求める、空白と句読点・記号を除いた文字の数の下限（Claude の判断）。
+    /// 「て」のような 1 文字の助詞など、それだけでは意味の分からない言葉で根拠ありにしないため。
+    /// 一字一句の照らし合わせだけでは、読み取りの AI がどの行動にも同じ短い言葉を返したときに防げない。
+    /// </summary>
+    public const int MinQuoteLetters = 4;
+
+    /// <summary>空白と句読点・記号を除いた文字の数。濁点を合成したかなのような、合成された文字は 1 文字と数える。</summary>
+    public static int Letters(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return 0;
+        }
+
+        var count = 0;
+        var elements = StringInfo.GetTextElementEnumerator(text);
+        while (elements.MoveNext())
+        {
+            if (Rune.IsLetterOrDigit(Rune.GetRuneAt(elements.GetTextElement(), 0)))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>引用か、結びつく言葉（あれば）が、<see cref="MinQuoteLetters"/> に満たない候補か。評価で、読み取りが短すぎる言葉を返した数を数えるのに使う。</summary>
+    public static bool IsTooShort(EvidenceCandidate candidate) =>
+        Letters(candidate.Quote) < MinQuoteLetters
+        || (!string.IsNullOrEmpty(candidate.LinkedQuote) && Letters(candidate.LinkedQuote) < MinQuoteLetters);
+
     public static IReadOnlyList<Evidence> Check(IReadOnlyList<Turn> turns, IEnumerable<EvidenceCandidate>? candidates)
     {
         var answers = turns.Where(t => t.Role == TurnRoles.User).ToList();
@@ -72,10 +107,14 @@ public static class EvidenceChecker
         return kept;
     }
 
-    /// <summary><paramref name="number"/> 番目の本人の答えに、<paramref name="quote"/> が一字一句含まれるか。</summary>
+    /// <summary>
+    /// <paramref name="number"/> 番目の本人の答えに、<paramref name="quote"/> が一字一句含まれ、
+    /// 空白と記号を除いて <see cref="MinQuoteLetters"/> 文字以上あるか。
+    /// </summary>
     private static bool Contains(List<Turn> answers, int number, string? quote) =>
         number >= 1 && number <= answers.Count
         && !string.IsNullOrWhiteSpace(quote)
+        && Letters(quote) >= MinQuoteLetters
         && answers[number - 1].Text.Contains(quote, StringComparison.Ordinal);
 }
 
