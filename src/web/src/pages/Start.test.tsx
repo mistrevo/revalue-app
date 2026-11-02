@@ -31,6 +31,17 @@ describe('Start', () => {
     expect(posts).toEqual([{ method: 'POST', url: '/api/consent', body: { version: api.currentVersion } }])
   })
 
+  it('foundation-2（始める前に保存するものを示す）: まだ見たことのない製品の言葉には、普通の言葉を添える', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
+    const saved = copy.start.items.find((item) => item.title === '保存するもの')!
+    expect(saved.body).toContain('5 つの記録（できること、好み、やりたいこと、条件、大事にしたいこと）')
+    expect(saved.body).toMatch(/可能性レポート（[^）]+）/)
+    expect(screen.getByText(saved.body)).toBeInTheDocument()
+  })
+
   it('foundation-3（いつでも全部消せる）: 全部消したあとでなければ、消したことは伝えない', async () => {
     installFakeApi({ loggedIn: true, consented: false })
     renderApp('/start')
