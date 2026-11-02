@@ -6,6 +6,7 @@ using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
 using Revalue.Server.Features.Foundation.Counting;
 using Revalue.Server.Features.Foundation.Limits;
+using Revalue.Server.Features.Options;
 using Revalue.Server.Features.Profile;
 using Revalue.Server.Features.Validate;
 
@@ -19,6 +20,8 @@ builder.Services.AddConversationAi(builder.Configuration, builder.Environment);
 builder.Services.Configure<LimitOptions>(builder.Configuration.GetSection("Limits"));
 builder.Services.AddSingleton<ICounter, Counter>();
 builder.Services.AddScoped<TalkStream>();
+builder.Services.AddSingleton(JobCatalog.Load());
+builder.Services.AddSingleton(ForbiddenWordList.Load());
 
 var app = builder.Build();
 

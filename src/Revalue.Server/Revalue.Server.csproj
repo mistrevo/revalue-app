@@ -19,6 +19,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 登録した職種と業務、使わない言葉の一覧は、起動時に埋め込みのリソースから読む -->
+    <EmbeddedResource Include="Features\Options\jobs.json" LogicalName="jobs.json" />
+    <EmbeddedResource Include="..\shared\forbidden-words.json" LogicalName="forbidden-words.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Revalue.Server.Tests" />
   </ItemGroup>
 
