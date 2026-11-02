@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Evals;
 
@@ -18,6 +19,7 @@ public static class ReportWriter
     private static readonly Dictionary<string, string> UnitTitles = new(StringComparer.Ordinal)
     {
         ["discover"] = "02 discover（話す）",
+        ["validate"] = "03 validate（確かめる）",
     };
 
     /// <summary>Claude Opus 5.5 の料金（100 万トークンあたりのドル）。キャッシュの書き込みは入力の 1.25 倍として見積もる（Claude の判断）。</summary>
@@ -78,6 +80,7 @@ public static class ReportWriter
             }
         }
 
+        WriteComparison(sb, summary.Comparison);
         WriteUsage(sb, context, usage);
         WriteTranscripts(sb, runs);
         return sb.ToString();
@@ -132,6 +135,8 @@ public static class ReportWriter
         "read" => "読み取り",
         "reply" => "返事",
         "judge" => "判定役",
+        "generic" => "汎用の AI",
+        "genericJudge" => "汎用の AI の答えを読む判定役",
         _ => call,
     };
 
@@ -158,7 +163,8 @@ public static class ReportWriter
                 sb.AppendLine();
                 var signals = string.Join("、", reply.Signals.Select(s => s.ToString()).Order(StringComparer.Ordinal));
                 sb.AppendLine(
-                    $"- 読み取り: {signals} → 次の一手: {TalkStream.MoveName(reply.Move)}、出始めるまで " +
+                    $"- 読み取り: {signals} → 次の一手: {TalkStream.MoveName(reply.Move)}" +
+                    (reply.Target is { } target ? $"（{target}: {AbilityText.Hint(target)}）" : "") + "、出始めるまで " +
                     $"{(reply.FirstTextMs / 1000.0).ToString("0.0", CultureInfo.InvariantCulture)} 秒");
                 sb.AppendLine();
                 sb.AppendLine(reply.Move == MoveKind.Distress ? "**AI（つらい状態のサインへの決まった言葉と、相談窓口）**" : "**AI**");
@@ -174,11 +180,26 @@ public static class ReportWriter
                 }
             }
 
+            foreach (var correction in run.Corrections)
+            {
+                sb.AppendLine();
+                sb.AppendLine("**利用者（訂正）**");
+                sb.AppendLine();
+                Quote(sb, correction.Text);
+                sb.AppendLine();
+                var signals = string.Join("、", correction.Signals.Select(x => x.ToString()).Order(StringComparer.Ordinal));
+                sb.AppendLine(correction.Distress
+                    ? $"- 読み取り: {signals} → つらい状態のサインへの決まった言葉と相談窓口（根拠は変えない）"
+                    : $"- 読み取り: {signals} → 場面全体を読み直して、根拠を置き換えた");
+            }
+
             if (run.Error is not null)
             {
                 sb.AppendLine();
                 sb.AppendLine($"（ここで終えた: {run.Error}）");
             }
+
+            WriteStates(sb, run);
         }
     }
 
@@ -211,7 +232,91 @@ public static class ReportWriter
             $"答えやすい場面 {Mark(v.EasierScene)}、" +
             $"言っていない行動を作らない {Mark(v.NoInventedActions)}、病気の詳しいことを聞かない {Mark(v.NoIllnessDetails)}、" +
             $"大げさに褒めない {Mark(v.NoOverPraise)}、否定や値踏みをしない {Mark(v.NoDismissal)}、" +
-            $"行動の映し返し {Mark(v.ReflectedActions)}、力や人柄を言い当てない {Mark(v.NoTraitLabel)}";
+            $"行動の映し返し {Mark(v.ReflectedActions)}、力や人柄を言い当てない {Mark(v.NoTraitLabel)}、" +
+            $"足りない行動だけを聞く {Mark(v.MissingOnly)}";
         return v.Reason.Length == 0 ? text : $"{text}。理由: {v.Reason}";
+    }
+
+    /// <summary>確かめの例で、力ごとの期待した状態、最後の状態、見せる根拠を書く。汎用の AI の答えもここに載せる。</summary>
+    private static void WriteStates(StringBuilder sb, EpisodeRun run)
+    {
+        if (run.Script.States is not { } expected)
+        {
+            return;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("**力の状態**（状態の呼び名は評価のためだけに使い、画面には出さない）");
+        sb.AppendLine();
+        sb.AppendLine("| 力 | 期待 | 最後 | 訂正の前（期待） | 見せる根拠 |");
+        sb.AppendLine("|---|---|---|---|---|");
+        foreach (var result in run.Final)
+        {
+            var before = run.BeforeCorrection?.Single(b => b.Ability == result.Ability).State;
+            var beforeText = before is { } b2
+                ? $"{EpisodeScript.StateName(b2)}（{(run.Script.StatesBefore is { } sb2 ? EpisodeScript.StateName(sb2[result.Ability]) : "—")}）"
+                : "—";
+            var quotes = result.Shown.Count == 0
+                ? "—"
+                : string.Join("<br>", result.Shown.Select(e =>
+                    $"{e.Action}: 「{Cell(e.Quote)}」" + (e.FromChoice ? $"（選んだ答え。結びついた言葉「{Cell(e.LinkedQuote ?? "")}」）" : "") +
+                    (e.General ? "（一般論）" : "")));
+            var mark = result.State == expected[result.Ability] ? "" : " ×";
+            sb.AppendLine(
+                $"| {AbilityText.Name(result.Ability)} | {EpisodeScript.StateName(expected[result.Ability])} | {EpisodeScript.StateName(result.State)}{mark} | " +
+                $"{beforeText} | {quotes} |");
+        }
+
+        if (run.Generic is not { } generic)
+        {
+            return;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("**汎用の AI の答え**（特別な指示なし）");
+        sb.AppendLine();
+        Quote(sb, generic.Answer ?? $"（{generic.Error}）");
+        if (generic.Reading is { } reading)
+        {
+            sb.AppendLine();
+            foreach (var ability in reading.Abilities)
+            {
+                var quotes = ability.Quotes.Count == 0
+                    ? "引用なし"
+                    : string.Join("、", ability.Quotes.Select(q => $"「{q}」{(GenericComparison.IsVerbatim(run.Turns, q) ? "" : "（一字一句でない）")}"));
+                sb.AppendLine($"- {AbilityText.Name(ability.Ability)}: {(ability.Named ? "強みとして挙げた" : "挙げていない")}。{quotes}");
+            }
+        }
+    }
+
+    private static string Cell(string text) => text.ReplaceLineEndings(" ").Replace("|", "｜", StringComparison.Ordinal);
+
+    /// <summary>汎用の AI との比較を、同じ物差しで並べる（合格の線なし）。</summary>
+    private static void WriteComparison(StringBuilder sb, GenericComparisonSummary? c)
+    {
+        if (c is null)
+        {
+            return;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## 汎用の AI との比較");
+        sb.AppendLine();
+        sb.AppendLine(
+            $"同じ {c.Runs} 件のやりとりを、特別な指示もシステムプロンプトもない同じモデルに渡し、「{GenericComparison.Question}」と尋ねた。" +
+            "答えから、どの力を強みとして挙げたかと根拠として引いた言葉を判定役が読み取り、引用が本人の答えに一字一句含まれるかはコードが数えた。合格の線は持たせない。");
+        if (c.Unavailable > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"答えを得られなかった例が {c.Unavailable} 件あり、数に入れていない。");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("| 物差し | RE:VALUE | 汎用の AI |");
+        sb.AppendLine("|---|---|---|");
+        sb.AppendLine(
+            $"| 褒めすぎ（根拠ありにしてはいけない {c.NotConfirmedTotal} の力のうち、根拠あり・強みとした） | {c.ProductOverPraise} 件 | {c.GenericOverPraise} 件 |");
+        sb.AppendLine(
+            $"| 根拠の引用が本人の発言と一字一句同じでなかった | {c.ProductQuoteMismatches} 件（{c.ProductQuotes} 中） | {c.GenericQuoteMismatches} 件（{c.GenericQuotes} 中） |");
     }
 }

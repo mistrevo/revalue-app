@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Revalue.Server.Ai;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Tests;
 
@@ -582,5 +583,116 @@ public sealed class TalkStreamTests
         Assert.Equal(["askWhatYouDid", "askEasierScene", "askConcreteEvent", "returnFromIllness", "distress"], product.Select(p => p.Split(" | ")[0]));
         Assert.Equal(product, evaluated);
         Assert.True(run.SupportShown);
+    }
+
+    private static TurnReading ReadingWith(params EvidenceCandidate[] candidates) =>
+        new(new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent }, candidates);
+
+    private static EvidenceCandidate Candidate(Ability ability, int action, string quote, int answer = 1) =>
+        new(ability, action, quote, answer, 1, false, "", 0);
+
+    private static async Task<EpisodeItem> Saved(RevalueFactory factory, string user, string id) =>
+        (await factory.Services.GetRequiredService<IDataStore>().GetAsync<EpisodeItem>(TestUsers.Key(user), id, Ct))!;
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 要確認の力があると、返事のターンに一手 askMissingAction と行動が保存される")]
+    public async Task MissingActionIsAskedAndSaved()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        ai.Reading = _ => ReadingWith(
+            Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"),
+            Candidate(Ability.Coordinating, 2, "二人に電話しました"));
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        var events = await SendAndRead(client, id, "昨日は夫と母の予定がぶつかっていたので、二人に電話しました。");
+
+        Assert.Equal("askMissingAction", events.Single(e => e.Event == "done").Data.GetProperty("move").GetString());
+        var target = new ActionRef(Ability.Coordinating, 3);
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, target), ai.NextMoves[^1]);
+
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Equal("askMissingAction", saved.Turns[2].Move);
+        Assert.Equal("coordinating.3", saved.Turns[2].Target);
+        Assert.Null(saved.Turns[1].Target);
+        Assert.Equal(2, saved.Evidence.Count);
+    }
+
+    [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 照らし合わせを通った根拠だけが場面に保存される")]
+    public async Task OnlyCheckedEvidenceIsSaved()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        ai.Reading = _ => ReadingWith(
+            Candidate(Ability.Noticing, 1, "顔色がいつもと違う"),
+            Candidate(Ability.Noticing, 2, "熱っぽい様子だった"),
+            Candidate(Ability.Noticing, 3, "その日の朝"));
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        await SendAndRead(client, id, "朝、子どもの顔色がいつもと違うと気づきました。");
+
+        var saved = await Saved(factory, "g-1", id);
+        var evidence = Assert.Single(saved.Evidence);
+        Assert.Equal("顔色がいつもと違う", evidence.Quote);
+        Assert.Equal(1, evidence.Answer);
+        Assert.False(evidence.FromChoice);
+    }
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 前の往復の根拠は、次の往復の読み取りに出なくても残る")]
+    public async Task EarlierEvidenceIsKept()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        ai.Reading = _ => ReadingWith(Candidate(Ability.Prioritizing, 1, "用事が三つ重なって", answer: 1));
+        await SendAndRead(client, id, "朝、用事が三つ重なっていました。");
+        ai.Reading = _ => ReadingWith(Candidate(Ability.Prioritizing, 2, "病院を先に", answer: 2));
+        await SendAndRead(client, id, "病院を先にして、買い物は後にしました。");
+
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Equal([1, 2], saved.Evidence.Select(e => e.Action));
+        Assert.Equal("用事が三つ重なって", saved.Evidence[0].Quote);
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 3)), ai.NextMoves[^1]);
+    }
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: つらい状態のサインの往復では根拠を保存しない")]
+    public async Task DistressRoundSavesNoEvidence()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        ai.Reading = _ => new TurnReading(
+            new HashSet<AnswerSignal> { AnswerSignal.Distress, AnswerSignal.ConcreteEvent },
+            [Candidate(Ability.Noticing, 1, "いつもと違う")]);
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        await SendAndRead(client, id, "いつもと違うと思っても、最近ずっと眠れなくて、つらいです。");
+
+        var saved = await Saved(factory, "g-1", id);
+        Assert.True(saved.ExcludedFromValidation);
+        Assert.Empty(saved.Evidence);
+        Assert.Equal("distress", saved.Turns[2].Move);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 往復の上限は場面ごとの上限に従う")]
+    public async Task EpisodeTurnLimitIsUsed()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        await store.TryUpdateAsync<EpisodeItem>(TestUsers.Key("g-1"), id, e => e with { TurnLimit = 2 }, Ct);
+
+        await SendAndRead(client, id, "1 つ目の答えです。");
+        var last = await SendAndRead(client, id, "2 つ目の答えです。");
+
+        var done = last.Single(e => e.Event == "done").Data;
+        Assert.Equal("close", done.GetProperty("move").GetString());
+        Assert.Equal("finished", done.GetProperty("status").GetString());
+        Assert.Equal(MoveKind.Close, ai.Moves[^1]);
     }
 }

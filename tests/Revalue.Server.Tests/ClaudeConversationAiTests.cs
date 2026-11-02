@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Revalue.Server.Ai;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Tests;
 
@@ -155,7 +156,7 @@ public sealed class ClaudeConversationAiTests
     {
         var (ai, http, _) = Create(HttpStatusCode.OK, Sse("end_turn", "ありがとう", "ございます。"), "text/event-stream");
 
-        var chunks = await Collect(ai.StreamReplyAsync(Conversation(), MoveKind.AskEasierScene, Ct));
+        var chunks = await Collect(ai.StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskEasierScene), Ct));
 
         Assert.Equal(["ありがとう", "ございます。"], chunks);
         var body = http.RequestBody;
@@ -176,7 +177,7 @@ public sealed class ClaudeConversationAiTests
     {
         var (ai, http, _) = Create(HttpStatusCode.OK, Sse("end_turn", "はい"), "text/event-stream");
 
-        await Collect(ai.StreamReplyAsync(Conversation(), MoveKind.AskWhatYouDid, Ct));
+        await Collect(ai.StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskWhatYouDid), Ct));
 
         var messages = http.RequestBody.GetProperty("messages").EnumerateArray().ToList();
         // 固定の user の一文 → 最初の問い → 答え → 返事 → 答え → 次の一手
@@ -207,7 +208,7 @@ public sealed class ClaudeConversationAiTests
         var schema = format.GetProperty("schema");
         Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
         string[] expected = ["concreteEvent", "generalOnly", "dontKnow", "familyIllness", "distress"];
-        Assert.Equal(expected.Order(), schema.GetProperty("required").EnumerateArray().Select(e => e.GetString()!).Order());
+        Assert.Equal(expected.Append("evidence").Order(), schema.GetProperty("required").EnumerateArray().Select(e => e.GetString()!).Order());
         foreach (var name in expected)
         {
             Assert.Equal("boolean", schema.GetProperty("properties").GetProperty(name).GetProperty("type").GetString());
@@ -217,6 +218,104 @@ public sealed class ClaudeConversationAiTests
         var messages = body.GetProperty("messages").EnumerateArray().ToList();
         Assert.Equal("user", messages[^1].GetProperty("role").GetString());
         Assert.DoesNotContain("next_move", body.GetRawText());
+    }
+
+    [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 読み取りには、本人の答えに番号と答え方を付けた 1 つの文を渡し、スキーマに evidence を求める")]
+    public async Task ReadRequestNumbersAnswersAndAsksEvidence()
+    {
+        var (ai, http, _) = Create(HttpStatusCode.OK, MessageJson(ReadingJson, "end_turn"));
+        IReadOnlyList<Turn> turns =
+        [
+            .. Conversation(),
+            new Turn { Role = TurnRoles.Assistant, Text = "架空の締め。ありがとうございました。", Move = "close", At = At },
+            new Turn { Role = TurnRoles.User, Text = "架空の訂正。起こしたのは夫でした", AnswerKind = AnswerKind.Correction, At = At },
+        ];
+
+        await ai.ReadAsync(turns, Ct);
+
+        var body = http.RequestBody;
+        var messages = body.GetProperty("messages").EnumerateArray().ToList();
+        var message = Assert.Single(messages);
+        Assert.Equal("user", message.GetProperty("role").GetString());
+        var text = message.GetProperty("content").ContentText();
+        Assert.StartsWith("<conversation>", text);
+        Assert.Contains("</conversation>", text);
+        Assert.EndsWith("いちばん最後の答えが、いまの答えです。", text);
+        Assert.Contains("聞き手: " + DiscoverText.Opening, text);
+        Assert.Contains("（答えの例: 起こした / 着替えさせた / 朝ごはんを作った）", text);
+        Assert.Contains("[答え 1]（自由に書いた）架空の答え。昨日は朝から子どもの支度をした", text);
+        Assert.Contains("[答え 2]（選択肢から選んだ）" + SecretAnswer, text);
+        Assert.Contains("[答え 3]（訂正）架空の訂正。起こしたのは夫でした", text);
+        Assert.DoesNotContain(ReplyStreamSplitter.Delimiter, text);
+
+        var schema = body.GetProperty("output_config").GetProperty("format").GetProperty("schema");
+        Assert.Contains("evidence", schema.GetProperty("required").EnumerateArray().Select(e => e.GetString()));
+        var evidence = schema.GetProperty("properties").GetProperty("evidence");
+        Assert.Equal("array", evidence.GetProperty("type").GetString());
+        var item = evidence.GetProperty("items");
+        Assert.False(item.GetProperty("additionalProperties").GetBoolean());
+        string[] fields = ["ability", "action", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer"];
+        Assert.Equal(fields.Order(), item.GetProperty("required").EnumerateArray().Select(e => e.GetString()!).Order());
+        var properties = item.GetProperty("properties");
+        Assert.Equal(["noticing", "coordinating", "prioritizing"], properties.GetProperty("ability").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal("integer", properties.GetProperty("action").GetProperty("type").GetString());
+        Assert.Equal("string", properties.GetProperty("quote").GetProperty("type").GetString());
+        Assert.Equal("integer", properties.GetProperty("answer").GetProperty("type").GetString());
+        Assert.Equal("integer", properties.GetProperty("event").GetProperty("type").GetString());
+        Assert.Equal("boolean", properties.GetProperty("general").GetProperty("type").GetString());
+        Assert.Equal("string", properties.GetProperty("linkedQuote").GetProperty("type").GetString());
+        Assert.Equal("integer", properties.GetProperty("linkedAnswer").GetProperty("type").GetString());
+    }
+
+    [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 読み取りの evidence を根拠の候補に読み、形の合わない要素は捨てる")]
+    public void ParseReadingReadsEvidenceCandidates()
+    {
+        const string json = """
+            {"concreteEvent":true,"generalOnly":false,"dontKnow":false,"familyIllness":false,"distress":false,
+             "evidence":[
+               {"ability":"coordinating","action":2,"quote":"二人に電話しました","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"cooking","action":1,"quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"noticing","action":"3","quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"noticing","action":1,"answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"prioritizing","action":1.5,"quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               "壊れた要素",
+               {"ability":"prioritizing","action":3,"quote":"ので","answer":2,"event":1,"general":true,"linkedQuote":"先に","linkedAnswer":1}
+             ]}
+            """;
+
+        var reading = ClaudeConversationAi.ParseReading(json);
+
+        Assert.Equal(
+            [
+                new EvidenceCandidate(Ability.Coordinating, 2, "二人に電話しました", 1, 1, false, "", 0),
+                new EvidenceCandidate(Ability.Prioritizing, 3, "ので", 2, 1, true, "先に", 1),
+            ],
+            reading.Candidates!);
+
+        // evidence がない、または配列でなければ、候補なしとして読む
+        Assert.Empty(ClaudeConversationAi.ParseReading(ReadingJson).Candidates ?? []);
+        Assert.Empty(ClaudeConversationAi.ParseReading(ReadingJson.Replace("}", ""","evidence":"x"}""")).Candidates ?? []);
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 足りない行動を聞く返事では、会話の最後に一手と手がかりだけを渡し、システムプロンプトには入れない")]
+    public async Task AskMissingActionPassesHint()
+    {
+        var (ai, http, _) = Create(HttpStatusCode.OK, Sse("end_turn", "はい"), "text/event-stream");
+        var target = new ActionRef(Ability.Coordinating, 3);
+
+        await Collect(ai.StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskMissingAction, target), Ct));
+
+        var body = http.RequestBody;
+        AssertCommon(body, http.Betas);
+        var messages = body.GetProperty("messages").EnumerateArray().ToList();
+        Assert.Equal("system", messages[^1].GetProperty("role").GetString());
+        Assert.Equal(
+            "<next_move>AskMissingAction</next_move>\n<hint>" + AbilityText.Hint(target) + "</hint>",
+            messages[^1].GetProperty("content").ContentText());
+        var system = body.GetProperty("system").GetRawText();
+        Assert.DoesNotContain("<hint>" + AbilityText.Hint(target), system);
+        Assert.DoesNotContain(AbilityText.Hint(target), system);
+        Assert.DoesNotContain("coordinating.3", body.GetRawText());
     }
 
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 読み取りが断られたら拒否、読めなければ失敗として知らせる")]
@@ -243,7 +342,7 @@ public sealed class ClaudeConversationAiTests
 
         var error = await Assert.ThrowsAsync<ConversationAiException>(async () =>
         {
-            await foreach (var chunk in ai.StreamReplyAsync(Conversation(), MoveKind.AskWhatYouDid, Ct))
+            await foreach (var chunk in ai.StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskWhatYouDid), Ct))
             {
                 chunks.Add(chunk);
             }
@@ -258,7 +357,7 @@ public sealed class ClaudeConversationAiTests
     {
         var (ai, _, _) = Create(HttpStatusCode.InternalServerError, """{"type":"error","error":{"type":"api_error","message":"x"}}""");
 
-        var error = await Assert.ThrowsAsync<ConversationAiException>(() => Collect(ai.StreamReplyAsync(Conversation(), MoveKind.AskWhatYouDid, Ct)));
+        var error = await Assert.ThrowsAsync<ConversationAiException>(() => Collect(ai.StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskWhatYouDid), Ct)));
 
         Assert.Equal("failure", error.Kind);
     }
@@ -277,7 +376,7 @@ public sealed class ClaudeConversationAiTests
         await Create(HttpStatusCode.OK, MessageJson(ReadingJson, "end_turn"), meter: readMeter).Ai.ReadAsync(Conversation(), Ct);
         var replyMeter = new ListMeter();
         await Collect(Create(HttpStatusCode.OK, Sse("end_turn", "ありがとう。"), "text/event-stream", replyMeter).Ai
-            .StreamReplyAsync(Conversation(), MoveKind.AskWhatYouDid, Ct));
+            .StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskWhatYouDid), Ct));
 
         Assert.Equal(new AiUsage("read", 100, 80, 0, 20), Assert.Single(readMeter.Usages));
         Assert.Equal(new AiUsage("reply", 100, 0, 0, 30), Assert.Single(replyMeter.Usages));
@@ -289,7 +388,7 @@ public sealed class ClaudeConversationAiTests
         var (readAi, _, readLogs) = Create(HttpStatusCode.OK, MessageJson(ReadingJson, "end_turn"));
         await readAi.ReadAsync(Conversation(), Ct);
         var (replyAi, _, replyLogs) = Create(HttpStatusCode.OK, Sse("end_turn", "返答の目印-5d1e"), "text/event-stream");
-        await Collect(replyAi.StreamReplyAsync(Conversation(), MoveKind.AskWhatYouDid, Ct));
+        await Collect(replyAi.StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskWhatYouDid), Ct));
         var (failAi, _, failLogs) = Create(HttpStatusCode.InternalServerError, """{"type":"error","error":{"type":"api_error","message":"x"}}""");
         await Assert.ThrowsAsync<ConversationAiException>(() => failAi.ReadAsync(Conversation(), Ct));
 
@@ -372,6 +471,39 @@ public sealed class ClaudeConversationAiTests
 
         Assert.Contains("特別なことは何も", line);
         Assert.Contains("添えてあっても", line);
+    }
+
+    [Fact(DisplayName = "validate-3（結果で見立てを変えない）: 読み取りの指示は、核となる行動の一覧、一字一句の抜き出し、結果で変えないこと、訂正を優先することを書いている")]
+    public void ReaderDescribesEvidence()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+
+        foreach (var key in new[] { "noticing", "coordinating", "prioritizing", "evidence", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer" })
+        {
+            Assert.Contains($"`{key}`", reader);
+        }
+
+        Assert.Contains("一字一句そのまま", reader);
+        Assert.Contains("聞き手の言葉や、答えの例の言葉からは取らない", reader);
+        Assert.Contains("結果で判断を変えない", reader);
+        Assert.Contains("結果を話していない話も", reader);
+        Assert.Contains("前の答えより優先", reader);
+        Assert.Contains("本人以外", reader);
+        Assert.Contains("[答え N]", reader);
+        Assert.Contains("（選択肢から選んだ）", reader);
+        Assert.Contains("（訂正）", reader);
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 返事の指示は、手がかりについてだけ一つ聞き、したことを前提にせず、答えの例で誘導しないと書いている")]
+    public void ListenerDescribesAskMissingAction()
+    {
+        var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskMissingAction);
+
+        Assert.Contains("<hint>", line);
+        Assert.Contains("その手がかりについてだけ、一つ聞く", line);
+        Assert.Contains("前提にした聞き方をしない", line);
+        Assert.Contains("正解のように並べない", line);
+        Assert.Contains("そのまま読み上げず", line);
     }
 
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 読み取りの指示は、寝不足を暮らしの事情として話すだけではサインにせず、見落とさない側に倒す方針は残している")]

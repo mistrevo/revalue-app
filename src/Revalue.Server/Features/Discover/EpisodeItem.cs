@@ -1,9 +1,10 @@
 using System.Text.Json.Serialization;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
 
-/// <summary>利用者の答えが、選択肢を選んだものか、自由に書いたものか。</summary>
+/// <summary>利用者の答えが、選択肢を選んだものか、自由に書いたものか、話し終えた場面への訂正か。</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<AnswerKind>))]
 public enum AnswerKind
 {
@@ -12,6 +13,10 @@ public enum AnswerKind
 
     [JsonStringEnumMemberName("choice")]
     Choice,
+
+    /// <summary>話し終えた場面の読み取りを、本人が直した言葉。前の答えより優先する。</summary>
+    [JsonStringEnumMemberName("correction")]
+    Correction,
 }
 
 public static class TurnRoles
@@ -46,8 +51,26 @@ public sealed record Turn
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Move { get; init; }
 
+    /// <summary>
+    /// assistant のターンで、聞いた核となる行動（<c>coordinating.3</c> の形）。足りない行動を聞く一手と、続きを話すときの問いだけ。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Target { get; init; }
+
+    /// <summary>
+    /// 訂正のターン（<see cref="AnswerKind.Correction"/>）で、訂正で打ち消された行動（<c>coordinating.2</c> の形）。
+    /// 訂正の読み直しで根拠が消えた行動。本人がもう答えたことを聞き直さないよう、聞いた回数の上限に届いたものとして扱う（03-validate.md の「訂正」）。
+    /// 打ち消された行動がなければ null。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Withdrawn { get; init; }
+
     public required DateTimeOffset At { get; init; }
 }
+
+/// <summary>続きを話す前の、話し終えた場面の姿。</summary>
+/// <param name="TurnCount">続きの問いを足す前のターンの数。</param>
+public sealed record ResumePoint(int TurnCount, DateTimeOffset? FinishedAt, int TurnLimit, IReadOnlyList<Evidence> Evidence);
 
 /// <summary>
 /// エピソード（話した一つの場面）。始めたときから保存し、やりとりのターンをすべて持つ。
@@ -68,6 +91,21 @@ public sealed record EpisodeItem : Item
 
     /// <summary>力の確かめに使わない印。つらい状態のサインが出た場面に付ける。</summary>
     public bool ExcludedFromValidation { get; init; }
+
+    /// <summary>この場面の往復の上限。この数の答えへの返事で場面を締める。続きを話すときに増やす。</summary>
+    public int TurnLimit { get; init; } = NextMovePolicy.MaxUserTurns;
+
+    /// <summary>
+    /// この場面で確かめた、核となる行動の根拠（照らし合わせを通ったもの）。会話の途中では足していき、訂正のときだけ読み直した結果で置き換える。
+    /// </summary>
+    public IReadOnlyList<Evidence> Evidence { get; init; } = [];
+
+    /// <summary>
+    /// 続きを話す前の姿（03-validate.md の「続きを話す」）。続きを話している途中で飛ばしたときに、ここへ戻す
+    /// （続きで足したやりとりと根拠だけを残さず、前に話し終えていた分は残す）。続きを話したことのない場面では null。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ResumePoint? BeforeResume { get; init; }
 
     /// <summary>利用者が答えた数（往復の数）。</summary>
     [JsonIgnore]

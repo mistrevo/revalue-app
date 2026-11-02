@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { Episode, EpisodeSummary } from '@/api'
+import type { Abilities, Episode, EpisodeInsights, EpisodeSummary, Turn } from '@/api'
 
 export type FakeCall = { method: string; url: string; body?: unknown }
 export type FakeEvent = { event: string; data: unknown }
@@ -24,7 +24,95 @@ export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {
       { role: 'assistant', text: FAKE_OPENING, choices: FAKE_OPENING_CHOICES, move: 'opening', at: '2026-11-03T01:00:00Z' },
     ],
     notice: null,
+    insights: null,
     ...overrides,
+  }
+}
+
+/** 裏側が決める続きの問いと選択肢の代わり（本物は AbilityText.cs）。 */
+export const FAKE_RESUME_QUESTION = 'また話しに来てくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
+export const FAKE_RESUME_CHOICES = ['思い当たることがあります', 'とくに思い当たりません', 'その日のほかのことを話したい']
+
+/** 裏側が決める手がかりの言葉の代わり（本物は AbilityText.cs）。 */
+export const FAKE_HINT = '先にすること、後に回すことを、どう考えて決めたか'
+
+/** 架空の場面の「見えたこと」。引用はすべて架空。 */
+export function fakeInsights(overrides: Partial<EpisodeInsights> = {}): EpisodeInsights {
+  return {
+    seen: [
+      {
+        key: 'coordinating',
+        name: '調整する力',
+        quotes: [
+          { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
+          { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
+          { text: '順番を入れ替える案を出しました', fromChoice: false, linkedText: null },
+        ],
+      },
+    ],
+    moreToHear: [
+      {
+        key: 'prioritizing',
+        name: '優先順位をつける力',
+        quotes: [
+          { text: '用事が重なっていました', fromChoice: false, linkedText: null },
+          { text: '先に書類を仕上げました', fromChoice: false, linkedText: null },
+        ],
+        hints: [FAKE_HINT],
+      },
+    ],
+    notYet: [{ key: 'noticing', name: '見立てる力' }],
+    canResume: true,
+    ...overrides,
+  }
+}
+
+/** 架空の「見えた力」。 */
+export function fakeAbilities(): Abilities {
+  return {
+    abilities: [
+      {
+        key: 'noticing',
+        name: '見立てる力',
+        life: 'notYet',
+        quotes: [],
+        episodeId: null,
+        hints: [],
+        work: 'notChecked',
+        excluded: false,
+      },
+      {
+        key: 'coordinating',
+        name: '調整する力',
+        life: 'confirmed',
+        quotes: [{ text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null }],
+        episodeId: 'episode-1',
+        hints: [],
+        work: 'notChecked',
+        excluded: false,
+      },
+      {
+        key: 'prioritizing',
+        name: '優先順位をつける力',
+        life: 'needsCheck',
+        quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
+        episodeId: 'episode-1',
+        hints: [FAKE_HINT],
+        work: 'notChecked',
+        excluded: false,
+      },
+    ],
+    history: [
+      {
+        at: '2026-11-03T03:00:00Z',
+        key: 'coordinating',
+        name: '調整する力',
+        from: 'needsCheck',
+        to: 'confirmed',
+        reason: 'talk',
+        episodeId: 'episode-1',
+      },
+    ],
   }
 }
 
@@ -79,6 +167,15 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
      * 新しい場面を作らずに 409（その場面の id 付き）を返す。
      */
     skipFindsInProgress: null as string | null,
+    /** 区切ったときに場面に入れる「見えたこと」。 */
+    finishInsights: fakeInsights() as EpisodeInsights | null,
+    /** 訂正を送ったときの応答。見えたことか、断る応答。 */
+    correction: fakeInsights({ seen: [] }) as EpisodeInsights | { status: number; body: unknown },
+    /** true なら、訂正の中につらい状態のサインがあったとして、決まった言葉と窓口を返す（見えたことは出さない）。 */
+    correctionDistress: false,
+    /** 続きを話すときに、ほかの画面で始まっていた場面の id。入れると 409（その場面の id 付き）を返す。 */
+    resumeFindsInProgress: null as string | null,
+    abilities: fakeAbilities(),
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -100,6 +197,7 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
     startedAt: e.startedAt,
     userTurnCount: e.turns.filter((t) => t.role === 'user').length,
     preview: e.turns.find((t) => t.role === 'user')?.text.slice(0, 30) ?? '',
+    canResume: e.status === 'finished' && (e.insights?.canResume ?? false),
   })
 
   const sseResponse = (events: FakeEvent[]) =>
@@ -160,7 +258,33 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
       return json(201, created)
     }
 
-    const match = /^\/api\/episodes\/([^/]+)(?:\/(finish|skip|messages))?$/.exec(url)
+    if (url === '/api/abilities' && method === 'GET') {
+      return json(200, state.abilities)
+    }
+    const abilityMatch = /^\/api\/abilities\/([^/]+)\/(exclude|restore)$/.exec(url)
+    if (abilityMatch && method === 'POST') {
+      const ability = state.abilities.abilities.find((a) => a.key === abilityMatch[1])
+      if (!ability) return json(404, { type: '/problems/not-found', status: 404 })
+      const excluded = abilityMatch[2] === 'exclude'
+      state.abilities = {
+        abilities: state.abilities.abilities.map((a) => (a.key === ability.key ? { ...a, excluded } : a)),
+        history: [
+          {
+            at: '2026-11-03T05:00:00Z',
+            key: ability.key,
+            name: ability.name,
+            from: ability.life,
+            to: ability.life,
+            reason: excluded ? 'exclude' : 'restore',
+            episodeId: null,
+          },
+          ...state.abilities.history,
+        ],
+      }
+      return json(200, state.abilities)
+    }
+
+    const match = /^\/api\/episodes\/([^/]+)(?:\/(finish|skip|messages|corrections|resume))?$/.exec(url)
     const episode = match ? state.episodes.find((e) => e.id === decodeURIComponent(match[1])) : undefined
     if (match && !episode) {
       return json(404, { type: '/problems/not-found', status: 404 })
@@ -170,6 +294,47 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
       if (!action && method === 'GET') return json(200, episode)
       if (action === 'finish' && method === 'POST') {
         episode.status = 'finished'
+        episode.insights = state.finishInsights
+        return json(200, episode)
+      }
+      if (action === 'corrections' && method === 'POST') {
+        if ('status' in state.correction) return json(state.correction.status, state.correction.body)
+        const text = (body as { text: string }).text
+        const turn: Turn = { role: 'user', text, answerKind: 'correction', at: '2026-11-03T04:00:00Z' }
+        if (state.correctionDistress) {
+          episode.turns = [
+            ...episode.turns,
+            turn,
+            { role: 'assistant', text: FAKE_DISTRESS_TEXT, move: 'distress', at: '2026-11-03T04:00:01Z' },
+          ]
+          episode.insights = null
+          episode.notice = {
+            kind: 'distress',
+            text: FAKE_DISTRESS_TEXT,
+            linkUrl: FAKE_SUPPORT_URL,
+            linkLabel: FAKE_SUPPORT_LABEL,
+            actions: FAKE_DISTRESS_ACTIONS,
+          }
+          return json(200, episode)
+        }
+        episode.turns = [...episode.turns, turn]
+        episode.insights = state.correction
+        return json(200, episode)
+      }
+      if (action === 'resume' && method === 'POST') {
+        if (state.resumeFindsInProgress) {
+          return json(409, { type: '/problems/episode-in-progress', status: 409, episodeId: state.resumeFindsInProgress })
+        }
+        if (episode.status !== 'finished' || !episode.insights?.canResume) {
+          return json(409, { type: '/problems/episode-finished', status: 409 })
+        }
+        episode.status = 'talking'
+        episode.finishedAt = null
+        episode.insights = null
+        episode.turns = [
+          ...episode.turns,
+          { role: 'assistant', text: FAKE_RESUME_QUESTION, choices: FAKE_RESUME_CHOICES, move: 'resume', at: '2026-11-03T04:30:00Z' },
+        ]
         return json(200, episode)
       }
       if (action === 'skip' && method === 'POST') {
@@ -184,11 +349,32 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
       if (action === 'messages' && method === 'POST') {
         if (!Array.isArray(state.reply)) return json(state.reply.status, state.reply.body)
         if (state.manualStream) return manualResponse()
+        recordRound(episode, body as { text: string; kind: 'free' | 'choice' }, state.reply)
         return sseResponse(state.reply)
       }
     }
     return json(404, { status: 404 })
   })
+
+  /** 裏側と同じく、返事を最後まで返せた 1 往復を場面に残す（開き直したときや、話し終えて読み直したときに使う）。 */
+  function recordRound(episode: Episode, answer: { text: string; kind: 'free' | 'choice' }, events: FakeEvent[]) {
+    const done = events.find((e) => e.event === 'done')?.data as { status: 'talking' | 'finished'; move: string } | undefined
+    if (!done) return
+    const notice = events.find((e) => e.event === 'notice')?.data as Episode['notice'] | undefined
+    const distress = notice?.kind === 'distress' ? notice : null
+    const text = events
+      .filter((e) => e.event === 'delta')
+      .map((e) => (e.data as { text: string }).text)
+      .join('')
+    const choices = (events.find((e) => e.event === 'choices')?.data as { choices: string[] } | undefined)?.choices ?? null
+    episode.turns = [
+      ...episode.turns,
+      { role: 'user', text: answer.text, answerKind: answer.kind, at: '2026-11-03T01:05:00Z' },
+      { role: 'assistant', text: distress ? distress.text : text, choices, move: done.move, at: '2026-11-03T01:05:01Z' },
+    ]
+    episode.status = done.status
+    episode.notice = distress
+  }
 
   vi.stubGlobal('fetch', fetchMock)
   return { state, calls, streams, currentVersion, fetchMock }

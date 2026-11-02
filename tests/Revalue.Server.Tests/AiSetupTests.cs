@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Revalue.Server.Ai;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Tests;
 
@@ -80,7 +81,7 @@ public sealed class AiSetupTests
         var ai = new ScriptedConversationAi();
         var splitter = new ReplyStreamSplitter();
         var chunks = 0;
-        await foreach (var chunk in ai.StreamReplyAsync(Answer("昨日は朝から買い物に行った"), MoveKind.AskWhatYouDid, Ct))
+        await foreach (var chunk in ai.StreamReplyAsync(Answer("昨日は朝から買い物に行った"), new NextMove(MoveKind.AskWhatYouDid), Ct))
         {
             chunks++;
             splitter.Push(chunk);
@@ -97,12 +98,66 @@ public sealed class AiSetupTests
     public async Task ScriptedCloseHasNoChoices()
     {
         var text = "";
-        await foreach (var chunk in new ScriptedConversationAi().StreamReplyAsync(Answer("昨日は朝から買い物に行った"), MoveKind.Close, Ct))
+        await foreach (var chunk in new ScriptedConversationAi().StreamReplyAsync(Answer("昨日は朝から買い物に行った"), new NextMove(MoveKind.Close), Ct))
         {
             text += chunk;
         }
 
         Assert.DoesNotContain(ReplyStreamSplitter.Delimiter, text);
         Assert.DoesNotContain("？", text);
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 偽物の AI は、行動の目印の言葉があれば答えの文全体を引用にした候補を返し、選んだ答えには返さない")]
+    public async Task ScriptedReturnsCandidates()
+    {
+        const string text = "朝、用事が三つ重なったので、病院を先にしました。";
+        var reading = await new ScriptedConversationAi().ReadAsync(Answer(text), Ct);
+
+        Assert.Equal(
+            [new ActionRef(Ability.Prioritizing, 1), new ActionRef(Ability.Prioritizing, 2), new ActionRef(Ability.Prioritizing, 3)],
+            reading.Candidates!.Select(c => new ActionRef(c.Ability, c.Action)));
+        Assert.All(reading.Candidates!, c =>
+        {
+            Assert.Equal(text, c.Quote);
+            Assert.Equal(1, c.Answer);
+            Assert.Equal(1, c.Event);
+            Assert.False(c.General);
+        });
+
+        IReadOnlyList<Turn> chosen = [.. Answer("昨日のこと"), new Turn { Role = TurnRoles.User, Text = "用事が重なった", AnswerKind = AnswerKind.Choice, At = At }];
+        Assert.Empty((await new ScriptedConversationAi().ReadAsync(chosen, Ct)).Candidates!);
+    }
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 偽物の AI も、本物の読み取りと同じく前の答えから根拠を探す")]
+    public async Task ScriptedReadsWholeScene()
+    {
+        IReadOnlyList<Turn> turns =
+        [
+            .. Answer("朝、用事が三つ重なっていました。"),
+            new Turn { Role = TurnRoles.Assistant, Text = "そのとき、何をしましたか？", At = At },
+            new Turn { Role = TurnRoles.User, Text = "病院を先にしました。", AnswerKind = AnswerKind.Free, At = At },
+        ];
+
+        var reading = await new ScriptedConversationAi().ReadAsync(turns, Ct);
+
+        Assert.Equal(
+            [(1, "朝、用事が三つ重なっていました。", 1), (2, "病院を先にしました。", 2)],
+            reading.Candidates!.Select(c => (c.Action, c.Quote, c.Answer)));
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 偽物の AI の、足りない行動を聞く返事は、その行動を前提にしない問いで聞く")]
+    public async Task ScriptedAskMissingActionShowsHint()
+    {
+        var target = new ActionRef(Ability.Prioritizing, 3);
+        var splitter = new ReplyStreamSplitter();
+        await foreach (var chunk in new ScriptedConversationAi().StreamReplyAsync(Answer("用事が重なった"), new NextMove(MoveKind.AskMissingAction, target), Ct))
+        {
+            splitter.Push(chunk);
+        }
+
+        var parts = splitter.Complete();
+        Assert.EndsWith(AbilityText.ResumeAsk(target), parts.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("について", parts.Body, StringComparison.Ordinal);
+        Assert.Equal(AbilityText.ResumeChoices, parts.Choices);
     }
 }

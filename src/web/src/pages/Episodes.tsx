@@ -55,6 +55,7 @@ export function Episodes() {
                   >
                     {episode.status === 'talking' ? copy.episodes.talking : copy.episodes.finished}
                   </span>
+                  {episode.canResume && <span className="font-medium text-primary">{copy.episodes.canResume}</span>}
                 </span>
                 <span className="mt-1 block text-sm leading-relaxed break-words">
                   {episode.preview || copy.episodes.noPreview}

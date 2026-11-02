@@ -89,7 +89,7 @@ Windows と Linux のどちらでも同じように動く形で書く。`cd` で
 | 画面のテスト | `npm --prefix src/web test` |
 | 手元で動かす（裏側） | `dotnet run --project src/Revalue.Server` |
 | 手元で動かす（画面） | `npm --prefix src/web run dev`（`/api` を裏側へ転送する） |
-| 評価を回す | `dotnet run --project evals/Revalue.Evals -- --unit discover`（`--dry-run` で、Claude を呼ばずに仕組みだけを確かめる） |
+| 評価を回す | `dotnet run --project evals/Revalue.Evals -- --unit discover`（`--unit validate` で 03 validate（確かめる）の例。`--dry-run` で、Claude を呼ばずに仕組みだけを確かめる） |
 | フックのテスト | `node --test .claude/hooks/guard.test.mjs` |
 
 雛形を作るときは、公式の作り方に従う。

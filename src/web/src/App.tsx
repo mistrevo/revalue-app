@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { RequireUser } from '@/components/RequireUser'
+import { Abilities } from '@/pages/Abilities'
 import { Episodes } from '@/pages/Episodes'
 import { Home } from '@/pages/Home'
 import { Landing } from '@/pages/Landing'
@@ -44,6 +45,14 @@ export function AppRoutes() {
         element={
           <RequireUser key="episodes" consent>
             <Episodes />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/abilities"
+        element={
+          <RequireUser key="abilities" consent>
+            <Abilities />
           </RequireUser>
         }
       />

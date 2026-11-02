@@ -21,7 +21,7 @@ public sealed class FakeConversationAi : IConversationAi
     public static readonly string[] CloseChunks = ["たくさん聞かせてくれて", "ありがとうございました。"];
 
     private readonly object _gate = new();
-    private readonly List<MoveKind> _moves = [];
+    private readonly List<NextMove> _moves = [];
 
     /// <summary>読み取りの結果。既定は「具体的な出来事がある」。</summary>
     public Func<IReadOnlyList<Turn>, TurnReading> Reading { get; set; } =
@@ -47,7 +47,20 @@ public sealed class FakeConversationAi : IConversationAi
 
     public int ReadCalls { get; private set; }
 
+    /// <summary>返事を求められた一手の種類（呼ばれた順）。</summary>
     public IReadOnlyList<MoveKind> Moves
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _moves.Select(m => m.Kind).ToArray();
+            }
+        }
+    }
+
+    /// <summary>返事を求められた一手（聞く行動も含む。呼ばれた順）。</summary>
+    public IReadOnlyList<NextMove> NextMoves
     {
         get
         {
@@ -71,11 +84,12 @@ public sealed class FakeConversationAi : IConversationAi
         return Task.FromResult(Reading(turns));
     }
 
-    public async IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Turn> turns, MoveKind move, [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Turn> turns, NextMove next, [EnumeratorCancellation] CancellationToken ct)
     {
+        var move = next.Kind;
         lock (_gate)
         {
-            _moves.Add(move);
+            _moves.Add(next);
         }
 
         var fail = FailNextReply;

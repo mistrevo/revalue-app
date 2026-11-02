@@ -9,12 +9,17 @@ namespace Revalue.Evals;
 
 /// <summary>
 /// 評価を回す。
-/// <c>dotnet run --project evals/Revalue.Evals -- --unit discover [--dry-run] [--out &lt;フォルダ&gt;]</c>
+/// <c>dotnet run --project evals/Revalue.Evals -- --unit discover|validate [--dry-run] [--out &lt;フォルダ&gt;]</c>
 /// 終了コード: 0 合格、1 不合格、2 回せなかった（引数や鍵の不足など）。
+/// dry-run は仕組みが動くかだけを確かめるので、途中で終えた例がなければ 0、あれば 1 を返す（偽物の AI の数字では合否を決めない。Claude の判断）。
+/// validate では、同じやりとりを汎用の AI にも渡して比べる（<see cref="GenericComparison"/>）。
 /// </summary>
 public static class EvalProgram
 {
-    private static readonly string[] Units = ["discover"];
+    private static readonly string[] Units = ["discover", "validate"];
+
+    /// <summary>返事の判定役の指示。どのまとまりでも、返事は 02 discover（話す）の決まりで見る。</summary>
+    private const string ReplyJudgePrompt = "discover.md";
 
     public static async Task<int> Main(string[] args)
     {
@@ -36,7 +41,7 @@ public static class EvalProgram
                     break;
                 default:
                     Console.Error.WriteLine($"知らない引数です: {args[i]}");
-                    Console.Error.WriteLine("使い方: dotnet run --project evals/Revalue.Evals -- --unit discover [--dry-run] [--out <フォルダ>]");
+                    Console.Error.WriteLine("使い方: dotnet run --project evals/Revalue.Evals -- --unit discover|validate [--dry-run] [--out <フォルダ>]");
                     return 2;
             }
         }
@@ -71,10 +76,12 @@ public static class EvalProgram
         using var loggers = LoggerFactory.Create(b => b.AddSimpleConsole(o => o.SingleLine = true));
         IConversationAi ai;
         IReplyJudge judge;
+        GenericComparison generic;
         if (dryRun)
         {
             ai = new ScriptedConversationAi();
             judge = new DryRunJudge();
+            generic = new GenericComparison(new DryRunGenericAssistant(), new DryRunGenericReader());
         }
         else
         {
@@ -87,7 +94,10 @@ public static class EvalProgram
 
             var client = new AnthropicClient { ApiKey = apiKey };
             ai = new ClaudeConversationAi(client, Options.Create(claude), loggers.CreateLogger<ClaudeConversationAi>(), usage);
-            judge = new ClaudeJudge(client, claude.Model, File.ReadAllText(Path.Combine(baseDir, "judges", unit + ".md")).Trim(), usage);
+            judge = new ClaudeJudge(client, claude.Model, File.ReadAllText(Path.Combine(baseDir, "judges", ReplyJudgePrompt)).Trim(), usage);
+            generic = new GenericComparison(
+                new ClaudeGenericAssistant(client, claude.Model, usage),
+                new ClaudeGenericReader(client, claude.Model, File.ReadAllText(Path.Combine(baseDir, "judges", "generic.md")).Trim(), usage));
         }
 
         var runner = new EvalRunner(ai, judge, forbidden);
@@ -95,7 +105,13 @@ public static class EvalProgram
         foreach (var script in scripts)
         {
             Console.WriteLine($"{script.Id} {script.Title} を流しています");
-            runs.Add(await runner.RunAsync(script, cancel.Token));
+            var run = await runner.RunAsync(script, cancel.Token);
+            if (unit == "validate" && run.Error is null)
+            {
+                run = run with { Generic = await generic.RunAsync(run, cancel.Token) };
+            }
+
+            runs.Add(run);
         }
 
         var summary = EvalSummary.From(runs);
@@ -118,6 +134,11 @@ public static class EvalProgram
         }
 
         Console.WriteLine($"結果を書きました: {path}");
+        if (dryRun)
+        {
+            return summary.Errors == 0 ? 0 : 1;
+        }
+
         return summary.Passed ? 0 : 1;
     }
 

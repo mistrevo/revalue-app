@@ -74,6 +74,76 @@ public static class EpisodeStarter
         throw new InvalidOperationException($"Could not start an episode after {MaxAttempts} attempts.");
     }
 
+    /// <summary>
+    /// 話し終えた場面を、話している途中に戻す（03-validate.md の「続きを話す」）。始めるときと同じく、途中の場面を 1 人 1 つまでにするため、次の順で一続きにする。
+    /// <list type="number">
+    /// <item>印を、版つきで読む</item>
+    /// <item>話している途中の場面があれば、戻さずにそれを返す</item>
+    /// <item>場面を版つきで読み、<paramref name="reopen"/> で書き換える（読んだときから変わっていなければ。<paramref name="reopen"/> が null を返せば、何もせず null を返す）</item>
+    /// <item>印を、読んだときの版のまま書き換える。書き換えられたら、戻したことにする</item>
+    /// <item>書き換えられなければ、ほかの要求が先に始めた。場面を話し終えた状態に戻して（足したターンも外して）、1 からやり直す</item>
+    /// </list>
+    /// </summary>
+    /// <param name="reopen">いまの場面から、話している途中に戻した場面を作る（まだ保存しない）。戻せないなら null。</param>
+    /// <returns>戻した場面（<see cref="StartOutcome.Started"/>）か、ほかの途中の場面（<see cref="StartOutcome.InProgress"/>）。場面がない、または戻せないときは null。</returns>
+    public static async Task<StartOutcome?> ResumeAsync(
+        IDataStore store, string userKey, string episodeId, Func<EpisodeItem, EpisodeItem?> reopen, CancellationToken ct)
+    {
+        for (var attempt = 0; attempt < MaxAttempts; attempt++)
+        {
+            var mark = await store.GetVersionedAsync<TalkingMarkItem>(userKey, TalkingMarkItem.ItemId, ct);
+            var talking = await FindTalkingAsync(store, userKey, mark?.Item.EpisodeId, ct);
+            if (talking is not null)
+            {
+                return new StartOutcome(null, talking);
+            }
+
+            var read = await store.GetVersionedAsync<EpisodeItem>(userKey, episodeId, ct);
+            if (read is null || read.Item.Type != EpisodeItem.ItemType || reopen(read.Item) is not { } reopened)
+            {
+                return null;
+            }
+
+            if (!await store.TryReplaceAsync(reopened, read.ETag, ct))
+            {
+                // 読んでから書くまでに場面が変わった。確かめ直す
+                continue;
+            }
+
+            var next = new TalkingMarkItem
+            {
+                Id = TalkingMarkItem.ItemId,
+                UserKey = userKey,
+                Type = TalkingMarkItem.ItemType,
+                EpisodeId = episodeId,
+            };
+            var claimed = mark is null
+                ? await store.TryCreateAsync(next, ct)
+                : await store.TryReplaceAsync(next, mark.ETag, ct);
+            if (claimed)
+            {
+                return new StartOutcome(reopened, null);
+            }
+
+            // ほかの要求が、印を読んでから書き換えるまでのあいだに始めた。
+            // 戻した場面はまだどの画面にも返していないので、話し終えた状態に戻し（足したターンも外す）、確かめ直す
+            var original = read.Item;
+            await store.TryUpdateAsync<EpisodeItem>(userKey, episodeId, current =>
+                current.Status == EpisodeStatus.Talking && current.Turns.Count == reopened.Turns.Count
+                    ? current with
+                    {
+                        Status = original.Status,
+                        FinishedAt = original.FinishedAt,
+                        TurnLimit = original.TurnLimit,
+                        Turns = original.Turns,
+                        BeforeResume = original.BeforeResume,
+                    }
+                    : null, ct);
+        }
+
+        throw new InvalidOperationException($"Could not resume the episode after {MaxAttempts} attempts.");
+    }
+
     /// <summary>話している途中の場面。印が指す場面が途中ならそれを、そうでなければいちばん新しいものを返す。なければ null。</summary>
     private static async Task<EpisodeItem?> FindTalkingAsync(IDataStore store, string userKey, string? markedId, CancellationToken ct)
     {
