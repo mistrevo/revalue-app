@@ -47,6 +47,19 @@ describe('copy', () => {
     expect(copy.insights.lead).toContain(`「${copy.insights.correct}」`)
   })
 
+  it('validate-8（訂正したら確かめ直す）: 訂正の欄の例は、足す向きを先に、取り下げる向きと並べる', () => {
+    // 取り下げる向きの例だけだと、自分の手柄を減らすための欄に見え、自分を低く言う方へ誘いやすい
+    const [adding, withdrawing] = copy.insights.correctPlaceholder.replace(/^例: /, '').split('／')
+    expect(adding).toMatch(/私です$/)
+    expect(withdrawing).toContain('私ではなく')
+  })
+
+  it('validate-12（本人が見立てを外せる）: 見えた力の前置きは、読み取りを直せることを、外す・戻すより先に伝える', () => {
+    const lead = copy.abilities.lead
+    expect(lead).toContain('直せます')
+    expect(lead.indexOf('直せます')).toBeLessThan(lead.indexOf('外したり戻したり'))
+  })
+
   it('common-1（使わない言葉を出さない）: 照らし合わせは使わない言葉を見つけられる', () => {
     const texts = flatten({ a: ['あなたの診断結果'] })
     expect(forbiddenWords.some((word) => texts.some((text) => text.includes(word)))).toBe(true)

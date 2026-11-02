@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import forbiddenWords from '../../../shared/forbidden-words.json'
 import { copy } from '@/copy'
 import { FAKE_HINT, installFakeApi } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
@@ -98,15 +99,30 @@ describe('Abilities', () => {
     expect(within(history).getByText(copy.abilities.historyEmpty)).toBeInTheDocument()
   })
 
-  it('validate-6（否定の言葉を使わない）: 状態の呼び名（根拠あり、要確認、未確認）、点数、順位が画面に出ない', async () => {
-    setup()
+  it('validate-6（否定の言葉を使わない）: 状態の呼び名（根拠あり、要確認、未確認）、使わない言葉、点数、順位が画面に出ない', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    // 外した力、戻した力、確かめに使わなくなった場面も含め、この画面に出る文言をすべて出してから見る
+    api.state.abilities = {
+      ...api.state.abilities,
+      abilities: api.state.abilities.abilities.map((a) => (a.key === 'noticing' ? { ...a, excluded: true } : a)),
+      history: [
+        ...api.state.abilities.history,
+        { at: '2026-11-03T04:00:00Z', key: 'noticing', name: '見立てる力', from: 'notYet', to: 'notYet', reason: 'exclude', episodeId: null },
+        { at: '2026-11-03T05:00:00Z', key: 'noticing', name: '見立てる力', from: 'notYet', to: 'notYet', reason: 'restore', episodeId: null },
+        { at: '2026-11-03T06:00:00Z', key: 'coordinating', name: '調整する力', from: 'confirmed', to: 'notYet', reason: 'setAside', episodeId: 'episode-1' },
+        { at: '2026-11-03T07:00:00Z', key: 'coordinating', name: '調整する力', from: 'needsCheck', to: 'notYet', reason: 'skip', episodeId: 'episode-2' },
+        { at: '2026-11-03T08:00:00Z', key: 'coordinating', name: '調整する力', from: 'notYet', to: 'needsCheck', reason: 'correction', episodeId: 'episode-1' },
+      ],
+    }
+    renderApp('/abilities')
 
     await screen.findByRole('region', { name: '調整する力' })
-    const text = document.body.textContent ?? ''
-    for (const word of ['根拠あり', '要確認', '未確認', '根拠なし', '不得意', 'スコア']) {
+    expect(screen.getByText(copy.abilities.excludedNote)).toBeInTheDocument()
+    // 「優先順位をつける力」は PRD が決めた力の名前。使わない言葉の「順位」は人や仕事の順位づけのことなので、この言葉だけ除いて見る
+    const text = (document.body.textContent ?? '').replaceAll('優先順位', '')
+    for (const word of ['根拠あり', '要確認', '未確認', ...forbiddenWords]) {
       expect(text).not.toContain(word)
     }
-    // 「優先順位をつける力」の名前には「位」が入るので、数字と並んだ点数・順位の形で見る
     expect(text).not.toMatch(/[0-9０-９]+\s*(点|位)/)
     expect(text).not.toContain('第 1 位')
   })
