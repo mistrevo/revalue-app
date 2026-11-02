@@ -133,7 +133,7 @@ public static class NextMovePolicy
     /// 足りない行動を一つ選ぶ。いまの答えが具体的な出来事でなく、いまの答えから一般論でない根拠も見つからなければ選ばない
     /// （一般論だけには具体的な出来事を聞く（validate-10）。分からない・何もないには答えやすい場面を聞き、問い詰めない）。
     /// いまの出来事の中で 3 つそろっていない力のうち、行動の多い力（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
-    /// <see cref="AbilityStates.AskOrder"/> の順に見て、聞いた回数が上限に届いていないもの。
+    /// <see cref="AbilityStates.AskOrder"/> の順に見て、聞いた回数が上限に届いていないもの。場面全体ですでに根拠ありの力は聞かない。
     /// </summary>
     private static ActionRef? MissingActionToAsk(TurnReading reading, ValidationContext? validation)
     {
@@ -157,9 +157,14 @@ public static class NextMovePolicy
             return null;
         }
 
+        // 場面全体ですでに根拠ありの力は聞かない。新しい読み取りが同じ出来事の行動を落としても、本人はもう話している
+        var confirmed = AbilityStates.Evaluate(validation.Evidence)
+            .Where(r => r.State == AbilityState.Confirmed)
+            .Select(r => r.Ability)
+            .ToHashSet();
         var currentEvent = pool.Select(e => (e.Reading, e.Event)).Max();
         var candidates = specific
-            .Where(e => (e.Reading, e.Event) == currentEvent)
+            .Where(e => (e.Reading, e.Event) == currentEvent && !confirmed.Contains(e.Ability))
             .GroupBy(e => e.Ability)
             .Select(g => (Ability: g.Key, Actions: g.Select(e => e.Action).Distinct().ToHashSet()))
             .Where(c => c.Actions.Count < ActionRef.ActionsPerAbility)

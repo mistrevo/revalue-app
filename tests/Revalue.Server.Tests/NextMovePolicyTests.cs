@@ -195,6 +195,31 @@ public sealed class NextMovePolicyTests
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 3, context));
     }
 
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 場面ですでに根拠ありの力は、新しい読み取りが同じ出来事の行動を落としても聞き直さない")]
+    public void ConfirmedInSceneIsNotAskedAgain()
+    {
+        // 3 回目の読み取りで調整する力の 3 つがそろった。4 回目の読み取りは、同じ出来事の行動 3 を落とした
+        IReadOnlyList<Evidence> evidence =
+        [
+            E(Ability.Coordinating, 1, answer: 1) with { Reading = 3 },
+            E(Ability.Coordinating, 2, answer: 2) with { Reading = 3 },
+            E(Ability.Coordinating, 3, answer: 3) with { Reading = 3 },
+            E(Ability.Coordinating, 1, answer: 1) with { Reading = 4 },
+            E(Ability.Coordinating, 2, answer: 4) with { Reading = 4 },
+        ];
+        Assert.Equal(
+            AbilityState.Confirmed,
+            AbilityStates.Evaluate(evidence).Single(r => r.Ability == Ability.Coordinating).State);
+
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 4, Context(4, evidence)));
+
+        // 同じ出来事に要確認の力がほかにあれば、そちらの足りない行動を聞く
+        IReadOnlyList<Evidence> withPrioritizing = [.. evidence, E(Ability.Prioritizing, 1, answer: 4) with { Reading = 4 }];
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 2)),
+            NextMovePolicy.Decide(Concrete, 4, Context(4, withPrioritizing)));
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: つらい状態のサイン、締め、家族の病気は、足りない行動より先")]
     public void SaferMovesComeFirst()
     {
