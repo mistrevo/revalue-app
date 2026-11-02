@@ -47,18 +47,18 @@ src/Revalue.Server/
   Program.cs                                          組み立てだけ。各機能の Add*/Map* を呼ぶ
   Properties/launchSettings.json                      http://localhost:5080
   appsettings.json                                    鍵以外の既定値（Limits、Cosmos の名前）
-  Foundation/Jst.cs                                   日本時間の今日・翌日 0 時
-  Foundation/Problems.cs                              ProblemDetails の type と生成
-  Foundation/Auth/UserKeyHasher.cs                    利用者キー（HMAC）
-  Foundation/Auth/EasyAuthHandler.cs                  組み込み認証のヘッダーを読む
-  Foundation/Auth/DevAuth.cs                          開発用の偽ログイン（Development だけ）
-  Foundation/Auth/AuthSetup.cs                        AddRevalueAuth / MapDevAuth / ClaimsPrincipal.GetUserKey
-  Foundation/DailyTouchMiddleware.cs                  その日に初めて使ったら TTL を数え直す
-  Foundation/RequestLogMiddleware.cs                  中身を書かないアクセスログ
-  Foundation/Consent/ConsentEndpoints.cs              /api/me、/api/consent、DELETE /api/me
-  Foundation/Consent/RequireConsentFilter.cs          未了解なら 403
-  Foundation/Limits/DailyLimitFilter.cs               上限を超えたら 429。RequireDailyLimit()
-  Foundation/Counting/Counter.cs                      CountOnceAsync と /api/stats
+  Features/Foundation/Jst.cs                          日本時間の今日・翌日 0 時
+  Features/Foundation/Problems.cs                     ProblemDetails の type と生成
+  Features/Foundation/Auth/UserKeyHasher.cs           利用者キー（HMAC）
+  Features/Foundation/Auth/EasyAuthHandler.cs         組み込み認証のヘッダーを読む
+  Features/Foundation/Auth/DevAuth.cs                 開発用の偽ログイン（Development だけ）
+  Features/Foundation/Auth/AuthSetup.cs               AddRevalueAuth / MapDevAuth / ClaimsPrincipal.GetUserKey
+  Features/Foundation/DailyTouchMiddleware.cs         その日に初めて使ったら TTL を数え直す
+  Features/Foundation/RequestLogMiddleware.cs         中身を書かないアクセスログ
+  Features/Foundation/Consent/ConsentEndpoints.cs     /api/me、/api/consent、DELETE /api/me
+  Features/Foundation/Consent/RequireConsentFilter.cs 未了解なら 403
+  Features/Foundation/Limits/DailyLimitFilter.cs      上限を超えたら 429。RequireDailyLimit()
+  Features/Foundation/Counting/Counter.cs             CountOnceAsync と /api/stats
   Data/Item.cs                                        保存するアイテムの基底と定数
   Data/IDataStore.cs
   Data/InMemoryDataStore.cs                           TimeProvider で TTL を再現
@@ -89,7 +89,7 @@ infra/README.md                                       最初の 1 回の手順
 ### Task 1: 雛形、ヘルスチェック、SPA の配信、ProblemDetails
 
 **Files:**
-- Create: `Revalue.slnx`、`src/Revalue.Server/*`（`dotnet new web`）、`src/Revalue.Server/Foundation/Problems.cs`、`src/Revalue.Server/Ai/Prompts/.gitkeep`、`src/shared/forbidden-words.json`
+- Create: `Revalue.slnx`、`src/Revalue.Server/*`（`dotnet new web`）、`src/Revalue.Server/Features/Foundation/Problems.cs`、`src/Revalue.Server/Ai/Prompts/.gitkeep`、`src/shared/forbidden-words.json`
 - Create: `tests/Revalue.Server.Tests/*`（`dotnet new xunit3`）、`RevalueFactory.cs`、`TestWebRoot/index.html`、`HostingTests.cs`
 
 **Interfaces:**
@@ -97,20 +97,20 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `RevalueFactory : WebApplicationFactory<Program>`。既定で環境 `Testing`、設定 `Auth:UserKeySecret = "test-secret-not-for-production"`、`UseWebRoot(TestWebRoot)`、`FakeTimeProvider` を `TimeProvider` として登録し `Clock` プロパティで公開、ログを集める `CapturedLogs`（`IReadOnlyList<string>`）。`HttpClient CreateUserClient(string principalId)` は `X-MS-CLIENT-PRINCIPAL-IDP: google` と `X-MS-CLIENT-PRINCIPAL-ID: <principalId>` を付ける。`WithEnvironment(string env)` で環境を変えたファクトリを返す
 - Produces: `src/shared/forbidden-words.json`（Global Constraints の配列）
 
-- [ ] **Step 1: 雛形を作る**
+- [x] **Step 1: 雛形を作る**
   `dotnet new sln -n Revalue`（.NET 10 は `.slnx`）、`dotnet new web -o src/Revalue.Server`、`dotnet new install xunit.v3.templates` → `dotnet new xunit3 -o tests/Revalue.Server.Tests`、両方を sln に足し、テストから Server を参照する。`Microsoft.AspNetCore.Mvc.Testing` と `Microsoft.Extensions.TimeProvider.Testing` をテストに入れる。版は入れたときの最新の安定版で固定。
 
-- [ ] **Step 2: 失敗するテストを書く（`HostingTests.cs`）**
+- [x] **Step 2: 失敗するテストを書く（`HostingTests.cs`）**
   - `foundation-7（公開 URL で動く）: GET /api/health は未ログインでも 200` — 本文の `status` が `"ok"`
   - `foundation-1（案内はログインなしで見られる）: /api 以外の知らないパスは index.html を返す` — `GET /settings` が 200、`text/html`、本文に TestWebRoot の目印 `revalue-test-root`
   - `foundation-1（案内はログインなしで見られる）: /api の知らないパスは 404 の ProblemDetails` — `GET /api/nope`（ログイン済みのクライアントで）が 404、`application/problem+json`
 
-- [ ] **Step 3: `dotnet test` で失敗を確かめる**
+- [x] **Step 3: `dotnet test` で失敗を確かめる**
 
-- [ ] **Step 4: 実装する**
+- [x] **Step 4: 実装する**
   `Program.cs` で `AddProblemDetails()`、`GET /api/health` → `{ status = "ok" }`、`UseDefaultFiles` / `UseStaticFiles`、`/api` 以外のフォールバックだけ `index.html`（`/api/{**rest}` は 404 の ProblemDetails）。`launchSettings.json` は `http://localhost:5080`。
 
-- [ ] **Step 5: `dotnet test` が通ることを確かめ、コミットする**
+- [x] **Step 5: `dotnet test` が通ることを確かめ、コミットする**
   `雛形とヘルスチェック、SPA の配信を作る（foundation-7 公開 URL で動く の土台）`
 
 ---
@@ -118,7 +118,7 @@ infra/README.md                                       最初の 1 回の手順
 ### Task 2: ログインと利用者キー
 
 **Files:**
-- Create: `Foundation/Auth/UserKeyHasher.cs`、`EasyAuthHandler.cs`、`DevAuth.cs`、`AuthSetup.cs`
+- Create: `Features/Foundation/Auth/UserKeyHasher.cs`、`EasyAuthHandler.cs`、`DevAuth.cs`、`AuthSetup.cs`
 - Modify: `Program.cs`
 - Test: `tests/Revalue.Server.Tests/AuthTests.cs`
 
@@ -151,7 +151,7 @@ infra/README.md                                       最初の 1 回の手順
 ### Task 3: データの保存先と、自動で消す仕組み
 
 **Files:**
-- Create: `Data/Item.cs`、`IDataStore.cs`、`InMemoryDataStore.cs`、`CosmosDataStore.cs`、`DataSetup.cs`、`Foundation/Jst.cs`、`Foundation/DailyTouchMiddleware.cs`
+- Create: `Data/Item.cs`、`IDataStore.cs`、`InMemoryDataStore.cs`、`CosmosDataStore.cs`、`DataSetup.cs`、`Features/Foundation/Jst.cs`、`Features/Foundation/DailyTouchMiddleware.cs`
 - Modify: `Program.cs`、`appsettings.json`
 - Test: `DataStoreTests.cs`、`JstTests.cs`、`AutoDeleteTests.cs`
 
@@ -191,7 +191,7 @@ infra/README.md                                       最初の 1 回の手順
 ### Task 4: はじめに（了解）と、全部消す
 
 **Files:**
-- Create: `Foundation/Consent/ConsentEndpoints.cs`、`RequireConsentFilter.cs`
+- Create: `Features/Foundation/Consent/ConsentEndpoints.cs`、`RequireConsentFilter.cs`
 - Modify: `Program.cs`
 - Test: `ConsentTests.cs`、`DeleteAllTests.cs`
 
@@ -219,7 +219,7 @@ infra/README.md                                       最初の 1 回の手順
 ### Task 5: 送信回数の上限と、人と結びつかない数
 
 **Files:**
-- Create: `Foundation/Limits/DailyLimitFilter.cs`、`Foundation/Counting/Counter.cs`
+- Create: `Features/Foundation/Limits/DailyLimitFilter.cs`、`Features/Foundation/Counting/Counter.cs`
 - Modify: `Program.cs`、`appsettings.json`（`Limits` の既定）
 - Test: `DailyLimitTests.cs`、`CounterTests.cs`
 
@@ -247,7 +247,7 @@ infra/README.md                                       最初の 1 回の手順
 ### Task 6: ログに中身を書かない
 
 **Files:**
-- Create: `Foundation/RequestLogMiddleware.cs`
+- Create: `Features/Foundation/RequestLogMiddleware.cs`
 - Modify: `Program.cs`、`appsettings.json`（既定のログで中身が出ない設定）
 - Test: `LoggingTests.cs`
 
