@@ -78,6 +78,17 @@ gh variable set APP_URL --body <appUrl>
 
 `<appUrl>/api/health` が 200 を返し、`<appUrl>/` で案内の画面が出ることを確かめる。
 
+あわせて、`deploy.yml` の「Container App を新しいイメージに更新する」が、権限のエラー（`AuthorizationFailed`）で止まっていないことを確かめる。GitHub Actions 用の ID には、次の 4 つの役割だけを付けている。足りなければ、エラーに出た操作の名前をここに書き足し、`main.bicep` を直す。
+
+| 範囲 | 役割 | 何のために |
+|---|---|---|
+| Container App | Contributor | アプリを新しいイメージに更新する |
+| Container Apps の環境 | Container Apps Contributor | 更新のときに、アプリが環境に加わる権限（`join/action`）を確かめられることがあるため |
+| アプリ用のマネージド ID | Managed Identity Operator | 更新のときに、アプリに付けた ID を付け直す権限（`assign/action`）を確かめられることがあるため |
+| リソースグループ | Reader | アプリを探して読む |
+
+確かめた結果: まだ（2026-11-02 時点では Azure のリソースグループがなく、最初のデプロイを流していない）。流したら、ここに日付と結果を書く。
+
 ## 作り直すとき
 
 `main.bicep` を流し直すときは、いま動いているイメージを `containerImage` で渡す。渡さないと、仮イメージに戻る。
@@ -92,4 +103,4 @@ az deployment group create -g <リソースグループ> -f infra/main.bicep -p 
 az bicep build --file infra/main.bicep --stdout
 ```
 
-Windows で日本語の説明を含む出力が文字化けのエラーになるときは、`--stdout` の代わりに `--outfile` で一時ファイルに書き出す。
+`main.bicep` の説明は、`@description` ではなく `//` のコメントで書く。`@description` は作られる ARM テンプレート（Azure に渡す JSON）に日本語のまま入り、Windows の az CLI がそれを `--stdout` で出せずに止まるため。

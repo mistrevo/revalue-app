@@ -1,26 +1,28 @@
 // RE:VALUE の Azure のリソース。開発者が用意したリソースグループの中に作る。
 // 手順は infra/README.md。鍵の値はここに書かず、Key Vault に入れる。
+// 説明は @description ではなく // のコメントで書く。@description は ARM テンプレートに日本語のまま入り、
+// Windows の az CLI が `az bicep build --stdout` で出力できずに止まるため（Claude の判断）
 
-@description('リソースを置く場所')
+// リソースを置く場所
 param location string = resourceGroup().location
 
-@description('リソースの名前の頭に付ける短い名前（英小文字と数字、7 文字まで）')
+// リソースの名前の頭に付ける短い名前（英小文字と数字、7 文字まで）
 @maxLength(7)
 param appName string = 'revalue'
 
-@description('Google 側に登録したログイン用のアプリ（OAuth クライアント）のクライアント ID。鍵ではない')
+// Google 側に登録したログイン用のアプリ（OAuth クライアント）のクライアント ID。鍵ではない
 param googleClientId string
 
-@description('GitHub のリポジトリ（所有者/名前）。GitHub Actions からの OIDC ログインを許す相手')
+// GitHub のリポジトリ（所有者/名前）。GitHub Actions からの OIDC ログインを許す相手
 param githubRepo string = 'mistrevo/revalue-app'
 
-@description('Container App で動かすイメージ。最初は Microsoft の仮イメージ（ポート 8080 で待つ）')
+// Container App で動かすイメージ。最初は Microsoft の仮イメージ（ポート 8080 で待つ）
 param containerImage string = 'mcr.microsoft.com/dotnet/samples:aspnetapp'
 
-@description('Container App を作るか。最初の 1 回は false にして、Key Vault に鍵を入れてから true で流し直す')
+// Container App を作るか。最初の 1 回は false にして、Key Vault に鍵を入れてから true で流し直す
 param deployApp bool = true
 
-@description('Cosmos DB の無料枠を使うか（無料枠はサブスクリプションに 1 つだけ）。使わないときはサーバーレスにする')
+// Cosmos DB の無料枠を使うか（無料枠はサブスクリプションに 1 つだけ）。使わないときはサーバーレスにする
 param enableCosmosFreeTier bool = true
 
 var suffix = uniqueString(resourceGroup().id)
@@ -32,6 +34,8 @@ var containerAppName = 'ca-${appName}'
 var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
 var contributorRoleId = 'b24988ac-6180-42a0-ab88-20f7382dd24c' // Contributor（Container App だけに付ける）
 var readerRoleId = 'acdd72a7-3385-48ef-bd42-f606fba81ae7' // Reader（リソースグループ）
+var containerAppsContributorRoleId = '358470bc-b998-42bd-ab17-a7e34c199c0f' // Container Apps Contributor（環境だけに付ける。環境に加わる join/action のため）
+var managedIdentityOperatorRoleId = 'f1a07417-d97a-45cb-824c-7a7467783830' // Managed Identity Operator（アプリ用 ID だけに付ける。ID を付ける assign/action のため）
 var cosmosDataContributorRoleId = '00000000-0000-0000-0000-000000000002' // Cosmos DB Built-in Data Contributor
 
 // ---- ログ ----
@@ -47,13 +51,13 @@ resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 
 // ---- マネージド ID（鍵なしで Azure に認証する仕組み） ----
 
-@description('アプリ用。Key Vault の鍵を読み、Cosmos DB を読み書きする')
+// アプリ用。Key Vault の鍵を読み、Cosmos DB を読み書きする
 resource appIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: 'id-${appName}-app'
   location: location
 }
 
-@description('GitHub Actions 用。デプロイし、評価のために Key Vault の鍵を読む')
+// GitHub Actions 用。デプロイし、評価のために Key Vault の鍵を読む
 resource githubIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: 'id-${appName}-github'
   location: location
@@ -265,12 +269,35 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = if (deployA
   }
 }
 
-// GitHub Actions 用 ID は、Container App だけを更新できる。リソースグループは読むだけ
+// GitHub Actions 用 ID は、Container App だけを更新できる。リソースグループは読むだけ。
+// `az containerapp update` は、アプリのほかに、環境に加わる権限（Microsoft.App/managedEnvironments/join/action）と、
+// アプリに付けたアプリ用 ID を付け直す権限（Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action）も確かめることがあるので、
+// 環境とアプリ用 ID にだけ、それを含む役割を付ける
 resource githubAppRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployApp) {
   scope: app
   name: guid(resourceGroup().id, containerAppName, githubIdentity.id, contributorRoleId)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', contributorRoleId)
+    principalId: githubIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource githubEnvironmentRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: environment
+  name: guid(environment.id, githubIdentity.id, containerAppsContributorRoleId)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', containerAppsContributorRoleId)
+    principalId: githubIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource githubIdentityOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: appIdentity
+  name: guid(appIdentity.id, githubIdentity.id, managedIdentityOperatorRoleId)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', managedIdentityOperatorRoleId)
     principalId: githubIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
