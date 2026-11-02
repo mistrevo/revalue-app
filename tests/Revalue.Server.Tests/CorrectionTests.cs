@@ -87,7 +87,7 @@ public sealed class CorrectionTests
         Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
         var question = Array(await Json(resumed), "turns")[^1];
         Assert.False(question.TryGetProperty("target", out _));
-        Assert.EndsWith(AbilityText.ResumeOpenQuestion[AbilityText.ResumeLead.Length..], question.GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.EndsWith(AbilityText.ResumeOpenAsk, question.GetProperty("text").GetString(), StringComparison.Ordinal);
 
         // 続きの中で、読み取りが同じ出来事の行動 1 と 3 を返しても、打ち消された行動 2 は聞き返さない
         ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[2]);

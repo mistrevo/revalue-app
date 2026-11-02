@@ -30,9 +30,12 @@ public sealed class ResumeTests
         Assert.Equal(JsonValueKind.Null, episode.GetProperty("finishedAt").ValueKind);
         Assert.Equal(JsonValueKind.Null, episode.GetProperty("insights").ValueKind);
         var question = Array(episode, "turns")[^1];
-        var target = new ActionRef(Ability.Coordinating, 3);
         Assert.Equal("assistant", question.GetProperty("role").GetString());
-        Assert.Equal(AbilityText.ResumeQuestion(target), question.GetProperty("text").GetString());
+        // 受け止めの一文、聞く力の根拠のうちいちばん短い本人の言葉の映し返し、足りない行動の問い一つ、の順（4-rules.md の「対話の決まり」）
+        Assert.Equal(
+            "また話しに来てくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。その日、みんなの都合を合わせたり、別の案を出したりしたことはありましたか？",
+            question.GetProperty("text").GetString());
+        Assert.Contains("二人に電話して", CoordinatingAnswer, StringComparison.Ordinal);
         Assert.Equal(AbilityText.ResumeChoices, Array(question, "choices").Select(c => c.GetString()));
         Assert.Equal("resume", question.GetProperty("move").GetString());
         Assert.Equal("coordinating.3", question.GetProperty("target").GetString());
@@ -108,9 +111,42 @@ public sealed class ResumeTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var question = Array(await Json(response), "turns")[^1];
-        Assert.Equal(AbilityText.ResumeOpenQuestion, question.GetProperty("text").GetString());
+        Assert.Equal(AbilityText.ResumeOpening(null, "二人に電話して"), question.GetProperty("text").GetString());
         Assert.False(question.TryGetProperty("target", out _));
         Assert.Equal("resume", question.GetProperty("move").GetString());
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの映し返しは、聞く力の根拠のうち、一般論でない、いちばん短い本人の言葉。選んだ答えなら結びついた言葉")]
+    public void ResumeMirrorQuotePicksShortestOwnWords()
+    {
+        static EpisodeItem Episode(params Evidence[] evidence) => new()
+        {
+            Id = "episode-x",
+            UserKey = "u",
+            Type = EpisodeItem.ItemType,
+            Status = EpisodeStatus.Finished,
+            StartedAt = DateTimeOffset.UnixEpoch,
+            Evidence = evidence,
+        };
+        static Evidence E(Ability ability, int action, string quote, bool general = false) => new(ability, action, quote, 1, 1, general, false, null);
+        var coordinating3 = new ActionRef(Ability.Coordinating, 3);
+
+        // 聞く力（調整する力）の根拠から選ぶ。ほかの力の、より短い言葉は使わない
+        Assert.Equal("二人に電話して", EpisodeInsights.ResumeMirrorQuote(
+            Episode(E(Ability.Coordinating, 1, "夫と母の予定がぶつかって"), E(Ability.Coordinating, 2, "二人に電話して"), E(Ability.Prioritizing, 1, "重なった")),
+            coordinating3));
+
+        // 選んだ答えの根拠なら、選んだ文ではなく、結びついた本人の言葉
+        var chosen = new Evidence(Ability.Coordinating, 1, "相手の都合を聞いた", 2, 1, false, true, "夫と母の予定がぶつかって");
+        Assert.Equal("夫と母の予定がぶつかって", EpisodeInsights.ResumeMirrorQuote(Episode(chosen), coordinating3));
+
+        // 聞く行動がなければ、要確認の力すべてから選ぶ。一般論の言葉は、短くても後にする
+        Assert.Equal("夫と母の予定がぶつかって", EpisodeInsights.ResumeMirrorQuote(
+            Episode(E(Ability.Noticing, 1, "いつも様子を見ています", general: true), E(Ability.Coordinating, 1, "夫と母の予定がぶつかって")),
+            null));
+        Assert.Equal("いつも様子を見ています", EpisodeInsights.ResumeMirrorQuote(Episode(E(Ability.Noticing, 1, "いつも様子を見ています", general: true)), null));
+
+        Assert.Null(EpisodeInsights.ResumeMirrorQuote(Episode(), null));
     }
 
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 要確認がない場面、印のある場面、話している途中の場面は 409")]

@@ -40,7 +40,7 @@ public static class AbilityText
 
     /// <summary>
     /// 続きを話すときの、行動ごとの問い（Claude の判断）。本人がその行動をしたことを前提にせず、「ありましたか」「あれば」で聞く。
-    /// 前の場面のやりとりは画面の上に出ているので、「その日」で指す。
+    /// 前の場面は、問いの前の映し返しで本人の言葉を示すので、「その日」で指す。
     /// </summary>
     private static readonly IReadOnlyDictionary<Ability, string[]> Questions = new Dictionary<Ability, string[]>
     {
@@ -73,15 +73,28 @@ public static class AbilityText
     public static string Hint(ActionRef action) => Pick(Hints, action);
 
     /// <summary>
-    /// 続きを話すときの、コードが決めた最初の問い（Claude の判断）。決まった受け止めの一文のあとに、行動ごとの問いを一つ。
-    /// 番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。
+    /// 続きを話すときの、コードが決めた最初の問い（Claude の判断）。4-rules.md の「対話の決まり」のとおり、
+    /// 決まった受け止めの一文（<see cref="ResumeLead"/>）、本人の言葉の映し返し（<see cref="ResumeMirror"/>）、問い一つ、の順。
+    /// 問いは、聞く行動があればその行動の問い（<see cref="ResumeAsk"/>）、なければ手がかりを添えない問い（<see cref="ResumeOpenAsk"/>）。
+    /// 映し返す言葉（<paramref name="quote"/>）がなければ、映し返しを書かない。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。
     /// </summary>
-    public static string ResumeQuestion(ActionRef action) => ResumeLead + Pick(Questions, action);
+    public static string ResumeOpening(ActionRef? action, string? quote) =>
+        ResumeLead + (string.IsNullOrWhiteSpace(quote) ? "" : ResumeMirror(quote)) + (action is null ? ResumeOpenAsk : ResumeAsk(action));
+
+    /// <summary>続きを話すときの、行動ごとの問い。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。</summary>
+    public static string ResumeAsk(ActionRef action) => Pick(Questions, action);
 
     /// <summary>
-    /// 続きを話すときの、手がかりを添えない問い。足りない行動をどれも 2 回聞いたときなどに使う（同じ行動を 3 回聞かない。Claude の判断）。
+    /// 続きを話すときの、本人の言葉の映し返し。根拠の本人の言葉を「」で囲み、一字一句そのまま示す（Claude の判断）。
+    /// どの日のことを聞くかを、問いの「その日」より先に示す。
     /// </summary>
-    public const string ResumeOpenQuestion = ResumeLead + "その日のことで、ほかに覚えていることはありますか？";
+    public static string ResumeMirror(string quote) => $"前に「{quote}」と話してくれましたね。";
+
+    /// <summary>
+    /// 続きを話すときの、手がかりを添えない問い。足りない行動をどれも 2 回聞いたときや、訂正で打ち消されたときなどに使う
+    /// （同じ行動を 3 回聞かない。Claude の判断）。
+    /// </summary>
+    public const string ResumeOpenAsk = "その日のことで、ほかに覚えていることはありますか？";
 
     /// <summary>続きを話すときの、決まった受け止めの一文。続きを話しに戻ってきたことを受け止める（Claude の判断）。</summary>
     public const string ResumeLead = "また話しに来てくれて、ありがとうございます。";

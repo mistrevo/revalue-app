@@ -12,9 +12,11 @@ public sealed class AbilityTextTests
     [
         .. Enum.GetValues<Ability>().Select(AbilityText.Name),
         .. AllActions().Select(AbilityText.Hint),
-        .. AllActions().Select(AbilityText.ResumeQuestion),
+        .. AllActions().Select(AbilityText.ResumeAsk),
         .. AbilityText.ResumeChoices,
-        AbilityText.ResumeOpenQuestion,
+        AbilityText.ResumeLead,
+        AbilityText.ResumeMirror("本人の言葉"),
+        AbilityText.ResumeOpenAsk,
     ];
 
     [Fact(DisplayName = "common-1（使わない言葉を出さない）: 力の名前、手がかり、続きの問いに使わない言葉がない")]
@@ -51,21 +53,31 @@ public sealed class AbilityTextTests
         Assert.Equal("優先順位をつける力", AbilityText.Name(Ability.Prioritizing));
     }
 
-    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いは、決まった受け止めの一文のあとに、行動ごとの問いを一つ。選択肢は 3 つ")]
-    public void ResumeQuestionAddsOneHint()
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いは、決まった受け止めの一文、本人の言葉の映し返し、行動ごとの問い一つの順。選択肢は 3 つ")]
+    public void ResumeOpeningAcknowledgesMirrorsThenAsksOne()
     {
         var target = new ActionRef(Ability.Coordinating, 2);
 
-        Assert.Equal("また話しに来てくれて、ありがとうございます。その日、だれかに声をかけたり、頼んだりしたことはありましたか？", AbilityText.ResumeQuestion(target));
+        // 4-rules.md の「対話の決まり」: 受け止める一文、本人の行動を映し返す言葉、問い一つ、の順
+        Assert.Equal(
+            "また話しに来てくれて、ありがとうございます。前に「夫と母の予定がぶつかって」と話してくれましたね。その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
+            AbilityText.ResumeOpening(target, "夫と母の予定がぶつかって"));
+        Assert.Equal(
+            "また話しに来てくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。その日のことで、ほかに覚えていることはありますか？",
+            AbilityText.ResumeOpening(null, "二人に電話して"));
+
+        // 映し返す言葉がない場面（根拠がない）では、受け止めの一文と問いだけ
+        Assert.Equal(
+            "また話しに来てくれて、ありがとうございます。その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
+            AbilityText.ResumeOpening(target, null));
         Assert.Equal(["少し覚えています", "とくになかったと思います", "その日のほかのことを話したい"], AbilityText.ResumeChoices);
-        Assert.StartsWith(AbilityText.ResumeLead, AbilityText.ResumeOpenQuestion, StringComparison.Ordinal);
-        Assert.Throws<ArgumentOutOfRangeException>(() => AbilityText.ResumeQuestion(new ActionRef(Ability.Noticing, 4)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => AbilityText.ResumeOpening(new ActionRef(Ability.Noticing, 4), "二人に電話して"));
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いは 9 つすべて別の文で、その行動をしたことを前提にせず、問いは一つ")]
     public void ResumeQuestionsDoNotPresuppose()
     {
-        var questions = AllActions().Select(a => AbilityText.ResumeQuestion(a)[AbilityText.ResumeLead.Length..]).ToList();
+        var questions = AllActions().Select(AbilityText.ResumeAsk).ToList();
 
         Assert.Equal(9, questions.Distinct().Count());
         Assert.All(questions, q =>
@@ -76,6 +88,10 @@ public sealed class AbilityTextTests
             Assert.Equal(1, q.Count(c => c == '？'));
             Assert.EndsWith("？", q, StringComparison.Ordinal);
         });
+
+        // 問いは一つ: 受け止めの一文と映し返しには問いを入れない
+        Assert.Equal(1, AbilityText.ResumeOpenAsk.Count(c => c == '？'));
+        Assert.DoesNotContain("？", AbilityText.ResumeLead + AbilityText.ResumeMirror("二人に電話して"), StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 手がかりは前の文脈に頼らない（「そう」で前を指さない、かっこ書きを入れない）")]
