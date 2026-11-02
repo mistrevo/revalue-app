@@ -63,6 +63,31 @@ public sealed class DiscoverTextTests
         Assert.Equal(3, DiscoverText.DistressActions.Count);
     }
 
+    [Theory(DisplayName = "discover-3（選んでも書いてもよい）: 決まった選択肢と飛ばしたあとの問いは、核となる行動や負担の重い日へ誘導しない")]
+    [InlineData("重な")]
+    [InlineData("予定")]
+    [InlineData("手間")]
+    [InlineData("大変")]
+    [InlineData("忙し")]
+    [InlineData("優先")]
+    [InlineData("段取り")]
+    [InlineData("調整")]
+    public void FixedChoicesDoNotLead(string leading)
+    {
+        // 「用事が重なる」「家族の予定が重なる」は、優先順位をつける力・調整する力の核となる行動をそのまま並べることになる。
+        // 飛ばした直後に「手間がかかった日」を聞くと、負担の重い日へ話を戻すことになる
+        IEnumerable<string> texts = [.. DiscoverText.OpeningChoices, DiscoverText.AfterSkip, .. DiscoverText.AfterSkipChoices];
+        Assert.All(texts, text => Assert.DoesNotContain(leading, text));
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: サインのあとの続け方に「消す」を使わない")]
+    public void DistressActionsAvoidErasingWords()
+    {
+        // 「消えたい」と書いた直後の人に「消して」を重ねない
+        Assert.All(DiscoverText.DistressActions, action => Assert.DoesNotContain("消", action));
+        Assert.Contains("残さず", DiscoverText.DistressActions[2]);
+    }
+
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 窓口は厚生労働省のページで、電話番号を書かない")]
     public void SupportLinkIsPublicPage()
     {

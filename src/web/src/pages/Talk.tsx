@@ -195,7 +195,7 @@ function TalkScreen({ id }: { id: string }) {
   }
 
   // つらい状態のサインのあとの 3 つの続け方。並びは裏側の DiscoverText.DistressActions と同じ
-  // （続けて話す、今日はここで区切る、この話は消して別の話にする）
+  // （続けて話す、今日はここで区切る、この話は残さずに別の話にする）
   const distressHandlers = [focusInput, finish, () => setConfirmingSkip(true)]
 
   return (
@@ -310,7 +310,8 @@ function TalkScreen({ id }: { id: string }) {
             <div className="mt-6 rounded-lg bg-muted/50 px-4 py-4">
               <p className="text-sm font-medium">{copy.talk.skipQuestion}</p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <Button variant="destructive" onClick={skip} disabled={busy} className="w-full sm:w-auto">
+                {/* どちらを選んでもよいので、片方を目立たせない（Claude の判断） */}
+                <Button variant="outline" onClick={skip} disabled={busy} className="w-full sm:w-auto">
                   {copy.talk.skipYes}
                 </Button>
                 <Button variant="outline" onClick={() => setConfirmingSkip(false)} disabled={busy} className="w-full sm:w-auto">

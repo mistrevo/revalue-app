@@ -322,6 +322,18 @@ public sealed class ClaudeConversationAiTests
             Assert.Contains(name, reader);
         }
     }
+
+    [Fact(DisplayName = "discover-9（病気の詳しいことは聞かない）: 返事の指示は、どの一手でも病気の詳しいことを聞かないと書いている")]
+    public void ListenerForbidsIllnessDetailsInEveryMove()
+    {
+        var listener = PromptFiles.Read(PromptFiles.Listener);
+
+        // 一手ごとの書き方（ReturnFromIllness）だけでなく、どの一手にも効く「守ること」に書く。
+        // 読み取りが家族の病気の話を拾い損ねても、ほかの一手で病気の詳しいことを聞かないように
+        var rules = listener[listener.IndexOf("# 守ること", StringComparison.Ordinal)..];
+        Assert.Contains("どの一手でも", rules);
+        Assert.Contains("病気や症状", rules);
+    }
 }
 
 internal static class ContentJson

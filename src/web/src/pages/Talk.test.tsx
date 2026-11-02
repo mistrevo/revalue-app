@@ -190,7 +190,7 @@ describe('Talk', () => {
     await userEvent.click(screen.getByRole('button', { name: FAKE_DISTRESS_ACTIONS[0] }))
     expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveFocus()
 
-    // 消して別の話へ → 画面の中で一度確かめる
+    // 残さずに別の話へ → 画面の中で一度確かめる
     await userEvent.click(screen.getByRole('button', { name: FAKE_DISTRESS_ACTIONS[2] }))
     expect(screen.getByText(copy.talk.skipQuestion)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: copy.talk.skipYes }))

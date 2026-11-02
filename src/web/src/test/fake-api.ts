@@ -6,12 +6,12 @@ export type FakeEvent = { event: string; data: unknown }
 
 /** 画面のテストで使う、裏側が決める言葉の代わり（本物は DiscoverText.cs）。 */
 export const FAKE_OPENING = '最近のある一日のことを、聞かせてください。'
-export const FAKE_OPENING_CHOICES = ['朝から家事でばたばたした', 'あちこち出かけた', 'いつもと違うことがあった']
+export const FAKE_OPENING_CHOICES = ['家族と出かけた', '家で過ごした', '人と会った']
 export const FAKE_AFTER_SKIP = 'では、別の日のことにしましょう。'
 export const FAKE_SUPPORT_URL = 'https://www.mhlw.go.jp/mamorouyokokoro/'
 export const FAKE_SUPPORT_LABEL = 'まもろうよ こころ（厚生労働省の相談窓口のページ）'
 export const FAKE_DISTRESS_TEXT = '話してくれて、ありがとうございます。'
-export const FAKE_DISTRESS_ACTIONS = ['続けて話す', '今日はここで区切る', 'この話は消して、別の話にする']
+export const FAKE_DISTRESS_ACTIONS = ['続けて話す', '今日はここで区切る', 'この話は残さずに、別の話にする']
 
 /** 架空の場面を作る。 */
 export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {

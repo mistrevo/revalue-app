@@ -10,22 +10,27 @@ public static class DiscoverText
     public const string Opening =
         "最近のある一日のことを、聞かせてください。たとえば昨日、朝起きてから夜までに、どんなことがありましたか？";
 
+    /// <summary>最初の問いの選択肢。特定の力の核となる行動に寄らない、中立な出来事にする（誘導しない）。</summary>
     public static readonly IReadOnlyList<string> OpeningChoices =
     [
-        "朝から家族の支度と家事でばたばたした",
-        "用事が重なって、あちこち出かけた",
-        "いつもと違うことがあった",
+        "家族と出かけた",
+        "家で過ごした",
+        "人と会った",
     ];
 
-    /// <summary>「この話は飛ばす」のあとの問い。最初の問いとは違う日・場面を尋ねる（discover-5）。</summary>
+    /// <summary>
+    /// 「この話は飛ばす」のあとの問い。最初の問いとは違う、負担の軽い具体的な場面を尋ねる（discover-5）。
+    /// 飛ばした理由が負担の重い日だったかもしれないので、重い日へ話を戻さない。
+    /// </summary>
     public const string AfterSkip =
-        "では、別の日のことにしましょう。最近、いつもより少し手間がかかった日は、どんなふうに過ごしましたか？";
+        "では、別の日のことにしましょう。最近のある日の夕方、ごはんの前後は、どんなふうに過ごしましたか？";
 
+    /// <summary>飛ばしたあとの問いの選択肢。特定の力に寄らないものにする。</summary>
     public static readonly IReadOnlyList<string> AfterSkipChoices =
     [
-        "家族の予定が重なった日",
-        "人と会ったり、集まりに出たりした日",
-        "家のことをまとめて片づけた日",
+        "ごはんの用意をしていた",
+        "家族とゆっくり過ごした",
+        "出かけていて、外にいた",
     ];
 
     /// <summary>AI の返事から選択肢を読み取れなかったときに補う 3 つ（discover-3）。</summary>
@@ -46,12 +51,15 @@ public static class DiscoverText
 
     public const string SupportLinkLabel = "まもろうよ こころ（厚生労働省の相談窓口のページ）";
 
-    /// <summary>つらい状態のサインのあと、問いの代わりに出す 3 つの続け方。</summary>
+    /// <summary>
+    /// つらい状態のサインのあと、問いの代わりに出す 3 つの続け方。
+    /// 「消えたい」と書いた直後にも出るので、「消す」という言葉を重ねない。
+    /// </summary>
     public static readonly IReadOnlyList<string> DistressActions =
     [
         "続けて話す",
         "今日はここで区切る",
-        "この話は消して、別の話にする",
+        "この話は残さずに、別の話にする",
     ];
 
     /// <summary>
