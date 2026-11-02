@@ -97,9 +97,17 @@ resource appVaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-resource githubVaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: vault
-  name: guid(vault.id, githubIdentity.id, keyVaultSecretsUserRoleId)
+// GitHub Actions 用 ID が読めるのは、評価に使う Claude の鍵（anthropic-api-key）1 つだけ。
+// user-key-secret（利用者キーを作る鍵）と google-client-secret は読めない。利用者キーを計算し直して、データを人に結びつけられないようにするため。
+// 鍵 1 つを範囲にした割り当ては、その鍵が Key Vault にあるときしか作れない。鍵を入れたあとに流す deployApp=true のときだけ作る
+resource anthropicApiKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
+  parent: vault
+  name: 'anthropic-api-key'
+}
+
+resource githubVaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployApp) {
+  scope: anthropicApiKey
+  name: guid(vault.id, 'anthropic-api-key', githubIdentity.id, keyVaultSecretsUserRoleId)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
     principalId: githubIdentity.properties.principalId

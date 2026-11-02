@@ -182,7 +182,7 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 - Container Apps の環境と Container App（従量課金。使われないときは 0 台まで減らす）
 - Cosmos DB（無料枠）
 - Key Vault（`anthropic-api-key`、`user-key-secret`、`google-client-secret` を置く）
-- ユーザー割り当てマネージド ID を 2 つ。アプリ用（Key Vault の鍵を読み、Cosmos DB を読み書きする）と、GitHub Actions 用（デプロイし、評価のために Key Vault の鍵を読む）
+- ユーザー割り当てマネージド ID を 2 つ。アプリ用（Key Vault の鍵を読み、Cosmos DB を読み書きする）と、GitHub Actions 用（デプロイし、評価のために Key Vault の Claude の鍵 `anthropic-api-key` だけを読む。利用者キーを作る鍵は読めない）
 - Log Analytics（Container Apps のログ）
 
 - コンテナのイメージは GitHub Container Registry（`ghcr.io`、公開）に置く。Azure Container Registry は月額がかかるので使わない（Claude の判断）

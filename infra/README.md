@@ -78,7 +78,7 @@ gh variable set APP_URL --body <appUrl>
 
 `<appUrl>/api/health` が 200 を返し、その `commit` が流したコミットの SHA になっていること、`<appUrl>/` で案内の画面が出ることを確かめる。`deploy.yml` も最後に同じことを確かめる。
 
-あわせて、`deploy.yml` の「Container App を新しいイメージに更新する」が、権限のエラー（`AuthorizationFailed`）で止まっていないことを確かめる。GitHub Actions 用の ID には、次の 4 つの役割だけを付けている。足りなければ、エラーに出た操作の名前をここに書き足し、`main.bicep` を直す。
+あわせて、`deploy.yml` の「Container App を新しいイメージに更新する」が、権限のエラー（`AuthorizationFailed`）で止まっていないことを確かめる。GitHub Actions 用の ID には、次の 5 つの役割だけを付けている。足りなければ、エラーに出た操作の名前をここに書き足し、`main.bicep` を直す。
 
 | 範囲 | 役割 | 何のために |
 |---|---|---|
@@ -86,6 +86,7 @@ gh variable set APP_URL --body <appUrl>
 | Container Apps の環境 | Container Apps Contributor | 更新のときに、アプリが環境に加わる権限（`join/action`）を確かめられることがあるため |
 | アプリ用のマネージド ID | Managed Identity Operator | 更新のときに、アプリに付けた ID を付け直す権限（`assign/action`）を確かめられることがあるため |
 | リソースグループ | Reader | アプリを探して読む |
+| Key Vault の `anthropic-api-key`（鍵 1 つ） | Key Vault Secrets User | 評価のために Claude の鍵を読む。ほかの鍵（`user-key-secret`、`google-client-secret`）は読めない。この割り当ては、鍵を入れたあとの手順 3（`deployApp=true`）で作られる |
 
 確かめた結果: まだ（2026-11-02 時点では Azure のリソースグループがなく、最初のデプロイを流していない）。流したら、ここに日付と結果を書く。
 
