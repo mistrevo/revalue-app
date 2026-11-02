@@ -76,7 +76,7 @@ gh variable set APP_URL --body <appUrl>
 
 ### 7. 確かめる
 
-`<appUrl>/api/health` が 200 を返し、`<appUrl>/` で案内の画面が出ることを確かめる。
+`<appUrl>/api/health` が 200 を返し、その `commit` が流したコミットの SHA になっていること、`<appUrl>/` で案内の画面が出ることを確かめる。`deploy.yml` も最後に同じことを確かめる。
 
 あわせて、`deploy.yml` の「Container App を新しいイメージに更新する」が、権限のエラー（`AuthorizationFailed`）で止まっていないことを確かめる。GitHub Actions 用の ID には、次の 4 つの役割だけを付けている。足りなければ、エラーに出た操作の名前をここに書き足し、`main.bicep` を直す。
 

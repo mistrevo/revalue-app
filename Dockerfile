@@ -23,6 +23,10 @@ RUN dotnet publish src/Revalue.Server/Revalue.Server.csproj -c Release -o /app -
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=server /app .
+# どのコミットから作ったか。/api/health が返し、デプロイのあとに新しいイメージが動いているかを確かめるのに使う
+# docker build --build-arg BUILD_COMMIT=<コミットの SHA>
+ARG BUILD_COMMIT=local
+ENV Build__Commit=$BUILD_COMMIT
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 USER $APP_UID

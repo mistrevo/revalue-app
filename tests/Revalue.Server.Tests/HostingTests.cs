@@ -19,6 +19,19 @@ public sealed class HostingTests
         Assert.Equal("ok", body.GetProperty("status").GetString());
     }
 
+    [Fact(DisplayName = "foundation-7（公開 URL で動く）: GET /api/health は、動いているイメージのコミットを返す")]
+    public async Task HealthReturnsBuildCommit()
+    {
+        await using var built = new RevalueFactory().WithSetting("Build:Commit", "0123abc");
+        var body = await built.CreateClient().GetFromJsonAsync<JsonElement>("/api/health", TestContext.Current.CancellationToken);
+        Assert.Equal("0123abc", body.GetProperty("commit").GetString());
+
+        // イメージの外（手元とテスト）では local
+        await using var local = new RevalueFactory();
+        var localBody = await local.CreateClient().GetFromJsonAsync<JsonElement>("/api/health", TestContext.Current.CancellationToken);
+        Assert.Equal("local", localBody.GetProperty("commit").GetString());
+    }
+
     [Fact(DisplayName = "foundation-1（案内はログインなしで見られる）: /api 以外の知らないパスは index.html を返す")]
     public async Task UnknownNonApiPathReturnsIndexHtml()
     {

@@ -193,8 +193,8 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 | ファイル | いつ | 何をする |
 |---|---|---|
-| `ci.yml` | PR と push | 裏側のビルドとテスト、画面のビルドとテスト、フックのテスト、コンテナを作って起動できるかの確認 |
-| `deploy.yml` | main への push | イメージを作って `ghcr.io` に push し、Container App を更新する。公開 URL で応答を確かめる |
+| `ci.yml` | PR と push | 裏側のビルドとテスト、画面のビルドとテスト、フックのテスト、Azure の定義（`infra/main.bicep`）のビルド、コンテナを作って起動できるかの確認 |
+| `deploy.yml` | main への push | イメージを作って `ghcr.io` に push し、Container App を更新する。公開 URL で、新しいイメージが応答していることを確かめる |
 | `evals.yml` | 手動 | OIDC で Key Vault から Claude の鍵を読み、評価を回す |
 
 評価は、ふだんは VM で回して結果をコミットする。`evals.yml` は、開発者が手動で回すためのもの（Claude の判断）。

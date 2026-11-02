@@ -27,7 +27,9 @@ app.UseMiddleware<DailyTouchMiddleware>();
 app.MapDevAuth();
 
 var api = app.MapGroup("/api").RequireAuthorization();
-api.MapGet("/health", () => TypedResults.Ok(new { status = "ok" })).AllowAnonymous();
+// commit は、イメージを作ったコミット（Dockerfile が Build__Commit に入れる）。デプロイのあとに、新しいイメージが動いているかを確かめるのに使う
+api.MapGet("/health", (IConfiguration config) => TypedResults.Ok(new { status = "ok", commit = config["Build:Commit"] ?? "local" }))
+    .AllowAnonymous();
 ConsentEndpoints.Map(api);
 api.MapGet("/stats", async (ICounter counter, CancellationToken ct) => TypedResults.Ok(await counter.GetAsync(ct))).RequireConsent();
 

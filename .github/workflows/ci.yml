@@ -1,4 +1,4 @@
-# テスト: PR と push のたびに、裏側・画面・フック・コンテナを確かめる（foundation-7 公開 URL で動く）
+# テスト: PR と push のたびに、裏側・画面・フック・コンテナ・Azure の定義を確かめる（foundation-7 公開 URL で動く）
 name: ci
 
 on:
@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: イメージを作る
-        run: docker build -t revalue:ci .
+        run: docker build --build-arg BUILD_COMMIT="$GITHUB_SHA" -t revalue:ci .
       - name: 起動して /api/health を確かめる
         # Cosmos DB なしで起動させるため Development にする。鍵は CI だけの仮の値
         run: |
@@ -65,8 +65,14 @@ jobs:
             -e Auth__UserKeySecret=ci-only-placeholder \
             revalue:ci
           for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8080/api/health; then
-              echo
+            if health=$(curl -fsS http://localhost:8080/api/health); then
+              echo "$health"
+              # deploy.yml は、このコミットで新しいイメージが動いているかを確かめる。イメージにコミットが入っているかを見る
+              commit=$(echo "$health" | jq -r '.commit')
+              if [ "$commit" != "$GITHUB_SHA" ]; then
+                echo "::error::/api/health のコミット（$commit）が、作ったコミット（$GITHUB_SHA）と違います"
+                exit 1
+              fi
               curl -fsS -o /dev/null http://localhost:8080/
               echo "コンテナは動いています"
               exit 0
@@ -75,3 +81,14 @@ jobs:
           done
           docker logs revalue
           exit 1
+
+  infra:
+    name: Azure の定義
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Bicep をビルドする
+        # Azure にはつながない。infra/main.bicep が ARM テンプレートに組み立てられるかだけを見る
+        run: |
+          az bicep install
+          az bicep build --file infra/main.bicep --outdir "$RUNNER_TEMP"
