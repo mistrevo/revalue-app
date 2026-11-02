@@ -37,7 +37,7 @@ Container Apps はコンテナを動かす Azure のサービスで、組み込�
 | 実行環境 | .NET（LTS） | 10 |
 | 裏側 | ASP.NET Core の Minimal API | 10 |
 | Claude | Anthropic の公式 C# SDK（NuGet `Anthropic`） | 13 系 |
-| データ | Cosmos DB の SDK（NuGet `Microsoft.Azure.Cosmos`） | 3 系 |
+| データ | Cosmos DB の SDK（NuGet `Microsoft.Azure.Cosmos`。SDK が求めるので `Newtonsoft.Json` も参照する） | 3 系 |
 | Azure の認証 | `Azure.Identity`（`DefaultAzureCredential`） | 最新 |
 | 裏側のテスト | xUnit v3（`xunit.v3`）と `Microsoft.AspNetCore.Mvc.Testing` | 最新 |
 | 画面 | React、TypeScript、Vite | React 19、TypeScript 7、Vite 8 |
@@ -53,6 +53,7 @@ Container Apps はコンテナを動かす Azure のサービスで、組み込�
 
 ```
 Revalue.slnx                      ソリューション（.NET 10 の dotnet new sln が作る形式）
+global.json                       dotnet test を Microsoft.Testing.Platform で回す設定（xUnit v3 の雛形が作る）
 Dockerfile                        画面を作る → 裏側を publish → 実行用の小さいイメージ、の 3 段
 src/Revalue.Server/               ASP.NET Core
   Program.cs

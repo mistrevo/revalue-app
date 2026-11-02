@@ -1,3 +1,5 @@
+using Revalue.Server.Data;
+using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -5,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddRevalueAuth(builder.Environment);
+builder.Services.AddRevalueData(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
@@ -13,6 +16,7 @@ app.UseStatusCodePages();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRevalueAuth();
+app.UseMiddleware<DailyTouchMiddleware>();
 
 app.MapDevAuth();
 

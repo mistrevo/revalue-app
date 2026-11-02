@@ -156,7 +156,7 @@ infra/README.md                                       最初の 1 回の手順
 - Test: `DataStoreTests.cs`、`JstTests.cs`、`AutoDeleteTests.cs`
 
 **Interfaces:**
-- Produces: `abstract record Item { string Id; string UserKey; string Type; int? Ttl }`（JSON は camelCase の `id`、`userKey`、`type`、`ttl`）。`static class DataConstants { const int UserTtlSeconds = 2592000; const string GlobalPartition = "global"; }`
+- Produces: `abstract record Item { string Id; string UserKey; string Type; int? Ttl }`（JSON は camelCase の `id`、`userKey`、`type`、`ttl`）。`static class DataConstants { const int UserTtlSeconds = 2592000; const string GlobalPartition = "global"; }`。数のアイテムは `sealed record CountItem : Item { long Count }`（`IncrementAsync` が作る）
 - Produces: `interface IDataStore`
   - `Task<T?> GetAsync<T>(string userKey, string id, CancellationToken ct) where T : Item`
   - `Task UpsertAsync<T>(T item, CancellationToken ct) where T : Item` — 利用者のパーティション（`global` 以外）では、`Ttl` が null なら `UserTtlSeconds` を入れて保存する
@@ -170,7 +170,7 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `record ActivityItem : Item`（`Id = "activity"`、`Type = "activity"`、`string LastActiveDate`（`yyyy-MM-dd`、日本時間））。`DailyTouchMiddleware` は認証のあと、ログインした人の `LastActiveDate` が今日（日本時間）でなければ `TouchAllAsync` してから更新する
 - Produces: `DataSetup.AddRevalueData(IServiceCollection, IConfiguration, IHostEnvironment)` — `Cosmos:Endpoint` があれば `CosmosDataStore`（`DefaultAzureCredential`、DB `Cosmos:Database` 既定 `revalue`、コンテナ `Cosmos:Container` 既定 `items`、System.Text.Json の camelCase）、なければ `InMemoryDataStore`（シングルトン）。ただし環境が Production で `Cosmos:Endpoint` がなければ、`InvalidOperationException` で起動を止める
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `JstTests`: UTC `2026-11-02T14:59:59Z` の今日は `2026-11-02`、`15:00:00Z` は `2026-11-03`。`NextMidnight` は `2026-11-03T00:00:00+09:00`（UTC 14:59 のとき）
   - `DataStoreTests`（インメモリ）: 保存・取得・種類で一覧・`DeleteAllAsync` で 0 件・`IncrementAsync` が 1→2。利用者のアイテムは `Ttl == 2592000`、`global` のアイテムは渡した `ttl` のまま
   - `foundation-4（使わなければ自動で消える）: 30 日たつと消える` — 保存して時計を 30 日進めると `GetAsync` が null、`CountAllAsync` が 0
@@ -178,12 +178,12 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-4（使わなければ自動で消える）: Cosmos に保存するアイテムには ttl が付く` — `CosmosDataStore` が送る JSON を作る関数（`internal static string Serialize<T>(T item)` など）に `"ttl":2592000` が入る。本物の Cosmos には接続しない
   - `foundation-4（使わなければ自動で消える）: 本番で Cosmos の場所がなければ起動しない` — `WithEnvironment("Production")` で `Cosmos:Endpoint` を設定せずにクライアントを作ると例外になる
 
-- [ ] **Step 2: 失敗を確かめる**
+- [x] **Step 2: 失敗を確かめる**
 
-- [ ] **Step 3: 実装する**
+- [x] **Step 3: 実装する**
   インメモリは `ConcurrentDictionary<(userKey,id), (string json, DateTimeOffset writtenAt)>`。期限切れ（`now >= writtenAt + ttl`）は読むときに見えなくする。Cosmos の全部消すは `DeleteAllItemsByPartitionKeyStreamAsync` が使えればそれを、使えなければ id を集めて 1 件ずつ消す（microsoft-learn で確かめる）。増やすのは `PatchItemAsync` の `PatchOperation.Increment("/count", 1)`、404 なら作る。
 
-- [ ] **Step 4: `dotnet test` が通ることを確かめ、コミットする**
+- [x] **Step 4: `dotnet test` が通ることを確かめ、コミットする**
   `データの保存先と、使わなければ自動で消す仕組みを作る（foundation-4 使わなければ自動で消える）`
 
 ---
