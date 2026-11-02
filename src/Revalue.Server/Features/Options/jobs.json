@@ -1,0 +1,177 @@
+{
+  "source": {
+    "text": "独立行政法人労働政策研究・研修機構（JILPT）作成「職業情報データベース　簡易版数値系ダウンロードデータ　ver.7.00」職業情報提供サイト（job tag）より2026年11月3日にダウンロード（https://shigoto.mhlw.go.jp/User/download）を加工して作成",
+    "url": "https://shigoto.mhlw.go.jp/User/download",
+    "note": "職種と業務の言葉は、job tag のタスクを元に、家庭と両立しながら受けやすい形に言い換えた（jobtagTasks は元のタスクの番号）。使う力、週あたりの時間、時間帯、場所、時給の目安、要る知識や道具は job tag にない値で、Claude が下書きした。開発者が確かめて直す"
+  },
+  "occupations": [
+    {
+      "id": "online-secretary",
+      "name": "オンライン秘書",
+      "summary": "会社や個人で仕事をする人の、連絡や予定の段取りを、オンラインで手伝う仕事",
+      "jobtag": { "number": 426, "name": "秘書" },
+      "tasks": [
+        {
+          "id": "online-secretary-email",
+          "name": "メールの一次対応",
+          "detail": "届いたメールに目を通し、急ぐものと、あとでよいものに分けて伝える",
+          "jobtagTasks": [1],
+          "ability": "prioritizing",
+          "hoursPerWeek": { "min": 3, "max": 10 },
+          "timeSlots": ["morning", "daytime", "evening"],
+          "place": "home",
+          "hourlyYen": { "min": 1300, "max": 1800 },
+          "knowledge": ["メールやチャットの道具"]
+        },
+        {
+          "id": "online-secretary-schedule",
+          "name": "日程の調整",
+          "detail": "予定表を整え、関わる人と連絡を取り合って、会う日時を決める",
+          "jobtagTasks": [2, 3],
+          "ability": "coordinating",
+          "hoursPerWeek": { "min": 3, "max": 10 },
+          "timeSlots": ["daytime", "evening"],
+          "place": "home",
+          "hourlyYen": { "min": 1300, "max": 2000 },
+          "knowledge": ["オンラインの予定表"]
+        },
+        {
+          "id": "online-secretary-arrangement",
+          "name": "出張や会食の手配",
+          "detail": "移動や宿、お店の予約を、相手の都合に合わせて整える",
+          "jobtagTasks": [14, 17],
+          "ability": "coordinating",
+          "hoursPerWeek": { "min": 1, "max": 5 },
+          "timeSlots": ["daytime", "evening"],
+          "place": "home",
+          "hourlyYen": { "min": 1300, "max": 2000 },
+          "knowledge": ["予約サイトの使い方"]
+        },
+        {
+          "id": "online-secretary-briefing",
+          "name": "情報の取りまとめ",
+          "detail": "集めた情報から要るものを選び、前と変わったところが分かるようにまとめる",
+          "jobtagTasks": [6, 22],
+          "ability": "noticing",
+          "hoursPerWeek": { "min": 2, "max": 8 },
+          "timeSlots": ["morning", "daytime", "evening", "night"],
+          "place": "home",
+          "hourlyYen": { "min": 1300, "max": 2000 },
+          "knowledge": ["表計算", "文書作成"]
+        }
+      ]
+    },
+    {
+      "id": "accounting-clerk",
+      "name": "経理事務",
+      "summary": "会社のお金の出入りを記録し、間違いがないかを確かめる仕事",
+      "jobtag": { "number": 430, "name": "経理事務" },
+      "tasks": [
+        {
+          "id": "accounting-check",
+          "name": "帳簿の見直し",
+          "detail": "帳簿の記録を見直し、打ち間違いや、領収書などとのずれを見つける",
+          "jobtagTasks": [2],
+          "ability": "noticing",
+          "hoursPerWeek": { "min": 3, "max": 10 },
+          "timeSlots": ["daytime", "evening", "night"],
+          "place": "home",
+          "hourlyYen": { "min": 1200, "max": 1600 },
+          "knowledge": ["簿記の基礎", "会計ソフト"]
+        },
+        {
+          "id": "accounting-invoice",
+          "name": "請求と入金の確認",
+          "detail": "請求書を作って送り、期日までに入金があったかを確かめる",
+          "jobtagTasks": [4],
+          "ability": "noticing",
+          "hoursPerWeek": { "min": 2, "max": 8 },
+          "timeSlots": ["daytime"],
+          "place": "home",
+          "hourlyYen": { "min": 1200, "max": 1600 },
+          "knowledge": ["会計ソフト", "表計算"]
+        },
+        {
+          "id": "accounting-monthly",
+          "name": "月の締めの手伝い",
+          "detail": "月ごとの集計を、締め日までに終わるよう、順番を決めて進める",
+          "jobtagTasks": [6],
+          "ability": "prioritizing",
+          "hoursPerWeek": { "min": 5, "max": 15 },
+          "timeSlots": ["daytime"],
+          "place": "home",
+          "hourlyYen": { "min": 1300, "max": 1800 },
+          "knowledge": ["簿記の基礎", "会計ソフト", "表計算"]
+        },
+        {
+          "id": "accounting-cash",
+          "name": "手元の現金の管理",
+          "detail": "事務所で手元の現金を数え、記録と合っているかを確かめる",
+          "jobtagTasks": [3],
+          "ability": "noticing",
+          "hoursPerWeek": { "min": 2, "max": 6 },
+          "timeSlots": ["daytime"],
+          "place": "out",
+          "hourlyYen": { "min": 1200, "max": 1500 },
+          "knowledge": ["簿記の基礎"]
+        }
+      ]
+    },
+    {
+      "id": "recruiting-clerk",
+      "name": "採用事務",
+      "summary": "人を採用するときの、求人や面接の段取りを手伝う仕事",
+      "jobtag": { "number": 432, "name": "人事事務" },
+      "tasks": [
+        {
+          "id": "recruiting-posting",
+          "name": "求人の準備",
+          "detail": "人を求めている部署に話を聞き、求人の中身をまとめて、載せる手配をする",
+          "jobtagTasks": [2],
+          "ability": "coordinating",
+          "hoursPerWeek": { "min": 2, "max": 8 },
+          "timeSlots": ["daytime"],
+          "place": "home",
+          "hourlyYen": { "min": 1200, "max": 1600 },
+          "knowledge": ["文書作成", "求人サイトの使い方"]
+        },
+        {
+          "id": "recruiting-interview-schedule",
+          "name": "面接の日程調整",
+          "detail": "応募した人と面接する人の都合を聞き、日時を決めて案内する",
+          "jobtagTasks": [4],
+          "ability": "coordinating",
+          "hoursPerWeek": { "min": 3, "max": 10 },
+          "timeSlots": ["daytime", "evening"],
+          "place": "home",
+          "hourlyYen": { "min": 1200, "max": 1600 },
+          "knowledge": ["メールやチャットの道具", "オンラインの予定表"]
+        },
+        {
+          "id": "recruiting-applications",
+          "name": "応募の受付と整理",
+          "detail": "届いた応募を、締め切りや選考の進み具合で整理し、先に連絡するものを決める",
+          "jobtagTasks": [3, 5],
+          "ability": "prioritizing",
+          "hoursPerWeek": { "min": 3, "max": 10 },
+          "timeSlots": ["daytime", "evening"],
+          "place": "home",
+          "hourlyYen": { "min": 1200, "max": 1600 },
+          "knowledge": ["表計算", "個人情報の扱い"]
+        },
+        {
+          "id": "recruiting-reception",
+          "name": "面接の日の受付",
+          "detail": "来た人を迎えて面接の部屋へ案内し、予定がずれたときは、面接する人と来た人のあいだで時間を合わせる",
+          "jobtagTasks": [4],
+          "ability": "coordinating",
+          "hoursPerWeek": { "min": 2, "max": 6 },
+          "timeSlots": ["daytime"],
+          "place": "out",
+          "hourlyYen": { "min": 1200, "max": 1500 },
+          "knowledge": []
+        }
+      ]
+    }
+  ]
+}
