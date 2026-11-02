@@ -1,11 +1,12 @@
 export const meta = {
   name: 'run-plan',
-  description: '計画を実装し、確認・レビュー・直し（2 回まで）・Spec の読みやすさの点検まで回す',
+  description: '計画を実装し、確認・レビュー・反証・直し（2 回まで）・Spec の読みやすさの点検まで回す',
   whenToUse: 'run-plan スキルから呼ぶ。args の形はスクリプトの先頭のコメントを参照',
   phases: [
     { title: '実装', detail: 'タスクのまとまりごとに、テストから書いて実装する' },
     { title: '確認', detail: 'ビルド・テスト・評価を実行し、受け入れ基準ごとのテストがあるかを確かめる' },
     { title: 'レビュー', detail: 'Spec と製品の芯に照らして差分を見る' },
+    { title: '反証', detail: '確認とレビューが通ったら、「満たしている」という結論を実際に動かして壊しにいく' },
     { title: '直し', detail: '通らなければ 1 段強いモデルで直す（2 回まで）' },
     { title: '文書の点検', detail: '変えた Spec の読みやすさを点検して削る' },
   ],
@@ -98,6 +99,29 @@ const REVIEW_SCHEMA = {
   required: ['pass', 'findings'],
 }
 
+const REFUTE_SCHEMA = {
+  type: 'object',
+  properties: {
+    pass: { type: 'boolean' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          severity: { type: 'string', enum: ['must', 'should'] },
+          where: { type: 'string' },
+          problem: { type: 'string' },
+          evidence: { type: 'string' },
+          fix: { type: 'string' },
+        },
+        required: ['severity', 'where', 'problem', 'evidence'],
+      },
+    },
+    tried: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['pass', 'findings', 'tried'],
+}
+
 function implPrompt(g) {
   return `${CONTEXT}
 
@@ -178,13 +202,36 @@ pass は must が 0 件のときだけ true。開発者に確かめてほしい�
   }
 }
 
+// 確認とレビューが通ったときだけ動かす。通っていなければ、直しのあとに改めて動かす
+async function refuteOnce(round) {
+  if (!(implOk && verify.passed && review.pass)) {
+    return { pass: false, skipped: true, findings: [], tried: [] }
+  }
+  phase('反証')
+  const prompt = `${CONTEXT}
+
+確認とレビューは通った。「このブランチは、受け入れ基準と製品の芯（CLAUDE.md）を満たしている」という結論を、壊しにいく。
+- \`git diff ${base}...HEAD\` と Spec の受け入れ基準を読み、破れそうなところを選ぶ。特に見るのは、データを消す・残さない・人と結びつけないという約束、鍵と個人情報、利用者の条件や登録したデータの範囲を超える出力、AI の言い方（褒めすぎ、突き放し、本人の代わりに決める）
+- 読むだけで終えず、実際に動かして確かめる。テストやコマンドを実行し、要れば使い捨てのテストや入力を作る。使い捨てのものは git の管理外に置くか終わったら消し、最後に \`git status\` がきれいなことを確かめる。コミットしない
+- 反例は、再現の手順と、実際に見た出力を evidence に添えたものだけを挙げる。推測や好みは挙げない
+- must は、受け入れ基準か製品の芯を実際に破っている反例。should は、破ってはいないが壊れやすいところ
+- 試したことは、反例が見つからなかったものも含めて tried に書く
+- pass は must が 0 件のときだけ true`
+  let r = null
+  for (let attempt = 0; attempt < 2 && !r; attempt++) {
+    r = await agent(prompt, { label: `refute:${round}`, phase: '反証', schema: REFUTE_SCHEMA, ...LADDER[2] })
+  }
+  return r || { pass: false, findings: [{ severity: 'must', where: '-', problem: '反証のエージェントが結果を返さなかった', evidence: '-' }], tried: [] }
+}
+
+let implOk = implDone
 phase('確認')
 let verify = await verifyOnce(0)
 phase('レビュー')
 let review = await reviewOnce(0)
+let refute = await refuteOnce(0)
 
-let implOk = implDone
-const ok = () => implOk && verify.passed && review.pass
+const ok = () => implOk && verify.passed && review.pass && refute.pass
 let tier = a.taskGroups.some((g) => g.heavy) ? 2 : 1
 let fixes = 0
 while (!ok() && fixes < 2) {
@@ -194,10 +241,11 @@ while (!ok() && fixes < 2) {
     implementation: implOk ? null : impl.filter((r) => !r.done),
     verify: verify.passed ? null : verify,
     review: review.findings.filter((f) => f.severity === 'must' || f.severity === 'should'),
+    refute: refute.skipped ? null : refute.findings,
   }
   const fixPrompt = `${CONTEXT}
 
-確認とレビューで、次の問題が見つかった（原文のまま）。must と、実装が止まった問題、確認の失敗をすべて直す。should はできる範囲で直す。
+確認、レビュー、反証で、次の問題が見つかった（原文のまま）。must と、実装が止まった問題、確認の失敗をすべて直す。反証の反例は、再現の手順で直ったことを確かめる。should はできる範囲で直す。
 ${JSON.stringify(problems, null, 2)}
 
 - superpowers:systematic-debugging で原因を確かめてから直す。テストを弱めたり消したりして通さない
@@ -208,8 +256,11 @@ ${JSON.stringify(problems, null, 2)}
   tier++
   if (fixed) impl.push({ title: `直し ${fixes} 回目`, ...fixed })
   if (fixed && fixed.done) implOk = true
+  phase('確認')
   verify = await verifyOnce(fixes)
+  phase('レビュー')
   review = await reviewOnce(fixes)
+  refute = await refuteOnce(fixes)
 }
 
 const passed = ok()
@@ -228,6 +279,7 @@ return {
   impl,
   verify,
   review: { pass: review.pass, findings: review.findings },
+  refute: { pass: refute.pass, skipped: !!refute.skipped, findings: refute.findings, tried: refute.tried },
   forHuman: review.forHuman,
   doc,
 }
