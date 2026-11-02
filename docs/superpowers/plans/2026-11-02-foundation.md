@@ -203,7 +203,7 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `DELETE /api/me` → `DeleteAllAsync(userKey)` → 204
 - Produces: `RouteGroupBuilder/RouteHandlerBuilder.RequireConsent()` — 未了解なら 403 + `Problems.ConsentRequired`。02 以降の API はすべてこれを付ける
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `foundation-2（始める前に保存するものを示す）: 初めての人は了解していない` — `GET /api/me` が `consented: false`、`currentVersion: "2026-11-02"`
   - `foundation-2（始める前に保存するものを示す）: 了解するまで、了解の要る API は 403` — `GET /api/stats`（Task 5 で作る。ここでは了解の要るテスト用の確認として `/api/stats` を先に `RequireConsent` 付きで空の 200 を返す形で置いてよい）が 403、`type` が `/problems/consent-required`
   - `foundation-2（始める前に保存するものを示す）: 了解すると記録が残る` — `POST /api/consent {version:"2026-11-02"}` が 204、そのあと `GET /api/me` が `consented: true`、保存した `ConsentItem.At` が時計の時刻
@@ -211,7 +211,7 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-2（始める前に保存するものを示す）: 違う版で了解しようとすると 400`
   - `foundation-3（いつでも全部消せる）: 消すと、その人のアイテムが 1 件も残らない` — 利用者 A と B が了解し、A が `DELETE /api/me` → A の `CountAllAsync` が 0、A の `GET /api/me` が `consented: false`、B は `consented: true` のまま、`global` のアイテム数は変わらない
 
-- [ ] **Step 2: 失敗を確かめる** → **Step 3: 実装する** → **Step 4: 通ることを確かめ、コミットする**
+- [x] **Step 2: 失敗を確かめる** → **Step 3: 実装する** → **Step 4: 通ることを確かめ、コミットする**
   `はじめに（了解）と、全部消す API を作る（foundation-2 始める前に保存するものを示す、foundation-3 いつでも全部消せる）`
 
 ---
