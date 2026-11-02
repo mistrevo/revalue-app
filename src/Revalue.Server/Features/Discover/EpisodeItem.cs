@@ -3,7 +3,7 @@ using Revalue.Server.Data;
 
 namespace Revalue.Server.Features.Discover;
 
-/// <summary>利用者の答えが、選択肢を選んだものか、自由に書いたものか。</summary>
+/// <summary>利用者の答えが、選択肢を選んだものか、自由に書いたものか、話し終えた場面への訂正か。</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<AnswerKind>))]
 public enum AnswerKind
 {
@@ -12,6 +12,10 @@ public enum AnswerKind
 
     [JsonStringEnumMemberName("choice")]
     Choice,
+
+    /// <summary>話し終えた場面の読み取りを、本人が直した言葉。前の答えより優先する。</summary>
+    [JsonStringEnumMemberName("correction")]
+    Correction,
 }
 
 public static class TurnRoles
