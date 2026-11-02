@@ -19,7 +19,8 @@ export function Settings() {
     setFailed(false)
     try {
       await deleteMe()
-      navigate('/start', { replace: true })
+      // はじめにの画面で、消し終えたことを一度だけ伝える
+      navigate('/start', { replace: true, state: { deleted: true } })
     } catch {
       setFailed(true)
       setDeleting(false)

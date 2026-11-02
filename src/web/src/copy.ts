@@ -28,7 +28,7 @@ export const copy = {
       },
     ],
     flowTitle: '進め方',
-    flow: ['最近の一日を話す', '見えた力を確かめる', '生活に合う仕事の選択肢から選ぶ'],
+    flow: ['最近の一日を話す', '見えた力を確かめる', '生活に合う仕事の選択肢を広げて、自分で選ぶ'],
     login: 'Google でログインして始める',
     continue: '続きから',
   },
@@ -69,11 +69,13 @@ export const copy = {
     deleteTitle: '全部消す',
     deleteBody: '話した内容、見立て、記録、レポートをすべて消します。消したものは戻せません。',
     deleteButton: '全部消す',
-    confirmQuestion: '本当に全部消しますか？',
+    // すぐ上の説明に「消したものは戻せません」があるので、ここでは重ねない（Claude の判断）
+    confirmQuestion: '全部消してよいですか？',
     confirmYes: '消す',
     confirmNo: 'やめる',
     logout: 'ログアウト',
     backHome: 'ホームへ戻る',
+    deleted: '全部消しました。また話したくなったら、いつでもここから始められます。',
   },
   limit: {
     title: '今日はここで一区切りにしましょう',

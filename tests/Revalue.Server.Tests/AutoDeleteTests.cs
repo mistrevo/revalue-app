@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,10 @@ public sealed class AutoDeleteTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Auth:UserKeySecret"] = RevalueFactory.TestSecret })
             .Build()).Hash(provider, principalId);
 
+    /// <summary>使った記録を書くのは、いまの版で了解した人だけなので、先に了解しておく。</summary>
+    private static async Task Consent(HttpClient client) =>
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct)).StatusCode);
+
     [Fact(DisplayName = "foundation-4（使わなければ自動で消える）: 30 日たつと消える")]
     public async Task UserDataDisappearsAfter30Days()
     {
@@ -25,9 +30,10 @@ public sealed class AutoDeleteTests
         var store = factory.Services.GetRequiredService<IDataStore>();
         var userKey = UserKey("google", "g-1");
 
+        await Consent(client);
         await client.GetAsync("/api/nope", Ct);
         await store.UpsertAsync(new NoteItem { Id = "n1", UserKey = userKey, Type = "note" }, Ct);
-        Assert.Equal(2, await store.CountAllAsync(userKey, Ct));
+        Assert.Equal(3, await store.CountAllAsync(userKey, Ct));
 
         factory.Clock.Advance(TimeSpan.FromDays(30));
 
@@ -43,6 +49,7 @@ public sealed class AutoDeleteTests
         var store = factory.Services.GetRequiredService<IDataStore>();
         var userKey = UserKey("google", "g-1");
 
+        await Consent(client);
         await client.GetAsync("/api/nope", Ct);
         await store.UpsertAsync(new NoteItem { Id = "n1", UserKey = userKey, Type = "note" }, Ct);
 
@@ -69,6 +76,7 @@ public sealed class AutoDeleteTests
         var store = factory.Services.GetRequiredService<IDataStore>();
         var userKey = UserKey("google", "g-1");
 
+        await Consent(client);
         await client.GetAsync("/api/nope", Ct);
         Assert.Equal("2026-11-02", (await store.GetAsync<ActivityItem>(userKey, ActivityItem.ItemId, Ct))!.LastActiveDate);
 
@@ -124,6 +132,8 @@ public sealed class AutoDeleteTests
 
         Assert.Equal(HttpStatusCode.Redirect, (await a.GetAsync("/.auth/login/google?dev_user=a", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Redirect, (await b.GetAsync("/.auth/login/google?dev_user=b", Ct)).StatusCode);
+        await Consent(a);
+        await Consent(b);
         await a.GetAsync("/api/nope", Ct);
         await b.GetAsync("/api/nope", Ct);
 

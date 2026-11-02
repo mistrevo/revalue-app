@@ -38,4 +38,27 @@ public sealed class DeleteAllTests
         Assert.True((await b.GetFromJsonAsync<JsonElement>("/api/me", Ct)).GetProperty("consented").GetBoolean());
         Assert.False((await a.GetFromJsonAsync<JsonElement>("/api/me", Ct)).GetProperty("consented").GetBoolean());
     }
+
+    [Fact(DisplayName = "foundation-3（いつでも全部消せる）: 消したあとに画面が了解の状態を読み直しても、アイテムを作り直さない")]
+    public async Task DeleteThenReloadLeavesNothing()
+    {
+        await using var factory = new RevalueFactory();
+        var client = factory.CreateUserClient("a");
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var key = TestUsers.Key("a");
+        await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+        await client.GetAsync("/api/me", Ct);
+        Assert.True(await store.CountAllAsync(key, Ct) > 0);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync("/api/me", Ct)).StatusCode);
+        // 画面は消したあと「はじめに」へ進み、了解の状態を読み直す
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/me", Ct)).StatusCode);
+        await client.GetAsync("/start", Ct);
+        Assert.Equal(0, await store.CountAllAsync(key, Ct));
+
+        // 次の日に開いても、了解するまでは作らない
+        factory.Clock.Advance(TimeSpan.FromDays(1));
+        await client.GetAsync("/api/me", Ct);
+        Assert.Equal(0, await store.CountAllAsync(key, Ct));
+    }
 }

@@ -32,6 +32,8 @@ describe('Settings', () => {
     expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
     expect(deletes()).toEqual([{ method: 'DELETE', url: '/api/me', body: undefined }])
     expect(confirmSpy).not.toHaveBeenCalled()
+    // 消し終えたことと、また始められることを伝える
+    expect(screen.getByRole('status')).toHaveTextContent(copy.settings.deleted)
   })
 
   it('foundation-3（いつでも全部消せる）: 了解していなくても設定を開いて消せる', async () => {

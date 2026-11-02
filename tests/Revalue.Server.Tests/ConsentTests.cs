@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Consent;
 
 namespace Revalue.Server.Tests;
@@ -82,6 +83,43 @@ public sealed class ConsentTests
         Assert.False(me.GetProperty("consented").GetBoolean());
         Assert.Equal("2026-10-01", me.GetProperty("consentVersion").GetString());
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/stats", Ct)).StatusCode);
+    }
+
+    [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: 了解する前の要求では、その人のアイテムを作らない")]
+    public async Task NoItemsAreStoredBeforeConsent()
+    {
+        await using var factory = new RevalueFactory();
+        var client = factory.CreateUserClient("g-1");
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var key = TestUsers.Key("g-1");
+
+        await GetMe(client);
+        await client.GetAsync("/start", Ct);
+        await client.GetAsync("/api/stats", Ct);
+        await Consent(client, "2026-10-01");
+        Assert.Equal(0, await store.CountAllAsync(key, Ct));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, "2026-11-02")).StatusCode);
+        await GetMe(client);
+        Assert.NotNull(await store.GetAsync<ActivityItem>(key, ActivityItem.ItemId, Ct));
+    }
+
+    [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: 古い版の了解のままでは、使った記録を書かない")]
+    public async Task OldVersionConsentDoesNotTouch()
+    {
+        await using var factory = new RevalueFactory();
+        var client = factory.CreateUserClient("g-1");
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var key = TestUsers.Key("g-1");
+        await store.UpsertAsync(new ConsentItem
+        {
+            Id = ConsentItem.ItemId, UserKey = key, Type = ConsentItem.ItemType,
+            Version = "2026-10-01", At = factory.Clock.GetUtcNow(),
+        }, Ct);
+
+        await GetMe(client);
+
+        Assert.Null(await store.GetAsync<ActivityItem>(key, ActivityItem.ItemId, Ct));
     }
 
     [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: 違う版で了解しようとすると 400")]

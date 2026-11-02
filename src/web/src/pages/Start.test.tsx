@@ -31,6 +31,14 @@ describe('Start', () => {
     expect(posts).toEqual([{ method: 'POST', url: '/api/consent', body: { version: api.currentVersion } }])
   })
 
+  it('foundation-3（いつでも全部消せる）: 全部消したあとでなければ、消したことは伝えない', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
+    expect(screen.queryByText(copy.settings.deleted)).not.toBeInTheDocument()
+  })
+
   it('foundation-2（始める前に保存するものを示す）: 了解していない人がホームを開くと、はじめにへ進む', async () => {
     installFakeApi({ loggedIn: true, consented: false })
     renderApp('/home')
