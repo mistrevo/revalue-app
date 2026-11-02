@@ -72,4 +72,13 @@ describe('Home', () => {
 
     expect(await screen.findByRole('link', { name: copy.home.episodesLink })).toHaveAttribute('href', '/episodes')
   })
+
+  it('validate-9（生活での根拠と仕事での発揮を分ける）: ホームから、見えた力の画面へ進める', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/home')
+
+    await userEvent.click(await screen.findByRole('link', { name: copy.home.abilities }))
+
+    expect(await screen.findByRole('heading', { name: copy.abilities.title })).toBeInTheDocument()
+  })
 })

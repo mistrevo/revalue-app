@@ -5,7 +5,9 @@ import {
   finishEpisode,
   getEpisode,
   isDailyLimit,
+  resumeEpisode,
   sendAnswer,
+  sendCorrection,
   skipEpisode,
   type AnswerKind,
   type Episode,
@@ -14,6 +16,7 @@ import {
   type Turn,
 } from '@/api'
 import { DailyLimitNotice } from '@/components/DailyLimitNotice'
+import { Insights } from '@/components/Insights'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
@@ -45,6 +48,9 @@ function TalkScreen({ id }: { id: string }) {
   const [confirmingSkip, setConfirmingSkip] = useState(false)
   const [busy, setBusy] = useState(false)
   const [actionFailed, setActionFailed] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
+  const [correction, setCorrection] = useState('')
+  const [correctionError, setCorrectionError] = useState<'failure' | 'refusal' | null>(null)
 
   useEffect(() => {
     let active = true
@@ -141,6 +147,8 @@ function TalkScreen({ id }: { id: string }) {
             current && { ...current, status: done.status, turns: [...current.turns, userTurn, reply], notice: distress },
           )
           setNotice(distress)
+          // 締めの返事で話し終えたら、見えたことを読み直す
+          if (done.status === 'finished') reloadEpisode()
         },
         onError: (kind) => {
           setErrorKind(kind)
@@ -175,9 +183,59 @@ function TalkScreen({ id }: { id: string }) {
     setBusy(true)
     setActionFailed(false)
     try {
-      await finishEpisode(id)
-      navigate('/home')
+      // 区切ったあとは、ホームへ戻らず、この画面で見えたことを出す
+      const finished = await finishEpisode(id)
+      setEpisode(finished)
+      setNotice(finished.notice ?? null)
+      setConfirmingSkip(false)
     } catch {
+      setActionFailed(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function correct() {
+    const text = correction.trim()
+    if (text === '') return
+    setBusy(true)
+    setCorrectionError(null)
+    setLimitResetAt(null)
+    setActionFailed(false)
+    try {
+      const updated = await sendCorrection(id, text)
+      setEpisode(updated)
+      setNotice(updated.notice ?? null)
+      setCorrecting(false)
+      setCorrection('')
+    } catch (e) {
+      // 書いた訂正は入力欄に残す
+      if (isDailyLimit(e)) {
+        setLimitResetAt(e.resetAt ?? '')
+      } else {
+        setCorrectionError(e instanceof ApiError && e.kind === 'refusal' ? 'refusal' : 'failure')
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function resume() {
+    setBusy(true)
+    setActionFailed(false)
+    try {
+      const resumed = await resumeEpisode(id)
+      setEpisode(resumed)
+      setNotice(null)
+      setErrorKind(null)
+      setCorrecting(false)
+      setBusy(false)
+    } catch (e) {
+      // ほかの画面で別の場面が始まっていたら、その場面を開く（1 人 1 つまで）
+      if (e instanceof ApiError && e.status === 409 && e.episodeId) {
+        navigate(`/talk/${e.episodeId}`)
+        return
+      }
       setActionFailed(true)
       setBusy(false)
     }
@@ -352,6 +410,78 @@ function TalkScreen({ id }: { id: string }) {
       ) : (
         <>
           <p className="mt-6 text-sm leading-relaxed text-muted-foreground">{copy.talk.finished}</p>
+          {episode.insights && (
+            <div className="mt-4">
+              <Insights insights={episode.insights} />
+
+              {correcting ? (
+                <form
+                  className="mt-4 flex flex-col gap-2 rounded-lg bg-muted/50 px-4 py-4"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void correct()
+                  }}
+                >
+                  <label htmlFor="talk-correction" className="text-sm font-medium">
+                    {copy.insights.correctLabel}
+                  </label>
+                  <textarea
+                    id="talk-correction"
+                    value={correction}
+                    onChange={(event) => setCorrection(event.target.value)}
+                    placeholder={copy.insights.correctPlaceholder}
+                    maxLength={MAX_ANSWER_LENGTH}
+                    rows={3}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                  {correctionError !== null && (
+                    <p role="alert" className="text-sm leading-relaxed">
+                      {correctionError === 'refusal' ? copy.insights.correctRefusal : copy.talk.failure}
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button type="submit" disabled={busy || correction.trim() === ''} className="w-full sm:w-auto">
+                      {copy.insights.correctSend}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => {
+                        setCorrecting(false)
+                        setCorrectionError(null)
+                      }}
+                      className="w-full sm:w-auto"
+                    >
+                      {copy.insights.correctCancel}
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {episode.insights.canResume && (
+                    <Button onClick={resume} disabled={busy} className="h-auto w-full py-2 whitespace-normal sm:w-auto">
+                      {copy.insights.resume}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={() => setCorrecting(true)}
+                    disabled={busy}
+                    className="h-auto w-full py-2 whitespace-normal sm:w-auto"
+                  >
+                    {copy.insights.correct}
+                  </Button>
+                </div>
+              )}
+
+              <div className="mt-4">
+                <Button asChild variant="ghost" className="h-auto w-full py-2 whitespace-normal sm:w-auto">
+                  <Link to="/abilities">{copy.insights.seeAll}</Link>
+                </Button>
+              </div>
+            </div>
+          )}
           <BackHome />
         </>
       )}

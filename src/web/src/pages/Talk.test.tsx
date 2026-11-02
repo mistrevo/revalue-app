@@ -9,9 +9,12 @@ import {
   FAKE_DISTRESS_TEXT,
   FAKE_OPENING,
   FAKE_OPENING_CHOICES,
+  FAKE_RESUME_CHOICES,
+  FAKE_RESUME_QUESTION,
   FAKE_SUPPORT_LABEL,
   FAKE_SUPPORT_URL,
   fakeEpisode,
+  fakeInsights,
   installFakeApi,
   replyEvents,
 } from '@/test/fake-api'
@@ -138,12 +141,14 @@ describe('Talk', () => {
     expect(screen.queryByText(copy.errors.generic)).not.toBeInTheDocument()
   })
 
-  it('discover-6（一場面ずつ区切り、続きから話せる）: 区切るとホームへ', async () => {
+  it('discover-6（一場面ずつ区切り、続きから話せる）: 区切るとホームへ移らず、話し終えた状態になる', async () => {
     const api = setup()
 
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
 
-    expect(await screen.findByText(copy.home.greeting)).toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(screen.queryByText(copy.home.greeting)).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(api.calls.filter((c) => c.url === '/api/episodes/episode-1/finish')).toHaveLength(1)
     expect(api.state.episodes[0].status).toBe('finished')
   })
@@ -215,15 +220,20 @@ describe('Talk', () => {
     expect(await screen.findByText(FAKE_AFTER_SKIP)).toBeInTheDocument()
   })
 
-  it('discover-10（つらい状態のサインに応える）: 「今日はここで区切る」で区切ってホームへ', async () => {
+  it('discover-10（つらい状態のサインに応える）: 「今日はここで区切る」で区切り、話す画面に留まる。見えたことは出さない', async () => {
     const api = setup()
     api.state.reply = distressEvents()
+    // この場面は力の確かめに使わないので、裏側は見えたことを返さない
+    api.state.finishInsights = null
 
     await typeAndSend('死にたいと思うことがある')
     await userEvent.click(await screen.findByRole('button', { name: FAKE_DISTRESS_ACTIONS[1] }))
 
-    expect(await screen.findByText(copy.home.greeting)).toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
     expect(api.state.episodes[0].status).toBe('finished')
+    expect(screen.queryByText(copy.insights.seenTitle)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.insights.correct })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toBeInTheDocument()
   })
 
   it('discover-10（つらい状態のサインに応える）: 開き直しても、窓口のリンクと 3 つの行動が出る', async () => {
@@ -377,5 +387,173 @@ describe('Talk', () => {
 
     expect(await screen.findByText(copy.limit.title)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('昨日のこと')
+  })
+
+  // ---- 03 validate（確かめる） ----
+
+  const finishedWithInsights = (insights = fakeInsights()) =>
+    fakeEpisode({
+      status: 'finished',
+      finishedAt: '2026-11-03T01:10:00Z',
+      turns: [
+        ...fakeEpisode().turns,
+        { role: 'user', text: '班の 2 家族の都合を聞きました', answerKind: 'free', at: '2026-11-03T01:01:00Z' },
+        { role: 'assistant', text: 'ありがとうございました。', move: 'close', at: '2026-11-03T01:02:00Z' },
+      ],
+      insights,
+    })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切るとホームへ移らず、見えた力と根拠、もう少し聞かせてほしいこと、まだ聞けていない力が出る', async () => {
+    setup()
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    const seen = await screen.findByRole('region', { name: copy.insights.seenTitle })
+    expect(within(seen).getByText('調整する力')).toBeInTheDocument()
+    expect(within(seen).getByText('「班の 2 家族の都合を聞きました」')).toBeInTheDocument()
+
+    const more = screen.getByRole('region', { name: copy.insights.moreTitle })
+    expect(within(more).getByText('優先順位をつける力')).toBeInTheDocument()
+    expect(within(more).getByText('「先に書類を仕上げました」')).toBeInTheDocument()
+    expect(within(more).getByText(copy.insights.hintLead)).toBeInTheDocument()
+    expect(within(more).getByText('そう決めた理由')).toBeInTheDocument()
+
+    const notYet = screen.getByRole('region', { name: copy.insights.notYetTitle })
+    expect(within(notYet).getByText('見立てる力')).toBeInTheDocument()
+    expect(within(notYet).getByText(copy.insights.notYetNote)).toBeInTheDocument()
+
+    expect(screen.getByRole('link', { name: copy.insights.seeAll })).toHaveAttribute('href', '/abilities')
+    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 締めの返事のあとも、見えたことが出る', async () => {
+    const api = setup()
+    api.state.reply = replyEvents(['たくさん聞かせてくれて', 'ありがとうございました。'], [], 'finished')
+    // 締めの返事で話し終えた場面を、裏側が読み直したときの姿
+    api.state.episodes[0].insights = fakeInsights()
+
+    await typeAndSend('最後に片づけをして寝ました')
+
+    expect(await screen.findByRole('region', { name: copy.insights.seenTitle })).toBeInTheDocument()
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 中身のない見出しは出さない', async () => {
+    setup(finishedWithInsights(fakeInsights({ seen: [], notYet: [], canResume: true })))
+
+    expect(await screen.findByRole('region', { name: copy.insights.moreTitle })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: copy.insights.seenTitle })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: copy.insights.notYetTitle })).not.toBeInTheDocument()
+  })
+
+  it('validate-4（根拠は本人の言葉）: 引用は「」で一字一句、選んだ答えには（選んだ答え）と結びついた言葉', async () => {
+    setup(finishedWithInsights())
+
+    const seen = await screen.findByRole('region', { name: copy.insights.seenTitle })
+    expect(within(seen).getByText('「班の 2 家族の都合を聞きました」')).toBeInTheDocument()
+    const chosen = within(seen).getByText('「私から声をかけた」')
+    const item = chosen.closest('li')!
+    expect(within(item).getByText(copy.insights.chosen)).toBeInTheDocument()
+    expect(within(item).getByText('「前の晩に、グループのメッセージで声をかけました」')).toBeInTheDocument()
+    // 自分で書いた言葉には（選んだ答え）を付けない
+    expect(within(within(seen).getByText('「順番を入れ替える案を出しました」').closest('li')!).queryByText(copy.insights.chosen)).toBeNull()
+  })
+
+  it('validate-8（訂正したら確かめ直す）: 読み取りを直すと入力欄が出て、送ると見えたことが新しくなる。window.confirm を使わない', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    const api = setup(finishedWithInsights())
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
+    const input = screen.getByRole('textbox', { name: copy.insights.correctLabel })
+    expect(input).toHaveAttribute('placeholder', copy.insights.correctPlaceholder)
+    await userEvent.type(input, '声をかけたのは私ではなく、夫でした')
+    await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
+
+    // 訂正のあとは、調整する力が見えた力から外れる
+    await waitFor(() => expect(screen.queryByRole('region', { name: copy.insights.seenTitle })).not.toBeInTheDocument())
+    expect(screen.getByText('声をかけたのは私ではなく、夫でした')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: copy.insights.correctLabel })).not.toBeInTheDocument()
+    const sent = api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes/episode-1/corrections')
+    expect(sent).toEqual([{ method: 'POST', url: '/api/episodes/episode-1/corrections', body: { text: '声をかけたのは私ではなく、夫でした' } }])
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
+
+  it('validate-8（訂正したら確かめ直す）: 「やめる」で入力欄を閉じ、何も送らない', async () => {
+    const api = setup(finishedWithInsights())
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
+    await userEvent.click(screen.getByRole('button', { name: copy.insights.correctCancel }))
+
+    expect(screen.queryByRole('textbox', { name: copy.insights.correctLabel })).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url.endsWith('/corrections'))).toHaveLength(0)
+  })
+
+  it('validate-8（訂正したら確かめ直す）: 読み直しに失敗したら穏やかな言葉を出し、書いた訂正を残す', async () => {
+    const api = setup(finishedWithInsights())
+    api.state.correction = { status: 503, body: { type: '/problems/ai-unavailable', status: 503, kind: 'failure' } }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
+    await userEvent.type(screen.getByRole('textbox', { name: copy.insights.correctLabel }), '違いました')
+    await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
+
+    expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.insights.correctLabel })).toHaveValue('違いました')
+    expect(screen.getByRole('region', { name: copy.insights.seenTitle })).toBeInTheDocument()
+  })
+
+  it('validate-8（訂正したら確かめ直す）: AI が断ったときは、飛ばす道のない言葉を出す', async () => {
+    const api = setup(finishedWithInsights())
+    api.state.correction = { status: 503, body: { type: '/problems/ai-unavailable', status: 503, kind: 'refusal' } }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
+    await userEvent.type(screen.getByRole('textbox', { name: copy.insights.correctLabel }), '違いました')
+    await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
+
+    expect(await screen.findByText(copy.insights.correctRefusal)).toBeInTheDocument()
+  })
+
+  it('validate-8（訂正したら確かめ直す）: 訂正につらい状態のサインがあれば、決まった言葉と窓口が出る', async () => {
+    const api = setup(finishedWithInsights())
+    api.state.correctionDistress = true
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
+    await userEvent.type(screen.getByRole('textbox', { name: copy.insights.correctLabel }), 'もう消えたい')
+    await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
+
+    expect(await screen.findByText(FAKE_DISTRESS_TEXT)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toHaveAttribute('href', FAKE_SUPPORT_URL)
+    expect(screen.queryByRole('region', { name: copy.insights.seenTitle })).not.toBeInTheDocument()
+  })
+
+  it('validate-11（要確認の場面に戻れる）: 続きを話すと入力欄が戻り、続きの問いが出る', async () => {
+    const api = setup(finishedWithInsights())
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.resume }))
+
+    expect(await screen.findByText(FAKE_RESUME_QUESTION)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toBeInTheDocument()
+    const choices = screen.getByRole('group', { name: copy.talk.choicesLabel })
+    for (const choice of FAKE_RESUME_CHOICES) {
+      expect(within(choices).getByRole('button', { name: choice })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('region', { name: copy.insights.moreTitle })).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes/episode-1/resume')).toHaveLength(1)
+  })
+
+  it('validate-11（要確認の場面に戻れる）: 続きを話せない場面には、続きの道を出さない', async () => {
+    setup(finishedWithInsights(fakeInsights({ moreToHear: [], canResume: false })))
+
+    expect(await screen.findByRole('region', { name: copy.insights.seenTitle })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.insights.resume })).not.toBeInTheDocument()
+  })
+
+  it('validate-11（要確認の場面に戻れる）: ほかに途中の場面があれば（409）、その場面を開く', async () => {
+    const other = fakeEpisode({ id: 'episode-9', turns: [{ role: 'assistant', text: 'ほかの場面の問いです。', move: 'opening', at: '2026-11-03T02:00:00Z' }] })
+    const api = installFakeApi({ loggedIn: true, consented: true, episodes: [finishedWithInsights(), other] })
+    api.state.resumeFindsInProgress = 'episode-9'
+    renderApp('/talk/episode-1')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.resume }))
+
+    expect(await screen.findByText('ほかの場面の問いです。')).toBeInTheDocument()
   })
 })

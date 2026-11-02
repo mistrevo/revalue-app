@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { copy } from '@/copy'
-import { fakeEpisode, installFakeApi } from '@/test/fake-api'
+import { fakeEpisode, fakeInsights, installFakeApi } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
@@ -77,5 +77,23 @@ describe('Episodes', () => {
     renderApp('/episodes')
     expect(await screen.findByText(copy.episodes.empty)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: copy.episodes.backHome })).toHaveAttribute('href', '/home')
+  })
+
+  it('validate-11（要確認の場面に戻れる）: 続きを話せる場面に「もう少し聞かせてほしいことがあります」と添える', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [
+        { ...answered('episode-1', '2026-11-01T03:00:00Z', 'finished', '公園で子どもと遊んだ'), insights: fakeInsights({ canResume: true }) },
+        { ...answered('episode-2', '2026-11-02T03:00:00Z', 'finished', '朝から予定を組み直した'), insights: fakeInsights({ canResume: false }) },
+      ],
+    })
+    renderApp('/episodes')
+
+    const items = await screen.findAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('朝から予定を組み直した')
+    expect(items[0]).not.toHaveTextContent(copy.episodes.canResume)
+    expect(items[1]).toHaveTextContent('公園で子どもと遊んだ')
+    expect(items[1]).toHaveTextContent(copy.episodes.canResume)
   })
 })

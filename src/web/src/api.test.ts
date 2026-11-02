@@ -3,12 +3,17 @@ import {
   ApiError,
   createEpisode,
   deleteMe,
+  excludeAbility,
+  getAbilities,
   getMe,
   isDailyLimit,
   LOGIN_URL,
   LOGOUT_URL,
   postConsent,
+  restoreAbility,
+  resumeEpisode,
   sendAnswer,
+  sendCorrection,
 } from './api'
 
 function jsonResponse(status: number, body: unknown, contentType = 'application/json'): Response {
@@ -161,5 +166,50 @@ describe('api', () => {
       onError: noop,
     }).catch((e: unknown) => e)
     expect(isDailyLimit(error)).toBe(true)
+  })
+
+  it('validate-8（訂正したら確かめ直す）: sendCorrection は訂正を送り、場面を返す', async () => {
+    const fetchMock = mockFetch(jsonResponse(200, { id: 'e1', status: 'finished', turns: [], insights: null }))
+
+    await expect(sendCorrection('e1', '違いました')).resolves.toMatchObject({ id: 'e1' })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/episodes/e1/corrections')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual({ text: '違いました' })
+  })
+
+  it('validate-8（訂正したら確かめ直す）: sendCorrection は 503 で、失敗か拒否かを持つ ApiError を投げる', async () => {
+    mockFetch(jsonResponse(503, { type: '/problems/ai-unavailable', status: 503, kind: 'refusal' }, 'application/problem+json'))
+
+    const error = await sendCorrection('e1', '違いました').catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(503)
+    expect((error as ApiError).kind).toBe('refusal')
+  })
+
+  it('validate-11（要確認の場面に戻れる）: resumeEpisode は 409 で、途中の場面の id を持つ ApiError を投げる', async () => {
+    const fetchMock = mockFetch(jsonResponse(409, { type: '/problems/episode-in-progress', status: 409, episodeId: 'e9' }))
+
+    const error = await resumeEpisode('e1').catch((e: unknown) => e)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/episodes/e1/resume')
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST')
+    expect((error as ApiError).episodeId).toBe('e9')
+  })
+
+  it('validate-12（本人が見立てを外せる）: 見えた力を読み、外す・戻すを送る', async () => {
+    const body = { abilities: [], history: [] }
+    const fetchMock = mockFetch(jsonResponse(200, body))
+    await expect(getAbilities()).resolves.toEqual(body)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/abilities')
+
+    mockFetch(jsonResponse(200, body))
+    await excludeAbility('coordinating')
+    const exclude = vi.mocked(fetch).mock.calls[0]
+    expect(exclude[0]).toBe('/api/abilities/coordinating/exclude')
+    expect(exclude[1]?.method).toBe('POST')
+
+    mockFetch(jsonResponse(200, body))
+    await restoreAbility('coordinating')
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/abilities/coordinating/restore')
   })
 })
