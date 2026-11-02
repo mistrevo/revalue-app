@@ -36,7 +36,8 @@ type SavedFrom = 'input' | 'button'
 
 type Failure = { where: Where; from: SavedFrom }
 
-type Save = (where: Where, from: SavedFrom, run: () => Promise<ProfileData>) => Promise<void>
+/** ack は、保存できたら「いま聞きたいこと」に出す受け止めの一文。 */
+type Save = (where: Where, from: SavedFrom, run: () => Promise<ProfileData>, ack?: string) => Promise<void>
 
 function fromEntry(entry: ProfileEntry): SavedFrom {
   return entry.source === 'written' ? 'input' : 'button'
@@ -73,6 +74,7 @@ export function Profile() {
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Failure | null>(null)
   const [editing, setEditing] = useState<RecordKey | null>(null)
+  const [ack, setAck] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -84,14 +86,19 @@ export function Profile() {
     }
   }, [])
 
-  /** 保存する。失敗したら、その場所に穏やかな言葉を出し、入れた内容は入力欄に残したままにする。 */
-  const save: Save = async (where, from, run) => {
+  /**
+   * 保存する。失敗したら、その場所に穏やかな言葉を出し、入れた内容は入力欄に残したままにする。
+   * できたら、保存した欄の入力だけを閉じる。ほかの欄の書きかけは残す（Claude の判断）。
+   */
+  const save: Save = async (where, from, run, nextAck) => {
     setBusy(true)
     setFailure(null)
+    setAck(null)
     try {
       const data = await run()
       setState({ kind: 'ready', data })
-      setEditing(null)
+      setEditing((current) => (current === where ? null : current))
+      setAck(nextAck ?? null)
     } catch {
       setFailure({ where, from })
     } finally {
@@ -129,7 +136,7 @@ export function Profile() {
       )}
       {state.kind === 'ready' && (
         <div className="mt-6 flex flex-col gap-4">
-          <NextQuestion profile={state.data} busy={busy} failed={failedAt('next')} save={save} />
+          <NextQuestion profile={state.data} ack={ack} busy={busy} failed={failedAt('next')} save={save} />
           <CanDoSection canDo={state.data.canDo} />
           {(['preferences', 'wants'] as const).map((record) => (
             <EntriesSection
@@ -202,38 +209,57 @@ function SaveFailed({ from }: { from: SavedFrom | null }) {
   )
 }
 
+/**
+ * 「いま聞きたいこと」。答えたら、次の問いの上に受け止めの一文を出す。答えは本人の言葉のまま映し返し、褒め言葉は足さない
+ * （04-profile.md の「聞く順番」。Claude の判断）。問いがすべて済んだら、受け止めの一文だけを出す。
+ */
 function NextQuestion({
   profile,
+  ack,
   busy,
   failed,
   save,
 }: {
   profile: ProfileData
+  ack: string | null
   busy: boolean
   failed: SavedFrom | null
   save: Save
 }) {
   const next = nextQuestion(profile)
-  if (next === null) return null
+  const ackLine = ack && (
+    <p role="status" className="text-sm leading-relaxed break-words">
+      {ack}
+    </p>
+  )
+  if (next === null) return ackLine || null
 
   let body: ReactNode
   if (next === 'preferences' || next === 'wants') {
     const entries = profile[next]
     const put = next === 'preferences' ? putPreferences : putWants
+    const record = next === 'preferences' ? copy.profile.preferencesTitle : copy.profile.wantsTitle
     body = (
       <EntryPicker
         key={next}
         question={profile.questions[next]}
         taken={entries}
         busy={busy}
-        onPick={(entry) => save('next', fromEntry(entry), () => put([...entries, entry]))}
+        onPick={(entry) =>
+          save(
+            'next',
+            fromEntry(entry),
+            () => put([...entries, entry]),
+            copy.profile.ackPicked.replace('{text}', entry.text).replace('{record}', record),
+          )
+        }
         extra={
           <Button
             type="button"
             variant="ghost"
             className={WRAP_BUTTON}
             disabled={busy}
-            onClick={() => save('next', 'button', () => put(entries))}
+            onClick={() => save('next', 'button', () => put(entries), copy.profile.ackSkipped.replace('{record}', record))}
           >
             {copy.profile.notNow}
           </Button>
@@ -247,7 +273,7 @@ function NextQuestion({
         initial={null}
         options={profile.conditionOptions}
         busy={busy}
-        onSave={(conditions) => save('next', 'input', () => putConditions(conditions))}
+        onSave={(conditions) => save('next', 'input', () => putConditions(conditions), copy.profile.ackConditions)}
       />
     )
   } else {
@@ -255,14 +281,21 @@ function NextQuestion({
       <AgencyForm
         initial=""
         busy={busy}
-        onSave={(text) => save('next', 'input', () => putAgency(text))}
+        onSave={(text) =>
+          save(
+            'next',
+            'input',
+            () => putAgency(text),
+            hasVisibleText(text) ? copy.profile.ackAgency : copy.profile.ackAgencySkipped,
+          )
+        }
         extra={
           <Button
             type="button"
             variant="ghost"
             className="w-full sm:w-auto"
             disabled={busy}
-            onClick={() => save('next', 'button', () => putAgency(''))}
+            onClick={() => save('next', 'button', () => putAgency(''), copy.profile.ackAgencySkipped)}
           >
             {copy.profile.notNowAgency}
           </Button>
@@ -273,6 +306,7 @@ function NextQuestion({
 
   return (
     <Section title={copy.profile.nextTitle}>
+      {ackLine}
       {body}
       <SaveFailed from={failed} />
     </Section>
@@ -723,7 +757,10 @@ function AgencySection({
   )
 }
 
-/** 主体性の欄。本人が書く。中身の例は入れない（profile-6（主体性は本人が書く））。 */
+/**
+ * 主体性の欄。本人が書く。中身の例は入れない（profile-6（主体性は本人が書く））。
+ * 見出しの名詞句だけでは手が止まりやすいので、一つの答えに誘わない問いの一文を添える（Claude の判断）。
+ */
 function AgencyForm({
   initial,
   busy,
@@ -736,6 +773,7 @@ function AgencyForm({
   extra: ReactNode
 }) {
   const id = useId()
+  const questionId = useId()
   const [text, setText] = useState(initial)
   return (
     <form
@@ -748,8 +786,12 @@ function AgencyForm({
       <label htmlFor={id} className="text-sm font-medium">
         {copy.profile.agencyTitle}
       </label>
+      <p id={questionId} className="text-sm leading-relaxed">
+        {copy.profile.agencyQuestion}
+      </p>
       <textarea
         id={id}
+        aria-describedby={questionId}
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder={copy.profile.agencyPlaceholder}

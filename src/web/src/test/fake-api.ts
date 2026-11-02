@@ -133,6 +133,8 @@ export function fakeProfile(overrides: Partial<Profile> = {}): Profile {
           quotes: [
             { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
             { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
+            // 3 つ目の核となる行動（代わりの案を出す）。見えた力は 3 つの行動がそろった力なので、見本もそろえる
+            { text: '片方の家族には、集合を 30 分遅らせる案を出しました', fromChoice: false, linkedText: null },
           ],
           episodeId: 'episode-1',
         },

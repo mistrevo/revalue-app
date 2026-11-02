@@ -312,6 +312,64 @@ describe('Profile', () => {
     expect(puts(api.calls, 'agency').map((c) => c.body)).toEqual([{ text: '子どもとの時間を削らずに始めたい' }])
   })
 
+  it('profile-5（好みとやりたいことを一つずつ聞く）: 答えると、本人の答えを映し返す受け止めの一文を出してから、次の問いを出す', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/profile')
+
+    let next = await screen.findByRole('region', { name: copy.profile.nextTitle })
+    expect(within(next).queryByRole('status')).not.toBeInTheDocument()
+
+    await userEvent.click(within(next).getByRole('button', { name: FAKE_PREFERENCE_CHOICES[0] }))
+    next = screen.getByRole('region', { name: copy.profile.nextTitle })
+    expect(await within(next).findByRole('status')).toHaveTextContent(`「${FAKE_PREFERENCE_CHOICES[0]}」を好みに入れました。`)
+    // 受け止めの一文は、次の問いより前に出る
+    const status = within(next).getByRole('status')
+    const question = within(next).getByText(FAKE_WANT_QUESTION)
+    expect(status.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.notNow }))
+    next = screen.getByRole('region', { name: copy.profile.nextTitle })
+    await vi.waitFor(() =>
+      expect(within(next).getByRole('status')).toHaveTextContent('やりたいことは、決めずにおきました。下の欄から、いつでも足せます。'),
+    )
+  })
+
+  it('profile-6（主体性は本人が書く）: 主体性の入力欄には、見出しのほかに、答えを誘わない問いの一文を添える', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      profile: answeredProfile({ agency: null, asked: { preferences: true, wants: true, agency: false } }),
+    })
+    renderApp('/profile')
+
+    const next = await screen.findByRole('region', { name: copy.profile.nextTitle })
+    const input = within(next).getByRole('textbox', { name: copy.profile.agencyTitle })
+    expect(input).toHaveAccessibleDescription(copy.profile.agencyQuestion)
+    expect(copy.profile.agencyQuestion).not.toMatch(/例/)
+
+    // 問いがすべて済んだら、「いま聞きたいこと」は出さず、受け止めの一文だけを出す
+    await userEvent.type(input, '無理なく続けたい')
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.save }))
+    expect(await screen.findByRole('status')).toHaveTextContent(copy.profile.ackAgency)
+    expect(screen.queryByRole('region', { name: copy.profile.nextTitle })).not.toBeInTheDocument()
+  })
+
+  it('profile-4（本人が直せる）: ほかの欄で保存しても、書きかけの入力は消えない', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/profile')
+
+    // 好みを聞いているあいだに、主体性の欄で書き始める
+    const agency = await screen.findByRole('region', { name: copy.profile.agencyTitle })
+    await userEvent.click(within(agency).getByRole('button', { name: copy.profile.write }))
+    await userEvent.type(within(agency).getByRole('textbox', { name: copy.profile.agencyTitle }), '子どもとの時間を守りたい')
+
+    // 「いま聞きたいこと」で好みを選んで保存しても、主体性の書きかけは残る
+    const next = screen.getByRole('region', { name: copy.profile.nextTitle })
+    await userEvent.click(within(next).getByRole('button', { name: FAKE_PREFERENCE_CHOICES[0] }))
+    expect(await within(next).findByText(FAKE_WANT_QUESTION)).toBeInTheDocument()
+    expect(within(agency).getByRole('textbox', { name: copy.profile.agencyTitle })).toHaveValue('子どもとの時間を守りたい')
+  })
+
   it('profile-6（主体性は本人が書く）: 「いまは書かない」を選ぶと、空のまま済ませ、「まだ書いていません」と出す', async () => {
     const api = installFakeApi({
       loggedIn: true,
