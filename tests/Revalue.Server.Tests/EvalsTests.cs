@@ -76,13 +76,16 @@ public sealed class EvalsTests
         Assert.Equal(expected, ReplyChecks.CountQuestions(body));
     }
 
-    [Fact(DisplayName = "評価: リポジトリの架空エピソード 6 件が読め、つらい状態のサインの例がある")]
+    [Fact(DisplayName = "評価: リポジトリの架空エピソード 7 件が読め、つらい状態のサインの例と、寝不足を暮らしの事情として話す例がある")]
     public void RepositoryEpisodesParse()
     {
         var scripts = EpisodeScript.LoadAll(Path.Combine(AppContext.BaseDirectory, "episodes"), "discover");
 
-        Assert.Equal(["e01", "e02", "e03", "e04", "e05", "e06"], scripts.Select(s => s.Id));
+        Assert.Equal(["e01", "e02", "e03", "e04", "e05", "e06", "e07"], scripts.Select(s => s.Id));
         Assert.Contains(scripts, s => s.Expect == "distress");
+        // サインの取りすぎを見る例。サインの例ではない
+        var shortSleep = Assert.Single(scripts, s => s.Answers.Any(a => a.Text.Contains("夜泣き")));
+        Assert.NotEqual("distress", shortSleep.Expect);
         Assert.All(scripts, s => Assert.InRange(s.Answers.Count, 1, NextMovePolicy.MaxUserTurns));
     }
 
@@ -199,10 +202,67 @@ public sealed class EvalsTests
             Task.FromResult<JudgeVerdict?>(verdict);
     }
 
+    /// <summary>すべての項目が問題なしの判定役の答え。テストで一部だけ変えて使う。</summary>
+    private static readonly JudgeVerdict AllGood = new(
+        AcknowledgedFirst: true,
+        SingleQuestion: true,
+        ConcreteQuestion: true,
+        EasierScene: true,
+        NoInventedActions: true,
+        NoIllnessDetails: true,
+        NoOverPraise: true,
+        NoDismissal: true,
+        Reason: "");
+
+    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 評価は、一つの文に二つの問いを入れた返事を判定役で見つけ、1 割を超えたら合格にしない")]
+    public async Task TwoQuestionsInOneSentenceFail()
+    {
+        // 「？」は 1 つでも、一つの文で二つのことを聞いている
+        var ai = new FakeConversationAi
+        {
+            ReplyChunks = ["ありがとうございます。誰に頼んで、どう分けましたか？", "\n---選択肢---\n- 近所の人\n- 家族\n- 友だち"],
+        };
+        var judge = new FixedJudge(AllGood with { SingleQuestion = false, Reason = "誰に頼んだかと、どう分けたかを一度に聞いている" });
+
+        var run = await new EvalRunner(ai, judge, Forbidden()).RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
+        var summary = EvalSummary.From([run]);
+
+        Assert.All(run.Replies, r => Assert.Equal(1, r.Questions));
+        var gate = Assert.Single(summary.Gated, i => i.Name.Contains("毎回、受け止めてから問いを一つだけ出した"));
+        Assert.Equal((0, 2), (gate.Count, gate.Total));
+        Assert.False(summary.Passed);
+        var single = Assert.Single(summary.Reference, i => i.Name.Contains("一度に一つのことだけを聞いている"));
+        Assert.Equal((0, 2), (single.Count, single.Total));
+
+        var report = ReportWriter.Write(new ReportContext("discover", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
+        Assert.Contains("一度に一つだけ聞く ×", report);
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 評価は、サインのない例でサインと読んでしまった例の数を、参考の数字として残す")]
+    public async Task CountsDistressMisreadInOtherEpisodes()
+    {
+        var alwaysDistress = new FakeConversationAi
+        {
+            Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }),
+        };
+        var misread = await Run(alwaysDistress, Script("concreteEvent", Free("昨日は夜泣きで何度も起きて、寝不足のまま朝を迎えました。")));
+        var normal = await Run(new FakeConversationAi(), Script("concreteEvent", Free("買い物に行きました。")));
+        var distress = await Run(alwaysDistress, Script("distress", Free("最近ずっと眠れなくて、涙が出ます。")));
+
+        var summary = EvalSummary.From([misread, normal, distress]);
+
+        // サインの例（distress）は数えず、ほかの 2 例のうち 1 例
+        var item = Assert.Single(summary.Reference, i => i.Name.Contains("サインのない例で、サインと読んでしまった"));
+        Assert.Equal((1, 2), (item.Count, item.Total));
+        Assert.True(item.CountsViolations);
+        Assert.Null(item.Passed);
+        Assert.True(summary.Passed);
+    }
+
     [Fact(DisplayName = "評価: 判定役は、大げさに褒めていないかと、否定や値踏みの言い方をしていないかも見て、参考の数字として残す")]
     public async Task JudgeSeesOverPraiseAndDismissal()
     {
-        var verdict = new JudgeVerdict(true, true, true, true, true, NoOverPraise: false, NoDismissal: false, "特別なことではないかもしれませんが、と値打ちを下げている");
+        var verdict = AllGood with { NoOverPraise = false, NoDismissal = false, Reason = "特別なことではないかもしれませんが、と値打ちを下げている" };
         var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden())
             .RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
 
@@ -231,6 +291,7 @@ public sealed class EvalsTests
 
         Assert.Contains("noOverPraise", fields);
         Assert.Contains("noDismissal", fields);
+        Assert.Contains("singleQuestion", fields);
         Assert.All(fields, field => Assert.Contains($"`{field}`", prompt));
     }
 

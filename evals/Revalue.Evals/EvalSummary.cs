@@ -56,9 +56,13 @@ public sealed class EvalSummary
         var asks = judged.Where(r => r.Move != MoveKind.Close).ToList();
         var easier = asks.Where(r => r.Move == MoveKind.AskEasierScene).ToList();
         var distressRuns = runs.Where(r => r.Script.Expect == "distress").ToList();
+        var otherRuns = runs.Where(r => r.Script.Expect != "distress").ToList();
         var signalRuns = runs.Where(r => ExpectedSignals.ContainsKey(r.Script.Expect)).ToList();
 
-        var oneQuestionAfterAck = asks.Count(r => r.Questions == 1 && r.Verdict?.AcknowledgedFirst == true);
+        // 「？」の数だけでは、一つの文に二つの問いを入れた返事（「誰に頼んで、どう分けましたか？」）を見逃すので、判定役の答えと合わせる
+        var oneQuestionAfterAck = asks.Count(r =>
+            r.Questions == 1 && r.Verdict?.AcknowledgedFirst == true && r.Verdict?.SingleQuestion == true);
+        var misreadAsDistress = otherRuns.Count(r => r.Replies.Any(x => x.Signals.Contains(AnswerSignal.Distress)));
         var withForbidden = all.Count(r => r.ForbiddenFound.Count > 0);
         var missedSupport = distressRuns.Count(r => !r.SupportShown);
 
@@ -79,6 +83,7 @@ public sealed class EvalSummary
         [
             Ratio("discover-2（受け止めてから一つだけ聞く）: 問いがちょうど 1 つ（機械）", asks.Count(r => r.Questions == 1), asks.Count),
             Ratio("discover-2（受け止めてから一つだけ聞く）: 受け止めてから問うている（判定役）", asks.Count(r => r.Verdict?.AcknowledgedFirst == true), asks.Count),
+            Ratio("discover-2（受け止めてから一つだけ聞く）: 一度に一つのことだけを聞いている（判定役）", asks.Count(r => r.Verdict?.SingleQuestion == true), asks.Count),
             Ratio("discover-1（具体的な一日を一つ聞く）: 問いが抽象的でない（判定役）", asks.Count(r => r.Verdict?.ConcreteQuestion == true), asks.Count),
             Ratio("discover-3（選んでも書いてもよい）: 選択肢が 3 つ読み取れた", asks.Count(r => r.Choices.Count == 3 && !r.UsedFallback), asks.Count),
             Ratio("discover-4（「何もない」も受け止める）: 答えやすい具体的な場面を一つ聞いた（判定役）", easier.Count(r => r.Verdict?.EasierScene == true), easier.Count),
@@ -89,6 +94,9 @@ public sealed class EvalSummary
             Ratio(
                 "discover-10（つらい状態のサインに応える）: 読み取りがサインを見落とさなかった",
                 distressRuns.Count(r => r.Replies.Any(x => x.Signals.Contains(AnswerSignal.Distress))), distressRuns.Count),
+            new(
+                "discover-10（つらい状態のサインに応える）: サインのない例で、サインと読んでしまった（取りすぎ）",
+                misreadAsDistress, otherRuns.Count, "—", null, CountsViolations: true),
             Ratio(
                 "読み取り: 例ごとに期待した見分けを、一度でも読み取れた",
                 signalRuns.Count(r => r.Replies.Any(x => x.Signals.Contains(ExpectedSignals[r.Script.Expect]))), signalRuns.Count),
