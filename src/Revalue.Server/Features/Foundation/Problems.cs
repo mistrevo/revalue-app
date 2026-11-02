@@ -12,6 +12,7 @@ public static class Problems
     public const string NotFound = "/problems/not-found";
     public const string EpisodeInProgress = "/problems/episode-in-progress";
     public const string EpisodeFinished = "/problems/episode-finished";
+    public const string InvalidAnswer = "/problems/invalid-answer";
 
     public static IResult Create(int status, string type, string title, IDictionary<string, object?>? extensions = null) =>
         TypedResults.Problem(statusCode: status, type: type, title: title, extensions: extensions);

@@ -3,6 +3,7 @@ using Revalue.Server.Data;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
+using Revalue.Server.Features.Foundation.Limits;
 
 namespace Revalue.Server.Features.Discover;
 
@@ -56,6 +57,30 @@ public static class DiscoverEndpoints
             var episode = await FindAsync(store, http.User.GetUserKey()!, id, ct);
             return episode is null ? NotFound() : TypedResults.Ok(EpisodeDto.From(episode));
         });
+
+        // 答えを受け取り、返事を SSE で流す。AI を呼ぶので送信回数の上限を付ける。
+        // 受け取れない答え・ない場面・話し終えた場面は、SSE を始める前に断る
+        episodes.MapPost("/{id}/messages", async (string id, MessageRequest? request, HttpContext http, IDataStore store, TalkStream talk, CancellationToken ct) =>
+        {
+            var answer = TalkStream.Validate(request);
+            if (answer is not { } valid)
+            {
+                return Problems.Create(StatusCodes.Status400BadRequest, Problems.InvalidAnswer, "The answer is empty, too long, or has an unknown kind.");
+            }
+
+            var episode = await FindAsync(store, http.User.GetUserKey()!, id, ct);
+            if (episode is null)
+            {
+                return NotFound();
+            }
+
+            if (episode.Status == EpisodeStatus.Finished)
+            {
+                return AlreadyFinished();
+            }
+
+            return TypedResults.ServerSentEvents(talk.RunAsync(episode, valid.Text, valid.Kind, ct));
+        }).RequireDailyLimit();
 
         episodes.MapPost("/{id}/finish", async (string id, HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
         {

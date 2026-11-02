@@ -16,6 +16,7 @@ builder.Services.AddRevalueData(builder.Configuration, builder.Environment);
 builder.Services.AddConversationAi(builder.Configuration, builder.Environment);
 builder.Services.Configure<LimitOptions>(builder.Configuration.GetSection("Limits"));
 builder.Services.AddSingleton<ICounter, Counter>();
+builder.Services.AddScoped<TalkStream>();
 
 var app = builder.Build();
 
