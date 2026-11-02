@@ -127,7 +127,7 @@ public sealed class ResumeTests
         var question = Array(await Json(await Resume(client, id)), "turns")[^1];
 
         Assert.Equal(
-            "また話しに来てくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。その中で、最近のある一日のことを、聞かせてもらえますか？",
+            "また話しに来てくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。特別な日でなくてかまいません。いつものことの中から、いちばん最近の一日のことを、聞かせてもらえますか？",
             question.GetProperty("text").GetString());
         Assert.DoesNotContain("その日", question.GetProperty("text").GetString(), StringComparison.Ordinal);
         Assert.Equal(AbilityText.ConcreteDayChoices, Array(question, "choices").Select(c => c.GetString()));

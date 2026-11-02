@@ -51,6 +51,8 @@ function TalkScreen({ id }: { id: string }) {
   const [correcting, setCorrecting] = useState(false)
   const [correction, setCorrection] = useState('')
   const [correctionError, setCorrectionError] = useState<'failure' | 'refusal' | null>(null)
+  // 読み直しに失敗したときに、念のため添える相談窓口（話す画面の読み取りの失敗と同じ扱い）
+  const [correctionNotice, setCorrectionNotice] = useState<SupportNotice | null>(null)
 
   useEffect(() => {
     let active = true
@@ -200,6 +202,7 @@ function TalkScreen({ id }: { id: string }) {
     if (text === '') return
     setBusy(true)
     setCorrectionError(null)
+    setCorrectionNotice(null)
     setLimitResetAt(null)
     setActionFailed(false)
     try {
@@ -214,6 +217,7 @@ function TalkScreen({ id }: { id: string }) {
         setLimitResetAt(e.resetAt ?? '')
       } else {
         setCorrectionError(e instanceof ApiError && e.kind === 'refusal' ? 'refusal' : 'failure')
+        setCorrectionNotice(e instanceof ApiError ? (e.notice ?? null) : null)
       }
     } finally {
       setBusy(false)
@@ -437,6 +441,20 @@ function TalkScreen({ id }: { id: string }) {
                   {correctionError !== null && (
                     <p role="alert" className="text-sm leading-relaxed">
                       {copy.insights.correctFailed}
+                    </p>
+                  )}
+                  {correctionError !== null && correctionNotice !== null && (
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {correctionNotice.text}{' '}
+                      <a
+                        href={correctionNotice.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary underline underline-offset-4"
+                      >
+                        {correctionNotice.linkLabel}
+                        <span className="text-muted-foreground">{copy.talk.newTab}</span>
+                      </a>
                     </p>
                   )}
                   <div className="flex flex-col gap-2 sm:flex-row">

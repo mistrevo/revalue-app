@@ -267,11 +267,12 @@ public static class ValidateEndpoints
             if (outcome.ErrorKind is { } kind)
             {
                 logger.LogWarning("Reading the correction ended with {Kind}.", kind);
+                // 読み取りの失敗は、つらい状態のサインを見落としているかもしれないので、話す画面と同じく窓口を添える（Claude の判断）
                 return Problems.Create(
                     StatusCodes.Status503ServiceUnavailable,
                     Problems.AiUnavailable,
                     "The AI could not read the correction.",
-                    new Dictionary<string, object?> { ["kind"] = kind });
+                    new Dictionary<string, object?> { ["kind"] = kind, ["notice"] = SupportNotice.Precaution });
             }
 
             // つらい状態のサインなら、AI の返事を使わず決まった言葉で応え、印を付ける。根拠は変えない

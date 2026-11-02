@@ -28,8 +28,17 @@ export class ApiError extends Error {
   readonly episodeId?: string
   /** AI が失敗したか断ったとき（503）の、どちらだったか。 */
   readonly kind?: 'failure' | 'refusal'
+  /** AI が失敗したか断ったとき（503）に、念のため添える相談窓口。 */
+  readonly notice?: SupportNotice
 
-  constructor(status: number, type?: string, resetAt?: string, episodeId?: string, kind?: 'failure' | 'refusal') {
+  constructor(
+    status: number,
+    type?: string,
+    resetAt?: string,
+    episodeId?: string,
+    kind?: 'failure' | 'refusal',
+    notice?: SupportNotice,
+  ) {
     super(`API error ${status}${type ? ` (${type})` : ''}`)
     this.name = 'ApiError'
     this.status = status
@@ -37,6 +46,7 @@ export class ApiError extends Error {
     this.resetAt = resetAt
     this.episodeId = episodeId
     this.kind = kind
+    this.notice = notice
   }
 }
 
@@ -49,6 +59,7 @@ async function toApiError(response: Response): Promise<ApiError> {
   let resetAt: string | undefined
   let episodeId: string | undefined
   let kind: 'failure' | 'refusal' | undefined
+  let notice: SupportNotice | undefined
   try {
     const body: unknown = await response.json()
     if (body !== null && typeof body === 'object') {
@@ -57,11 +68,18 @@ async function toApiError(response: Response): Promise<ApiError> {
       if (typeof problem.resetAt === 'string') resetAt = problem.resetAt
       if (typeof problem.episodeId === 'string') episodeId = problem.episodeId
       if (problem.kind === 'failure' || problem.kind === 'refusal') kind = problem.kind
+      if (isSupportNotice(problem.notice)) notice = problem.notice
     }
   } catch {
     // 本文が JSON でなければ、状態コードだけで見分ける
   }
-  return new ApiError(response.status, type, resetAt, episodeId, kind)
+  return new ApiError(response.status, type, resetAt, episodeId, kind, notice)
+}
+
+function isSupportNotice(value: unknown): value is SupportNotice {
+  if (value === null || typeof value !== 'object') return false
+  const notice = value as Record<string, unknown>
+  return typeof notice.text === 'string' && typeof notice.linkUrl === 'string' && typeof notice.linkLabel === 'string'
 }
 
 async function request(path: string, init: RequestInit = {}): Promise<Response> {

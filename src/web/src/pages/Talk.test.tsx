@@ -549,13 +549,17 @@ describe('Talk', () => {
 
   it('validate-8（訂正したら確かめ直す）: AI が断ったときは、飛ばす道のない言葉を出す', async () => {
     const api = setup(finishedWithInsights())
-    api.state.correction = { status: 503, body: { type: '/problems/ai-unavailable', status: 503, kind: 'refusal' } }
+    const notice = { kind: 'support', text: '念のための窓口です。', linkUrl: FAKE_SUPPORT_URL, linkLabel: FAKE_SUPPORT_LABEL }
+    api.state.correction = { status: 503, body: { type: '/problems/ai-unavailable', status: 503, kind: 'refusal', notice } }
 
     await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
     await userEvent.type(screen.getByRole('textbox', { name: copy.insights.correctLabel }), '違いました')
     await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
 
     expect(await screen.findByText(copy.insights.correctFailed)).toBeInTheDocument()
+    // 読み直しの失敗は、つらい状態のサインを見落としているかもしれないので、窓口を添える
+    expect(screen.getByText(/念のための窓口です。/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toHaveAttribute('href', FAKE_SUPPORT_URL)
     expect(screen.queryByText(copy.talk.refusal)).not.toBeInTheDocument()
   })
 

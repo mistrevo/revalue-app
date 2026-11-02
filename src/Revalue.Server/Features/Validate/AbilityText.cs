@@ -48,12 +48,12 @@ public static class AbilityText
         [Ability.Noticing] =
         [
             "その日、いつもと違うと気づいたことはありましたか？",
-            "その日、何かを見たり聞いたりして、いつもと違うと思ったことはありましたか？",
-            "その日の様子を、いつもや前のときと比べて、思ったことはありましたか？",
+            "その日、いつもと違うと思ったことがあれば、そのとき目に入ったことや耳にしたことはありましたか？",
+            "その日の様子を、いつもや前のときと比べたことはありましたか？",
         ],
         [Ability.Coordinating] =
         [
-            "その日のことに、ほかに関わっていた人はいましたか？",
+            "その日、あなたのほかに、予定や都合が関わっていた人はいましたか？",
             "その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
             "その日、みんなの都合を合わせたり、別の案を出したりしたことはありましたか？",
         ],
@@ -61,12 +61,12 @@ public static class AbilityText
         [
             "その日、重なっていた用事はありましたか？",
             "その日の用事の中で、先にしたことや、後に回したことはありましたか？",
-            "その日、どれを先にするかを、何かを考えて決めたことはありましたか？",
+            "その日、どれを先にするか決めるときに、気にしていたことはありましたか？",
         ],
     };
 
     /// <summary>続きを話すときの選択肢（Claude の判断）。「していない」を、値打ちを下げずに言える答えを一つ入れる。</summary>
-    public static IReadOnlyList<string> ResumeChoices { get; } = ["思い当たることがあります", "とくになかったと思います", "その日のほかのことを話したい"];
+    public static IReadOnlyList<string> ResumeChoices { get; } = ["思い当たることがあります", "とくに思い当たりません", "その日のほかのことを話したい"];
 
     /// <summary>
     /// 根拠が一般論だけの力の手がかり（「もう少し聞かせてほしいこと」）。一般論だけでは根拠ありにしないので、足りない行動ではなく、
@@ -75,13 +75,14 @@ public static class AbilityText
     public const string ConcreteDayHint = "いつものことの中から、最近のある一日の出来事";
 
     /// <summary>
-    /// 根拠が一般論だけの場面の、続きの問い（Claude の判断）。映し返した一般論を「その中」で指し、最近の一日を一つ聞く。
-    /// 一般論の場面には指せる「その日」がないため、行動ごとの問いは使わない。
+    /// 根拠が一般論だけの場面の、続きの問い（Claude の判断）。一般論の場面には指せる「その日」がないため、行動ごとの問いは使わない。
+    /// 「毎週同じで、この日というのは浮かばない」人がつまずかないよう、特別な日でなくてよいことを先に伝え、日を選ばせずに「いちばん最近」を聞く。
+    /// 「いつものことの中から」は手がかり（<see cref="ConcreteDayHint"/>）と同じ言葉で、映し返しの文の形に頼らない。
     /// </summary>
-    public const string ResumeConcreteAsk = "その中で、最近のある一日のことを、聞かせてもらえますか？";
+    public const string ResumeConcreteAsk = "特別な日でなくてかまいません。いつものことの中から、いちばん最近の一日のことを、聞かせてもらえますか？";
 
     /// <summary>一般論だけの場面の続きの選択肢（Claude の判断）。日が浮かばない人も選べる答えを一つ入れる。</summary>
-    public static IReadOnlyList<string> ConcreteDayChoices { get; } = ["昨日のことを話したい", "先週のことを話したい", "すぐには浮かばない"];
+    public static IReadOnlyList<string> ConcreteDayChoices { get; } = ["今週のことを話したい", "先週のことを話したい", "すぐには浮かばない"];
 
     public static string Name(Ability ability) => Names[ability];
 
@@ -95,7 +96,7 @@ public static class AbilityText
     /// 映し返す言葉（<paramref name="quote"/>）がなければ、映し返しを書かない。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。
     /// </summary>
     public static string ResumeOpening(ActionRef? action, string? quote) =>
-        ResumeLead + MirrorOrEmpty(quote) + (action is null ? ResumeOpenAsk : ResumeAsk(action));
+        ResumeLead + (string.IsNullOrWhiteSpace(quote) ? NoMirrorAnchor : ResumeMirror(quote)) + (action is null ? ResumeOpenAsk : ResumeAsk(action));
 
     /// <summary>
     /// 根拠が一般論だけの場面の、続きの最初の問い。受け止めの一文、一般論の映し返し、最近の一日を一つ聞く問い（<see cref="ResumeConcreteAsk"/>）の順。
@@ -104,15 +105,20 @@ public static class AbilityText
 
     private static string MirrorOrEmpty(string? quote) => string.IsNullOrWhiteSpace(quote) ? "" : ResumeMirror(quote);
 
+    /// <summary>
+    /// 映し返す言葉がないときに、行動ごとの問いの「その日」が指す日を示す一文。要確認の力には根拠があるので、ほぼ使わない（Claude の判断）。
+    /// </summary>
+    public const string NoMirrorAnchor = "前に話してくれた日のことです。";
+
     /// <summary>続きを話すときの、行動ごとの問い。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string ResumeAsk(ActionRef action) => Pick(Questions, action);
 
     /// <summary>
     /// 続きを話すときの、本人の言葉の映し返し。根拠の本人の言葉を「」で囲み、一字一句そのまま示す。
-    /// ただし文末の句点だけは外す（「」の中に「。」を残さない書き方に合わせる。保存した根拠は変えない。Claude の判断）。
+    /// ただし文末の句読点だけは外す（「」の中に「。」「、」を残さない書き方に合わせる。保存した根拠は変えない。Claude の判断）。
     /// どの日のことを聞くかを、問いの「その日」より先に示す。
     /// </summary>
-    public static string ResumeMirror(string quote) => $"前に「{quote.Trim().TrimEnd('。', '．')}」と話してくれましたね。";
+    public static string ResumeMirror(string quote) => $"前に「{quote.Trim().TrimEnd('。', '．', '、', '，')}」と話してくれましたね。";
 
     /// <summary>
     /// 続きを話すときの、手がかりを添えない問い。足りない行動をどれも 2 回聞いたときや、訂正で打ち消されたときなどに使う

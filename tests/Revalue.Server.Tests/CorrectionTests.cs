@@ -176,7 +176,7 @@ public sealed class CorrectionTests
         Assert.Equal(HttpStatusCode.OK, longest.StatusCode);
     }
 
-    [Theory(DisplayName = "validate-8（訂正したら確かめ直す）: AI が失敗・拒否したら 503 と種類を返し、何も保存しない")]
+    [Theory(DisplayName = "validate-8（訂正したら確かめ直す）: AI が失敗・拒否したら 503 と種類を返し、相談窓口を添え、何も保存しない")]
     [InlineData(ConversationAiException.Failure)]
     [InlineData(ConversationAiException.Refusal)]
     public async Task AiFailureSavesNothing(string kind)
@@ -191,7 +191,11 @@ public sealed class CorrectionTests
         var response = await Correct(client, id, CorrectionText);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal(kind, (await Json(response)).GetProperty("kind").GetString());
+        var problem = await Json(response);
+        Assert.Equal(kind, problem.GetProperty("kind").GetString());
+        // 読み取りの失敗は、つらい状態のサインを見落としているかもしれないので、話す画面と同じく窓口を添える
+        Assert.Equal("support", problem.GetProperty("notice").GetProperty("kind").GetString());
+        Assert.Equal(DiscoverText.SupportLinkUrl, problem.GetProperty("notice").GetProperty("linkUrl").GetString());
         var after = await Saved(factory, "g-1", id);
         Assert.Equal(before.Turns.Count, after.Turns.Count);
         Assert.Equal(before.Evidence, after.Evidence);
