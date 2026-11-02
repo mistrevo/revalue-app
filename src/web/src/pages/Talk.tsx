@@ -436,7 +436,7 @@ function TalkScreen({ id }: { id: string }) {
                   />
                   {correctionError !== null && (
                     <p role="alert" className="text-sm leading-relaxed">
-                      {correctionError === 'refusal' ? copy.insights.correctRefusal : copy.talk.failure}
+                      {copy.insights.correctFailed}
                     </p>
                   )}
                   <div className="flex flex-col gap-2 sm:flex-row">

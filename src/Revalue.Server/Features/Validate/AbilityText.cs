@@ -39,7 +39,8 @@ public static class AbilityText
     };
 
     /// <summary>
-    /// 続きを話すときの、行動ごとの問い（Claude の判断）。本人がその行動をしたことを前提にせず、「ありましたか」「あれば」で聞く。
+    /// 続きを話すときの、行動ごとの問い（Claude の判断）。本人がその行動をしたことを前提にせず、「ありましたか」「いましたか」で聞く。
+    /// どの問いにも同じ選択肢（<see cref="ResumeChoices"/>）が自然な答えになるよう、問いの形をそろえる。一度に一つだけ求める。
     /// 前の場面は、問いの前の映し返しで本人の言葉を示すので、「その日」で指す。
     /// </summary>
     private static readonly IReadOnlyDictionary<Ability, string[]> Questions = new Dictionary<Ability, string[]>
@@ -47,12 +48,12 @@ public static class AbilityText
         [Ability.Noticing] =
         [
             "その日、いつもと違うと気づいたことはありましたか？",
-            "その日、いつもと違うと思ったことがあれば、何を見たり聞いたりしてそう思ったかを、聞かせてもらえますか？",
+            "その日、何かを見たり聞いたりして、いつもと違うと思ったことはありましたか？",
             "その日の様子を、いつもや前のときと比べて、思ったことはありましたか？",
         ],
         [Ability.Coordinating] =
         [
-            "その日のことに、ほかに関わっていた人がいれば、その人たちの都合も聞かせてもらえますか？",
+            "その日のことに、ほかに関わっていた人はいましたか？",
             "その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
             "その日、みんなの都合を合わせたり、別の案を出したりしたことはありましたか？",
         ],
@@ -60,12 +61,27 @@ public static class AbilityText
         [
             "その日、重なっていた用事はありましたか？",
             "その日の用事の中で、先にしたことや、後に回したことはありましたか？",
-            "その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？",
+            "その日、どれを先にするかを、何かを考えて決めたことはありましたか？",
         ],
     };
 
     /// <summary>続きを話すときの選択肢（Claude の判断）。「していない」を、値打ちを下げずに言える答えを一つ入れる。</summary>
-    public static IReadOnlyList<string> ResumeChoices { get; } = ["少し覚えています", "とくになかったと思います", "その日のほかのことを話したい"];
+    public static IReadOnlyList<string> ResumeChoices { get; } = ["思い当たることがあります", "とくになかったと思います", "その日のほかのことを話したい"];
+
+    /// <summary>
+    /// 根拠が一般論だけの力の手がかり（「もう少し聞かせてほしいこと」）。一般論だけでは根拠ありにしないので、足りない行動ではなく、
+    /// 具体的な出来事を一つ求める（validate-10（一般論には具体的な出来事を聞く）。Claude の判断）。
+    /// </summary>
+    public const string ConcreteDayHint = "いつものことの中から、最近のある一日の出来事";
+
+    /// <summary>
+    /// 根拠が一般論だけの場面の、続きの問い（Claude の判断）。映し返した一般論を「その中」で指し、最近の一日を一つ聞く。
+    /// 一般論の場面には指せる「その日」がないため、行動ごとの問いは使わない。
+    /// </summary>
+    public const string ResumeConcreteAsk = "その中で、最近のある一日のことを、聞かせてもらえますか？";
+
+    /// <summary>一般論だけの場面の続きの選択肢（Claude の判断）。日が浮かばない人も選べる答えを一つ入れる。</summary>
+    public static IReadOnlyList<string> ConcreteDayChoices { get; } = ["昨日のことを話したい", "先週のことを話したい", "すぐには浮かばない"];
 
     public static string Name(Ability ability) => Names[ability];
 
@@ -79,16 +95,24 @@ public static class AbilityText
     /// 映し返す言葉（<paramref name="quote"/>）がなければ、映し返しを書かない。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。
     /// </summary>
     public static string ResumeOpening(ActionRef? action, string? quote) =>
-        ResumeLead + (string.IsNullOrWhiteSpace(quote) ? "" : ResumeMirror(quote)) + (action is null ? ResumeOpenAsk : ResumeAsk(action));
+        ResumeLead + MirrorOrEmpty(quote) + (action is null ? ResumeOpenAsk : ResumeAsk(action));
+
+    /// <summary>
+    /// 根拠が一般論だけの場面の、続きの最初の問い。受け止めの一文、一般論の映し返し、最近の一日を一つ聞く問い（<see cref="ResumeConcreteAsk"/>）の順。
+    /// </summary>
+    public static string ResumeOpeningForGeneral(string? quote) => ResumeLead + MirrorOrEmpty(quote) + ResumeConcreteAsk;
+
+    private static string MirrorOrEmpty(string? quote) => string.IsNullOrWhiteSpace(quote) ? "" : ResumeMirror(quote);
 
     /// <summary>続きを話すときの、行動ごとの問い。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string ResumeAsk(ActionRef action) => Pick(Questions, action);
 
     /// <summary>
-    /// 続きを話すときの、本人の言葉の映し返し。根拠の本人の言葉を「」で囲み、一字一句そのまま示す（Claude の判断）。
+    /// 続きを話すときの、本人の言葉の映し返し。根拠の本人の言葉を「」で囲み、一字一句そのまま示す。
+    /// ただし文末の句点だけは外す（「」の中に「。」を残さない書き方に合わせる。保存した根拠は変えない。Claude の判断）。
     /// どの日のことを聞くかを、問いの「その日」より先に示す。
     /// </summary>
-    public static string ResumeMirror(string quote) => $"前に「{quote}」と話してくれましたね。";
+    public static string ResumeMirror(string quote) => $"前に「{quote.Trim().TrimEnd('。', '．')}」と話してくれましたね。";
 
     /// <summary>
     /// 続きを話すときの、手がかりを添えない問い。足りない行動をどれも 2 回聞いたときや、訂正で打ち消されたときなどに使う

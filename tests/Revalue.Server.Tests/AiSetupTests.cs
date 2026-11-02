@@ -145,7 +145,7 @@ public sealed class AiSetupTests
             reading.Candidates!.Select(c => (c.Action, c.Quote, c.Answer)));
     }
 
-    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 偽物の AI の、足りない行動を聞く返事には手がかりが出る")]
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 偽物の AI の、足りない行動を聞く返事は、その行動を前提にしない問いで聞く")]
     public async Task ScriptedAskMissingActionShowsHint()
     {
         var target = new ActionRef(Ability.Prioritizing, 3);
@@ -156,7 +156,8 @@ public sealed class AiSetupTests
         }
 
         var parts = splitter.Complete();
-        Assert.Contains(AbilityText.Hint(target), parts.Body);
-        Assert.Equal(3, parts.Choices.Count);
+        Assert.EndsWith(AbilityText.ResumeAsk(target), parts.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("について", parts.Body, StringComparison.Ordinal);
+        Assert.Equal(AbilityText.ResumeChoices, parts.Choices);
     }
 }

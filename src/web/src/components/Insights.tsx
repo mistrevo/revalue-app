@@ -92,9 +92,11 @@ export function QuoteList({ quotes }: { quotes: Quote[] }) {
   )
 }
 
-/** 足りない行動の手がかり。 */
+/** 足りない行動の手がかり。添える手がかりがなければ、聞き返さずに続きを話せることだけを伝える。 */
 export function Hints({ hints }: { hints: string[] }) {
-  if (hints.length === 0) return null
+  if (hints.length === 0) {
+    return <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{copy.insights.noHint}</p>
+  }
   return (
     <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-sm leading-relaxed">
       <p className="text-muted-foreground">{copy.insights.hintLead}</p>

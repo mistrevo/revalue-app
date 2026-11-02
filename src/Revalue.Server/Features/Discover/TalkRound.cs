@@ -37,7 +37,11 @@ public abstract record RoundStep
 /// <param name="Known">この場面で前の往復までに確かめた根拠。</param>
 /// <param name="UserTurnNumber">いまの答えが何往復目か（1 から）。</param>
 /// <param name="TurnLimit">この場面の往復の上限。</param>
-public sealed record RoundContext(IReadOnlyList<Turn> Turns, IReadOnlyList<Evidence> Known, int UserTurnNumber, int TurnLimit);
+/// <param name="SetAside">
+/// 力の確かめに使わない印（つらい状態のサイン）が付いた場面か。true なら根拠を照らし合わせず、足りない行動も聞かない（02 discover（話す）の一手だけ）。
+/// 打ち明けたあとの人に、確かめのための問いを重ねないため（03-validate.md の「次の一手」）。
+/// </param>
+public sealed record RoundContext(IReadOnlyList<Turn> Turns, IReadOnlyList<Evidence> Known, int UserTurnNumber, int TurnLimit, bool SetAside = false);
 
 /// <summary>
 /// 1 往復の中身（保存を除く）。読み取り → 根拠の照らし合わせ → 次の一手 → 返事 → 本文と選択肢に分ける、を順に行い、起きたことを返す。
@@ -68,11 +72,15 @@ public static class TalkRound
             yield break;
         }
 
-        // 2. 根拠の照らし合わせ。前の往復の根拠は残し、新しく通ったものを足す（読み取りが往復ごとに揺れても見立てが行ったり来たりしないように）
-        var evidence = EvidenceSet.Merge(context.Known, EvidenceChecker.Check(turns, reading.Candidates));
+        // 2. 根拠の照らし合わせ。前の往復の根拠は残し、新しく通ったものを足す（読み取りが往復ごとに揺れても見立てが行ったり来たりしないように）。
+        // 力の確かめに使わない印のある場面では、照らし合わせず、足りない行動も聞かない
+        var evidence = context.SetAside
+            ? context.Known
+            : EvidenceSet.Merge(context.Known, EvidenceChecker.Check(turns, reading.Candidates));
+        var validation = context.SetAside ? null : ValidationContext.From(turns, evidence);
 
         // 3. 次の一手
-        var next = NextMovePolicy.Decide(reading, context.UserTurnNumber, ValidationContext.From(turns, evidence), context.TurnLimit);
+        var next = NextMovePolicy.Decide(reading, context.UserTurnNumber, validation, context.TurnLimit);
         var move = next.Kind;
         yield return new RoundStep.Decided(reading, next, evidence);
 

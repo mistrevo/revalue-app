@@ -97,8 +97,8 @@ public sealed class ScriptedConversationAi : IConversationAi
     private static (string Body, string[]? Choices) Script(NextMove move) => move.Kind switch
     {
         MoveKind.AskMissingAction when move.Target is { } target => (
-            $"（開発用の決まった返事）話してくれてありがとうございます。{AbilityText.Hint(target)}について、覚えていることはありますか？",
-            ["少し覚えている", "よく覚えていない", "ほかのことを話したい"]),
+            $"（開発用の決まった返事）話してくれてありがとうございます。そのときのことを、もう少し聞かせてください。{AbilityText.ResumeAsk(target)}",
+            [.. AbilityText.ResumeChoices]),
         MoveKind.AskWhatYouDid => (
             "（開発用の決まった返事）話してくれてありがとうございます。その場面で、あなたが最初にしたことは何でしたか？",
             ["まず家のことをした", "人に連絡した", "よく覚えていない"]),

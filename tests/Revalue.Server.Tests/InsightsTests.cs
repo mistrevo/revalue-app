@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Revalue.Server.Ai;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Validate;
@@ -75,6 +76,39 @@ public sealed class InsightsTests
         await store.TryUpdateAsync<EpisodeItem>(TestUsers.Key("g-1"), id, e => e with { ExcludedFromValidation = true }, Ct);
 
         Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("insights").ValueKind);
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: つらい状態のサインが出た場面では、続けて話しても足りない行動を聞かず、根拠も足さない")]
+    public async Task SetAsideEpisodeDoesNotAskMissingActionsOrAddEvidence()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+        await Send(client, id, "毎日がしんどくて、何もかも嫌になってしまいました。");
+        Assert.True((await Saved(factory, "g-1", id)).ExcludedFromValidation);
+
+        // 「続けて話す」で次の答えを送る。読み取りが根拠の候補を返しても、確かめのための問いは出さず、根拠も保存しない
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0]);
+        await Send(client, id, CoordinatingAnswer);
+
+        Assert.Equal(MoveKind.AskWhatYouDid, ai.Moves[^1]);
+        Assert.Null(ai.NextMoves[^1].Target);
+        Assert.Empty((await Saved(factory, "g-1", id)).Evidence);
+    }
+
+    [Fact(DisplayName = "validate-10（一般論には具体的な出来事を聞く）: 根拠が一般論だけの力には、足りない行動ではなく、最近の一日を一つ聞く手がかりを出す")]
+    public async Task GeneralOnlyAbilityHintAsksForConcreteDay()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll.Select(c => c with { General = true }).ToArray());
+
+        var more = Assert.Single(Array((await GetEpisode(client, id)).GetProperty("insights"), "moreToHear"));
+
+        Assert.Equal([AbilityText.ConcreteDayHint], Array(more, "hints").Select(h => h.GetString()));
     }
 
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 選んだ答えの根拠は fromChoice と、結びついた本人の言葉を持つ")]

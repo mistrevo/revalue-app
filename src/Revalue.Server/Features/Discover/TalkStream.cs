@@ -80,7 +80,7 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
         IReadOnlyList<Evidence> evidence = episode.Evidence;
 
         // 読み取り → 根拠の照らし合わせ → 次の一手 → 返事 は TalkRound（評価と同じ処理）。ここでは、起きたことを SSE に変え、保存する
-        var context = new RoundContext(turns, episode.Evidence, episode.UserTurnCount + 1, episode.TurnLimit);
+        var context = new RoundContext(turns, episode.Evidence, episode.UserTurnCount + 1, episode.TurnLimit, episode.ExcludedFromValidation);
         await foreach (var step in TalkRound.RunAsync(ai, context, time, ct))
         {
             switch (step)
@@ -118,10 +118,11 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
                 case RoundStep.Replied replied:
                 {
                     // 返事を最後まで受け取れたときだけ、答えと返事の 2 ターンと根拠を足す。
-                    // つらい状態のサインが出た場面には、力の確かめに使わない印を付け、根拠は足さない
+                    // つらい状態のサインが出た場面には、力の確かめに使わない印を付け、根拠は足さない。印のある場面のその後の往復でも足さない
                     var distress = move == MoveKind.Distress;
                     var close = move == MoveKind.Close;
-                    var saved = await SaveAsync(episode, answer, replied.Reply, distress ? null : evidence, finish: close, excluded: distress, ct);
+                    var keepEvidence = distress || episode.ExcludedFromValidation;
+                    var saved = await SaveAsync(episode, answer, replied.Reply, keepEvidence ? null : evidence, finish: close, excluded: distress, ct);
                     if (saved is null)
                     {
                         // サインを読み取った往復は、保存できなくても窓口を添える（discover-10）

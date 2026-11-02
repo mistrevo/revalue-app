@@ -78,11 +78,18 @@ public static class EpisodeInsights
 
     /// <summary>
     /// 要確認の力の、足りない行動の手がかり（「もう少し聞かせてほしいこと」と、見えた力の画面の確かめ中）。
+    /// 根拠が一般論だけの力には、足りない行動ではなく、最近の一日を一つ求める手がかり（<see cref="AbilityText.ConcreteDayHint"/>）だけを出す
+    /// （validate-10（一般論には具体的な出来事を聞く））。
     /// 訂正で打ち消された行動の手がかりは出さない。後回しにしても、足りない行動がそれだけのときは同じ手がかりが出て、
     /// 本人が訂正で答えたばかりのことを聞き直すことになるため（Claude の判断）。
     /// </summary>
     public static IReadOnlyList<string> Hints(EpisodeItem episode, AbilityResult result)
     {
+        if (IsGeneralOnly(result))
+        {
+            return [AbilityText.ConcreteDayHint];
+        }
+
         var withdrawn = CorrectionRound.WithdrawnIn(episode.Turns);
         return result.Missing
             .Select(n => new ActionRef(result.Ability, n))
@@ -95,8 +102,13 @@ public static class EpisodeInsights
     public static bool CanResume(EpisodeItem episode) =>
         IsCheckable(episode) && AbilityStates.Evaluate(episode.Evidence).Any(r => r.State == AbilityState.NeedsCheck);
 
+    /// <summary>根拠が一般論だけの要確認の力か。一般論だけでは、どの日のことかが決まらないので、足りない行動は聞かず、具体的な出来事を一つ聞く。</summary>
+    public static bool IsGeneralOnly(AbilityResult result) =>
+        result.State == AbilityState.NeedsCheck && result.Shown.Count > 0 && result.Shown.All(e => e.General);
+
     /// <summary>
-    /// 続きの問いで聞く行動。要確認の力のうち行動の多いもの（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
+    /// 続きの問いで聞く行動。根拠が一般論だけの力は除く（指せる「その日」がないため）。
+    /// 要確認の力のうち行動の多いもの（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
     /// <see cref="AbilityStates.AskOrder"/> の順に見て、この場面で聞いた回数が上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）に届いていないもの。
     /// 訂正で打ち消された行動は、上限に届いたものとして数える（<see cref="ValidationContext.From"/>）。なければ null（手がかりを添えずに聞く）。
     /// </summary>
@@ -104,7 +116,7 @@ public static class EpisodeInsights
     {
         var asked = ValidationContext.From(episode.Turns, episode.Evidence).AskedCounts;
         return AbilityStates.Evaluate(episode.Evidence)
-            .Where(r => r.State == AbilityState.NeedsCheck)
+            .Where(r => r.State == AbilityState.NeedsCheck && !IsGeneralOnly(r))
             .OrderByDescending(r => r.Shown.Count)
             .ThenBy(r => r.Ability)
             .SelectMany(r => AbilityStates.AskOrder(r.Ability, r.Missing, episode.Evidence))
@@ -134,7 +146,8 @@ public static class EpisodeInsights
     /// <summary>
     /// 続きを話す場面を作る（まだ保存しない）。続きを話せない場面なら null。
     /// 最初の問いは、受け止めの一文、本人の言葉の映し返し、問い一つの順（<see cref="AbilityText.ResumeOpening"/>）。
-    /// 聞ける足りない行動がない（どれも 2 回聞いた、訂正で打ち消された、一般論の根拠だけで 3 つそろった）ときは、手がかりを添えない問いで始める（Claude の判断）。
+    /// 聞ける足りない行動がない（どれも 2 回聞いた、訂正で打ち消された）ときは、手がかりを添えない問いで始める。
+    /// 要確認の力がどれも一般論だけのときは、「その日」を前提にせず、最近の一日を一つ聞く（validate-10。Claude の判断）。
     /// </summary>
     public static EpisodeItem? Reopen(EpisodeItem episode, DateTimeOffset now)
     {
@@ -144,11 +157,15 @@ public static class EpisodeInsights
         }
 
         var target = ResumeTarget(episode);
+        var generalOnly = target is null
+            && AbilityStates.Evaluate(episode.Evidence).Where(r => r.State == AbilityState.NeedsCheck).All(IsGeneralOnly);
         var question = new Turn
         {
             Role = TurnRoles.Assistant,
-            Text = AbilityText.ResumeOpening(target, ResumeMirrorQuote(episode, target)),
-            Choices = AbilityText.ResumeChoices,
+            Text = generalOnly
+                ? AbilityText.ResumeOpeningForGeneral(ResumeMirrorQuote(episode, null))
+                : AbilityText.ResumeOpening(target, ResumeMirrorQuote(episode, target)),
+            Choices = generalOnly ? AbilityText.ConcreteDayChoices : AbilityText.ResumeChoices,
             Move = ResumeMove,
             Target = target?.ToString(),
             At = now,

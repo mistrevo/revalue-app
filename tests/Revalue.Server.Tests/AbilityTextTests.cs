@@ -17,6 +17,9 @@ public sealed class AbilityTextTests
         AbilityText.ResumeLead,
         AbilityText.ResumeMirror("本人の言葉"),
         AbilityText.ResumeOpenAsk,
+        AbilityText.ResumeConcreteAsk,
+        AbilityText.ConcreteDayHint,
+        .. AbilityText.ConcreteDayChoices,
     ];
 
     [Fact(DisplayName = "common-1（使わない言葉を出さない）: 力の名前、手がかり、続きの問いに使わない言葉がない")]
@@ -70,11 +73,20 @@ public sealed class AbilityTextTests
         Assert.Equal(
             "また話しに来てくれて、ありがとうございます。その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
             AbilityText.ResumeOpening(target, null));
-        Assert.Equal(["少し覚えています", "とくになかったと思います", "その日のほかのことを話したい"], AbilityText.ResumeChoices);
+        Assert.Equal(["思い当たることがあります", "とくになかったと思います", "その日のほかのことを話したい"], AbilityText.ResumeChoices);
+
+        // 一般論だけの場面は「その日」を前提にせず、最近の一日を一つ聞く（validate-10（一般論には具体的な出来事を聞く））
+        Assert.Equal(
+            "また話しに来てくれて、ありがとうございます。前に「いつも私が予定を合わせています」と話してくれましたね。その中で、最近のある一日のことを、聞かせてもらえますか？",
+            AbilityText.ResumeOpeningForGeneral("いつも私が予定を合わせています。"));
+        Assert.Equal(["昨日のことを話したい", "先週のことを話したい", "すぐには浮かばない"], AbilityText.ConcreteDayChoices);
+
+        // 映し返しでは、引用の文末の句点だけを外して示す（「」の中に「。」を残さない）
+        Assert.Equal("前に「二人に電話しました」と話してくれましたね。", AbilityText.ResumeMirror("二人に電話しました。"));
         Assert.Throws<ArgumentOutOfRangeException>(() => AbilityText.ResumeOpening(new ActionRef(Ability.Noticing, 4), "二人に電話して"));
     }
 
-    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いは 9 つすべて別の文で、その行動をしたことを前提にせず、問いは一つ")]
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いは 9 つすべて別の文で、その行動をしたことを前提にせず「ありましたか」「いましたか」で聞き、問いは一つ")]
     public void ResumeQuestionsDoNotPresuppose()
     {
         var questions = AllActions().Select(AbilityText.ResumeAsk).ToList();
@@ -84,10 +96,13 @@ public sealed class AbilityTextTests
         {
             // 「〜したことについて」のように、したことを前提にした聞き方をしない。「ありましたか」か、「あれば」「いれば」で聞く
             Assert.DoesNotContain("について", q, StringComparison.Ordinal);
-            Assert.True(new[] { "ありましたか", "あれば", "いれば" }.Any(w => q.Contains(w, StringComparison.Ordinal)), q);
+            Assert.True(new[] { "ありましたか", "いましたか" }.Any(w => q.Contains(w, StringComparison.Ordinal)), q);
             Assert.Equal(1, q.Count(c => c == '？'));
             Assert.EndsWith("？", q, StringComparison.Ordinal);
         });
+
+        // 一度に一つだけ求める: 関わった人と、その人たちの都合を一緒に聞かない
+        Assert.DoesNotContain("都合", AbilityText.ResumeAsk(new ActionRef(Ability.Coordinating, 1)), StringComparison.Ordinal);
 
         // 問いは一つ: 受け止めの一文と映し返しには問いを入れない
         Assert.Equal(1, AbilityText.ResumeOpenAsk.Count(c => c == '？'));

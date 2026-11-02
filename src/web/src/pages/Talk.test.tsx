@@ -439,6 +439,15 @@ describe('Talk', () => {
     expect(await screen.findByRole('region', { name: copy.insights.seenTitle })).toBeInTheDocument()
   })
 
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 添える手がかりがない力には、聞き返さずに続きを話せることだけを出す', async () => {
+    const more = fakeInsights().moreToHear.map((ability) => ({ ...ability, hints: [] }))
+    setup(finishedWithInsights(fakeInsights({ moreToHear: more })))
+
+    const region = await screen.findByRole('region', { name: copy.insights.moreTitle })
+    expect(within(region).getByText(copy.insights.noHint)).toBeInTheDocument()
+    expect(within(region).queryByText(copy.insights.hintLead)).not.toBeInTheDocument()
+  })
+
   it('validate-7（見えた力と、もう少し聞きたいことを示す）: 中身のない見出しは出さない', async () => {
     setup(finishedWithInsights(fakeInsights({ seen: [], notYet: [], canResume: true })))
 
@@ -531,7 +540,9 @@ describe('Talk', () => {
     await userEvent.type(screen.getByRole('textbox', { name: copy.insights.correctLabel }), '違いました')
     await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
 
-    expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
+    // 訂正では返事を作らないので、返事の失敗の言葉ではなく、読み直しの言葉を出す
+    expect(await screen.findByText(copy.insights.correctFailed)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.failure)).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: copy.insights.correctLabel })).toHaveValue('違いました')
     expect(screen.getByRole('region', { name: copy.insights.seenTitle })).toBeInTheDocument()
   })
@@ -544,7 +555,8 @@ describe('Talk', () => {
     await userEvent.type(screen.getByRole('textbox', { name: copy.insights.correctLabel }), '違いました')
     await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
 
-    expect(await screen.findByText(copy.insights.correctRefusal)).toBeInTheDocument()
+    expect(await screen.findByText(copy.insights.correctFailed)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.refusal)).not.toBeInTheDocument()
   })
 
   it('validate-8（訂正したら確かめ直す）: 訂正につらい状態のサインがあれば、決まった言葉と窓口が出る', async () => {

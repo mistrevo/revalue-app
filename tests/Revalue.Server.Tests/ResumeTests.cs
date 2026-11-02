@@ -116,6 +116,40 @@ public sealed class ResumeTests
         Assert.Equal("resume", question.GetProperty("move").GetString());
     }
 
+    [Fact(DisplayName = "validate-10（一般論には具体的な出来事を聞く）: 根拠が一般論だけの場面の続きは、「その日」を前提にせず、最近の一日を一つ聞く")]
+    public async Task ResumeOnGeneralOnlyAsksForConcreteDay()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll.Select(c => c with { General = true }).ToArray());
+
+        var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+
+        Assert.Equal(
+            "また話しに来てくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。その中で、最近のある一日のことを、聞かせてもらえますか？",
+            question.GetProperty("text").GetString());
+        Assert.DoesNotContain("その日", question.GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.Equal(AbilityText.ConcreteDayChoices, Array(question, "choices").Select(c => c.GetString()));
+        Assert.False(question.TryGetProperty("target", out _));
+    }
+
+    [Fact(DisplayName = "validate-10（一般論には具体的な出来事を聞く）: 一般論だけの力と、出来事の中で足りない力があれば、出来事の中の足りない行動を聞く")]
+    public async Task ResumePrefersConcreteAbilityOverGeneralOnly()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        // 調整する力は一般論で 3 つ、優先順位をつける力は出来事の中で 1 つ
+        var id = await FinishedEpisode(client, ai,
+            [.. CoordinatingAll.Select(c => c with { General = true }), Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして")]);
+
+        var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+
+        Assert.Equal("prioritizing.1", question.GetProperty("target").GetString());
+        Assert.Contains("前に「迎えの時間をずらして」と話してくれましたね。", question.GetProperty("text").GetString(), StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの映し返しは、聞く力の根拠のうち、一般論でない、いちばん短い本人の言葉。選んだ答えなら結びついた言葉")]
     public void ResumeMirrorQuotePicksShortestOwnWords()
     {
