@@ -321,7 +321,7 @@ infra/README.md                                       最初の 1 回の手順
 - [x] **Step 2: 失敗を確かめる** → **Step 3: 実装する**（幅 375px で崩れないよう、1 列で読みやすい幅に収める）→ **Step 4: `npm --prefix src/web test` と `npm --prefix src/web run build` が通ることを確かめ、コミットする**
   `案内・はじめに・ホーム・設定の画面と、上限の表示を作る（foundation-1、foundation-2、foundation-3、foundation-6）`
 
-- [ ] **Step 5: 実際のブラウザで見る**
+- [x] **Step 5: 実際のブラウザで見る**
   `dotnet run --project src/Revalue.Server --environment Development` と画面のビルドのあと、Playwright MCP で `http://localhost:5080/` を幅 375px と 1280px で開き、案内 → ログイン（開発用）→ はじめに → 了解 → ホーム → 設定 → 全部消す → はじめに、の順に通す。崩れや文言の抜けがあれば直してコミットする。スクリーンショットはコミットしない
 
 ---

@@ -7,7 +7,7 @@ import { copy } from '@/copy'
 export function Home() {
   return (
     <Page>
-      <p className="text-lg leading-relaxed font-medium">{copy.home.greeting}</p>
+      <h1 className="text-xl leading-relaxed font-bold">{copy.home.greeting}</h1>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Button size="lg" disabled className="w-full sm:w-auto">
           {copy.home.talk}

@@ -71,13 +71,13 @@ function StartAction({ login }: { login: LoginState }) {
   if (login.me === null) {
     // ログインは組み込み認証へページごと移動する。画面の切り替え（Link）で横取りしない
     return (
-      <Button asChild size="lg" className="w-full sm:w-auto">
+      <Button asChild size="lg" className="w-full sm:w-auto sm:px-6">
         <a href={LOGIN_URL}>{copy.landing.login}</a>
       </Button>
     )
   }
   return (
-    <Button asChild size="lg" className="w-full sm:w-auto">
+    <Button asChild size="lg" className="w-full sm:w-auto sm:px-6">
       <Link to={login.me.consented ? '/home' : '/start'}>{copy.landing.continue}</Link>
     </Button>
   )

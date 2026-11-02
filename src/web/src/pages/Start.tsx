@@ -34,16 +34,14 @@ export function Start() {
       <h1 className="text-2xl font-bold tracking-tight">{copy.start.title}</h1>
       <p className="mt-3 leading-relaxed text-muted-foreground">{copy.start.lead}</p>
 
-      <dl className="mt-6 divide-y rounded-xl border">
+      <div className="mt-6 divide-y rounded-xl border">
         {copy.start.items.map((item) => (
-          <div key={item.title} className="px-4 py-4">
-            <dt>
-              <h2 className="text-base font-semibold">{item.title}</h2>
-            </dt>
-            <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.body}</dd>
-          </div>
+          <section key={item.title} className="px-4 py-4">
+            <h2 className="text-base font-semibold">{item.title}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+          </section>
         ))}
-      </dl>
+      </div>
 
       {failed && (
         <p role="alert" className="mt-4 text-sm leading-relaxed">
@@ -51,7 +49,7 @@ export function Start() {
         </p>
       )}
 
-      <Button size="lg" className="mt-6 w-full sm:w-auto" onClick={agree} disabled={sending}>
+      <Button size="lg" className="mt-6 w-full sm:w-auto sm:px-6" onClick={agree} disabled={sending}>
         {copy.start.agree}
       </Button>
     </Page>
