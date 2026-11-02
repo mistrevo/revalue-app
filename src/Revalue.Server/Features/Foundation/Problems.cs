@@ -13,6 +13,7 @@ public static class Problems
     public const string EpisodeInProgress = "/problems/episode-in-progress";
     public const string EpisodeFinished = "/problems/episode-finished";
     public const string InvalidAnswer = "/problems/invalid-answer";
+    public const string InvalidProfile = "/problems/invalid-profile";
 
     /// <summary>力の確かめに使わない印のある場面なので、訂正も続きもできない。</summary>
     public const string EpisodeExcluded = "/problems/episode-excluded";
