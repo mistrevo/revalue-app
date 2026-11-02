@@ -156,7 +156,7 @@ export function fakeProfile(overrides: Partial<Profile> = {}): Profile {
       preferences: { question: FAKE_PREFERENCE_QUESTION, choices: FAKE_PREFERENCE_CHOICES },
       wants: { question: FAKE_WANT_QUESTION, choices: FAKE_WANT_CHOICES },
     },
-    conditionOptions: { hoursPerWeek: [3, 5, 10, 15, 20, 30, 40], monthlyIncome: [1, 3, 5, 8, 10, 15, 20] },
+    conditionOptions: { hoursPerWeek: [1, 3, 5, 10, 15, 20, 30, 40], monthlyIncome: [1, 3, 5, 8, 10, 15, 20] },
     ...overrides,
   }
 }

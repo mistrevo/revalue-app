@@ -118,6 +118,67 @@ describe('Profile', () => {
     ])
   })
 
+  it('profile-5（好みとやりたいことを一つずつ聞く）: 「自分で書く」は、見える文字を書くまで保存できない', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/profile')
+
+    const next = await screen.findByRole('region', { name: copy.profile.nextTitle })
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.writeOwn }))
+    const input = within(next).getByRole('textbox', { name: copy.profile.writeOwn })
+    // 幅のない空白（U+200B）と全角の空白だけでは、空の項目になるので保存しない
+    await userEvent.type(input, '\u200B\u3000\u200B')
+    expect(within(next).getByRole('button', { name: copy.profile.save })).toBeDisabled()
+    await userEvent.type(input, '{Enter}')
+    expect(puts(api.calls, 'preferences')).toEqual([])
+
+    await userEvent.type(input, '朝')
+    expect(within(next).getByRole('button', { name: copy.profile.save })).toBeEnabled()
+  })
+
+  it('profile-5（好みとやりたいことを一つずつ聞く）: いま聞きたいことに出ている問いは、その記録の欄に入れる入口を出さず、同じ入力欄を 2 つ並べない', async () => {
+    // 好みを聞いているあいだは、好みの欄に「足す」を出さない。ほかの欄の入口は出す
+    installFakeApi({ loggedIn: true, consented: true })
+    const first = renderApp('/profile')
+    await screen.findByRole('region', { name: copy.profile.nextTitle })
+    expect(screen.getAllByText(FAKE_PREFERENCE_QUESTION)).toHaveLength(1)
+    const preferences = screen.getByRole('region', { name: copy.profile.preferencesTitle })
+    expect(within(preferences).queryByRole('button', { name: copy.profile.add })).not.toBeInTheDocument()
+    const wants = screen.getByRole('region', { name: copy.profile.wantsTitle })
+    expect(within(wants).getByRole('button', { name: copy.profile.add })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: copy.profile.conditionsTitle })).getByRole('button', { name: copy.profile.enter })).toBeInTheDocument()
+    first.unmount()
+    vi.unstubAllGlobals()
+
+    // 条件を聞いているあいだは、条件の欄に「入れる」を出さず、条件の入力欄は一つだけ
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      profile: answeredProfile({ conditions: null, agency: null, asked: { preferences: true, wants: true, agency: false } }),
+    })
+    renderApp('/profile')
+    let next = await screen.findByRole('region', { name: copy.profile.nextTitle })
+    expect(within(next).getByRole('group', { name: copy.profile.timeSlots })).toBeInTheDocument()
+    const conditions = screen.getByRole('region', { name: copy.profile.conditionsTitle })
+    expect(within(conditions).queryByRole('button', { name: copy.profile.enter })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('group', { name: copy.profile.timeSlots })).toHaveLength(1)
+
+    // 条件を保存すると、条件の欄は「直す」に変わり、こんどは主体性の欄に「書く」を出さない。主体性の入力欄も一つだけ
+    await userEvent.click(within(next).getByRole('checkbox', { name: copy.profile.timeSlotValues.daytime }))
+    await userEvent.click(within(next).getByRole('radio', { name: '週 1 時間くらいまで' }))
+    await userEvent.click(within(next).getByRole('radio', { name: copy.profile.placeValues.homeOnly }))
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.save }))
+    next = screen.getByRole('region', { name: copy.profile.nextTitle })
+    expect(await within(next).findByRole('textbox', { name: copy.profile.agencyTitle })).toBeInTheDocument()
+    expect(within(conditions).getByRole('button', { name: copy.profile.edit })).toBeInTheDocument()
+    const agency = screen.getByRole('region', { name: copy.profile.agencyTitle })
+    expect(within(agency).queryByRole('button', { name: copy.profile.write })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('textbox', { name: copy.profile.agencyTitle })).toHaveLength(1)
+
+    // 「いまは書かない」で済ませると、主体性の欄から書ける
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.notNowAgency }))
+    expect(await within(agency).findByRole('button', { name: copy.profile.write })).toBeInTheDocument()
+  })
+
   it('profile-2（できることは根拠とつなぐ）: できることに、見えた力と確かめ中の力を分けて、根拠の言葉と一緒に出す', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, profile: answeredProfile() })
     renderApp('/profile')
@@ -156,9 +217,11 @@ describe('Profile', () => {
     expect(within(canDo).queryByText(copy.profile.canDoEmpty)).not.toBeInTheDocument()
     expect(within(canDo).queryByRole('group', { name: copy.profile.seenTitle })).not.toBeInTheDocument()
     expect(within(canDo).queryByRole('group', { name: copy.profile.checkingTitle })).not.toBeInTheDocument()
+    // 外した力は見えた力の画面で戻せる
+    expect(within(canDo).getByRole('link', { name: copy.profile.openAbilities })).toHaveAttribute('href', '/abilities')
   })
 
-  it('profile-2（できることは根拠とつなぐ）: 見えた力も確かめ中の力もなければ、まだないことと、見えてきたら出ることを伝える', async () => {
+  it('profile-2（できることは根拠とつなぐ）: 見えた力も確かめ中の力もなければ、「ない」とは言わず、ここに何が入るかと、話す道を出す', async () => {
     installFakeApi({
       loggedIn: true,
       consented: true,
@@ -168,7 +231,11 @@ describe('Profile', () => {
 
     const canDo = await screen.findByRole('region', { name: copy.profile.canDoTitle })
     expect(within(canDo).getByText(copy.profile.canDoEmpty)).toBeInTheDocument()
+    expect(canDo).not.toHaveTextContent('まだありません')
     expect(within(canDo).queryByText(copy.profile.excludedNote)).not.toBeInTheDocument()
+    // 次にできることは話すこと。直す力がないので、見えた力の画面で直す道の代わりに、「話す」のあるホームへの道を置く
+    expect(within(canDo).getByRole('link', { name: copy.profile.canDoTalk })).toHaveAttribute('href', '/home')
+    expect(within(canDo).queryByRole('link', { name: copy.profile.openAbilities })).not.toBeInTheDocument()
   })
 
   it('profile-4（本人が直せる）: 記録の欄から、好みの項目を消し、やりたいことを足し、条件を書き直せる', async () => {

@@ -101,8 +101,8 @@ public sealed class ProfileApiTests
         var questions = dto.GetProperty("questions");
         Assert.Equal("どんな進め方や環境が、自分に合っていると思いますか？", questions.GetProperty("preferences").GetProperty("question").GetString());
         Assert.Equal(3, questions.GetProperty("wants").GetProperty("choices").GetArrayLength());
-        Assert.Equal(7, dto.GetProperty("conditionOptions").GetProperty("hoursPerWeek").GetArrayLength());
-        Assert.Equal(7, dto.GetProperty("conditionOptions").GetProperty("monthlyIncome").GetArrayLength());
+        Assert.Equal([1, 3, 5, 10, 15, 20, 30, 40], ValidateTestKit.Array(dto.GetProperty("conditionOptions"), "hoursPerWeek").Select(e => e.GetInt32()).ToArray());
+        Assert.Equal([1, 3, 5, 8, 10, 15, 20], ValidateTestKit.Array(dto.GetProperty("conditionOptions"), "monthlyIncome").Select(e => e.GetInt32()).ToArray());
         Assert.Empty(await StoredProfile(factory));
     }
 
@@ -120,10 +120,16 @@ public sealed class ProfileApiTests
 
         await PutOk(client, "conditions", new { timeSlots = new[] { "night" }, hoursPerWeek = 40, place = "canGoOut", monthlyIncome = 8 });
         Assert.Equal(8, (await Get(client)).GetProperty("conditions").GetProperty("monthlyIncome").GetInt32());
+
+        // 使える時間が少ない人も、実際より多い時間を選ばずに済む
+        await PutOk(client, "conditions", new { timeSlots = new[] { "daytime" }, hoursPerWeek = 1, place = "homeOnly", monthlyIncome = (int?)null });
+        Assert.Equal(1, (await Get(client)).GetProperty("conditions").GetProperty("hoursPerWeek").GetInt32());
     }
 
     [Theory(DisplayName = "profile-3（条件を先に聞く）: 選択肢にない条件は 400 にし、何も保存しない")]
     [InlineData("""{"timeSlots":["morning"],"hoursPerWeek":7,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("""{"timeSlots":["morning"],"hoursPerWeek":2,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("""{"timeSlots":["morning"],"hoursPerWeek":0,"place":"homeOnly","monthlyIncome":null}""")]
     [InlineData("""{"timeSlots":["morning"],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":4}""")]
     [InlineData("""{"timeSlots":[],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
     [InlineData("""{"timeSlots":["morning","morning"],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
@@ -155,6 +161,18 @@ public sealed class ProfileApiTests
     [InlineData("conditions", """{"timeSlots":[0],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
     [InlineData("conditions", """{"timeSlots":["morning"],"hoursPerWeek":10,"place":1,"monthlyIncome":null}""")]
     [InlineData("conditions", """{"timeSlots":["9"],"hoursPerWeek":10,"place":"7","monthlyIncome":null}""")]
+    // カンマでつないだ名前（値のビット和として読むと、選んでいない「夜」や「外に出ることもできる」に化ける）、
+    // 前後の空白、大文字小文字の違い、名前でない null も、名前と完全には一致しないので断る
+    [InlineData("conditions", """{"timeSlots":["daytime, evening"],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["daytime,evening"],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["morning"],"hoursPerWeek":10,"place":"homeOnly, canGoOut","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":[" morning "],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["morning"],"hoursPerWeek":10,"place":"homeOnly ","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["Morning"],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["morning"],"hoursPerWeek":10,"place":"HomeOnly","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":[null],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("wants", """{"entries":[{"text":"人の役に立つことをしたい","source":"chosen, written"}]}""")]
+    [InlineData("wants", """{"entries":[{"text":"人の役に立つことをしたい","source":"Written"}]}""")]
     public async Task UnknownEnumValuesAre400(string part, string raw)
     {
         var (factory, _) = Create();
@@ -170,8 +188,26 @@ public sealed class ProfileApiTests
         Assert.Null(ProfileEndpoints.CheckConditions(new ConditionsRequest([(TimeSlot)9], 10, Place.HomeOnly, null)));
         Assert.Null(ProfileEndpoints.CheckConditions(new ConditionsRequest([TimeSlot.Morning], 10, (Place)7, null)));
 
-        Assert.NotNull(ProfileEndpoints.CheckEntries(new EntriesRequest([new ProfileEntry("近所で働きたい", EntrySource.Written)]), ProfileText.WantChoices));
-        Assert.Null(ProfileEndpoints.CheckEntries(new EntriesRequest([new ProfileEntry("近所で働きたい", (EntrySource)5)]), ProfileText.WantChoices));
+        Assert.NotNull(ProfileEndpoints.CheckEntries(new EntriesRequest([new EntryRequest("近所で働きたい", EntrySource.Written)]), ProfileText.WantChoices));
+        Assert.Null(ProfileEndpoints.CheckEntries(new EntriesRequest([new EntryRequest("近所で働きたい", (EntrySource)5)]), ProfileText.WantChoices));
+        Assert.Null(ProfileEndpoints.CheckEntries(new EntriesRequest([new EntryRequest("近所で働きたい", null)]), ProfileText.WantChoices));
+        Assert.Null(ProfileEndpoints.CheckEntries(new EntriesRequest([new EntryRequest("人の役に立つことをしたい", null)]), ProfileText.WantChoices));
+    }
+
+    [Theory(DisplayName = "profile-5（好みとやりたいことを一つずつ聞く）: 選んだか書いたかや、言葉のない項目は 400 にし、何も保存しない")]
+    // source がないとき、選択肢の言葉を「選んだ答え」として扱わない
+    [InlineData("preferences", """{"entries":[{"text":"自分のペースで進められる"}]}""")]
+    [InlineData("wants", """{"entries":[{"text":"近所で働きたい"}]}""")]
+    [InlineData("wants", """{"entries":[{"text":"人の役に立つことをしたい","source":null}]}""")]
+    [InlineData("wants", """{"entries":[{"source":"written"}]}""")]
+    [InlineData("wants", """{"entries":[null]}""")]
+    [InlineData("wants", """{}""")]
+    public async Task EntriesWithoutSourceOrTextAre400(string part, string raw)
+    {
+        var (factory, _) = Create();
+        var client = await Consenting(factory, "g-15");
+        await PutOk(client, "preferences", new { entries = new[] { new { text = "決まった手順がある", source = "chosen" } } });
+        await AssertRejected(factory, client, part, raw);
     }
 
     [Fact(DisplayName = "profile-5（好みとやりたいことを一つずつ聞く）: 選んだ答えは選択肢の言葉だけ受け取る")]
@@ -203,6 +239,41 @@ public sealed class ProfileApiTests
         var emptied = await PutOk(client, "preferences", new { entries = System.Array.Empty<object>() });
         Assert.Empty(ValidateTestKit.Array(emptied, "preferences"));
         Assert.True(emptied.GetProperty("asked").GetProperty("preferences").GetBoolean());
+    }
+
+    [Fact(DisplayName = "profile-4（本人が直せる）: 見た目は 1 文字でも、結合文字を重ねて長くした書いた答えは 400 にする")]
+    public async Task EntriesAreLimitedInUtf16Length()
+    {
+        var (factory, _) = Create();
+        var client = await Consenting(factory, "g-16");
+        object Written(string text) => new { entries = new[] { new { text, source = "written" } } };
+
+        // "a" に結合文字（U+0301）を重ねると、見た目は 1 文字のまま長くなる
+        var piled = "a" + new string('\u0301', ProfileText.MaxEntryUtf16Length);
+        await AssertRejected(factory, client, "preferences", JsonSerializer.Serialize(Written(piled)));
+        await AssertRejected(factory, client, "wants", JsonSerializer.Serialize(Written("a" + new string('\u0301', 200_000))));
+        await PutOk(client, "preferences", Written(piled[..ProfileText.MaxEntryUtf16Length]));
+
+        // 絵文字のように 1 文字が 2 つ分の長さのものも、100 文字までは受け取る
+        var emoji = string.Concat(Enumerable.Repeat("😀", ProfileText.MaxEntryLength));
+        Assert.Equal([emoji], Texts(await PutOk(client, "wants", Written(emoji)), "wants"));
+        await AssertRejected(factory, client, "wants", JsonSerializer.Serialize(Written(emoji + "😀")));
+    }
+
+    [Fact(DisplayName = "profile-4（本人が直せる）: 見える文字がない書いた答えは、空白だけのときと同じく 400 にする")]
+    public async Task InvisibleEntriesAre400()
+    {
+        var (factory, _) = Create();
+        var client = await Consenting(factory, "g-17");
+        // 幅のない空白（U+200B）、つなぎの文字、BOM、制御文字、ハングルの埋め字、点字の空白、結合文字だけ
+        foreach (var invisible in new[] { "\u200B", " \u200B\u3000", "\u200C\u200D\u2060", "\uFEFF", "\u0001", "\u3164", "\u2800", "\u0301" })
+        {
+            await AssertRejected(factory, client, "preferences", JsonSerializer.Serialize(new { entries = new[] { new { text = invisible, source = "written" } } }));
+        }
+
+        // 見える文字があれば、絵文字をつなぐ文字（U+200D）を含んでいても受け取る
+        var dto = await PutOk(client, "preferences", new { entries = new[] { new { text = "家族で👨\u200D👩\u200D👧", source = "written" } } });
+        Assert.Equal(["家族で👨\u200D👩\u200D👧"], Texts(dto, "preferences"));
     }
 
     [Fact(DisplayName = "profile-4（本人が直せる）: 書いた言葉の前後の空白を落とし、空白だけは 400、同じ言葉は 1 つにまとめる")]
@@ -242,6 +313,24 @@ public sealed class ProfileApiTests
         Assert.True(dto.GetProperty("asked").GetProperty("agency").GetBoolean());
         dto = await PutOk(client, "agency", new { text = "   " });
         Assert.Equal(JsonValueKind.Null, dto.GetProperty("agency").ValueKind);
+    }
+
+    [Fact(DisplayName = "profile-6（主体性は本人が書く）: 見える文字がない主体性は書いていないことにし、結合文字を重ねて長くしたものは 400 にする")]
+    public async Task AgencyIgnoresInvisibleTextAndIsLimitedInUtf16Length()
+    {
+        var (factory, _) = Create();
+        var client = await Consenting(factory, "g-18");
+        await PutOk(client, "agency", new { text = "家族との時間を大事にしたい" });
+
+        var dto = await PutOk(client, "agency", new { text = " \u200B\u2060\u3000" });
+        Assert.Equal(JsonValueKind.Null, dto.GetProperty("agency").ValueKind);
+        Assert.True(dto.GetProperty("asked").GetProperty("agency").GetBoolean());
+
+        var piled = "b" + new string('\u0301', ProfileText.MaxAgencyUtf16Length);
+        await AssertRejected(factory, client, "agency", JsonSerializer.Serialize(new { text = piled }));
+        await AssertRejected(factory, client, "agency", JsonSerializer.Serialize(new { text = "b" + new string('\u0301', 200_000) }));
+        dto = await PutOk(client, "agency", new { text = piled[..ProfileText.MaxAgencyUtf16Length] });
+        Assert.Equal(ProfileText.MaxAgencyUtf16Length, dto.GetProperty("agency").GetString()!.Length);
     }
 
     [Fact(DisplayName = "profile-1（5 つを分けて残す）: 2 つの画面で好みとやりたいことを同時に保存しても、どちらも残る")]

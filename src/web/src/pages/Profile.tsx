@@ -18,6 +18,7 @@ import { QuoteList } from '@/components/Insights'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
+import { hasVisibleText } from '@/lib/text'
 
 type State = { kind: 'loading' } | { kind: 'ready'; data: ProfileData } | { kind: 'error' }
 
@@ -112,6 +113,9 @@ export function Profile() {
     setEditing(null)
   }
 
+  // 「いま聞きたいこと」に出している記録。その欄には入れる入口を出さず、同じ入力欄を 2 つ並べない（Claude の判断）
+  const asking = state.kind === 'ready' ? nextQuestion(state.data) : null
+
   return (
     <Page>
       <h1 className="text-2xl font-bold tracking-tight">{copy.profile.title}</h1>
@@ -133,6 +137,7 @@ export function Profile() {
               title={record === 'preferences' ? copy.profile.preferencesTitle : copy.profile.wantsTitle}
               entries={state.data[record]}
               question={state.data.questions[record]}
+              asking={asking === record}
               adding={editing === record}
               busy={busy}
               failed={failedAt(record)}
@@ -145,6 +150,7 @@ export function Profile() {
           ))}
           <ConditionsSection
             profile={state.data}
+            asking={asking === 'conditions'}
             editing={editing === 'conditions'}
             busy={busy}
             failed={failedAt('conditions')}
@@ -154,6 +160,7 @@ export function Profile() {
           />
           <AgencySection
             agency={state.data.agency}
+            asking={asking === 'agency'}
             editing={editing === 'agency'}
             busy={busy}
             failed={failedAt('agency')}
@@ -272,7 +279,10 @@ function NextQuestion({
   )
 }
 
-/** 問いと、選択肢、「自分で書く」。もう入っている選択肢は出さない。書いた言葉は、保存に失敗しても欄に残す。 */
+/**
+ * 問いと、選択肢、「自分で書く」。もう入っている選択肢は出さない。書いた言葉は、保存に失敗しても欄に残す。
+ * 見える文字がない言葉（空白や幅のない空白だけ）は、空の項目になるので保存しない（裏側も断る）。
+ */
 function EntryPicker({
   question,
   taken,
@@ -289,6 +299,8 @@ function EntryPicker({
   const inputId = useId()
   const [writing, setWriting] = useState(false)
   const [text, setText] = useState('')
+  const written = text.trim()
+  const canSave = hasVisibleText(written)
   const choices = question.choices.filter((choice) => !taken.some((entry) => entry.text === choice))
 
   return (
@@ -310,7 +322,7 @@ function EntryPicker({
           className="flex min-w-0 flex-col gap-2"
           onSubmit={(event) => {
             event.preventDefault()
-            if (text.trim() !== '') onPick({ text: text.trim(), source: 'written' })
+            if (canSave) onPick({ text: written, source: 'written' })
           }}
         >
           <label htmlFor={inputId} className="text-sm font-medium">
@@ -324,7 +336,7 @@ function EntryPicker({
             maxLength={MAX_ENTRY_LENGTH}
             className={FIELD_CLASS}
           />
-          <Button type="submit" className="w-full sm:w-auto sm:self-start" disabled={busy || text.trim() === ''}>
+          <Button type="submit" className="w-full sm:w-auto sm:self-start" disabled={busy || !canSave}>
             {copy.profile.save}
           </Button>
         </form>
@@ -338,18 +350,28 @@ function EntryPicker({
   )
 }
 
-/** できること。外した力しかないときは「まだありません」と言わず、外した注記だけを出す（Claude の判断）。 */
+/**
+ * できること。見えた力も確かめ中の力も外した力もないときは、「ない」とは言わずに何が入るかを伝え、直す道の代わりに
+ * 「話す」のあるホームへの道を置く。外した力しかないときは、外した注記と、戻せる見えた力の画面への道だけを出す（Claude の判断）。
+ */
 function CanDoSection({ canDo }: { canDo: ProfileData['canDo'] }) {
   const empty = canDo.seen.length === 0 && canDo.checking.length === 0 && !canDo.hasExcluded
+  const linkClass = 'text-sm font-medium text-primary underline underline-offset-4'
   return (
     <Section title={copy.profile.canDoTitle}>
       {canDo.seen.length > 0 && <CanDoGroup title={copy.profile.seenTitle} abilities={canDo.seen} />}
       {canDo.checking.length > 0 && <CanDoGroup title={copy.profile.checkingTitle} abilities={canDo.checking} />}
       {empty && <p className="text-sm leading-relaxed text-muted-foreground">{copy.profile.canDoEmpty}</p>}
       {canDo.hasExcluded && <p className="text-sm leading-relaxed text-muted-foreground">{copy.profile.excludedNote}</p>}
-      <Link to="/abilities" className="text-sm font-medium text-primary underline underline-offset-4">
-        {copy.profile.openAbilities}
-      </Link>
+      {empty ? (
+        <Link to="/home" className={linkClass}>
+          {copy.profile.canDoTalk}
+        </Link>
+      ) : (
+        <Link to="/abilities" className={linkClass}>
+          {copy.profile.openAbilities}
+        </Link>
+      )}
     </Section>
   )
 }
@@ -379,10 +401,15 @@ function CanDoGroup({ title, abilities }: { title: string; abilities: CanDoAbili
   )
 }
 
+/**
+ * 好みかやりたいことの欄。項目ごとに消せ、問いの選択肢を選ぶか書いて足せる。
+ * asking（「いま聞きたいこと」にこの問いを出している）のあいだは、「足す」を出さない。
+ */
 function EntriesSection({
   title,
   entries,
   question,
+  asking,
   adding,
   busy,
   failed,
@@ -393,6 +420,7 @@ function EntriesSection({
   title: string
   entries: ProfileEntry[]
   question: ProfileQuestion
+  asking: boolean
   adding: boolean
   busy: boolean
   failed: SavedFrom | null
@@ -425,7 +453,7 @@ function EntriesSection({
       ) : (
         <p className="text-sm text-muted-foreground">{copy.profile.notDecided}</p>
       )}
-      {adding ? (
+      {asking ? null : adding ? (
         <EntryPicker
           question={question}
           taken={entries}
@@ -457,8 +485,10 @@ function incomeText(income: number | null) {
   return income === null ? copy.profile.incomeUndecided : copy.profile.incomeValue.replace('{n}', String(income))
 }
 
+/** 条件の欄。いつでも書き直せる。asking（「いま聞きたいこと」に条件を出している）のあいだは、「入れる」を出さない。 */
 function ConditionsSection({
   profile,
+  asking,
   editing,
   busy,
   failed,
@@ -467,6 +497,7 @@ function ConditionsSection({
   onSave,
 }: {
   profile: ProfileData
+  asking: boolean
   editing: boolean
   busy: boolean
   failed: SavedFrom | null
@@ -477,7 +508,7 @@ function ConditionsSection({
   const conditions = profile.conditions
   return (
     <Section title={copy.profile.conditionsTitle}>
-      {editing ? (
+      {editing && !asking ? (
         <ConditionsForm
           initial={conditions}
           options={profile.conditionOptions}
@@ -505,9 +536,11 @@ function ConditionsSection({
           ) : (
             <p className="text-sm text-muted-foreground">{copy.profile.notDecided}</p>
           )}
-          <Button type="button" variant="outline" size="sm" className="self-start" disabled={busy} onClick={onEdit}>
-            {conditions ? copy.profile.edit : copy.profile.enter}
-          </Button>
+          {!asking && (
+            <Button type="button" variant="outline" size="sm" className="self-start" disabled={busy} onClick={onEdit}>
+              {conditions ? copy.profile.edit : copy.profile.enter}
+            </Button>
+          )}
         </>
       )}
       <SaveFailed from={failed} />
@@ -638,8 +671,10 @@ function Choice({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+/** 主体性の欄。いつでも書き直せる。asking（「いま聞きたいこと」に主体性を出している）のあいだは、「書く」を出さない。 */
 function AgencySection({
   agency,
+  asking,
   editing,
   busy,
   failed,
@@ -648,6 +683,7 @@ function AgencySection({
   onSave,
 }: {
   agency: string | null
+  asking: boolean
   editing: boolean
   busy: boolean
   failed: SavedFrom | null
@@ -657,7 +693,7 @@ function AgencySection({
 }) {
   return (
     <Section title={copy.profile.agencyTitle}>
-      {editing ? (
+      {editing && !asking ? (
         <AgencyForm
           initial={agency ?? ''}
           busy={busy}
@@ -675,9 +711,11 @@ function AgencySection({
           ) : (
             <p className="text-sm text-muted-foreground">{copy.profile.notWritten}</p>
           )}
-          <Button type="button" variant="outline" size="sm" className="self-start" disabled={busy} onClick={onEdit}>
-            {agency ? copy.profile.edit : copy.profile.write}
-          </Button>
+          {!asking && (
+            <Button type="button" variant="outline" size="sm" className="self-start" disabled={busy} onClick={onEdit}>
+              {agency ? copy.profile.edit : copy.profile.write}
+            </Button>
+          )}
         </>
       )}
       <SaveFailed from={failed} />

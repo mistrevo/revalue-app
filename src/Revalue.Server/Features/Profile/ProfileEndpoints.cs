@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
@@ -8,8 +9,14 @@ using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Profile;
 
+/// <summary>
+/// 好みかやりたいことの項目 1 つの要求。<paramref name="Source"/> がないとき、選択肢の言葉を「選んだ答え」として扱わずに断るため、
+/// どちらも null を受け取れる形にしてある（保存の形は <see cref="ProfileEntry"/>）。
+/// </summary>
+public sealed record EntryRequest(string? Text, EntrySource? Source);
+
 /// <summary>好みかやりたいことを置き換える要求。</summary>
-public sealed record EntriesRequest(IReadOnlyList<ProfileEntry>? Entries);
+public sealed record EntriesRequest(IReadOnlyList<EntryRequest?>? Entries);
 
 /// <summary>主体性を置き換える要求。</summary>
 public sealed record AgencyRequest(string? Text);
@@ -129,7 +136,9 @@ public static class ProfileEndpoints
 
     /// <summary>
     /// 項目を確かめて、前後の空白を落とし、同じ言葉を最初の 1 つにまとめる。合わなければ null。
-    /// 書いた言葉は 1〜<see cref="ProfileText.MaxEntryLength"/> 文字、選んだ言葉はその問いの選択肢と完全に同じ。
+    /// 選んだか書いたかのない項目は断る。選んだ言葉はその問いの選択肢と完全に同じ。
+    /// 書いた言葉は、見える文字を含む 1〜<see cref="ProfileText.MaxEntryLength"/> 文字で、中身の長さは
+    /// <see cref="ProfileText.MaxEntryUtf16Length"/> まで。
     /// </summary>
     public static IReadOnlyList<ProfileEntry>? CheckEntries(EntriesRequest? request, IReadOnlyList<string> choices)
     {
@@ -141,12 +150,12 @@ public static class ProfileEndpoints
         var kept = new List<ProfileEntry>();
         foreach (var entry in entries)
         {
-            if (entry?.Text is not { } text || !Enum.IsDefined(entry.Source))
+            if (entry is not { Text: { } text, Source: { } source } || !Enum.IsDefined(source))
             {
                 return null;
             }
 
-            if (entry.Source == EntrySource.Chosen)
+            if (source == EntrySource.Chosen)
             {
                 if (!choices.Contains(text))
                 {
@@ -156,7 +165,7 @@ public static class ProfileEndpoints
             else
             {
                 text = text.Trim();
-                if (Length(text) is < 1 or > ProfileText.MaxEntryLength)
+                if (!FitsIn(text, ProfileText.MaxEntryLength, ProfileText.MaxEntryUtf16Length) || !HasVisibleText(text))
                 {
                     return null;
                 }
@@ -164,7 +173,7 @@ public static class ProfileEndpoints
 
             if (!kept.Any(k => k.Text == text))
             {
-                kept.Add(new ProfileEntry(text, entry.Source));
+                kept.Add(new ProfileEntry(text, source));
             }
         }
 
@@ -194,14 +203,61 @@ public static class ProfileEndpoints
         return new ProfileConditions([.. slots.Order()], hours, place, request.MonthlyIncome);
     }
 
-    /// <summary>主体性を確かめて、前後の空白を落とした言葉を返す（空は ""）。長すぎれば null。</summary>
+    /// <summary>
+    /// 主体性を確かめて、前後の空白を落とした言葉を返す。見える文字がなければ、書いていないことにして "" を返す。
+    /// 長すぎれば（<see cref="ProfileText.MaxAgencyLength"/> 文字か、中身の長さ <see cref="ProfileText.MaxAgencyUtf16Length"/> を超える）null。
+    /// </summary>
     public static string? CheckAgency(AgencyRequest? request)
     {
-        var text = request?.Text?.Trim();
-        return text is not null && Length(text) <= ProfileText.MaxAgencyLength ? text : null;
+        if (request?.Text?.Trim() is not { } text || !FitsIn(text, ProfileText.MaxAgencyLength, ProfileText.MaxAgencyUtf16Length))
+        {
+            return null;
+        }
+
+        return HasVisibleText(text) ? text : "";
     }
 
-    private static int Length(string text) => new StringInfo(text).LengthInTextElements;
+    /// <summary>
+    /// 見た目の文字数（絵文字などの合成された文字は 1 文字）と、中身の長さ（UTF-16）の両方が上限に収まるか。
+    /// 結合文字を重ねた 1 文字は、見た目の文字数では数えきれないので、中身の長さでも区切る。
+    /// </summary>
+    private static bool FitsIn(string text, int maxLength, int maxUtf16Length) =>
+        text.Length <= maxUtf16Length && new StringInfo(text).LengthInTextElements <= maxLength;
+
+    /// <summary>
+    /// 文字、数字、句読点、記号の文字だが、画面には何も出ないもの（ハングルの埋め字、点字の空白）。
+    /// 画面の側（src/web/src/lib/text.ts）と同じにする。
+    /// </summary>
+    private static readonly int[] BlankLooking = [0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800];
+
+    /// <summary>
+    /// 見える文字（文字、数字、句読点、記号）を 1 つ以上含むか。空白、幅のない空白（U+200B）などの書式文字、制御文字、
+    /// 結合文字だけの言葉は、画面で空の項目に見えるので、含まないものとして扱う。
+    /// </summary>
+    private static bool HasVisibleText(string text)
+    {
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (BlankLooking.Contains(rune.Value))
+            {
+                continue;
+            }
+
+            switch (Rune.GetUnicodeCategory(rune))
+            {
+                case UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or UnicodeCategory.TitlecaseLetter
+                    or UnicodeCategory.ModifierLetter or UnicodeCategory.OtherLetter
+                    or UnicodeCategory.DecimalDigitNumber or UnicodeCategory.LetterNumber or UnicodeCategory.OtherNumber
+                    or UnicodeCategory.ConnectorPunctuation or UnicodeCategory.DashPunctuation or UnicodeCategory.OpenPunctuation
+                    or UnicodeCategory.ClosePunctuation or UnicodeCategory.InitialQuotePunctuation or UnicodeCategory.FinalQuotePunctuation
+                    or UnicodeCategory.OtherPunctuation
+                    or UnicodeCategory.MathSymbol or UnicodeCategory.CurrencySymbol or UnicodeCategory.ModifierSymbol or UnicodeCategory.OtherSymbol:
+                    return true;
+            }
+        }
+
+        return false;
+    }
 
     private static async Task<ProfileDto> DtoAsync(IDataStore store, string userKey, ProfileItem? item, CancellationToken ct) =>
         new(

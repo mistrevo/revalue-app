@@ -31,6 +31,13 @@ public sealed class ProfileTextTests
         Assert.Equal(6, ProfileText.PreferenceChoices.Concat(ProfileText.WantChoices).Distinct().Count());
     }
 
+    [Fact(DisplayName = "profile-3（条件を先に聞く）: 週あたりの時間は週 1 時間から選べ、使える時間が少ない人も多めに選ばずに済む")]
+    public void HoursStartFromOne()
+    {
+        Assert.Equal([1, 3, 5, 10, 15, 20, 30, 40], ProfileText.HoursPerWeekOptions);
+        Assert.Equal([1, 3, 5, 8, 10, 15, 20], ProfileText.MonthlyIncomeOptions);
+    }
+
     [Fact(DisplayName = "profile-1（5 つを分けて残す）: 好みとやりたいことの選択肢に、条件（時間、場所、収入）と重なる言葉を入れない")]
     public void ChoicesDoNotOverlapConditions()
     {
