@@ -198,7 +198,8 @@ public sealed class EvalsTests
     /// <summary>決まった答えを返す判定役。</summary>
     private sealed class FixedJudge(JudgeVerdict verdict) : IReplyJudge
     {
-        public Task<JudgeVerdict?> JudgeAsync(IReadOnlyList<Turn> conversation, MoveKind move, string reply, CancellationToken ct) =>
+        public Task<JudgeVerdict?> JudgeAsync(
+            IReadOnlyList<Turn> conversation, MoveKind move, string reply, IReadOnlyList<string> choices, CancellationToken ct) =>
             Task.FromResult<JudgeVerdict?>(verdict);
     }
 
@@ -212,6 +213,8 @@ public sealed class EvalsTests
         NoIllnessDetails: true,
         NoOverPraise: true,
         NoDismissal: true,
+        ReflectedActions: true,
+        NoTraitLabel: true,
         Reason: "");
 
     [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 評価は、一つの文に二つの問いを入れた返事を判定役で見つけ、1 割を超えたら合格にしない")]
@@ -280,6 +283,52 @@ public sealed class EvalsTests
         Assert.Contains("否定や値踏みをしない ×", report);
     }
 
+    [Fact(DisplayName = "評価: 判定役は、行動を映し返しているかと、力や人柄を言い当てていないかも見て、参考の数字として残す")]
+    public async Task JudgeSeesReflectionAndTraitLabels()
+    {
+        var verdict = AllGood with { ReflectedActions = false, NoTraitLabel = false, Reason = "段取りが得意なんですね、と力を言い当てている" };
+        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden())
+            .RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
+
+        var summary = EvalSummary.From([run]);
+
+        var reflected = Assert.Single(summary.Reference, i => i.Name.Contains("本人がした行動を映し返している"));
+        Assert.Equal((0, 2), (reflected.Count, reflected.Total));
+        var trait = Assert.Single(summary.Reference, i => i.Name.Contains("力や人柄、向き不向きを言い当てていない"));
+        Assert.Equal((0, 2), (trait.Count, trait.Total));
+        Assert.True(summary.Passed);
+
+        var report = ReportWriter.Write(new ReportContext("discover", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
+        Assert.Contains("行動の映し返し ×", report);
+        Assert.Contains("力や人柄を言い当てない ×", report);
+    }
+
+    [Fact(DisplayName = "評価: 判定役には、返事の本文と一緒に選択肢も渡す")]
+    public async Task JudgeReceivesChoices()
+    {
+        var judge = new RecordingJudge();
+        await new EvalRunner(new FakeConversationAi(), judge, Forbidden()).RunAsync(Script("concreteEvent", Free("買い物に行きました。")), Ct);
+
+        var choices = Assert.Single(judge.Choices);
+        Assert.Equal(FakeConversationAi.DefaultChoices, choices);
+
+        var text = ClaudeJudge.UserMessage([], MoveKind.AskWhatYouDid, "本文です。", ["一つ目", "二つ目", "三つ目"]);
+        Assert.Contains("<choices>\n- 一つ目\n- 二つ目\n- 三つ目\n</choices>", text);
+    }
+
+    /// <summary>渡された選択肢を覚える判定役。</summary>
+    private sealed class RecordingJudge : IReplyJudge
+    {
+        public List<IReadOnlyList<string>> Choices { get; } = [];
+
+        public Task<JudgeVerdict?> JudgeAsync(
+            IReadOnlyList<Turn> conversation, MoveKind move, string reply, IReadOnlyList<string> choices, CancellationToken ct)
+        {
+            Choices.Add(choices);
+            return Task.FromResult<JudgeVerdict?>(AllGood);
+        }
+    }
+
     [Fact(DisplayName = "評価: 判定役の指示に、判定役の答えの項目がすべて書いてある")]
     public void JudgePromptListsEveryField()
     {
@@ -292,6 +341,8 @@ public sealed class EvalsTests
         Assert.Contains("noOverPraise", fields);
         Assert.Contains("noDismissal", fields);
         Assert.Contains("singleQuestion", fields);
+        Assert.Contains("reflectedActions", fields);
+        Assert.Contains("noTraitLabel", fields);
         Assert.All(fields, field => Assert.Contains($"`{field}`", prompt));
     }
 

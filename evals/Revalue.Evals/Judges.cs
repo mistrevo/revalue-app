@@ -17,20 +17,25 @@ public sealed record JudgeVerdict(
     bool NoIllnessDetails,
     bool NoOverPraise,
     bool NoDismissal,
+    bool ReflectedActions,
+    bool NoTraitLabel,
     string Reason);
 
 /// <summary>返事を判定する役。答えられなかったときは null を返す（評価では、問題があったと数える）。</summary>
 public interface IReplyJudge
 {
     /// <param name="conversation">ここまでのやりとり。最後は、いま届いた利用者の答え。</param>
-    Task<JudgeVerdict?> JudgeAsync(IReadOnlyList<Turn> conversation, MoveKind move, string reply, CancellationToken ct);
+    /// <param name="choices">返事と一緒に出した選択肢（答えの例）。締めの返事では空。</param>
+    Task<JudgeVerdict?> JudgeAsync(
+        IReadOnlyList<Turn> conversation, MoveKind move, string reply, IReadOnlyList<string> choices, CancellationToken ct);
 }
 
 /// <summary>dry-run 用の偽の判定役。いつも「問題なし」と答える。Claude を呼ばない。</summary>
 public sealed class DryRunJudge : IReplyJudge
 {
-    public Task<JudgeVerdict?> JudgeAsync(IReadOnlyList<Turn> conversation, MoveKind move, string reply, CancellationToken ct) =>
-        Task.FromResult<JudgeVerdict?>(new JudgeVerdict(true, true, true, true, true, true, true, true, ""));
+    public Task<JudgeVerdict?> JudgeAsync(
+        IReadOnlyList<Turn> conversation, MoveKind move, string reply, IReadOnlyList<string> choices, CancellationToken ct) =>
+        Task.FromResult<JudgeVerdict?>(new JudgeVerdict(true, true, true, true, true, true, true, true, true, true, ""));
 }
 
 /// <summary>Claude の判定役。構造化出力（effort high）で、項目ごとに true か false を受け取る。</summary>
@@ -39,14 +44,18 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
     private const int MaxTokens = 16000;
 
     private static readonly string[] BooleanFields =
-        ["acknowledgedFirst", "singleQuestion", "concreteQuestion", "easierScene", "noInventedActions", "noIllnessDetails", "noOverPraise", "noDismissal"];
+    [
+        "acknowledgedFirst", "singleQuestion", "concreteQuestion", "easierScene", "noInventedActions", "noIllnessDetails", "noOverPraise",
+        "noDismissal", "reflectedActions", "noTraitLabel",
+    ];
 
-    public async Task<JudgeVerdict?> JudgeAsync(IReadOnlyList<Turn> conversation, MoveKind move, string reply, CancellationToken ct)
+    public async Task<JudgeVerdict?> JudgeAsync(
+        IReadOnlyList<Turn> conversation, MoveKind move, string reply, IReadOnlyList<string> choices, CancellationToken ct)
     {
         BetaMessage response;
         try
         {
-            response = await client.Beta.Messages.Create(BuildParams(model, prompt, conversation, move, reply), ct);
+            response = await client.Beta.Messages.Create(BuildParams(model, prompt, conversation, move, reply, choices), ct);
         }
         catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -71,7 +80,8 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
             bool Get(string name) => root.GetProperty(name).GetBoolean();
             return new JudgeVerdict(
                 Get("acknowledgedFirst"), Get("singleQuestion"), Get("concreteQuestion"), Get("easierScene"), Get("noInventedActions"),
-                Get("noIllnessDetails"), Get("noOverPraise"), Get("noDismissal"), root.GetProperty("reason").GetString() ?? "");
+                Get("noIllnessDetails"), Get("noOverPraise"), Get("noDismissal"), Get("reflectedActions"), Get("noTraitLabel"),
+                root.GetProperty("reason").GetString() ?? "");
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)
         {
@@ -80,12 +90,13 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
         }
     }
 
-    internal static MessageCreateParams BuildParams(string model, string prompt, IReadOnlyList<Turn> conversation, MoveKind move, string reply) => new()
+    internal static MessageCreateParams BuildParams(
+        string model, string prompt, IReadOnlyList<Turn> conversation, MoveKind move, string reply, IReadOnlyList<string> choices) => new()
     {
         Model = model,
         MaxTokens = MaxTokens,
         System = new List<BetaTextBlockParam> { new() { Text = prompt, CacheControl = new BetaCacheControlEphemeral() } },
-        Messages = new List<BetaMessageParam> { new BetaUserMessageParam { Content = UserMessage(conversation, move, reply) } },
+        Messages = new List<BetaMessageParam> { new BetaUserMessageParam { Content = UserMessage(conversation, move, reply, choices) } },
         OutputConfig = new BetaOutputConfig
         {
             Effort = Effort.High,
@@ -93,7 +104,7 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
         },
     };
 
-    private static string UserMessage(IReadOnlyList<Turn> conversation, MoveKind move, string reply)
+    internal static string UserMessage(IReadOnlyList<Turn> conversation, MoveKind move, string reply, IReadOnlyList<string> choices)
     {
         var sb = new StringBuilder("<conversation>\n");
         foreach (var turn in conversation)
@@ -101,9 +112,9 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
             if (turn.Role == TurnRoles.Assistant)
             {
                 sb.Append("AI: ").Append(turn.Text).Append('\n');
-                if (turn.Choices is { Count: > 0 } choices)
+                if (turn.Choices is { Count: > 0 } shown)
                 {
-                    sb.Append("（選択肢: ").Append(string.Join(" / ", choices)).Append("）\n");
+                    sb.Append("（選択肢: ").Append(string.Join(" / ", shown)).Append("）\n");
                 }
             }
             else
@@ -116,6 +127,17 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
         sb.Append("</conversation>\n");
         sb.Append("<next_move>").Append(TalkStream.MoveName(move)).Append("</next_move>\n");
         sb.Append("<reply>\n").Append(reply).Append("\n</reply>");
+        if (choices.Count > 0)
+        {
+            sb.Append("\n<choices>\n");
+            foreach (var choice in choices)
+            {
+                sb.Append("- ").Append(choice).Append('\n');
+            }
+
+            sb.Append("</choices>");
+        }
+
         return sb.ToString();
     }
 

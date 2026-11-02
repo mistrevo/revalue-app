@@ -116,7 +116,7 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
             }
 
             IReadOnlyList<string> choicesShown = reply.Choices ?? [];
-            var verdict = await judge.JudgeAsync(conversation, move, reply.Text, ct);
+            var verdict = await judge.JudgeAsync(conversation, move, reply.Text, choicesShown, ct);
             replies.Add(new ReplyRecord(
                 text, answer.IsChoice, decided.Reading.Signals, move, reply.Text, choicesShown, replied.UsedFallbackChoices, firstTextMs.Value,
                 ReplyChecks.CountQuestions(reply.Text), forbidden.Find(string.Join("\n", [reply.Text, .. choicesShown])), verdict));

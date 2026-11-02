@@ -92,6 +92,12 @@ public sealed class EvalSummary
             Ratio("大げさに褒めていない（判定役。4-rules.md の「大げさな褒め言葉で埋めない」）", judged.Count(r => r.Verdict?.NoOverPraise == true), judged.Count),
             Ratio("突き放し: 一覧にない言い方でも、否定や値踏みをしていない（判定役）", judged.Count(r => r.Verdict?.NoDismissal == true), judged.Count),
             Ratio(
+                "discover-2（受け止めてから一つだけ聞く）: 本人がした行動を映し返している（判定役）",
+                judged.Count(r => r.Verdict?.ReflectedActions == true), judged.Count),
+            Ratio(
+                "芯 1・芯 5: 力や人柄、向き不向きを言い当てていない（判定役）",
+                judged.Count(r => r.Verdict?.NoTraitLabel == true), judged.Count),
+            Ratio(
                 "discover-10（つらい状態のサインに応える）: 読み取りがサインを見落とさなかった",
                 distressRuns.Count(r => r.Replies.Any(x => x.Signals.Contains(AnswerSignal.Distress))), distressRuns.Count),
             new(

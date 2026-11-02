@@ -210,7 +210,8 @@ public static class ReportWriter
         var text = $"受け止め {Mark(v.AcknowledgedFirst)}、一度に一つだけ聞く {Mark(v.SingleQuestion)}、具体的な問い {Mark(v.ConcreteQuestion)}、" +
             $"答えやすい場面 {Mark(v.EasierScene)}、" +
             $"言っていない行動を作らない {Mark(v.NoInventedActions)}、病気の詳しいことを聞かない {Mark(v.NoIllnessDetails)}、" +
-            $"大げさに褒めない {Mark(v.NoOverPraise)}、否定や値踏みをしない {Mark(v.NoDismissal)}";
+            $"大げさに褒めない {Mark(v.NoOverPraise)}、否定や値踏みをしない {Mark(v.NoDismissal)}、" +
+            $"行動の映し返し {Mark(v.ReflectedActions)}、力や人柄を言い当てない {Mark(v.NoTraitLabel)}";
         return v.Reason.Length == 0 ? text : $"{text}。理由: {v.Reason}";
     }
 }
