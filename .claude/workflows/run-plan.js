@@ -219,7 +219,7 @@ if (passed && specs.length) {
   phase('文書の点検')
   doc = await agent(`${CONTEXT}
 
-このブランチで変えた文書（\`git diff --name-only ${base}...HEAD -- docs/prd.md docs/specs/ README.md\`）の読みやすさを点検する。意味を変えない直しはその場で直し、日本語のメッセージでコミットする。意味が変わる指摘は直さずに返す。`, { label: 'review:doc', phase: '文書の点検', agentType: 'doc-reviewer', ...LADDER[2] })
+このブランチで変えた文書（\`git diff --name-only ${base}...HEAD -- docs/prd/ docs/specs/ README.md\`）の読みやすさを点検する。意味を変えない直しはその場で直し、日本語のメッセージでコミットする。意味が変わる指摘は直さずに返す。`, { label: 'review:doc', phase: '文書の点検', agentType: 'doc-reviewer', ...LADDER[2] })
 }
 
 return {

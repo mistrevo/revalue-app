@@ -1,6 +1,6 @@
 ---
 name: build-unit
-description: PRD の確定後、機能のまとまり（DISCOVER、VALIDATE など）を作るとき、または「次へ進めて」「自走して」「続きから」と頼まれたときに使う。セッションやアカウントが切り替わったあとの再開にも使う。
+description: PRD の確定後、機能のまとまり（discover、validate など）を作るとき、または「次へ進めて」「自走して」「続きから」と頼まれたときに使う。セッションやアカウントが切り替わったあとの再開にも使う。
 ---
 
 # まとまりを作る（Spec → 計画 → 実装・評価 → main へ）
@@ -9,8 +9,8 @@ description: PRD の確定後、機能のまとまり（DISCOVER、VALIDATE な�
 
 ## 始める前に
 
-1. `docs/prd.md`（まとまりの一覧、順番、受け入れ基準）、`docs/specs/00-common.md`、`docs/specs/00-tech-stack.md`、`docs/superpowers/progress.md` を読む
-2. progress.md がなければ、下の形で作る。`00-common.md` がなければ、PRD のまとまりをまたぐ決まり（製品の芯、4 観点の物差し、AI の言い方、データの扱い、合格基準）から作り、doc-reviewer に点検させてコミットする
+1. `docs/prd/` の PRD を読む。入口の `README.md`（製品の芯）と、`3-features.md`（まとまりの一覧、順番、要求）は必ず読み、ほかは要るものを読む。あわせて `docs/specs/00-common.md`、`docs/specs/00-tech-stack.md`、`docs/superpowers/progress.md` を読む
+2. progress.md がなければ、下の形で作る。`00-common.md` がなければ、PRD のまとまりをまたぐ決まりから作る（製品の芯は `README.md`、力を確かめる物差しと対話の決まりは `4-rules.md`、データの扱いは `5-information.md`、合格基準は `6-quality.md`）。doc-reviewer に点検させてコミットする
 3. 対象のまとまりを決める。状態が「進行中」のものがあれば、それの続きから始める
 
 ## まとまりごとの手順
@@ -36,15 +36,15 @@ description: PRD の確定後、機能のまとまり（DISCOVER、VALIDATE な�
 
 | まとまり | 状態 | ブランチ | 更新 | メモ |
 |---|---|---|---|---|
-| 01 DISCOVER（対話とエピソードの保存） | 未着手 / 進行中 / 完了 / 保留 | unit/01-discover | 2026-11-03 14:20 | 評価 18/20 |
+| 02 discover（話す） | 未着手 / 進行中 / 完了 / 保留 | unit/02-discover | 2026-11-03 14:20 | 評価 18/20 |
 
 ## 開発者に確認してほしいこと
 
-- [ ] discover-2（足りない観点だけ聞き返す）の言い方:「…」（evals/results/2026-11-03-discover.md）
+- [ ] validate-2（足りない行動だけ聞き返す）の言い方:「…」（evals/results/2026-11-04-validate.md）
 
 ## 保留
 
-- 02 VALIDATE: 2 回直しても評価が通らない。理由と、試したこと
+- 03 validate（確かめる）: 2 回直しても評価が通らない。理由と、試したこと
 ```
 
 状態と確認事項だけを書く短い文書にする。経緯の詳細はコミットと `docs/superpowers/` に残す。
