@@ -38,6 +38,20 @@ public sealed class CosmosDataStore(Container container) : IDataStore
         result.EnsureSucceeded();
     }
 
+    public async Task<bool> TryCreateAsync<T>(T item, CancellationToken ct) where T : Item
+    {
+        using var body = ToStream(Serialize(item));
+        var result = await WriteAsync(item.UserKey, item.Id, batch => batch.CreateItemStream(body), ct);
+        if (result.Status == HttpStatusCode.Conflict)
+        {
+            // もうある（ほかの要求が先に作った）
+            return false;
+        }
+
+        result.EnsureSucceeded();
+        return true;
+    }
+
     public async Task<IReadOnlyList<T>> ListByTypeAsync<T>(string userKey, string type, CancellationToken ct) where T : Item
     {
         var query = new QueryDefinition("SELECT * FROM c WHERE c.type = @type").WithParameter("@type", type);

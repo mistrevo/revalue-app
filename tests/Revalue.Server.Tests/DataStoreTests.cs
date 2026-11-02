@@ -137,6 +137,21 @@ public sealed class DataStoreTests
         Assert.Null((await store.GetAsync<CountItem>(DataConstants.GlobalPartition, "count-x", Ct))!.Ttl);
     }
 
+    [Fact(DisplayName = "foundation-8（数だけを数える）: なければ作るは、1 回目だけ作り、あれば何もしない")]
+    public async Task TryCreateCreatesOnlyOnce()
+    {
+        var (store, _) = Create();
+        await Assert.ThrowsAsync<ConsentMissingException>(() => store.TryCreateAsync(Note("u_a", "m1", "一つ目"), Ct));
+        await Consent(store, "u_a");
+
+        Assert.True(await store.TryCreateAsync(Note("u_a", "m1", "一つ目"), Ct));
+        Assert.False(await store.TryCreateAsync(Note("u_a", "m1", "二つ目"), Ct));
+
+        var item = await store.GetAsync<NoteItem>("u_a", "m1", Ct);
+        Assert.Equal("一つ目", item!.Text);
+        Assert.Equal(DataConstants.UserTtlSeconds, item.Ttl);
+    }
+
     [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: その日の数は 1 ずつ増え、日が変わると前の日の数を残さず 1 から数え直す")]
     public async Task IncrementDailyRestartsOnANewDay()
     {

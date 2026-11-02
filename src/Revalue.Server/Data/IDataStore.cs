@@ -14,6 +14,12 @@ public interface IDataStore
     /// <summary>保存する。利用者のパーティションでは、Ttl が null なら 30 日にする。</summary>
     Task UpsertAsync<T>(T item, CancellationToken ct) where T : Item;
 
+    /// <summary>
+    /// まだなければ作って true を返す。もうあれば何もせず false を返す。確かめて作るまでを一続きで行うので、
+    /// 同時に呼ばれても true になるのは 1 回だけ。
+    /// </summary>
+    Task<bool> TryCreateAsync<T>(T item, CancellationToken ct) where T : Item;
+
     Task<IReadOnlyList<T>> ListByTypeAsync<T>(string userKey, string type, CancellationToken ct) where T : Item;
 
     /// <summary>その人のアイテムの数。テストと確認用。</summary>

@@ -40,6 +40,19 @@ public sealed class CounterTests
         Assert.Equal(new StatsDto(2, 1), await counter.GetAsync(Ct));
     }
 
+    [Fact(DisplayName = "foundation-8（数だけを数える）: 同じ人を同時に何度数えても 1 回だけ")]
+    public async Task SamePersonCountedConcurrentlyIsCountedOnce()
+    {
+        await using var factory = new RevalueFactory();
+        var counter = factory.Services.GetRequiredService<ICounter>();
+        await Consent(factory, "a");
+
+        await Task.WhenAll(Enumerable.Range(0, 50).Select(_ =>
+            Task.Run(() => counter.CountOnceAsync(TestUsers.Key("a"), CountMetric.ReachedReport, Ct))));
+
+        Assert.Equal(new StatsDto(1, 0), await counter.GetAsync(Ct));
+    }
+
     [Fact(DisplayName = "foundation-8（数だけを数える）: 数のアイテムは利用者キーを持たない")]
     public async Task CountItemsCarryNoUserKey()
     {

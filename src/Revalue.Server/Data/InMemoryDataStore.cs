@@ -36,6 +36,21 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
         return Task.CompletedTask;
     }
 
+    public Task<bool> TryCreateAsync<T>(T item, CancellationToken ct) where T : Item
+    {
+        lock (_gate)
+        {
+            EnsureConsented(item.UserKey, item.Id);
+            if (TryGetLive(item.UserKey, item.Id, out _))
+            {
+                return Task.FromResult(false);
+            }
+
+            Write(item);
+            return Task.FromResult(true);
+        }
+    }
+
     public Task<IReadOnlyList<T>> ListByTypeAsync<T>(string userKey, string type, CancellationToken ct) where T : Item
     {
         lock (_gate)

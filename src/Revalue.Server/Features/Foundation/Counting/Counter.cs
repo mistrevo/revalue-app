@@ -32,14 +32,13 @@ public sealed class Counter(IDataStore store) : ICounter
 {
     public async Task CountOnceAsync(string userKey, CountMetric metric, CancellationToken ct)
     {
-        var markId = $"counted-{MetricName(metric)}";
-        if (await store.GetAsync<CountedMarkItem>(userKey, markId, ct) is not null)
+        // しるしを読んでから書くと、同時に呼ばれたときにどれもしるしがないと読んで、何度も数えてしまう。
+        // しるしは「なければ作る」で置き、作れた 1 回だけ数を増やす
+        var mark = new CountedMarkItem { Id = $"counted-{MetricName(metric)}", UserKey = userKey, Type = "counted" };
+        if (await store.TryCreateAsync(mark, ct))
         {
-            return;
+            await store.IncrementAsync(DataConstants.GlobalPartition, $"count-{MetricName(metric)}", "count", null, ct);
         }
-
-        await store.UpsertAsync(new CountedMarkItem { Id = markId, UserKey = userKey, Type = "counted" }, ct);
-        await store.IncrementAsync(DataConstants.GlobalPartition, $"count-{MetricName(metric)}", "count", null, ct);
     }
 
     public async Task<StatsDto> GetAsync(CancellationToken ct) => new(

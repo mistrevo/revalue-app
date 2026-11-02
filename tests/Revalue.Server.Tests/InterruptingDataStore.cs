@@ -26,6 +26,12 @@ public sealed class InterruptingDataStore(IDataStore inner) : IDataStore
         await inner.UpsertAsync(item, ct);
     }
 
+    public async Task<bool> TryCreateAsync<T>(T item, CancellationToken ct) where T : Item
+    {
+        await InterruptAsync(nameof(TryCreateAsync), item.UserKey, ct);
+        return await inner.TryCreateAsync(item, ct);
+    }
+
     public Task<IReadOnlyList<T>> ListByTypeAsync<T>(string userKey, string type, CancellationToken ct) where T : Item =>
         inner.ListByTypeAsync<T>(userKey, type, ct);
 
