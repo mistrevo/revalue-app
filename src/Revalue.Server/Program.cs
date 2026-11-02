@@ -2,6 +2,8 @@ using Revalue.Server.Data;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
+using Revalue.Server.Features.Foundation.Counting;
+using Revalue.Server.Features.Foundation.Limits;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +11,8 @@ builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddRevalueAuth(builder.Environment);
 builder.Services.AddRevalueData(builder.Configuration, builder.Environment);
+builder.Services.Configure<LimitOptions>(builder.Configuration.GetSection("Limits"));
+builder.Services.AddSingleton<ICounter, Counter>();
 
 var app = builder.Build();
 
@@ -24,7 +28,14 @@ app.MapDevAuth();
 var api = app.MapGroup("/api").RequireAuthorization();
 api.MapGet("/health", () => TypedResults.Ok(new { status = "ok" })).AllowAnonymous();
 ConsentEndpoints.Map(api);
-api.MapGet("/stats", () => TypedResults.Ok(new { })).RequireConsent();
+api.MapGet("/stats", async (ICounter counter, CancellationToken ct) => TypedResults.Ok(await counter.GetAsync(ct))).RequireConsent();
+
+// テストの環境（Testing）だけ、送信回数の上限を確かめるための API を足す。本番の経路には足さない
+if (app.Environment.IsEnvironment("Testing"))
+{
+    api.MapPost("/_test/send", () => TypedResults.NoContent()).RequireConsent().RequireDailyLimit();
+}
+
 // /api の知らないパスは画面を返さず、404 の ProblemDetails にする
 api.MapFallback("{**rest}", () => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound));
 

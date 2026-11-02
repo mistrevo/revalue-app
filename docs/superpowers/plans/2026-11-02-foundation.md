@@ -230,7 +230,7 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `enum CountMetric { ReachedReport, ChoseOption }`、`interface ICounter { Task CountOnceAsync(string userKey, CountMetric metric, CancellationToken ct); Task<StatsDto> GetAsync(CancellationToken ct); }`、`record StatsDto(long ReachedReport, long ChoseOption)`。しるしは id `counted-<metric>`（type `counted`、その人のパーティション）、数は id `count-<metric>`（type `count`、`global`、ttl なし）
 - Produces: `GET /api/stats`（`RequireConsent`）→ `{ reachedReport, choseOption }`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   上限はテスト用のエンドポイントで確かめる。`RevalueFactory` に、`Testing` 環境のときだけ `POST /api/_test/send`（`RequireConsent().RequireDailyLimit()`、204 を返す）を足す仕組みを作るか、`DefaultEndpointFilterInvocationContext` でフィルターを直接呼ぶ単体テストにする（どちらでもよい。本番の経路には足さない）。設定で `Limits:MessagesPerDay = 3`、`Limits:MessagesPerDayTotal = 5` にする。
   - `foundation-6（使いすぎを穏やかに止める）: 1 人の上限を超えると 429 と次に送れる時刻` — 3 回は通り、4 回目が 429、`type` が `/problems/daily-limit`、`resetAt` が `2026-11-03T00:00:00+09:00`（時計を UTC `2026-11-02T05:00Z` に置く）
   - `foundation-6（使いすぎを穏やかに止める）: アプリ全体の上限でも止まる` — 3 人で合計 5 回通り、6 回目が 429
@@ -239,7 +239,7 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-8（数だけを数える）: 数のアイテムは利用者キーを持たない` — `global` の `count-*` の生の JSON に、A と B の利用者キーが含まれない
   - `foundation-8（数だけを数える）: 全部消しても数は減らない` — A が `DELETE /api/me` しても `GET /api/stats`（B で）が変わらない
 
-- [ ] **Step 2: 失敗を確かめる** → **Step 3: 実装する** → **Step 4: 通ることを確かめ、コミットする**
+- [x] **Step 2: 失敗を確かめる** → **Step 3: 実装する** → **Step 4: 通ることを確かめ、コミットする**
   `送信回数の上限と、人と結びつかない数を作る（foundation-6 使いすぎを穏やかに止める、foundation-8 数だけを数える）`
 
 ---
