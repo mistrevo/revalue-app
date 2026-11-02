@@ -328,3 +328,67 @@ export async function restoreAbility(key: AbilityKey): Promise<Abilities> {
   const response = await request(`/api/abilities/${encodeURIComponent(key)}/restore`, { method: 'POST' })
   return (await response.json()) as Abilities
 }
+
+// ---- 5 つの記録 ----
+
+/** 好みとやりたいことの項目。chosen は問いの選択肢から選んだ言葉、written は本人が書いた言葉。 */
+export type ProfileEntry = { text: string; source: 'chosen' | 'written' }
+
+export type TimeSlot = 'morning' | 'daytime' | 'evening' | 'night'
+export type Place = 'homeOnly' | 'canGoOut'
+
+/** 条件。monthlyIncome は万円で、null は「まだ決めていない」。 */
+export type ProfileConditions = { timeSlots: TimeSlot[]; hoursPerWeek: number; place: Place; monthlyIncome: number | null }
+
+/** できることの 1 つ。根拠の本人の言葉と、その話の id。 */
+export type CanDoAbility = { key: AbilityKey; name: string; quotes: Quote[]; episodeId?: string | null }
+
+/** 裏側が決めた問いと選択肢。 */
+export type ProfileQuestion = { question: string; choices: string[] }
+
+/** 5 つの記録の API が返すもの。できることは、そのときの力の状態から裏側が作る。 */
+export type Profile = {
+  /** seen は見えた力、checking は確かめ中の力。hasExcluded は本人が外した力があるか（外した力そのものは入らない）。 */
+  canDo: { seen: CanDoAbility[]; checking: CanDoAbility[]; hasExcluded: boolean }
+  preferences: ProfileEntry[]
+  wants: ProfileEntry[]
+  conditions: ProfileConditions | null
+  agency: string | null
+  /** どの問いに答えたか（「いまは決めない」「いまは書かない」も答えたことにする）。 */
+  asked: { preferences: boolean; wants: boolean; agency: boolean }
+  questions: { preferences: ProfileQuestion; wants: ProfileQuestion }
+  conditionOptions: { hoursPerWeek: number[]; monthlyIncome: number[] }
+}
+
+export async function getProfile(): Promise<Profile> {
+  const response = await request('/api/profile')
+  return (await response.json()) as Profile
+}
+
+async function putProfile(path: string, body: unknown): Promise<Profile> {
+  const response = await request(`/api/profile/${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return (await response.json()) as Profile
+}
+
+/** 好みを、送った並びに置き換える。 */
+export function putPreferences(entries: ProfileEntry[]): Promise<Profile> {
+  return putProfile('preferences', { entries })
+}
+
+/** やりたいことを、送った並びに置き換える。 */
+export function putWants(entries: ProfileEntry[]): Promise<Profile> {
+  return putProfile('wants', { entries })
+}
+
+export function putConditions(conditions: ProfileConditions): Promise<Profile> {
+  return putProfile('conditions', conditions)
+}
+
+/** 主体性を置き換える。空なら書いていないことになる。 */
+export function putAgency(text: string): Promise<Profile> {
+  return putProfile('agency', { text })
+}
