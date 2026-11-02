@@ -9,8 +9,8 @@ description: PRD の確定後、機能のまとまり（DISCOVER、VALIDATE な�
 
 ## 始める前に
 
-1. `docs/prd.md`（まとまりの一覧、順番、受け入れ基準）、`docs/specs/00-common.md`、`docs/superpowers/progress.md` を読む
-2. progress.md がなければ、下の形で作る
+1. `docs/prd.md`（まとまりの一覧、順番、受け入れ基準）、`docs/specs/00-common.md`、`docs/specs/00-tech-stack.md`、`docs/superpowers/progress.md` を読む
+2. progress.md がなければ、下の形で作る。`00-common.md` がなければ、PRD のまとまりをまたぐ決まり（製品の芯、4 観点の物差し、AI の言い方、データの扱い、合格基準）から作り、doc-reviewer に点検させてコミットする
 3. 対象のまとまりを決める。状態が「進行中」のものがあれば、それの続きから始める
 
 ## まとまりごとの手順
