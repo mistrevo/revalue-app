@@ -1,0 +1,43 @@
+# 鍵と手元の設定（公開リポジトリなので入れない）
+.env
+.env.*
+!.env.example
+*.pfx
+*.pem
+*.key
+appsettings.*.local.json
+CLAUDE.local.md
+.claude/settings.local.json
+# 開発者の名前のハッシュ。短い名前のハッシュは総当たりで戻せるので公開しない
+.claude/hooks/guard-names.txt
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+
+# Node と画面
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright-mcp/
+
+# Azure
+.azure/
+
+# OS とエディタ
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,4 @@
+# 改行は LF にそろえる（Windows の手元とクラウドの VM で同じにするため）
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
