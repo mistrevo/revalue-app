@@ -129,7 +129,7 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `/api` のグループ `api`（`MapGroup("/api").RequireAuthorization()`、`/api/health` だけ `AllowAnonymous`）。未ログインの challenge は 401 + `Problems.LoginRequired`
 - Produces: 開発用ログイン: cookie `revalue_dev_user`。`GET /.auth/login/google?post_login_redirect_uri=…&dev_user=…` で値（`dev_user` がなければ `dev-user`。英数字とハイフンだけ許す）を入れてリダイレクト、`GET /.auth/logout?post_logout_redirect_uri=…` で消してリダイレクト。開発用の利用者キーは `Hash("dev", <cookie の値>)`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `foundation-5（名前とメールアドレスを残さない）: 同じ人は同じ利用者キー、違う人は違うキー、元の ID を含まない` — `Hash("google","123")` が 2 回同じ、`Hash("google","456")` と違う、`"123"` を含まない、`u_` で始まり 64 桁の 16 進が続く
   - `foundation-1（案内はログインなしで見られる）: 未ログインの /api は 401 の ProblemDetails` — `GET /api/me` が 401、`type` が `/problems/login-required`
   - `foundation-1（案内はログインなしで見られる）: 組み込み認証のヘッダーがあればログイン扱い` — `CreateUserClient("g-1")` で `GET /api/nope` が 404（401 ではない）
@@ -138,12 +138,12 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-5（名前とメールアドレスを残さない）: 開発用ログインは外のサイトへ飛ばさない` — `post_login_redirect_uri` が `https://evil.example.com` と `//evil.example.com` のとき、`Location` は `/start`
   - `foundation-5（名前とメールアドレスを残さない）: 開発用ログインで利用者を切り替えられる` — Development で `dev_user=a` と `dev_user=b` でログインしたクライアントは、別々の利用者キーになる（Task 4 のあとなら `/api/me` の了解の状態が別々になることで確かめてよい。ここでは `GetUserKey` の値を返す仕組みがなければ、Task 4 のテストに回してよい）
 
-- [ ] **Step 2: `dotnet test --filter` で失敗を確かめる**
+- [x] **Step 2: `dotnet test --filter` で失敗を確かめる**
 
-- [ ] **Step 3: 実装する**
+- [x] **Step 3: 実装する**
   `EasyAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>`（scheme `"EasyAuth"`）は 2 つのヘッダーがそろったときだけ claim `user_key` を作る。`DevAuthHandler`（scheme `"Dev"`）は Development のときだけ登録し、既定の scheme にする（それ以外の環境では `"EasyAuth"` が既定）。challenge は ProblemDetails を書く。リダイレクト先は `/` で始まり `//` で始まらないものだけ許す。
 
-- [ ] **Step 4: `dotnet test` が通ることを確かめ、コミットする**
+- [x] **Step 4: `dotnet test` が通ることを確かめ、コミットする**
   `ログインと利用者キーを作る（foundation-1 案内はログインなしで見られる、foundation-5 名前とメールアドレスを残さない）`
 
 ---

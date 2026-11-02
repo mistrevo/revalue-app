@@ -1,7 +1,10 @@
+using Revalue.Server.Features.Foundation.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddRevalueAuth(builder.Environment);
 
 var app = builder.Build();
 
@@ -9,10 +12,12 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseRevalueAuth();
 
-app.MapGet("/api/health", () => TypedResults.Ok(new { status = "ok" }));
+app.MapDevAuth();
 
-var api = app.MapGroup("/api");
+var api = app.MapGroup("/api").RequireAuthorization();
+api.MapGet("/health", () => TypedResults.Ok(new { status = "ok" })).AllowAnonymous();
 // /api の知らないパスは画面を返さず、404 の ProblemDetails にする
 api.MapFallback("{**rest}", () => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound));
 
