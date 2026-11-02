@@ -36,6 +36,12 @@ public sealed class FakeConversationAi : IConversationAi
     /// <summary>次の返事で、何かけら返したあとに投げるか。1 回だけ効く。</summary>
     public (int AfterChunks, string Kind)? FailNextReply { get; set; }
 
+    /// <summary>
+    /// 次の返事で、最初のかけらを返したあとに投げる例外（AI の呼び出しの失敗として決めていないもの）。1 回だけ効く。
+    /// 例外の中身がログに出ないことを確かめるときに使う。
+    /// </summary>
+    public Exception? ThrowNextReply { get; set; }
+
     /// <summary>返事の最初のかけらを返す前に呼ぶ。返事の途中でほかの操作を割り込ませるときに使う。</summary>
     public Func<Task>? BeforeReply { get; set; }
 
@@ -74,6 +80,8 @@ public sealed class FakeConversationAi : IConversationAi
 
         var fail = FailNextReply;
         FailNextReply = null;
+        var unexpected = ThrowNextReply;
+        ThrowNextReply = null;
         if (BeforeReply is { } before)
         {
             await before();
@@ -89,6 +97,10 @@ public sealed class FakeConversationAi : IConversationAi
 
             await Task.Yield();
             yield return chunks[i];
+            if (unexpected is not null)
+            {
+                throw unexpected;
+            }
         }
 
         // 本物の AI は、拒否を最後（止まった理由）で知らせることがある
