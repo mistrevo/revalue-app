@@ -8,7 +8,7 @@ public static class AiSetup
     public const string ApiKeySetting = "ANTHROPIC_API_KEY";
 
     /// <summary>
-    /// 会話の AI を登録する。
+    /// 会話の AI と仕事の選択肢の AI を登録する。どちらも同じ決まりで本物か偽物かを決め、本物は <see cref="AnthropicClient"/> を 1 つ共有する。
     /// - Testing: 鍵があっても偽物（<see cref="ScriptedConversationAi"/>）。テストで Claude を呼ばないため（Claude の判断）
     /// - Development: 鍵があれば本物、なければ偽物
     /// - それ以外（Production）: 鍵があれば本物。なければ、決まった返事のまま動き続けないよう起動を止める（Claude の判断）
@@ -22,6 +22,7 @@ public static class AiSetup
         if (environment.IsEnvironment("Testing") || (environment.IsDevelopment() && !hasKey))
         {
             services.AddSingleton<IConversationAi, ScriptedConversationAi>();
+            services.AddSingleton<IOptionsAi, ScriptedOptionsAi>();
             return services;
         }
 
@@ -32,6 +33,7 @@ public static class AiSetup
 
         services.AddSingleton(_ => new AnthropicClient { ApiKey = apiKey });
         services.AddSingleton<IConversationAi, ClaudeConversationAi>();
+        services.AddSingleton<IOptionsAi, ClaudeOptionsAi>();
         return services;
     }
 }
