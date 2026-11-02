@@ -267,4 +267,50 @@ public sealed class ProfileApiTests
         Assert.NotEqual(HttpStatusCode.OK, read.StatusCode);
         Assert.Empty(await StoredProfile(factory));
     }
+
+    [Fact(DisplayName = "profile-2（できることは根拠とつなぐ）: 根拠ありの力は根拠の本人の言葉と一緒に seen に、要確認の力は checking に入り、未確認の力は入らない")]
+    public async Task CanDoSplitsSeenAndChecking()
+    {
+        var (factory, ai) = Create();
+        var client = await Consenting(factory, "g-13");
+        var first = await FinishedEpisode(client, ai, CoordinatingAll);
+        await FinishedEpisode(client, ai, Candidate(Revalue.Server.Features.Validate.Ability.Prioritizing, 1, "迎えの時間をずらして"));
+
+        var canDo = (await Get(client)).GetProperty("canDo");
+        var seen = ValidateTestKit.Array(canDo, "seen");
+        var seenOne = Assert.Single(seen);
+        Assert.Equal("coordinating", seenOne.GetProperty("key").GetString());
+        Assert.Equal("調整する力", seenOne.GetProperty("name").GetString());
+        Assert.Equal(first, seenOne.GetProperty("episodeId").GetString());
+        Assert.Equal(
+            ["夫と母の予定がぶつかって", "二人に電話して", "迎えの時間をずらしてもらいました"],
+            ValidateTestKit.Array(seenOne, "quotes").Select(q => q.GetProperty("text").GetString()).ToArray());
+
+        var checking = Assert.Single(ValidateTestKit.Array(canDo, "checking"));
+        Assert.Equal("prioritizing", checking.GetProperty("key").GetString());
+        Assert.NotEmpty(ValidateTestKit.Array(checking, "quotes"));
+        Assert.False(canDo.GetProperty("hasExcluded").GetBoolean());
+        Assert.DoesNotContain("noticing", canDo.GetRawText());
+    }
+
+    [Fact(DisplayName = "profile-2（できることは根拠とつなぐ）: 本人が外した力は、できることに入れず、外した力があることだけを返す")]
+    public async Task ExcludedAbilityIsNotShown()
+    {
+        var (factory, ai) = Create();
+        var client = await Consenting(factory, "g-14");
+        await FinishedEpisode(client, ai, CoordinatingAll);
+
+        var excluded = await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct);
+        Assert.Equal(HttpStatusCode.OK, excluded.StatusCode);
+        var canDo = (await Get(client)).GetProperty("canDo");
+        Assert.Empty(ValidateTestKit.Array(canDo, "seen"));
+        Assert.Empty(ValidateTestKit.Array(canDo, "checking"));
+        Assert.True(canDo.GetProperty("hasExcluded").GetBoolean());
+
+        var restored = await client.PostAsync("/api/abilities/coordinating/restore", null, Ct);
+        Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
+        canDo = (await Get(client)).GetProperty("canDo");
+        Assert.Single(ValidateTestKit.Array(canDo, "seen"));
+        Assert.False(canDo.GetProperty("hasExcluded").GetBoolean());
+    }
 }

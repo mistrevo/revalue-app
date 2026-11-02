@@ -2,7 +2,9 @@ using System.Globalization;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
+using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Foundation.Consent;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Profile;
 
@@ -22,7 +24,7 @@ public sealed record QuestionsDto(QuestionDto Preferences, QuestionDto Wants);
 public sealed record ConditionOptionsDto(IReadOnlyList<int> HoursPerWeek, IReadOnlyList<int> MonthlyIncome);
 
 /// <summary>できることの 1 つ（根拠ありか要確認）。根拠の本人の言葉と、その話の id を添える。</summary>
-public sealed record CanDoAbilityDto(string Key, string Name, IReadOnlyList<Validate.QuoteDto> Quotes, string? EpisodeId);
+public sealed record CanDoAbilityDto(string Key, string Name, IReadOnlyList<QuoteDto> Quotes, string? EpisodeId);
 
 /// <summary>できること。<paramref name="HasExcluded"/> は、本人が外した力があるか（外した力そのものは出さない）。</summary>
 public sealed record CanDoDto(IReadOnlyList<CanDoAbilityDto> Seen, IReadOnlyList<CanDoAbilityDto> Checking, bool HasExcluded);
@@ -196,9 +198,9 @@ public static class ProfileEndpoints
 
     private static int Length(string text) => new StringInfo(text).LengthInTextElements;
 
-    private static Task<ProfileDto> DtoAsync(IDataStore store, string userKey, ProfileItem? item, CancellationToken ct) =>
-        Task.FromResult(new ProfileDto(
-            new CanDoDto([], [], false),
+    private static async Task<ProfileDto> DtoAsync(IDataStore store, string userKey, ProfileItem? item, CancellationToken ct) =>
+        new(
+            await CanDoAsync(store, userKey, ct),
             item?.Preferences ?? [],
             item?.Wants ?? [],
             item?.Conditions,
@@ -207,5 +209,23 @@ public static class ProfileEndpoints
             new QuestionsDto(
                 new QuestionDto(ProfileText.PreferenceQuestion, ProfileText.PreferenceChoices),
                 new QuestionDto(ProfileText.WantQuestion, ProfileText.WantChoices)),
-            new ConditionOptionsDto(ProfileText.HoursPerWeekOptions, ProfileText.MonthlyIncomeOptions)));
+            new ConditionOptionsDto(ProfileText.HoursPerWeekOptions, ProfileText.MonthlyIncomeOptions));
+
+    /// <summary>
+    /// できることを、保存してある場面と力の状態から作る。外していない根拠ありを seen、外していない要確認を checking に入れ、
+    /// 未確認は入れない。外した力は出さず、あることだけ返す。力の順は <see cref="Ability"/> の順。
+    /// </summary>
+    private static async Task<CanDoDto> CanDoAsync(IDataStore store, string userKey, CancellationToken ct)
+    {
+        var episodes = await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct);
+        var book = await store.GetAsync<AbilityBookItem>(userKey, AbilityBookItem.ItemId, ct);
+        var views = AbilityBook.View(episodes, book);
+
+        List<CanDoAbilityDto> Pick(AbilityState state) => views
+            .Where(v => v.State == state && !v.Excluded)
+            .Select(v => new CanDoAbilityDto(ActionRef.Key(v.Ability), AbilityText.Name(v.Ability), QuoteDto.From(v.Shown), v.EpisodeId))
+            .ToList();
+
+        return new CanDoDto(Pick(AbilityState.Confirmed), Pick(AbilityState.NeedsCheck), views.Any(v => v.Excluded && v.State != AbilityState.NotYet));
+    }
 }
