@@ -70,7 +70,7 @@ gh variable set APP_URL --body <appUrl>
 
 ### 6. 最初のデプロイと、イメージの公開
 
-1. `gh workflow run deploy.yml` で `deploy.yml` を手で流す。イメージが `ghcr.io` に push される
+1. `gh workflow run deploy.yml` で `deploy.yml` を手で流す。イメージが `ghcr.io` に push される。初めての push は、最後の段階で `denied` になることがある（パッケージを作るのと重なるため）。そのときは、もう一度流す
 2. `ghcr.io` のパッケージは非公開で作られるので、GitHub のパッケージの設定で一度だけ「公開」にする。Container App が鍵なしでイメージを取れるようにするため
 3. 1 回目の更新がイメージを取れずに失敗していたら、`deploy.yml` をもう一度流す
 
@@ -89,6 +89,10 @@ gh variable set APP_URL --body <appUrl>
 | Key Vault の `anthropic-api-key`（鍵 1 つ） | Key Vault Secrets User | 評価のために Claude の鍵を読む。ほかの鍵（`user-key-secret`、`google-client-secret`）は読めない。この割り当ては、鍵を入れたあとの手順 3（`deployApp=true`）で作られる |
 
 確かめた結果: まだ（2026-11-02 時点では Azure のリソースグループがなく、最初のデプロイを流していない）。流したら、ここに日付と結果を書く。
+
+## GitHub Actions からのログイン（OIDC）
+
+GitHub Actions が Azure に渡す subject は、所有者とリポジトリの番号が入った形（`repo:所有者@番号/名前@番号:ref:refs/heads/main`）で届く。`main.bicep` は、この形と、番号のない古い形（`repo:所有者/名前:ref:refs/heads/main`）の両方を許す。番号はパラメーター `githubOwnerId` と `githubRepoId` で渡す（`gh api repos/<所有者>/<名前>` の `owner.id` と `id`）。`AADSTS700213` で止まったら、ログに出た subject と、この 2 つを比べる。
 
 ## 作り直すとき
 

@@ -16,6 +16,11 @@ param googleClientId string
 // GitHub のリポジトリ（所有者/名前）。GitHub Actions からの OIDC ログインを許す相手
 param githubRepo string = 'mistrevo/revalue-app'
 
+// GitHub の所有者とリポジトリの番号（鍵ではない。gh api repos/<所有者>/<名前> の owner.id と id）。
+// GitHub Actions の OIDC の subject は「repo:所有者@番号/名前@番号:ref:...」の形で届くため
+param githubOwnerId string = '203209215'
+param githubRepoId string = '1442540122'
+
 // Container App で動かすイメージ。最初は Microsoft の仮イメージ（ポート 8080 で待つ）
 param containerImage string = 'mcr.microsoft.com/dotnet/samples:aspnetapp'
 
@@ -63,14 +68,27 @@ resource githubIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-0
   location: location
 }
 
+// main ブランチからのログインだけを許す。subject は番号入りの形（いま GitHub が送る形）
 resource githubFederation 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
   parent: githubIdentity
   name: 'github-main'
   properties: {
     issuer: 'https://token.actions.githubusercontent.com'
+    subject: 'repo:${split(githubRepo, '/')[0]}@${githubOwnerId}/${split(githubRepo, '/')[1]}@${githubRepoId}:ref:refs/heads/main'
+    audiences: ['api://AzureADTokenExchange']
+  }
+}
+
+// 番号のない古い形も残す。同じ ID の資格情報は同時に書けないので、上のあとに作る
+resource githubFederationLegacy 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
+  parent: githubIdentity
+  name: 'github-main-legacy'
+  properties: {
+    issuer: 'https://token.actions.githubusercontent.com'
     subject: 'repo:${githubRepo}:ref:refs/heads/main'
     audiences: ['api://AzureADTokenExchange']
   }
+  dependsOn: [githubFederation]
 }
 
 // ---- Key Vault（鍵の保管庫） ----
