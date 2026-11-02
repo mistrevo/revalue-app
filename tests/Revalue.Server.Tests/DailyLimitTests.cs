@@ -108,6 +108,36 @@ public sealed class DailyLimitTests
         Assert.Equal(1, only.GetProperty("count").GetInt64());
     }
 
+    [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 翌日に開くだけで送らなくても、前の日の回数は残らない")]
+    public async Task PreviousDayCountIsNotKeptWhenOnlyOpening()
+    {
+        await using var factory = Limited();
+        factory.Clock.SetUtcNow(DateTimeOffset.Parse("2026-11-02T05:00:00Z"));
+        var client = await Consenting(factory, "a");
+        for (var i = 0; i < 2; i++)
+        {
+            Assert.Equal(HttpStatusCode.NoContent, (await Send(client)).StatusCode);
+        }
+
+        var store = (InMemoryDataStore)factory.Services.GetRequiredService<IDataStore>();
+        foreach (var day in new[] { "2026-11-03T05:00:00Z", "2026-11-30T05:00:00Z" })
+        {
+            factory.Clock.SetUtcNow(DateTimeOffset.Parse(day));
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/me", Ct)).StatusCode);
+
+            await foreach (var json in store.DumpRawJsonAsync(Ct))
+            {
+                using var document = JsonDocument.Parse(json);
+                var item = document.RootElement;
+                if (item.GetProperty("userKey").GetString() == TestUsers.Key("a") && item.GetProperty("type").GetString() == "usage")
+                {
+                    Assert.NotEqual("2026-11-02", item.GetProperty("date").GetString());
+                    Assert.Equal(0, item.GetProperty("count").GetInt64());
+                }
+            }
+        }
+    }
+
     [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 1 人が同時に送っても、上限を超えて通さない")]
     public async Task PerUserLimitHoldsUnderConcurrentSends()
     {

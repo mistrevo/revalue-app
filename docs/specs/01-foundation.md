@@ -47,7 +47,7 @@
 
 - 本番のログインは、Container Apps の組み込み認証（アプリの手前でログインを受け持つ機能）で行い、Google を使う。組み込み認証は、ログインしていない人も通す設定にする
 - 裏側は、組み込み認証が付けるヘッダー `X-MS-CLIENT-PRINCIPAL-IDP` と `X-MS-CLIENT-PRINCIPAL-ID` だけを読む。このヘッダーは外からは付けられず、組み込み認証が付けたときだけある（[公式ドキュメント](https://learn.microsoft.com/azure/container-apps/authentication)）。名前やメールアドレスの入ったヘッダーは読まない
-- 利用者キーは、「プロバイダー名:ID」を HMAC-SHA256（鍵を使って元に戻せない値に変える方法）で変換し、先頭に `u_` を付けた文字列にする。鍵は設定 `Auth__UserKeySecret` から読む（Claude の判断）
+- 利用者キーは、「プロバイダー名:ID」を HMAC-SHA256（鍵を使って元に戻せない値に変える方法）で変換し、先頭に `u_` を付けた文字列にする。鍵は設定 `Auth__UserKeySecret` から読み、なければ起動を止める。開発環境（Development）だけは、鍵がなければ起動ごとの乱数を鍵にする。手元はインメモリの保存先で、止めればデータも消えるので困らない（Claude の判断）
 - 開発環境（Development）だけ、偽のログインを使う。`/.auth/login/google` と `/.auth/logout` を裏側が受け、開発用の利用者でログインした状態にする。開発用の利用者はクッキーで覚え、`dev_user` を付けると別の利用者に切り替えられる。本番では、この偽のログインは動かない
 - テストでは、組み込み認証と同じヘッダーを付けて、利用者を切り替える
 
@@ -97,7 +97,7 @@
 - Google 側に登録したアプリのクライアント ID は、Bicep のパラメーター（作るときに外から渡す値）で渡す。対になるクライアントシークレット（鍵）は、Key Vault の `google-client-secret` から読む
 - `Dockerfile` は、画面を作る → 裏側を publish → 実行用の小さいイメージ、の 3 段にする
 - `.github/workflows/ci.yml` は、PR と push のたびに、裏側のビルドとテスト、画面のビルドとテスト、フックのテスト、`infra/main.bicep` のビルド（`az bicep build`）を回す。あわせてコンテナのイメージを作って起動し、`/api/health` が 200 と、作ったコミットを返すことを確かめる
-- `.github/workflows/deploy.yml` は、main に push されたときに動く。コンテナのイメージを `ghcr.io` に push し、Container App を新しいイメージに更新する。最後に、公開 URL の `/api/health` が今回のコミットを返し、`/` が 200 を返すことを確かめる。新しいリビジョン（Container App の版）が起動に失敗すると古いリビジョンがそのまま応答するので、200 だけでは確かめたことにならないため
+- `.github/workflows/deploy.yml` は、main に push されたときに動く。文書（`docs/` と `*.md`）だけの変更では動かない（Claude の判断）。コンテナのイメージを `ghcr.io` に push し、Container App を新しいイメージに更新する。最後に、公開 URL の `/api/health` が今回のコミットを返し、`/` が 200 を返すことを確かめる。新しいリビジョン（Container App の版）が起動に失敗すると古いリビジョンがそのまま応答するので、200 だけでは確かめたことにならないため
 - Azure の準備がまだ（リポジトリ変数 `AZURE_CLIENT_ID` がない）ときは、`deploy.yml` はデプロイを飛ばしてそう知らせ、失敗にはしない（Claude の判断）
 - Azure へは OIDC（鍵を保存せずに、その場かぎりの証明でログインする仕組み）でログインし、鍵を GitHub に置かない
 - Azure の場所やリソースの名前は、GitHub のリポジトリ変数（鍵ではない設定）で渡す

@@ -2,6 +2,7 @@ using System.Globalization;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
+using Revalue.Server.Features.Foundation.Limits;
 
 namespace Revalue.Server.Features.Foundation;
 
@@ -57,6 +58,14 @@ public sealed class DailyTouchMiddleware(RequestDelegate next)
 
         try
         {
+            // 保存するのは「その日の送信回数」だけ。日が変わったら、送らなくても前の日の回数を残さない。
+            // 置き直さないと、下の TouchAllAsync が前の日の回数の TTL まで延ばし続ける
+            var usage = await store.GetAsync<DailyCountItem>(userKey, DailyLimitFilter.UsageId, ct);
+            if (usage is not null && usage.Date != today)
+            {
+                await store.UpsertAsync(usage with { Date = today, Count = 0 }, ct);
+            }
+
             await store.TouchAllAsync(userKey, ct);
             await store.UpsertAsync(
                 new ActivityItem { Id = ActivityItem.ItemId, UserKey = userKey, Type = ActivityItem.ItemType, LastActiveDate = today },

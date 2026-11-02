@@ -9,9 +9,6 @@ export function Home() {
     <Page>
       <h1 className="text-xl leading-relaxed font-bold">{copy.home.greeting}</h1>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <Button size="lg" disabled className="w-full sm:w-auto">
-          {copy.home.talk}
-        </Button>
         <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
           <Link to="/settings">{copy.home.settingsLink}</Link>
         </Button>

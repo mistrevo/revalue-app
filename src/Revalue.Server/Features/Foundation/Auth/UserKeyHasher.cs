@@ -12,14 +12,31 @@ public sealed class UserKeyHasher
     private readonly byte[] _secret;
 
     public UserKeyHasher(IConfiguration config)
+        : this(config, environment: null)
+    {
+    }
+
+    /// <summary>
+    /// 開発環境（Development）だけは、鍵がなければ起動ごとの乱数を鍵にする。手元はインメモリの保存先で、
+    /// 止めればデータも消えるので、鍵が変わっても困らない。それ以外の環境では、鍵がなければ起動を止める。
+    /// </summary>
+    [ActivatorUtilitiesConstructor]
+    public UserKeyHasher(IConfiguration config, IHostEnvironment? environment)
     {
         var secret = config["Auth:UserKeySecret"];
-        if (string.IsNullOrEmpty(secret))
+        if (!string.IsNullOrEmpty(secret))
         {
-            throw new InvalidOperationException("Auth:UserKeySecret is not set.");
+            _secret = Encoding.UTF8.GetBytes(secret);
+            return;
         }
 
-        _secret = Encoding.UTF8.GetBytes(secret);
+        if (environment?.IsDevelopment() == true)
+        {
+            _secret = RandomNumberGenerator.GetBytes(32);
+            return;
+        }
+
+        throw new InvalidOperationException("Auth:UserKeySecret is not set.");
     }
 
     public string Hash(string provider, string principalId)

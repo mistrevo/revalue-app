@@ -46,6 +46,28 @@ public sealed class AuthTests
         Assert.ThrowsAny<Exception>(() => factory.CreateClient());
     }
 
+    [Theory(DisplayName = "foundation-5（名前とメールアドレスを残さない）: 本番でも鍵がなければ起動しない")]
+    [InlineData("Production")]
+    [InlineData("Testing")]
+    public async Task EmptySecretStopsStartupOutsideDevelopment(string environment)
+    {
+        await using var factory = new RevalueFactory()
+            .WithEnvironment(environment)
+            .WithSetting("Cosmos:Endpoint", "https://example.com:443/")
+            .WithSetting("Auth:UserKeySecret", "");
+
+        Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+    }
+
+    [Fact(DisplayName = "foundation-5（名前とメールアドレスを残さない）: 開発環境では鍵がなくても、その場かぎりの鍵で起動する")]
+    public async Task DevelopmentStartsWithoutSecret()
+    {
+        await using var factory = new RevalueFactory().WithEnvironment("Development").WithSetting("Auth:UserKeySecret", "");
+        var client = factory.CreateClient();
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/health", TestContext.Current.CancellationToken)).StatusCode);
+    }
+
     [Theory(DisplayName = "foundation-1（案内はログインなしで見られる）: 未ログインの /api は 401 の ProblemDetails")]
     [InlineData("GET", "/api/me")]
     [InlineData("POST", "/api/consent")]

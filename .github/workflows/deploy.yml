@@ -7,6 +7,10 @@ name: deploy
 on:
   push:
     branches: [main]
+    # 文書と進み具合だけの変更では、同じアプリを出し直さない
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
