@@ -46,6 +46,7 @@ const CONTEXT = [
   `ブランチ: ${a.branch}（${base} から切ってある。ほかのブランチに切り替えない）`,
   `受け入れ基準: ${criteria.join('、') || '（計画と Spec を参照）'}`,
   '人に質問しない。決められないことは安全な側に仮に決め、報告に「（Claude の判断）」と書く。',
+  'docs/superpowers/progress.md は書き換えない（main でだけメインのセッションが直す）。開発者に確かめてほしいことは、報告に書く。',
 ].join('\n')
 
 const IMPL_SCHEMA = {
