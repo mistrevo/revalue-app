@@ -27,7 +27,7 @@ public static class AbilityStates
         var events = evidence
             .Where(e => !e.General)
             .GroupBy(e => (e.Reading, e.Event))
-            .Select(g => (g.Key.Reading, g.Key.Event, Shown: OnePerAction(g)))
+            .Select(g => (g.Key.Reading, g.Key.Event, Shown: Counted(g)))
             .OrderByDescending(g => g.Shown.Count)
             .ThenByDescending(g => g.Reading)
             .ThenByDescending(g => g.Event)
@@ -61,6 +61,44 @@ public static class AbilityStates
         return missing.Order().OrderBy(told.Contains).Select(n => new ActionRef(ability, n)).ToList();
     }
 
+    /// <summary>
+    /// 一つの出来事の根拠のうち、数える根拠。行動ごとに 1 つ（答えの番号が小さいもの）を、行動の番号の順に。
+    /// ただし 3 つの行動の引用が、そのうち 1 つの引用の中にすべて収まるときは、ほかの 2 つを含む引用を数えない。
+    /// 同じ行動に、ほかの 2 つを含まない別の根拠があれば、そちらを数える。
+    /// 読み取りの AI が一つの句を切り分けて 3 つの行動に当てると、行動がそろっていないのに根拠ありになるため（validate-1。Claude の判断）。
+    /// 次の一手（<see cref="Discover.NextMovePolicy"/>）も、この数え方で足りない行動を決める。
+    /// </summary>
+    public static IReadOnlyList<Evidence> Counted(IEnumerable<Evidence> evidence)
+    {
+        var all = evidence.ToList();
+        var shown = OnePerAction(all);
+        if (shown.Count != ActionRef.ActionsPerAbility)
+        {
+            return shown;
+        }
+
+        foreach (var container in shown)
+        {
+            var others = shown.Where(e => e != container).ToList();
+            if (!others.All(o => Covers(container, o)))
+            {
+                continue;
+            }
+
+            var alternative = all
+                .Where(e => e.Action == container.Action && !others.All(o => Covers(e, o)))
+                .OrderBy(e => e.Answer)
+                .FirstOrDefault();
+            return alternative is null
+                ? others
+                : [.. shown.Select(e => e == container ? alternative : e)];
+        }
+
+        return shown;
+    }
+
+    private static bool Covers(Evidence outer, Evidence inner) => outer.Quote.Contains(inner.Quote, StringComparison.Ordinal);
+
     /// <summary>行動ごとに 1 つ（答えの番号が小さいもの）を、行動の番号の順に。</summary>
     private static List<Evidence> OnePerAction(IEnumerable<Evidence> evidence) =>
         evidence
@@ -69,6 +107,6 @@ public static class AbilityStates
             .Select(g => g.OrderBy(e => e.Answer).First())
             .ToList();
 
-    private static int[] MissingOf(List<Evidence> shown) =>
+    private static int[] MissingOf(IReadOnlyList<Evidence> shown) =>
         AllActions.Where(n => shown.All(e => e.Action != n)).ToArray();
 }

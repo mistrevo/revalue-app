@@ -27,6 +27,47 @@ public sealed class AbilityStatesTests
         Assert.Equal("早いほう", coordinating.Shown[1].Quote);
     }
 
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 3 つの行動の引用が 1 つの引用の中にすべて収まるときは、ほかの 2 つを含む引用を数えず、根拠ありにしない")]
+    public void OneSpanCoveringAllThreeDoesNotConfirm()
+    {
+        var results = AbilityStates.Evaluate(
+        [
+            E(Ability.Coordinating, 1, 1, quote: "歯医者に電話して予約を夕方に変えてもらい"),
+            E(Ability.Coordinating, 2, 1, quote: "歯医者に電話して"),
+            E(Ability.Coordinating, 3, 1, quote: "予約を夕方に変えてもらい"),
+        ]);
+
+        var coordinating = Of(results, Ability.Coordinating);
+        Assert.Equal(AbilityState.NeedsCheck, coordinating.State);
+        Assert.Equal([2, 3], coordinating.Shown.Select(e => e.Action));
+        Assert.Equal([1], coordinating.Missing);
+
+        // 3 つが同じ引用でも、根拠ありにしない
+        var same = Of(AbilityStates.Evaluate(
+        [
+            E(Ability.Noticing, 1, 1, quote: "いつもと違うと思った"),
+            E(Ability.Noticing, 2, 1, quote: "いつもと違うと思った"),
+            E(Ability.Noticing, 3, 1, quote: "いつもと違うと思った"),
+        ]), Ability.Noticing);
+        Assert.Equal(AbilityState.NeedsCheck, same.State);
+    }
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: ほかの 2 つを含む引用の行動に、別の部分の根拠もあれば、そちらで根拠ありにする")]
+    public void ContainerWithAnotherQuoteStillConfirms()
+    {
+        var results = AbilityStates.Evaluate(
+        [
+            E(Ability.Coordinating, 1, 1, answer: 1, quote: "歯医者に電話して予約を夕方に変えてもらい"),
+            E(Ability.Coordinating, 1, 1, answer: 2, quote: "夫は夕方まで仕事で、子どもは午後に習い事がありました"),
+            E(Ability.Coordinating, 2, 1, answer: 1, quote: "歯医者に電話して"),
+            E(Ability.Coordinating, 3, 1, answer: 1, quote: "予約を夕方に変えてもらい"),
+        ]);
+
+        var coordinating = Of(results, Ability.Coordinating);
+        Assert.Equal(AbilityState.Confirmed, coordinating.State);
+        Assert.Equal("夫は夕方まで仕事で、子どもは午後に習い事がありました", coordinating.Shown[0].Quote);
+    }
+
     [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: そろう出来事が複数あれば、番号の大きい出来事の根拠を出す")]
     public void LaterCompleteEventIsShown()
     {

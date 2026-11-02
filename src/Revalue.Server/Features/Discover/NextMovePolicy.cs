@@ -172,7 +172,7 @@ public static class NextMovePolicy
         var candidates = specific
             .Where(e => (e.Reading, e.Event) == currentEvent && !confirmed.Contains(e.Ability))
             .GroupBy(e => e.Ability)
-            .Select(g => (Ability: g.Key, Actions: g.Select(e => e.Action).Distinct().ToHashSet()))
+            .Select(g => (Ability: g.Key, Actions: AbilityStates.Counted(g).Select(e => e.Action).ToHashSet()))
             .Where(c => c.Actions.Count < ActionRef.ActionsPerAbility)
             .OrderByDescending(c => c.Actions.Count)
             .ThenBy(c => c.Ability);

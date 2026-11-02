@@ -93,6 +93,22 @@ public sealed class NextMovePolicyTests
             NextMovePolicy.Decide(Concrete, 2, context));
     }
 
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 3 つの行動の引用が 1 つの引用の中に収まるときは、ほかの 2 つを含む引用の行動を足りない行動として聞く")]
+    public void AsksActionOfContainingQuote()
+    {
+        static Evidence Q(int action, string quote) => new(Ability.Coordinating, action, quote, 1, 1, false, false, null);
+        var context = Context(1,
+        [
+            Q(1, "歯医者に電話して予約を夕方に変えてもらい"),
+            Q(2, "歯医者に電話して"),
+            Q(3, "予約を夕方に変えてもらい"),
+        ]);
+
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 1)),
+            NextMovePolicy.Decide(Concrete, 1, context));
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 同じ行動は 2 回まで。2 回聞いたら次の足りない行動か、いつもの一手へ")]
     public void SameActionAtMostTwice()
     {

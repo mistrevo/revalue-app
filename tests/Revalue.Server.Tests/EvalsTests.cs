@@ -402,13 +402,23 @@ public sealed class EvalsTests
     private static ScriptedAnswer Correction(string text) => new(text, false, IsCorrection: true);
 
     /// <summary>本人の 1 番目の答えから、調整する力の行動の根拠の候補を返す読み取り。</summary>
+    /// <summary>
+    /// 最初の答えから、調整する力の行動ごとに別々の部分を引く読み取り。行動 1〜3 は <see cref="CoordinatingParts"/> の順。
+    /// 最初の答えにその部分がなければ（台本が別の答えなら）、答え全体を引く。
+    /// </summary>
     private static Func<IReadOnlyList<Turn>, TurnReading> CoordinatingFromFirstAnswer(params int[] actions) => turns =>
     {
         var first = turns.First(t => t.Role == TurnRoles.User).Text;
         return new TurnReading(
             new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent },
-            actions.Select(a => new EvidenceCandidate(Ability.Coordinating, a, first, 1, 1, false, "", 0)).ToList());
+            actions.Select(a =>
+            {
+                var part = CoordinatingParts[a - 1];
+                return new EvidenceCandidate(Ability.Coordinating, a, first.Contains(part, StringComparison.Ordinal) ? part : first, 1, 1, false, "", 0);
+            }).ToList());
     };
+
+    private static readonly string[] CoordinatingParts = ["夫と義母の都合を聞いて", "私から声をかけて", "日を入れ替えて合わせました"];
 
     private const string CoordinatingAnswer = "夫と義母の都合を聞いて、私から声をかけて、日を入れ替えて合わせました。";
 
