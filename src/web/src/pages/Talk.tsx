@@ -184,7 +184,12 @@ function TalkScreen({ id }: { id: string }) {
     try {
       const next = await skipEpisode(id)
       navigate(`/talk/${next.id}`, { replace: true })
-    } catch {
+    } catch (e) {
+      // この場面は消えたが、ほかの画面で別の場面がもう始まっていた。2 つ目は作られないので、その場面を開く
+      if (e instanceof ApiError && e.status === 409 && e.episodeId) {
+        navigate(`/talk/${e.episodeId}`, { replace: true })
+        return
+      }
       setActionFailed(true)
       setBusy(false)
     }

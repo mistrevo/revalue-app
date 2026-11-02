@@ -74,6 +74,11 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
       | { status: number; body: unknown },
     /** true なら、答えを送ったときの流れをテストが streams から少しずつ送る。 */
     manualStream: false,
+    /**
+     * 飛ばしたときに、ほかの画面で始まっていた場面の id。入れると、飛ばした場面を消したうえで、
+     * 新しい場面を作らずに 409（その場面の id 付き）を返す。
+     */
+    skipFindsInProgress: null as string | null,
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -169,6 +174,9 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
       }
       if (action === 'skip' && method === 'POST') {
         state.episodes = state.episodes.filter((e) => e.id !== episode.id)
+        if (state.skipFindsInProgress) {
+          return json(409, { type: '/problems/episode-in-progress', status: 409, episodeId: state.skipFindsInProgress })
+        }
         const next = newEpisode(FAKE_AFTER_SKIP)
         state.episodes.push(next)
         return json(201, next)

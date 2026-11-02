@@ -40,6 +40,12 @@ public interface IDataStore
     /// <summary>その人のアイテムを 1 件消す。なければ何もしない。global は消せない。</summary>
     Task DeleteAsync(string userKey, string id, CancellationToken ct);
 
+    /// <summary>
+    /// 版が etag のままのときだけ 1 件消して true を返す。消えていた、ほかの要求が先に書いた、のどちらでも、何もせず false を返す。
+    /// 確かめて消すまでを一続きで行う。global は消せない。
+    /// </summary>
+    Task<bool> TryDeleteAsync(string userKey, string id, string etag, CancellationToken ct);
+
     /// <summary>その人のアイテムをすべて消す。了解の記録を最初に消し、そのあとの書き込みを止めてから残りを消す。global は消せない。</summary>
     Task DeleteAllAsync(string userKey, CancellationToken ct);
 

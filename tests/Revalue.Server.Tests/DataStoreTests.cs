@@ -143,6 +143,27 @@ public sealed class DataStoreTests
         }
     }
 
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 版が読んだときのままなら消し、ほかの要求が先に書いていたら消さない")]
+    public async Task TryDeleteOnlyWhenVersionMatches()
+    {
+        var (store, _) = Create();
+        await Consent(store, "u_a");
+        await store.UpsertAsync(Note("u_a", "n1", "一つ目"), Ct);
+        var read = (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!;
+
+        // ほかの要求が先に書いた
+        await store.UpsertAsync(Note("u_a", "n1", "ほかの画面"), Ct);
+        Assert.False(await store.TryDeleteAsync("u_a", "n1", read.ETag, Ct));
+        Assert.Equal("ほかの画面", (await store.GetAsync<NoteItem>("u_a", "n1", Ct))!.Text);
+
+        // 読み直した版なら消せる。消えたあとは、同じ版でも何もしない
+        var again = (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!;
+        Assert.True(await store.TryDeleteAsync("u_a", "n1", again.ETag, Ct));
+        Assert.Null(await store.GetAsync<NoteItem>("u_a", "n1", Ct));
+        Assert.False(await store.TryDeleteAsync("u_a", "n1", again.ETag, Ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.TryDeleteAsync(DataConstants.GlobalPartition, "g1", again.ETag, Ct));
+    }
+
     [Fact(DisplayName = "discover-8（話した出来事が残る）: 版が読んだときのままなら置き換え、ほかの要求が先に書いていたら何もしない")]
     public async Task ReplaceOnlyWhenVersionMatches()
     {

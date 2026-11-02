@@ -51,18 +51,13 @@ public static class DiscoverEndpoints
                 .ToList());
         });
 
+        // 話している途中の場面があれば、作らずに 409 で知らせる。2 つの画面から同時に押しても 1 つだけ作る
         episodes.MapPost("/", async (HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
         {
             var userKey = http.User.GetUserKey()!;
-            var talking = await FindTalkingAsync(store, userKey, ct);
-            if (talking is not null)
-            {
-                return InProgress(talking.Id);
-            }
-
-            var episode = EpisodeItem.Start(userKey, time.GetUtcNow(), DiscoverText.Opening, DiscoverText.OpeningChoices, "opening");
-            await store.UpsertAsync(episode, ct);
-            return Created(episode);
+            var outcome = await EpisodeStarter.StartAsync(
+                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), DiscoverText.Opening, DiscoverText.OpeningChoices, "opening"), ct);
+            return Started(outcome);
         });
 
         episodes.MapGet("/{id}", async (string id, HttpContext http, IDataStore store, CancellationToken ct) =>
@@ -126,23 +121,38 @@ public static class DiscoverEndpoints
         episodes.MapPost("/{id}/skip", async (string id, HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
         {
             var userKey = http.User.GetUserKey()!;
-            var episode = await FindAsync(store, userKey, id, ct);
-            if (episode is null)
+
+            // 中身を残さないよう、先に元の場面を消してから、新しい場面を作る。
+            // 消すのは、読んだときから変わっていない、話している途中の場面だけ（版が合うときだけ消す）。
+            // ほかの画面で区切られた場面は消さず、ほかの画面で先に飛ばされていたら 404 を返す。
+            // 読んでから消すまでにほかの画面で 1 往復が保存されたときは、読み直して、それも含めて消す（飛ばすのは場面ごと）
+            var removed = false;
+            for (var attempt = 0; attempt < DataStoreExtensions.MaxUpdateAttempts && !removed; attempt++)
             {
-                return NotFound();
+                var read = await FindVersionedAsync(store, userKey, id, ct);
+                if (read is null)
+                {
+                    return NotFound();
+                }
+
+                // 飛ばせるのは話している途中の場面だけ。話し終えた場面から飛ばすと、途中の場面が 2 つになりうる（Claude の判断）
+                if (read.Item.Status == EpisodeStatus.Finished)
+                {
+                    return AlreadyFinished();
+                }
+
+                removed = await store.TryDeleteAsync(userKey, id, read.ETag, ct);
             }
 
-            // 飛ばせるのは話している途中の場面だけ。話し終えた場面から飛ばすと、途中の場面が 2 つになりうる（Claude の判断）
-            if (episode.Status == EpisodeStatus.Finished)
+            if (!removed)
             {
-                return AlreadyFinished();
+                throw new InvalidOperationException($"Could not skip the episode after {DataStoreExtensions.MaxUpdateAttempts} attempts.");
             }
 
-            // 中身を残さないよう、先に元の場面を消してから、新しい場面を作る
-            await store.DeleteAsync(userKey, episode.Id, ct);
-            var next = EpisodeItem.Start(userKey, time.GetUtcNow(), DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices, "afterSkip");
-            await store.UpsertAsync(next, ct);
-            return Created(next);
+            // 消したあと、ほかの画面で新しい場面が始まっていたら、2 つ目は作らずに 409 でその場面を知らせる
+            var outcome = await EpisodeStarter.StartAsync(
+                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices, "afterSkip"), ct);
+            return Started(outcome);
         });
     }
 
@@ -158,11 +168,21 @@ public static class DiscoverEndpoints
         return episode?.Type == EpisodeItem.ItemType ? episode : null;
     }
 
-    private static async Task<EpisodeItem?> FindTalkingAsync(IDataStore store, string userKey, CancellationToken ct)
+    /// <summary><see cref="FindAsync"/> と同じものを、読んだときの版と一緒に読む。</summary>
+    private static async Task<Versioned<EpisodeItem>?> FindVersionedAsync(IDataStore store, string userKey, string id, CancellationToken ct)
     {
-        var items = await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct);
-        return items.Where(e => e.Status == EpisodeStatus.Talking).OrderByDescending(e => e.StartedAt).FirstOrDefault();
+        if (!EpisodeItem.IsEpisodeId(id))
+        {
+            return null;
+        }
+
+        var read = await store.GetVersionedAsync<EpisodeItem>(userKey, id, ct);
+        return read?.Item.Type == EpisodeItem.ItemType ? read : null;
     }
+
+    /// <summary>始めた場面は 201、話している途中の場面があって始めなかったときは 409（その場面の id 付き）。</summary>
+    private static IResult Started(StartOutcome outcome) =>
+        outcome.Started is { } episode ? Created(episode) : InProgress(outcome.InProgress!.Id);
 
     private static string Preview(EpisodeItem episode)
     {

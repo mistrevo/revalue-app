@@ -120,6 +120,24 @@ describe('Talk', () => {
     expect(confirmSpy).not.toHaveBeenCalled()
   })
 
+  it('discover-5（つらい話は飛ばせる）: 飛ばしたとき、ほかの画面で別の場面が始まっていたら、その場面を開く', async () => {
+    const api = setup()
+    const other = fakeEpisode({
+      id: 'episode-2',
+      startedAt: '2026-11-03T01:30:00Z',
+      turns: [{ role: 'assistant', text: 'ほかの画面で始めた場面の問い', choices: FAKE_OPENING_CHOICES, move: 'opening', at: '2026-11-03T01:30:00Z' }],
+    })
+    api.state.episodes.push(other)
+    api.state.skipFindsInProgress = other.id
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.skip }))
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.skipYes }))
+
+    expect(await screen.findByText('ほかの画面で始めた場面の問い')).toBeInTheDocument()
+    expect(screen.queryByText(FAKE_OPENING)).not.toBeInTheDocument()
+    expect(screen.queryByText(copy.errors.generic)).not.toBeInTheDocument()
+  })
+
   it('discover-6（一場面ずつ区切り、続きから話せる）: 区切るとホームへ', async () => {
     const api = setup()
 

@@ -110,6 +110,22 @@ public sealed class CosmosDataStore(Container container) : IDataStore
         await DeleteIgnoringMissingAsync(id, new PartitionKey(userKey), null, ct);
     }
 
+    public async Task<bool> TryDeleteAsync(string userKey, string id, string etag, CancellationToken ct)
+    {
+        InMemoryDataStore.EnsureNotGlobal(userKey);
+
+        // IfMatchEtag で、読んだときから変わっていないときだけ消す。消すのに了解の記録は要らない（全部消すと同じ）
+        using var response = await container.DeleteItemStreamAsync(id, new PartitionKey(userKey), new ItemRequestOptions { IfMatchEtag = etag }, ct);
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            // 消えたか、ほかの要求が先に書いた
+            return false;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return true;
+    }
+
     public async Task DeleteAllAsync(string userKey, CancellationToken ct)
     {
         InMemoryDataStore.EnsureNotGlobal(userKey);

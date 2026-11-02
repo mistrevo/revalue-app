@@ -11,7 +11,7 @@ public sealed class InterruptingDataStore(IDataStore inner) : IDataStore
 {
     private readonly Lock _gate = new();
     private string? _deleteAllBefore;
-    private (string Id, Func<IDataStore, Task> Action)? _beforeWriting;
+    private (Func<string, bool> Match, Func<IDataStore, Task> Action)? _beforeWriting;
 
     /// <summary>テスト用の保存先に差し替える。</summary>
     public static void Install(IServiceCollection services) =>
@@ -21,19 +21,27 @@ public sealed class InterruptingDataStore(IDataStore inner) : IDataStore
     public void DeleteAllOnceBefore(string operation) => Volatile.Write(ref _deleteAllBefore, operation);
 
     /// <summary>
-    /// 次に id のアイテムを書くとき（どの書き方でも）、その直前に一度だけ action を割り込ませる。
+    /// 次に id のアイテムを書くか消すとき（どの書き方でも）、その直前に一度だけ action を割り込ませる。
     /// action には中の保存先を渡すので、action の中の書き込みには割り込まない。
     /// </summary>
-    public void RunOnceBeforeWriting(string id, Func<IDataStore, Task> action)
+    public void RunOnceBeforeWriting(string id, Func<IDataStore, Task> action) => RunOnceBeforeWriting(i => i == id, action);
+
+    /// <summary>次に id のアイテムを書くか消すとき、その直前に一度だけ、API などほかの要求を割り込ませる（中の保存先は渡さない）。</summary>
+    public void RunOnceBeforeWriting(string id, Func<Task> action) => RunOnceBeforeWriting(id, _ => action());
+
+    /// <summary>
+    /// 次に match に合う id のアイテムを書くか消すとき、その直前に一度だけ、API などほかの要求を割り込ませる。
+    /// まだ id の分からない、これから作るアイテムの直前に割り込ませるときに使う。
+    /// </summary>
+    public void RunOnceBeforeWriting(Func<string, bool> match, Func<Task> action) => RunOnceBeforeWriting(match, _ => action());
+
+    private void RunOnceBeforeWriting(Func<string, bool> match, Func<IDataStore, Task> action)
     {
         lock (_gate)
         {
-            _beforeWriting = (id, action);
+            _beforeWriting = (match, action);
         }
     }
-
-    /// <summary>次に id のアイテムを書くとき、その直前に一度だけ、API などほかの要求を割り込ませる（中の保存先は渡さない）。</summary>
-    public void RunOnceBeforeWriting(string id, Func<Task> action) => RunOnceBeforeWriting(id, _ => action());
 
     public Task<T?> GetAsync<T>(string userKey, string id, CancellationToken ct) where T : Item => inner.GetAsync<T>(userKey, id, ct);
 
@@ -66,7 +74,17 @@ public sealed class InterruptingDataStore(IDataStore inner) : IDataStore
 
     public Task<int> CountAllAsync(string userKey, CancellationToken ct) => inner.CountAllAsync(userKey, ct);
 
-    public Task DeleteAsync(string userKey, string id, CancellationToken ct) => inner.DeleteAsync(userKey, id, ct);
+    public async Task DeleteAsync(string userKey, string id, CancellationToken ct)
+    {
+        await BeforeWritingAsync(id);
+        await inner.DeleteAsync(userKey, id, ct);
+    }
+
+    public async Task<bool> TryDeleteAsync(string userKey, string id, string etag, CancellationToken ct)
+    {
+        await BeforeWritingAsync(id);
+        return await inner.TryDeleteAsync(userKey, id, etag, ct);
+    }
 
     public Task DeleteAllAsync(string userKey, CancellationToken ct) => inner.DeleteAllAsync(userKey, ct);
 
@@ -97,7 +115,7 @@ public sealed class InterruptingDataStore(IDataStore inner) : IDataStore
         Func<IDataStore, Task>? action = null;
         lock (_gate)
         {
-            if (_beforeWriting is { } hook && hook.Id == id)
+            if (_beforeWriting is { } hook && hook.Match(id))
             {
                 action = hook.Action;
                 _beforeWriting = null;

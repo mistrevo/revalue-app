@@ -112,6 +112,21 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
         return Task.CompletedTask;
     }
 
+    public Task<bool> TryDeleteAsync(string userKey, string id, string etag, CancellationToken ct)
+    {
+        EnsureNotGlobal(userKey);
+        lock (_gate)
+        {
+            if (!TryGetLive(userKey, id, out var entry) || ETagOf(entry) != etag)
+            {
+                return Task.FromResult(false);
+            }
+
+            _items.Remove((userKey, id));
+            return Task.FromResult(true);
+        }
+    }
+
     public Task DeleteAllAsync(string userKey, CancellationToken ct)
     {
         EnsureNotGlobal(userKey);
