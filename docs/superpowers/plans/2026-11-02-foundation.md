@@ -255,12 +255,12 @@ infra/README.md                                       最初の 1 回の手順
 - Consumes: `RevalueFactory.CapturedLogs`、`InMemoryDataStore.DumpRawJsonAsync`
 - Produces: アクセスログ 1 行の形: メソッド、エンドポイントのルートの型（`/api/me` のような。実際のパスやクエリは書かない）、状態コード、かかったミリ秒、利用者キー
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   目印: 名前 `架空 花子`、メール `hanako@example.com`、話した内容 `目印-話した内容-7f3a`。
   - `common-2（ログに中身を書かない）: 目印がログに出ない` — `X-MS-CLIENT-PRINCIPAL-NAME: hanako@example.com` と `X-MS-CLIENT-PRINCIPAL`（`架空 花子` を含む JSON を Base64）を付け、`POST /api/consent` の本文に `目印-話した内容-7f3a` を足したり、クエリに入れたりして数回呼ぶ → `CapturedLogs` のどの行にも 3 つの目印が出ない。アクセスログの行は 1 件以上ある（ログ自体は出ている）
   - `foundation-5（名前とメールアドレスを残さない）: 保存したアイテムに名前とメールアドレスが入らない` — 上と同じ要求のあと、`DumpRawJsonAsync` のどれにも `hanako@example.com` と `架空 花子` が出ない
 
-- [ ] **Step 2: 失敗を確かめる** → **Step 3: 実装する**（`UseHttpLogging` で本文やヘッダーを書く設定にしない。例外のログにも要求の中身を入れない）→ **Step 4: 通ることを確かめ、コミットする**
+- [x] **Step 2: 失敗を確かめる** → **Step 3: 実装する**（`UseHttpLogging` で本文やヘッダーを書く設定にしない。例外のログにも要求の中身を入れない）→ **Step 4: 通ることを確かめ、コミットする**
   `ログに中身を書かないようにする（common-2 ログに中身を書かない、foundation-5 名前とメールアドレスを残さない）`
 
 ---

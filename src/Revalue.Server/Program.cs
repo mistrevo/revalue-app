@@ -16,6 +16,7 @@ builder.Services.AddSingleton<ICounter, Counter>();
 
 var app = builder.Build();
 
+app.UseMiddleware<RequestLogMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseDefaultFiles();
