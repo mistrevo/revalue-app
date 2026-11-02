@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Revalue.Server.Data;
 using Revalue.Server.Features.Profile;
 using Revalue.Server.Features.Validate;
 
@@ -7,10 +9,14 @@ namespace Revalue.Server.Features.Options;
 /// <summary>職種と業務のデータの出典。job tag の利用規約の記載例どおりに、データと一緒に持つ。</summary>
 public sealed record JobSource(string Text, string Url, string Note);
 
-/// <summary>業務をする場所。</summary>
+/// <summary>業務をする場所。保存と API では <c>home</c> / <c>out</c>。</summary>
+[JsonConverter(typeof(NamedEnumConverter<TaskPlace>))]
 public enum TaskPlace
 {
+    [JsonStringEnumMemberName("home")]
     Home,
+
+    [JsonStringEnumMemberName("out")]
     Out,
 }
 

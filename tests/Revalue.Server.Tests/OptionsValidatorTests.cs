@@ -1,0 +1,301 @@
+using Revalue.Server.Features.Foundation;
+using Revalue.Server.Features.Options;
+using Revalue.Server.Features.Profile;
+using Revalue.Server.Features.Validate;
+
+namespace Revalue.Server.Tests;
+
+public sealed class OptionsValidatorTests
+{
+    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-11-03T03:00:00Z");
+    private static readonly JobCatalog Catalog = JobCatalog.Load();
+    private static readonly ForbiddenWordList Forbidden = ForbiddenWordList.Load();
+
+    private const string Q1 = "夫と母の予定がぶつかって";
+    private const string Q2 = "班の 2 家族に連絡しました";
+
+    private static Evidence E(Ability ability, int action, string quote) => new(ability, action, quote, 1, 1, false, false, null);
+
+    private static readonly Evidence[] CoordinatingQuotes = [E(Ability.Coordinating, 1, Q1), E(Ability.Coordinating, 2, Q2)];
+
+    private static OptionsInputs Inputs(
+        int hours = 10, Place place = Place.HomeOnly, TimeSlot[]? slots = null, Ability[]? excluded = null, Ability[]? usable = null) =>
+        new(
+            new ProfileConditions(slots ?? [TimeSlot.Daytime, TimeSlot.Evening], hours, place, 5),
+            true,
+            (usable ?? [Ability.Coordinating]).Select(a => new UsableAbility(
+                a, AbilityState.NeedsCheck, a == Ability.Coordinating ? CoordinatingQuotes : [E(a, 1, "予定を見比べました")])).ToList(),
+            excluded ?? [],
+            [],
+            [],
+            null);
+
+    private static ChooseDraft GoodChoose() => new(true, "online-secretary", ["online-secretary-schedule"], "coordinating", "話してくれた「班の 2 家族」への連絡を、日程の調整に生かせるかもしれません。");
+
+    private static CombineDraft GoodCombine() =>
+        new(true, ["online-secretary-schedule", "recruiting-interview-schedule"], "予定をつなぐ人", "coordinating", "予定を合わせた経験を、二つの仕事に生かせるかもしれません。");
+
+    private static CreateDraft GoodCreate() =>
+        new(true, "近所の予定合わせ", "小さな子のいる家庭の", "習い事の送迎の都合が合わないこと", "送迎の予定を取りまとめて、組み合わせを提案する事業のアイデア",
+            "coordinating", [Q1], 5, "home", ["daytime"], "話してくれた「夫と母の予定がぶつかって」の場面の段取りが、生かせるかもしれません。");
+
+    private static OptionsDraft Draft(ChooseDraft? choose = null, CombineDraft? combine = null, CreateDraft? create = null) =>
+        new(choose ?? GoodChoose(), combine ?? GoodCombine(), create ?? GoodCreate());
+
+    private static (OptionCards Cards, IReadOnlyList<CardRejection> Rejections) Build(OptionsDraft draft, OptionsInputs? inputs = null)
+    {
+        inputs ??= Inputs();
+        return OptionsValidator.Build(draft, OptionCandidates.From(Catalog, inputs), inputs, Catalog, Forbidden, Now);
+    }
+
+    private static void AssertRejected(CardKind kind, string rule, OptionsDraft draft, OptionsInputs? inputs = null)
+    {
+        var (cards, rejections) = Build(draft, inputs);
+        Assert.Contains(new CardRejection(kind, rule), rejections);
+        Assert.Contains(new MissingCard(kind, MissingReason.Rejected), cards.Missing);
+        Assert.True(kind switch
+        {
+            CardKind.Choose => cards.Choose is null,
+            CardKind.Combine => cards.Combine is null,
+            _ => cards.Create is null,
+        });
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 候補の職種と業務と使える力でできた選ぶは、カードになる")]
+    public void ValidChooseBecomesACard()
+    {
+        var (cards, rejections) = Build(Draft());
+
+        Assert.Empty(rejections);
+        var choose = cards.Choose!;
+        Assert.Equal("オンライン秘書", choose.OccupationName);
+        Assert.Equal("online-secretary-schedule", Assert.Single(choose.Tasks).TaskId);
+        Assert.Equal([TimeSlot.Daytime, TimeSlot.Evening], choose.Tasks[0].TimeSlots);
+        Assert.Equal(new WorkRange(3, 10, 15000, 80000), choose.Range);
+        Assert.Equal((Ability.Coordinating, AbilityState.NeedsCheck), (choose.Ability.Ability, choose.Ability.State));
+        Assert.Equal([Q1, Q2], choose.Ability.Quotes.Select(q => q.Quote));
+        Assert.Empty(cards.Missing);
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 登録にない ID の選ぶは出さない")]
+    public void UnknownIdsAreRejected()
+    {
+        AssertRejected(CardKind.Choose, "unknownId", Draft(choose: GoodChoose() with { OccupationId = "no-such" }));
+        AssertRejected(CardKind.Choose, "unknownId", Draft(choose: GoodChoose() with { TaskIds = ["no-such-task"] }));
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 選んだ職種の業務でない業務、業務の数が合わない選ぶは出さない")]
+    public void WrongOccupationAndTaskCountAreRejected()
+    {
+        AssertRejected(CardKind.Choose, "wrongOccupation", Draft(choose: GoodChoose() with { TaskIds = ["recruiting-interview-schedule"] }));
+        AssertRejected(CardKind.Choose, "taskCount", Draft(choose: GoodChoose() with { TaskIds = [] }));
+        AssertRejected(CardKind.Choose, "taskCount", Draft(choose: GoodChoose() with { TaskIds = ["online-secretary-schedule", "online-secretary-schedule"] }));
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: 登録にあっても条件に合わない業務は出さない")]
+    public void RegisteredButOutOfConditionsTaskIsRejected()
+    {
+        var choose = new ChooseDraft(true, "accounting-clerk", ["accounting-cash"], "noticing", "見立ててきた経験が生かせるかもしれません。");
+        var inputs = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+
+        var (cards, rejections) = Build(Draft(choose: choose), inputs);
+
+        Assert.Null(cards.Choose);
+        Assert.Contains(new CardRejection(CardKind.Choose, "unknownId"), rejections);
+        Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.Rejected), cards.Missing);
+    }
+
+    [Fact(DisplayName = "options-3（組み合わせるは登録した業務から）: 1 つの職種だけの組み合わせ、業務が 1 つ、始めやすさの合計が本人の時間を超える組み合わせは出さない")]
+    public void BadCombinationsAreRejected()
+    {
+        var (cards, rejections) = Build(Draft());
+        Assert.Empty(rejections);
+        Assert.Equal(2, cards.Combine!.Tasks.Count);
+        Assert.NotNull(cards.Combine.Range);
+
+        AssertRejected(CardKind.Combine, "singleOccupation", Draft(combine: GoodCombine() with { TaskIds = ["online-secretary-schedule", "online-secretary-arrangement"] }));
+        AssertRejected(CardKind.Combine, "taskCount", Draft(combine: GoodCombine() with { TaskIds = ["online-secretary-schedule"] }));
+        AssertRejected(CardKind.Combine, "unknownId", Draft(combine: GoodCombine() with { TaskIds = ["online-secretary-schedule", "no-such"] }));
+        // 3 + 3 = 6 時間から。本人は週 5 時間
+        AssertRejected(CardKind.Combine, "overHours", Draft(combine: GoodCombine()), Inputs(hours: 5));
+    }
+
+    [Fact(DisplayName = "options-4（創るは根拠を引けるときだけ）: 根拠の言葉と一字一句同じ言葉を引いた創るだけを出す")]
+    public void CreateNeedsVerbatimQuotes()
+    {
+        var (cards, rejections) = Build(Draft(create: GoodCreate() with { Quotes = [$" {Q1} "] }));
+        Assert.Empty(rejections);
+        Assert.Equal([Q1], cards.Create!.Ability.Quotes.Select(q => q.Quote));
+
+        AssertRejected(CardKind.Create, "quoteNotVerbatim", Draft(create: GoodCreate() with { Quotes = ["夫と母の予定がぶつかった"] }));
+        AssertRejected(CardKind.Create, "quoteNotVerbatim", Draft(create: GoodCreate() with { Quotes = [] }));
+        AssertRejected(CardKind.Create, "quoteNotVerbatim", Draft(create: GoodCreate() with { Quotes = [Q1, Q2, Q1, Q2] }));
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: 創るは、時間、場所、時間帯が本人の条件に収まるときだけ出す")]
+    public void CreateMustFitConditions()
+    {
+        AssertRejected(CardKind.Create, "overHours", Draft(create: GoodCreate() with { HoursPerWeek = 11 }));
+        AssertRejected(CardKind.Create, "overHours", Draft(create: GoodCreate() with { HoursPerWeek = 0 }));
+        AssertRejected(CardKind.Create, "outsideConditions", Draft(create: GoodCreate() with { Place = "out" }));
+        AssertRejected(CardKind.Create, "outsideConditions", Draft(create: GoodCreate() with { Place = "abroad" }));
+        AssertRejected(CardKind.Create, "outsideConditions", Draft(create: GoodCreate() with { TimeSlots = ["night"] }));
+        AssertRejected(CardKind.Create, "outsideConditions", Draft(create: GoodCreate() with { TimeSlots = [] }));
+        AssertRejected(CardKind.Create, "outsideConditions", Draft(create: GoodCreate() with { TimeSlots = ["noon"] }));
+
+        var (cards, _) = Build(Draft(create: GoodCreate() with { Place = "out" }), Inputs(place: Place.CanGoOut));
+        Assert.Equal(TaskPlace.Out, cards.Create!.Place);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 外した力、使えない力、業務と合わない力のカードは出さない")]
+    public void AbilityMustBeUsableAndMatchTasks()
+    {
+        AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "noticing" }));
+        AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "cooking" }));
+        AssertRejected(CardKind.Combine, "abilityNotUsable", Draft(combine: GoodCombine() with { Ability = "prioritizing" }));
+        AssertRejected(CardKind.Create, "abilityNotUsable", Draft(create: GoodCreate() with { Ability = "noticing" }));
+        // 外した力は使える力に入らない
+        var excluded = Inputs(excluded: [Ability.Noticing], usable: [Ability.Coordinating]);
+        AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "noticing" }), excluded);
+        // 見立てる力は使えるが、日程の調整の業務の使う力は調整する力
+        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        AssertRejected(CardKind.Choose, "abilityNotInTasks", Draft(choose: GoodChoose() with { Ability = "noticing", Reason = "見立ててきた経験が生かせるかもしれません。" }), both);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が本人の根拠にないカードは出さない")]
+    public void BracketQuoteNotInEvidenceIsRejected()
+    {
+        AssertRejected(CardKind.Choose, "bracketNotVerbatim", Draft(choose: GoodChoose() with { Reason = "「早めに連絡しました」と話してくれた経験が、生かせるかもしれません。" }));
+        AssertRejected(CardKind.Combine, "bracketNotVerbatim", Draft(combine: GoodCombine() with { RoleName = "「早め」の人" }));
+        AssertRejected(CardKind.Create, "bracketNotVerbatim", Draft(create: GoodCreate() with { Summary = "「早めに連絡しました」の事業のアイデア" }));
+
+        var (cards, rejections) = Build(Draft(choose: GoodChoose() with { Reason = "「班の 2 家族」への連絡が、日程の調整に生かせるかもしれません。" }));
+        Assert.Empty(rejections);
+        Assert.NotNull(cards.Choose);
+    }
+
+    [Fact(DisplayName = "common-1（使わない言葉を出さない）: 使わない言葉を含む文のカードは出さない。力の名前の「順位」は数えない")]
+    public void ForbiddenWordsAreRejectedButAbilityNamesAreNot()
+    {
+        AssertRejected(CardKind.Choose, "forbiddenWord", Draft(choose: GoodChoose() with { Reason = "あなたに向いている仕事は日程の調整です。" }));
+        AssertRejected(CardKind.Combine, "forbiddenWord", Draft(combine: GoodCombine() with { RoleName = "適職の人" }));
+
+        var (cards, rejections) = Build(Draft(choose: GoodChoose() with { Reason = "優先順位をつける力が生かせます。" }));
+        Assert.Empty(rejections);
+        Assert.NotNull(cards.Choose);
+    }
+
+    [Fact(DisplayName = "common-1（使わない言葉を出さない）: 空の文と長すぎる文のカードは出さない")]
+    public void EmptyAndTooLongAreRejected()
+    {
+        AssertRejected(CardKind.Choose, "empty", Draft(choose: GoodChoose() with { Reason = "　 " }));
+        AssertRejected(CardKind.Choose, "tooLong", Draft(choose: GoodChoose() with { Reason = new string('あ', OptionsValidator.MaxReason + 1) }));
+        AssertRejected(CardKind.Combine, "tooLong", Draft(combine: GoodCombine() with { RoleName = new string('あ', OptionsValidator.MaxRoleName + 1) }));
+        AssertRejected(CardKind.Create, "tooLong", Draft(create: GoodCreate() with { Title = new string('あ', OptionsValidator.MaxTitle + 1) }));
+        // 見た目が短くても、結合文字を重ねて中身を長くした文は断る
+        AssertRejected(CardKind.Choose, "tooLong", Draft(choose: GoodChoose() with { Reason = "あ" + new string('́', OptionsValidator.MaxReason * 4) }));
+        var (cards, _) = Build(Draft(choose: GoodChoose() with { Reason = new string('あ', OptionsValidator.MaxReason) }));
+        Assert.NotNull(cards.Choose);
+    }
+
+    [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 候補で作れないカードは、AI の答えを見ずに出せない理由を返す")]
+    public void CardsWithoutCandidatesAreNoFitWithoutLookingAtTheDraft()
+    {
+        // 週 1 時間・夜だけ・家だけ: 条件に合う業務がない
+        var inputs = Inputs(hours: 1, slots: [TimeSlot.Night]);
+        var (cards, rejections) = Build(Draft(), inputs);
+
+        Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoFit), cards.Missing);
+        Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoFit), cards.Missing);
+        Assert.DoesNotContain(rejections, r => r.Kind is CardKind.Choose or CardKind.Combine);
+        Assert.Null(cards.Choose);
+        Assert.Null(cards.Combine);
+    }
+
+    [Fact(DisplayName = "options-4（創るは根拠を引けるときだけ）: 創らないと答えたら、根拠を引けなかったとして返す")]
+    public void NotMadeCreateIsNoEvidence()
+    {
+        var (cards, _) = Build(Draft(create: new CreateDraft(false, "", "", "", "", "coordinating", [], 0, "home", [], "")));
+
+        Assert.Null(cards.Create);
+        Assert.Contains(new MissingCard(CardKind.Create, MissingReason.NoEvidence), cards.Missing);
+    }
+
+    [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 作らないと答えた選ぶと組み合わせるは、条件に合う案がなかったとして返す")]
+    public void NotMadeChooseAndCombineAreNoFit()
+    {
+        var off = new OptionsDraft(
+            new ChooseDraft(false, "", [], "", ""), new CombineDraft(false, [], "", "", ""), GoodCreate());
+
+        var (cards, _) = Build(off);
+
+        Assert.Equal(
+            [new MissingCard(CardKind.Choose, MissingReason.NoFit), new MissingCard(CardKind.Combine, MissingReason.NoFit)],
+            cards.Missing);
+        Assert.NotNull(cards.Create);
+    }
+
+    [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 保存したカードを見せるとき、変わっていなければそのまま出す")]
+    public void ForDisplayKeepsUnchangedCards()
+    {
+        var inputs = Inputs();
+        var (cards, _) = Build(Draft(), inputs);
+
+        var shown = OptionsValidator.ForDisplay(cards, inputs, Catalog);
+
+        Assert.Equal(cards.Choose, shown.Choose);
+        Assert.Equal(cards.Combine, shown.Combine);
+        Assert.Equal(cards.Create, shown.Create);
+        Assert.Empty(shown.Missing);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: カードの力を外すと、そのカードは出さず、外したとして返す")]
+    public void ForDisplayHidesCardsOfExcludedAbility()
+    {
+        var (cards, _) = Build(Draft());
+
+        var shown = OptionsValidator.ForDisplay(cards, Inputs(excluded: [Ability.Coordinating], usable: [Ability.Noticing]), Catalog);
+
+        Assert.Null(shown.Choose);
+        Assert.Null(shown.Combine);
+        Assert.Null(shown.Create);
+        Assert.All(Enum.GetValues<CardKind>(), k => Assert.Contains(new MissingCard(k, MissingReason.Excluded), shown.Missing));
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: 条件を狭めて業務が外れたカードは出さず、収まるカードの幅は新しい条件で出す")]
+    public void ForDisplayHidesCardsOutOfNarrowedConditions()
+    {
+        var (cards, _) = Build(Draft());
+
+        // 週 3 時間: 日程の調整（3 時間から）は収まるが、組み合わせる（3 + 3 時間から）と創る（週 5 時間）は収まらない
+        var shown = OptionsValidator.ForDisplay(cards, Inputs(hours: 3), Catalog);
+
+        Assert.Equal(3, shown.Choose!.Range.MaxHours);
+        Assert.Null(shown.Combine);
+        Assert.Null(shown.Create);
+        Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoFit), shown.Missing);
+        Assert.Contains(new MissingCard(CardKind.Create, MissingReason.NoFit), shown.Missing);
+
+        // 夜だけ: どの業務も時間帯が合わない
+        var night = OptionsValidator.ForDisplay(cards, Inputs(slots: [TimeSlot.Night]), Catalog);
+        Assert.Null(night.Choose);
+        Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoFit), night.Missing);
+
+        // 条件を消した: どれも出さない
+        var noConditions = OptionsValidator.ForDisplay(cards, Inputs() with { Conditions = null }, Catalog);
+        Assert.Null(noConditions.Choose);
+        Assert.Null(noConditions.Combine);
+        Assert.Null(noConditions.Create);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 使えなくなった力のカードは出さない")]
+    public void ForDisplayHidesCardsOfAbilityNoLongerUsable()
+    {
+        var (cards, _) = Build(Draft());
+
+        var shown = OptionsValidator.ForDisplay(cards, Inputs(usable: [Ability.Noticing]), Catalog);
+
+        Assert.Null(shown.Choose);
+        Assert.All(Enum.GetValues<CardKind>(), k => Assert.Contains(new MissingCard(k, MissingReason.Rejected), shown.Missing));
+    }
+}
