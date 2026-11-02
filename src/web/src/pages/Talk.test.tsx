@@ -458,6 +458,18 @@ describe('Talk', () => {
     expect(within(within(seen).getByText('「順番を入れ替える案を出しました」').closest('li')!).queryByText(copy.insights.chosen)).toBeNull()
   })
 
+  it('validate-4（根拠は本人の言葉）: 同じ言葉が複数の行動の根拠になっていても、一度だけ出す', async () => {
+    const quote = { text: '書類を先に仕上げました', fromChoice: false, linkedText: null }
+    setup(
+      finishedWithInsights(
+        fakeInsights({ seen: [{ key: 'prioritizing', name: '優先順位をつける力', quotes: [quote, quote, quote] }] }),
+      ),
+    )
+
+    const seen = await screen.findByRole('region', { name: copy.insights.seenTitle })
+    expect(within(seen).getAllByText('「書類を先に仕上げました」')).toHaveLength(1)
+  })
+
   it('validate-8（訂正したら確かめ直す）: 読み取りを直すと入力欄が出て、送ると見えたことが新しくなる。window.confirm を使わない', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm')
     const api = setup(finishedWithInsights())

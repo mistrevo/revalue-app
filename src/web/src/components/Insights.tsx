@@ -61,12 +61,21 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-/** 根拠の本人の言葉。「」で囲み、一字一句そのまま出す。選んだ答えには印を付け、結びついた本人の言葉を並べる。 */
+/**
+ * 根拠の本人の言葉。「」で囲み、一字一句そのまま出す。選んだ答えには印を付け、結びついた本人の言葉を並べる。
+ * 同じ言葉が複数の行動の根拠になっていても、一度だけ出す（行動のチェック表に見せないため。Claude の判断）。
+ */
 export function QuoteList({ quotes }: { quotes: Quote[] }) {
-  if (quotes.length === 0) return null
+  const unique = quotes.filter(
+    (quote, index) =>
+      quotes.findIndex(
+        (other) => other.text === quote.text && other.fromChoice === quote.fromChoice && (other.linkedText ?? null) === (quote.linkedText ?? null),
+      ) === index,
+  )
+  if (unique.length === 0) return null
   return (
     <ul className="mt-2 flex flex-col gap-2">
-      {quotes.map((quote, index) => (
+      {unique.map((quote, index) => (
         <li key={index} className="border-l-2 border-primary/40 pl-3 text-sm leading-relaxed break-words">
           <span>{`「${quote.text}」`}</span>
           {quote.fromChoice && (
