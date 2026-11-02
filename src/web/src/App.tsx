@@ -1,9 +1,11 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { RequireUser } from '@/components/RequireUser'
+import { Episodes } from '@/pages/Episodes'
 import { Home } from '@/pages/Home'
 import { Landing } from '@/pages/Landing'
 import { Settings } from '@/pages/Settings'
 import { Start } from '@/pages/Start'
+import { Talk } from '@/pages/Talk'
 
 /**
  * 画面の切り替え。/.auth/* はここに置かない（組み込み認証へページごと移動するため）。
@@ -26,6 +28,22 @@ export function AppRoutes() {
         element={
           <RequireUser key="home" consent>
             <Home />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/talk/:id"
+        element={
+          <RequireUser key="talk" consent>
+            <Talk />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/episodes"
+        element={
+          <RequireUser key="episodes" consent>
+            <Episodes />
           </RequireUser>
         }
       />

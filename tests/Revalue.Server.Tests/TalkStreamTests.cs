@@ -213,6 +213,33 @@ public sealed class TalkStreamTests
         Assert.Equal("distress", saved.Turns[2].Move);
     }
 
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 開き直しても、サインへの応えのあとに窓口と続け方が出る")]
+    public async Task ReopenedEpisodeKeepsDistressNotice()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        // サインの前は、窓口の知らせを付けない
+        Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("notice").ValueKind);
+
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress });
+        await SendAndRead(client, id, "最近ずっと眠れなくて、つらいです。");
+
+        var notice = (await GetEpisode(client, id)).GetProperty("notice");
+        Assert.Equal("distress", notice.GetProperty("kind").GetString());
+        Assert.Equal(DiscoverText.DistressText, notice.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.SupportLinkUrl, notice.GetProperty("linkUrl").GetString());
+        Assert.Equal(DiscoverText.SupportLinkLabel, notice.GetProperty("linkLabel").GetString());
+        Assert.Equal(DiscoverText.DistressActions, notice.GetProperty("actions").EnumerateArray().Select(a => a.GetString()!).ToArray());
+
+        // 続けて答え、AI の返事が来たら、知らせは外れる
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent });
+        await SendAndRead(client, id, "昨日は子どもを病院に連れて行きました。");
+        Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("notice").ValueKind);
+    }
+
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 読み取りに失敗したときも、窓口を添える")]
     public async Task ReadFailureAddsSupportNotice()
     {

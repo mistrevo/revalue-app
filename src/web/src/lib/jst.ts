@@ -8,6 +8,16 @@ const jstParts = new Intl.DateTimeFormat('ja-JP', {
   hourCycle: 'h23',
 })
 
+const jstDay = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' })
+
+/** 日時（ISO 8601）を、日本時間の「11 月 3 日」の形にする。読めなければ空の文字。 */
+export function formatDay(at: string): string {
+  const date = new Date(at)
+  if (Number.isNaN(date.getTime())) return ''
+  const parts = Object.fromEntries(jstDay.formatToParts(date).map((part) => [part.type, part.value]))
+  return copy.episodes.date.replace('{month}', parts.month ?? '').replace('{day}', parts.day ?? '')
+}
+
 /** 次に送れる時刻（ISO 8601）を、日本時間の「11 月 3 日の 0 時（日本時間）」の形にする。 */
 export function formatResetTime(resetAt: string): string {
   const date = new Date(resetAt)

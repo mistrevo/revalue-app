@@ -8,6 +8,18 @@ using Revalue.Server.Data;
 
 namespace Revalue.Server.Features.Discover;
 
+/// <summary>
+/// 相談窓口の知らせ。<c>kind</c> は "distress"（つらい状態のサインへの応え）か "support"（読み取りに失敗したときに添える）。
+/// </summary>
+public sealed record SupportNotice(string Kind, string Text, string LinkUrl, string LinkLabel, IReadOnlyList<string>? Actions)
+{
+    public static SupportNotice Distress { get; } =
+        new("distress", DiscoverText.DistressText, DiscoverText.SupportLinkUrl, DiscoverText.SupportLinkLabel, DiscoverText.DistressActions);
+
+    public static SupportNotice ReadFailure { get; } =
+        new("support", DiscoverText.ReadFailureSupportNote, DiscoverText.SupportLinkUrl, DiscoverText.SupportLinkLabel, null);
+}
+
 /// <summary>答えを送る API の本文。<c>kind</c> は "free"（自由に書いた）か "choice"（選んだ）。</summary>
 public sealed record MessageRequest(string? Text, string? Kind);
 
@@ -75,7 +87,7 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
 
         if (reading is null)
         {
-            yield return Event(NoticeEvent, new Notice("support", DiscoverText.ReadFailureSupportNote, DiscoverText.SupportLinkUrl, DiscoverText.SupportLinkLabel, null));
+            yield return Event(NoticeEvent, SupportNotice.ReadFailure);
             yield return Error(readError!);
             yield break;
         }
@@ -94,7 +106,7 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
                 yield break;
             }
 
-            yield return Event(NoticeEvent, new Notice("distress", DiscoverText.DistressText, DiscoverText.SupportLinkUrl, DiscoverText.SupportLinkLabel, DiscoverText.DistressActions));
+            yield return Event(NoticeEvent, SupportNotice.Distress);
             yield return Done(saved, move);
             yield break;
         }
@@ -219,8 +231,6 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
         logger.LogWarning("Conversation AI threw {ErrorType}.", e.GetType().Name);
         return ConversationAiException.Failure;
     }
-
-    private sealed record Notice(string Kind, string Text, string LinkUrl, string LinkLabel, IReadOnlyList<string>? Actions);
 
     private static SseItem<string> Delta(string text) => Event(DeltaEvent, new { text });
 
