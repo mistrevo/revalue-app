@@ -81,4 +81,13 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { name: copy.abilities.title })).toBeInTheDocument()
   })
+
+  it('profile-1（5 つを分けて残す）: ホームから 5 つの記録へ行ける', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/home')
+
+    await userEvent.click(await screen.findByRole('link', { name: copy.home.profile }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.profile.title })).toBeInTheDocument()
+  })
 })

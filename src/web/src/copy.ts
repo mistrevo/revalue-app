@@ -66,6 +66,7 @@ export const copy = {
     continue: '続きから話す',
     episodesLink: '話したことを見返す',
     abilities: '見えた力',
+    profile: '5 つの記録',
     settingsLink: '設定',
   },
   talk: {
@@ -154,6 +155,81 @@ export const copy = {
       // 状態の移り変わりは書かず、この言葉だけを出す（Claude の判断）
       setAside: '話してくれた場面の一つを、力を確かめる話には使わないことにしました。話した内容は、そのまま残っています',
     },
+    backHome: 'ホームへ戻る',
+  },
+  profile: {
+    title: '5 つの記録',
+    // 本人の言葉と答えが元になっていることと、どれも直せることを先に伝える（Claude の判断）
+    lead: 'あなたが話した言葉と、ここで答えたことをもとにしています。どれも、あとから直せます。',
+    nextTitle: 'いま聞きたいこと',
+    writeOwn: '自分で書く',
+    notNow: 'いまは決めない',
+    notNowAgency: 'いまは書かない',
+    save: '保存する',
+    cancel: 'やめる',
+    edit: '直す',
+    add: '足す',
+    write: '書く',
+    enter: '入れる',
+    removeLabel: '「{text}」を消す',
+    remove: '消す',
+    canDoTitle: 'できること',
+    seenTitle: 'あなたの話から見えた力',
+    // 審査待ちに見えないよう、何が足りないのかを見えた力の画面（abilities.states.needsCheck）と同じ言葉で添える（Claude の判断）
+    checkingTitle: '確かめ中（もう少し聞かせてほしいことがあります）',
+    // 「ない」と言わずに、何が入るかを先に伝え、次にできることを一つ添える（Claude の判断）
+    canDoEmpty: '話してもらった出来事から見えた力を、ここに並べます。最近の一日のことを話してみませんか。',
+    // 「話す」はホームにあるので、ホームへの道だと分かる言い方にする（Claude の判断）
+    canDoTalk: 'ホームから話す',
+    excludedNote: '外した見立ては、ここには出していません。見えた力の画面で戻せます。',
+    openAbilities: '見えた力の画面で直す',
+    // その話の「読み取りを直す」へ行く道（Claude の判断）
+    openEpisode: 'この話を開いて直す',
+    preferencesTitle: '好み',
+    wantsTitle: 'やりたいこと',
+    conditionsTitle: '条件',
+    // 条件にも問いの一文を置き、何のために聞くかを伝える（Claude の判断）
+    conditionsQuestion: 'いまの暮らしで使える時間と場所を教えてください。仕事の選択肢は、この範囲の中で考えます。',
+    agencyTitle: '自分で選び、動き出すときに大事にしたいこと',
+    // 見出しの名詞句だけでは手が止まりやすいので問いの一文を添える。中身の例は入れない（Claude の判断）
+    agencyQuestion: 'これから自分で選んで動き出すときに、大事にしたいことはありますか？ 一言でもかまいません。',
+    // 「いま聞きたいこと」で答えたあとの受け止め。本人の答えをそのまま映し返し、褒め言葉は足さない（Claude の判断）
+    ackPicked: '「{text}」を{record}に入れました。',
+    ackSkipped: '{record}は、決めずにおきました。下の欄から、いつでも足せます。',
+    ackConditions: '条件を入れました。下の欄から、いつでも直せます。',
+    ackAgency: '書いたことを残しました。下の欄から、いつでも直せます。',
+    ackAgencySkipped: '書かずにおきました。下の欄から、いつでも書けます。',
+    notDecided: 'まだ決めていません',
+    notWritten: 'まだ書いていません',
+    chosen: '（選んだ答え）',
+    timeSlots: '使える時間帯（いくつでも）',
+    timeSlotsLabel: '使える時間帯',
+    hoursPerWeek: '週あたりの時間',
+    place: '場所',
+    monthlyIncome: '月の収入の目安',
+    timeSlotValues: {
+      morning: '朝（9 時まで）',
+      daytime: '日中（9〜15 時）',
+      evening: '夕方（15〜18 時）',
+      night: '夜（18 時から）',
+    },
+    placeValues: {
+      homeOnly: '家でできることだけ',
+      canGoOut: '外に出ることもできる',
+    },
+    hoursValue: '週 {n} 時間くらいまで',
+    incomeValue: '月 {n} 万円くらい',
+    incomeUndecided: 'まだ決めていない',
+    // 収入の目安は比べて示すためだけに使い、絞り込みには使わない（04-profile.md の「条件」。Claude の判断）
+    incomeNote: '仕事の選択肢と比べて示すためだけに使います。この目安で選択肢をしぼることはしません。',
+    // 保存できないボタンだけを置かず、何を選べば保存できるかを添える（Claude の判断）
+    conditionsNeed: '使える時間帯、週あたりの時間、場所を選ぶと、保存できます。',
+    // 一つの答えに誘わないよう、中身の例は書かない（Claude の判断）
+    agencyPlaceholder: '思いついたことを、そのまま書いてください',
+    // 入力欄から保存したとき
+    saveFailed: 'うまく保存できませんでした。入れた内容はそのまま残しています。少し待ってから、もう一度保存してください。',
+    // 選択肢、「消す」、「いまは決めない」「いまは書かない」のように、ボタンで保存したとき（残す入力がないので、残したとは言わない。Claude の判断）
+    saveFailedRetry: 'うまく保存できませんでした。少し待ってから、もう一度選んでください。',
     backHome: 'ホームへ戻る',
   },
   episodes: {

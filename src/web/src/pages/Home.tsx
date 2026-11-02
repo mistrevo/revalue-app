@@ -8,7 +8,7 @@ import { copy } from '@/copy'
 type State = { kind: 'loading' } | { kind: 'ready'; talkingId: string | null } | { kind: 'error' }
 
 /**
- * ホーム。「話す」の入口、話したことの一覧、見えた力、設定。
+ * ホーム。「話す」の入口、話したことの一覧、見えた力、5 つの記録、設定。
  * 話している途中の場面があれば「続きから話す」でその場面へ。なければ新しい場面を作る。
  */
 export function Home() {
@@ -70,6 +70,9 @@ export function Home() {
         </Button>
         <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
           <Link to="/abilities">{copy.home.abilities}</Link>
+        </Button>
+        <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+          <Link to="/profile">{copy.home.profile}</Link>
         </Button>
         <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
           <Link to="/settings">{copy.home.settingsLink}</Link>

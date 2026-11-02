@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { Abilities, Episode, EpisodeInsights, EpisodeSummary, Turn } from '@/api'
+import type { Abilities, Episode, EpisodeInsights, EpisodeSummary, Profile, ProfileConditions, ProfileEntry, Turn } from '@/api'
 
 export type FakeCall = { method: string; url: string; body?: unknown }
 export type FakeEvent = { event: string; data: unknown }
@@ -116,6 +116,53 @@ export function fakeAbilities(): Abilities {
   }
 }
 
+/** 裏側が決める好みとやりたいことの問いと選択肢の代わり（本物は ProfileText.cs）。 */
+export const FAKE_PREFERENCE_QUESTION = 'どんな進め方や環境が、自分に合っていると思いますか？'
+export const FAKE_PREFERENCE_CHOICES = ['自分のペースで進められる', '人とやりとりしながら進められる', '決まった手順がある']
+export const FAKE_WANT_QUESTION = 'これからやってみたいことや、目指したいことに近いものはありますか？'
+export const FAKE_WANT_CHOICES = ['これまでの経験を活かしたい', '人の役に立つことをしたい', '新しいことを覚えたい']
+
+/** 架空の 5 つの記録。できることは fakeAbilities と同じ力（調整する力が見えた力、優先順位をつける力が確かめ中）。 */
+export function fakeProfile(overrides: Partial<Profile> = {}): Profile {
+  return {
+    canDo: {
+      seen: [
+        {
+          key: 'coordinating',
+          name: '調整する力',
+          quotes: [
+            { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
+            { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
+            // 3 つ目の核となる行動（代わりの案を出す）。見えた力は 3 つの行動がそろった力なので、見本もそろえる
+            { text: '片方の家族には、集合を 30 分遅らせる案を出しました', fromChoice: false, linkedText: null },
+          ],
+          episodeId: 'episode-1',
+        },
+      ],
+      checking: [
+        {
+          key: 'prioritizing',
+          name: '優先順位をつける力',
+          quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
+          episodeId: 'episode-1',
+        },
+      ],
+      hasExcluded: false,
+    },
+    preferences: [],
+    wants: [],
+    conditions: null,
+    agency: null,
+    asked: { preferences: false, wants: false, agency: false },
+    questions: {
+      preferences: { question: FAKE_PREFERENCE_QUESTION, choices: FAKE_PREFERENCE_CHOICES },
+      wants: { question: FAKE_WANT_QUESTION, choices: FAKE_WANT_CHOICES },
+    },
+    conditionOptions: { hoursPerWeek: [1, 3, 5, 10, 15, 20, 30, 40], monthlyIncome: [1, 3, 5, 8, 10, 15, 20] },
+    ...overrides,
+  }
+}
+
 /** ふつうの返事（本文 2 かけら → 選択肢 → 終わり）。 */
 export function replyEvents(body: [string, string], choices: string[], status: 'talking' | 'finished' = 'talking'): FakeEvent[] {
   return [
@@ -151,7 +198,7 @@ function toSse(event: FakeEvent): string {
 export type FakeStream = { send: (event: string, data: unknown) => void; close: () => void }
 
 /** 裏側の API の代わり。ログインと了解の状態とエピソードを持ち、呼ばれた順に記録する。 */
-export function installFakeApi(initial: { loggedIn: boolean; consented: boolean; episodes?: Episode[] }) {
+export function installFakeApi(initial: { loggedIn: boolean; consented: boolean; episodes?: Episode[]; profile?: Profile }) {
   const state = {
     loggedIn: initial.loggedIn,
     consented: initial.consented,
@@ -176,6 +223,9 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
     /** 続きを話すときに、ほかの画面で始まっていた場面の id。入れると 409（その場面の id 付き）を返す。 */
     resumeFindsInProgress: null as string | null,
     abilities: fakeAbilities(),
+    profile: initial.profile ?? fakeProfile(),
+    /** true なら、5 つの記録の保存（PUT）を 500 で断る。 */
+    profileSaveFails: false,
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -241,7 +291,34 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
     if (url === '/api/me' && method === 'DELETE') {
       state.consented = false
       state.episodes = []
+      state.profile = fakeProfile()
       return new Response(null, { status: 204 })
+    }
+
+    if (url === '/api/profile' && method === 'GET') {
+      return json(200, state.profile)
+    }
+    const profileMatch = /^\/api\/profile\/(preferences|wants|conditions|agency)$/.exec(url)
+    if (profileMatch && method === 'PUT') {
+      if (state.profileSaveFails) return json(500, { status: 500 })
+      const p = state.profile
+      switch (profileMatch[1]) {
+        case 'preferences':
+          state.profile = { ...p, preferences: (body as { entries: ProfileEntry[] }).entries, asked: { ...p.asked, preferences: true } }
+          break
+        case 'wants':
+          state.profile = { ...p, wants: (body as { entries: ProfileEntry[] }).entries, asked: { ...p.asked, wants: true } }
+          break
+        case 'conditions':
+          state.profile = { ...p, conditions: body as ProfileConditions }
+          break
+        case 'agency': {
+          const text = (body as { text: string }).text.trim()
+          state.profile = { ...p, agency: text === '' ? null : text, asked: { ...p.asked, agency: true } }
+          break
+        }
+      }
+      return json(200, state.profile)
     }
 
     if (url === '/api/episodes' && method === 'GET') {
