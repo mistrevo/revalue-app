@@ -184,6 +184,8 @@ export const copy = {
     preferencesTitle: '好み',
     wantsTitle: 'やりたいこと',
     conditionsTitle: '条件',
+    // 条件にも問いの一文を置き、何のために聞くかを伝える（Claude の判断）
+    conditionsQuestion: 'いまの暮らしで使える時間と場所を教えてください。仕事の選択肢は、この範囲の中で考えます。',
     agencyTitle: '自分で選び、動き出すときに大事にしたいこと',
     notDecided: 'まだ決めていません',
     notWritten: 'まだ書いていません',
@@ -206,11 +208,16 @@ export const copy = {
     hoursValue: '週 {n} 時間くらいまで',
     incomeValue: '月 {n} 万円くらい',
     incomeUndecided: 'まだ決めていない',
+    // 収入の目安は比べて示すためだけに使い、絞り込みには使わない（04-profile.md の「条件」。Claude の判断）
+    incomeNote: '仕事の選択肢と比べて示すためだけに使います。この目安で選択肢をしぼることはしません。',
     // 保存できないボタンだけを置かず、何を選べば保存できるかを添える（Claude の判断）
     conditionsNeed: '使える時間帯、週あたりの時間、場所を選ぶと、保存できます。',
     // 一つの答えに誘わないよう、中身の例は書かない（Claude の判断）
     agencyPlaceholder: '思いついたことを、そのまま書いてください',
+    // 入力欄から保存したとき
     saveFailed: 'うまく保存できませんでした。入れた内容はそのまま残しています。少し待ってから、もう一度保存してください。',
+    // 選択肢、「消す」、「いまは決めない」「いまは書かない」のように、ボタンで保存したとき（残す入力がないので、残したとは言わない。Claude の判断）
+    saveFailedRetry: 'うまく保存できませんでした。少し待ってから、もう一度選んでください。',
     backHome: 'ホームへ戻る',
   },
   episodes: {

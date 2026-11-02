@@ -27,7 +27,19 @@ public sealed class ProfileTextTests
         Assert.Equal(1, ProfileText.PreferenceQuestion.Count(c => c == '？'));
         Assert.Equal(1, ProfileText.WantQuestion.Count(c => c == '？'));
         Assert.Equal(["自分のペースで進められる", "人とやりとりしながら進められる", "決まった手順がある"], ProfileText.PreferenceChoices);
-        Assert.Equal(["家にいながらできることを始めたい", "人の役に立つことをしたい", "新しいことを覚えたい"], ProfileText.WantChoices);
+        Assert.Equal(["これまでの経験を活かしたい", "人の役に立つことをしたい", "新しいことを覚えたい"], ProfileText.WantChoices);
         Assert.Equal(6, ProfileText.PreferenceChoices.Concat(ProfileText.WantChoices).Distinct().Count());
+    }
+
+    [Fact(DisplayName = "profile-1（5 つを分けて残す）: 好みとやりたいことの選択肢に、条件（時間、場所、収入）と重なる言葉を入れない")]
+    public void ChoicesDoNotOverlapConditions()
+    {
+        foreach (var choice in ProfileText.PreferenceChoices.Concat(ProfileText.WantChoices))
+        {
+            foreach (var word in new[] { "家", "外", "時間", "朝", "夜", "収入", "万円" })
+            {
+                Assert.False(choice.Contains(word, StringComparison.Ordinal), $"条件の「{word}」が含まれている: {choice}");
+            }
+        }
     }
 }

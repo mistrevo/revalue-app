@@ -19,7 +19,7 @@ public static class ProfileText
 
     public static readonly IReadOnlyList<string> WantChoices =
     [
-        "家にいながらできることを始めたい",
+        "これまでの経験を活かしたい",
         "人の役に立つことをしたい",
         "新しいことを覚えたい",
     ];

@@ -141,7 +141,7 @@ public static class ProfileEndpoints
         var kept = new List<ProfileEntry>();
         foreach (var entry in entries)
         {
-            if (entry?.Text is not { } text)
+            if (entry?.Text is not { } text || !Enum.IsDefined(entry.Source))
             {
                 return null;
             }
@@ -171,7 +171,10 @@ public static class ProfileEndpoints
         return kept;
     }
 
-    /// <summary>条件を確かめる。時間帯は 1 つ以上で重ならず、時間帯の順に並べる。合わなければ null。</summary>
+    /// <summary>
+    /// 条件を確かめる。時間帯は 1 つ以上で重ならず、時間帯の順に並べる。合わなければ null。
+    /// 時間帯と場所は JSON では名前しか受け取らないが（<see cref="NamedEnumConverter{TEnum}"/>）、ここでも定義にある値かを確かめる。
+    /// </summary>
     public static ProfileConditions? CheckConditions(ConditionsRequest? request)
     {
         if (request is not { TimeSlots: { Count: > 0 } slots, HoursPerWeek: { } hours, Place: { } place })
@@ -179,7 +182,9 @@ public static class ProfileEndpoints
             return null;
         }
 
-        if (slots.Distinct().Count() != slots.Count
+        if (!slots.All(Enum.IsDefined)
+            || !Enum.IsDefined(place)
+            || slots.Distinct().Count() != slots.Count
             || !ProfileText.HoursPerWeekOptions.Contains(hours)
             || (request.MonthlyIncome is { } income && !ProfileText.MonthlyIncomeOptions.Contains(income)))
         {

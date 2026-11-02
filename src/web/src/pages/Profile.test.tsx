@@ -75,6 +75,9 @@ describe('Profile', () => {
     expect(await within(next).findByRole('group', { name: copy.profile.timeSlots })).toBeInTheDocument()
     expect(puts(api.calls, 'wants').map((c) => c.body)).toEqual([{ entries: [] }])
     expect(within(next).queryByRole('button', { name: copy.profile.notNow })).not.toBeInTheDocument()
+    // 条件にも、何のために聞くかを一文で添え、収入の目安は比べるためだけに使うと伝える
+    expect(within(next).getByText(copy.profile.conditionsQuestion)).toBeInTheDocument()
+    expect(within(next).getByRole('group', { name: copy.profile.monthlyIncome })).toHaveTextContent(copy.profile.incomeNote)
 
     // 条件を保存すると、主体性の欄と「いまは書かない」が出る
     await userEvent.click(within(next).getByRole('checkbox', { name: copy.profile.timeSlotValues.morning }))
@@ -327,5 +330,43 @@ describe('Profile', () => {
     await userEvent.click(within(next).getByRole('button', { name: copy.profile.save }))
     expect(await screen.findByText(FAKE_WANT_QUESTION)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('profile-4（本人が直せる）: 選択肢や「消す」で保存に失敗したら、入れた内容を残したとは言わず、もう一度選ぶよう伝える', async () => {
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      profile: answeredProfile({ asked: { preferences: false, wants: true, agency: true } }),
+    })
+    api.state.profileSaveFails = true
+    renderApp('/profile')
+
+    // 「いま聞きたいこと」の選択肢
+    const next = await screen.findByRole('region', { name: copy.profile.nextTitle })
+    await userEvent.click(within(next).getByRole('button', { name: FAKE_PREFERENCE_CHOICES[2] }))
+    expect(await within(next).findByRole('alert')).toHaveTextContent(copy.profile.saveFailedRetry)
+    expect(within(next).getByRole('alert')).not.toHaveTextContent(copy.profile.saveFailed)
+
+    // 「いまは決めない」
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.notNow }))
+    expect(await within(next).findByRole('alert')).toHaveTextContent(copy.profile.saveFailedRetry)
+
+    // 記録の欄の「消す」
+    const preferences = screen.getByRole('region', { name: copy.profile.preferencesTitle })
+    await userEvent.click(
+      within(preferences).getByRole('button', { name: copy.profile.removeLabel.replace('{text}', '朝のうちに片づけたい') }),
+    )
+    expect(await within(preferences).findByRole('alert')).toHaveTextContent(copy.profile.saveFailedRetry)
+    expect(within(preferences).getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+
+    // 書いて保存したときは、入れた内容を残したと伝える
+    const wants = screen.getByRole('region', { name: copy.profile.wantsTitle })
+    await userEvent.click(within(wants).getByRole('button', { name: copy.profile.add }))
+    await userEvent.click(within(wants).getByRole('button', { name: copy.profile.writeOwn }))
+    await userEvent.type(within(wants).getByRole('textbox', { name: copy.profile.writeOwn }), '近所の人と話したい')
+    await userEvent.click(within(wants).getByRole('button', { name: copy.profile.save }))
+    expect(await within(wants).findByRole('alert')).toHaveTextContent(copy.profile.saveFailed)
+    expect(within(wants).getByRole('textbox', { name: copy.profile.writeOwn })).toHaveValue('近所の人と話したい')
   })
 })

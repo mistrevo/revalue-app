@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Profile;
 using static Revalue.Server.Tests.ValidateTestKit;
 
 namespace Revalue.Server.Tests;
@@ -143,12 +144,34 @@ public sealed class ProfileApiTests
     [InlineData("conditions", """{"timeSlots":["midnight"],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
     [InlineData("conditions", """{"timeSlots":["morning"],"hoursPerWeek":10,"place":"space","monthlyIncome":null}""")]
     [InlineData("agency", """{"text":123}""")]
+    // 数の値（定義にないもの、定義にあるもの、数を書いた文字列）も選択肢の言葉ではないので断る
+    [InlineData("preferences", """{"entries":[{"text":"自分のペースで進められる","source":5}]}""")]
+    [InlineData("wants", """{"entries":[{"text":"近所で働きたい","source":5}]}""")]
+    [InlineData("wants", """{"entries":[{"text":"人の役に立つことをしたい","source":0}]}""")]
+    [InlineData("wants", """{"entries":[{"text":"近所で働きたい","source":"5"}]}""")]
+    [InlineData("conditions", """{"timeSlots":[9],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["morning"],"hoursPerWeek":10,"place":7,"monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":[9],"hoursPerWeek":10,"place":7,"monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":[0],"hoursPerWeek":10,"place":"homeOnly","monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["morning"],"hoursPerWeek":10,"place":1,"monthlyIncome":null}""")]
+    [InlineData("conditions", """{"timeSlots":["9"],"hoursPerWeek":10,"place":"7","monthlyIncome":null}""")]
     public async Task UnknownEnumValuesAre400(string part, string raw)
     {
         var (factory, _) = Create();
         var client = await Consenting(factory, "g-5");
         await PutOk(client, "preferences", new { entries = new[] { new { text = "決まった手順がある", source = "chosen" } } });
         await AssertRejected(factory, client, part, raw);
+    }
+
+    [Fact(DisplayName = "profile-3（条件を先に聞く）: JSON を通らずに定義にない時間帯、場所、出どころが来ても、照らし合わせで断る")]
+    public void ChecksRejectUndefinedEnumValues()
+    {
+        Assert.NotNull(ProfileEndpoints.CheckConditions(new ConditionsRequest([TimeSlot.Morning], 10, Place.HomeOnly, null)));
+        Assert.Null(ProfileEndpoints.CheckConditions(new ConditionsRequest([(TimeSlot)9], 10, Place.HomeOnly, null)));
+        Assert.Null(ProfileEndpoints.CheckConditions(new ConditionsRequest([TimeSlot.Morning], 10, (Place)7, null)));
+
+        Assert.NotNull(ProfileEndpoints.CheckEntries(new EntriesRequest([new ProfileEntry("近所で働きたい", EntrySource.Written)]), ProfileText.WantChoices));
+        Assert.Null(ProfileEndpoints.CheckEntries(new EntriesRequest([new ProfileEntry("近所で働きたい", (EntrySource)5)]), ProfileText.WantChoices));
     }
 
     [Fact(DisplayName = "profile-5（好みとやりたいことを一つずつ聞く）: 選んだ答えは選択肢の言葉だけ受け取る")]

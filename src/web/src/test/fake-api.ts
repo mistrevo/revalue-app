@@ -120,7 +120,7 @@ export function fakeAbilities(): Abilities {
 export const FAKE_PREFERENCE_QUESTION = 'どんな進め方や環境が、自分に合っていると思いますか？'
 export const FAKE_PREFERENCE_CHOICES = ['自分のペースで進められる', '人とやりとりしながら進められる', '決まった手順がある']
 export const FAKE_WANT_QUESTION = 'これからやってみたいことや、目指したいことに近いものはありますか？'
-export const FAKE_WANT_CHOICES = ['家にいながらできることを始めたい', '人の役に立つことをしたい', '新しいことを覚えたい']
+export const FAKE_WANT_CHOICES = ['これまでの経験を活かしたい', '人の役に立つことをしたい', '新しいことを覚えたい']
 
 /** 架空の 5 つの記録。できることは fakeAbilities と同じ力（調整する力が見えた力、優先順位をつける力が確かめ中）。 */
 export function fakeProfile(overrides: Partial<Profile> = {}): Profile {

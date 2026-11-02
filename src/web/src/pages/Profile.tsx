@@ -27,6 +27,20 @@ type RecordKey = 'preferences' | 'wants' | 'conditions' | 'agency'
 /** 失敗を出す場所。next は「いま聞きたいこと」。 */
 type Where = 'next' | RecordKey
 
+/**
+ * 何から保存したか。input は入力欄（書いた言葉、条件、主体性）、button は選択肢、「消す」、「いまは決めない」「いまは書かない」。
+ * 失敗したときに、入れた内容を残したと伝えるのは input のときだけ。
+ */
+type SavedFrom = 'input' | 'button'
+
+type Failure = { where: Where; from: SavedFrom }
+
+type Save = (where: Where, from: SavedFrom, run: () => Promise<ProfileData>) => Promise<void>
+
+function fromEntry(entry: ProfileEntry): SavedFrom {
+  return entry.source === 'written' ? 'input' : 'button'
+}
+
 const TIME_SLOTS: TimeSlot[] = ['morning', 'daytime', 'evening', 'night']
 const PLACES: Place[] = ['homeOnly', 'canGoOut']
 const MAX_ENTRIES = 5
@@ -56,7 +70,7 @@ function nextQuestion(profile: ProfileData): RecordKey | null {
 export function Profile() {
   const [state, setState] = useState<State>({ kind: 'loading' })
   const [busy, setBusy] = useState(false)
-  const [failedAt, setFailedAt] = useState<Where | null>(null)
+  const [failure, setFailure] = useState<Failure | null>(null)
   const [editing, setEditing] = useState<RecordKey | null>(null)
 
   useEffect(() => {
@@ -70,27 +84,31 @@ export function Profile() {
   }, [])
 
   /** 保存する。失敗したら、その場所に穏やかな言葉を出し、入れた内容は入力欄に残したままにする。 */
-  async function save(where: Where, run: () => Promise<ProfileData>) {
+  const save: Save = async (where, from, run) => {
     setBusy(true)
-    setFailedAt(null)
+    setFailure(null)
     try {
       const data = await run()
       setState({ kind: 'ready', data })
       setEditing(null)
     } catch {
-      setFailedAt(where)
+      setFailure({ where, from })
     } finally {
       setBusy(false)
     }
   }
 
+  function failedAt(where: Where): SavedFrom | null {
+    return failure?.where === where ? failure.from : null
+  }
+
   function startEditing(record: RecordKey) {
-    setFailedAt(null)
+    setFailure(null)
     setEditing(record)
   }
 
   function stopEditing() {
-    setFailedAt(null)
+    setFailure(null)
     setEditing(null)
   }
 
@@ -107,7 +125,7 @@ export function Profile() {
       )}
       {state.kind === 'ready' && (
         <div className="mt-6 flex flex-col gap-4">
-          <NextQuestion profile={state.data} busy={busy} failed={failedAt === 'next'} save={save} />
+          <NextQuestion profile={state.data} busy={busy} failed={failedAt('next')} save={save} />
           <CanDoSection canDo={state.data.canDo} />
           {(['preferences', 'wants'] as const).map((record) => (
             <EntriesSection
@@ -117,29 +135,31 @@ export function Profile() {
               question={state.data.questions[record]}
               adding={editing === record}
               busy={busy}
-              failed={failedAt === record}
+              failed={failedAt(record)}
               onAdd={() => startEditing(record)}
               onCancel={stopEditing}
-              onSave={(entries) => save(record, () => (record === 'preferences' ? putPreferences(entries) : putWants(entries)))}
+              onSave={(entries, from) =>
+                save(record, from, () => (record === 'preferences' ? putPreferences(entries) : putWants(entries)))
+              }
             />
           ))}
           <ConditionsSection
             profile={state.data}
             editing={editing === 'conditions'}
             busy={busy}
-            failed={failedAt === 'conditions'}
+            failed={failedAt('conditions')}
             onEdit={() => startEditing('conditions')}
             onCancel={stopEditing}
-            onSave={(conditions) => save('conditions', () => putConditions(conditions))}
+            onSave={(conditions) => save('conditions', 'input', () => putConditions(conditions))}
           />
           <AgencySection
             agency={state.data.agency}
             editing={editing === 'agency'}
             busy={busy}
-            failed={failedAt === 'agency'}
+            failed={failedAt('agency')}
             onEdit={() => startEditing('agency')}
             onCancel={stopEditing}
-            onSave={(text) => save('agency', () => putAgency(text))}
+            onSave={(text) => save('agency', 'input', () => putAgency(text))}
           />
         </div>
       )}
@@ -165,11 +185,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function SaveFailed({ show }: { show: boolean }) {
-  if (!show) return null
+/** 保存に失敗したときの言葉。入力欄から保存したときだけ、入れた内容を残していると伝える。 */
+function SaveFailed({ from }: { from: SavedFrom | null }) {
+  if (from === null) return null
   return (
     <p role="alert" className="text-sm leading-relaxed">
-      {copy.profile.saveFailed}
+      {from === 'input' ? copy.profile.saveFailed : copy.profile.saveFailedRetry}
     </p>
   )
 }
@@ -182,8 +203,8 @@ function NextQuestion({
 }: {
   profile: ProfileData
   busy: boolean
-  failed: boolean
-  save: (where: Where, run: () => Promise<ProfileData>) => Promise<void>
+  failed: SavedFrom | null
+  save: Save
 }) {
   const next = nextQuestion(profile)
   if (next === null) return null
@@ -198,9 +219,15 @@ function NextQuestion({
         question={profile.questions[next]}
         taken={entries}
         busy={busy}
-        onPick={(entry) => save('next', () => put([...entries, entry]))}
+        onPick={(entry) => save('next', fromEntry(entry), () => put([...entries, entry]))}
         extra={
-          <Button type="button" variant="ghost" className={WRAP_BUTTON} disabled={busy} onClick={() => save('next', () => put(entries))}>
+          <Button
+            type="button"
+            variant="ghost"
+            className={WRAP_BUTTON}
+            disabled={busy}
+            onClick={() => save('next', 'button', () => put(entries))}
+          >
             {copy.profile.notNow}
           </Button>
         }
@@ -213,7 +240,7 @@ function NextQuestion({
         initial={null}
         options={profile.conditionOptions}
         busy={busy}
-        onSave={(conditions) => save('next', () => putConditions(conditions))}
+        onSave={(conditions) => save('next', 'input', () => putConditions(conditions))}
       />
     )
   } else {
@@ -221,9 +248,15 @@ function NextQuestion({
       <AgencyForm
         initial=""
         busy={busy}
-        onSave={(text) => save('next', () => putAgency(text))}
+        onSave={(text) => save('next', 'input', () => putAgency(text))}
         extra={
-          <Button type="button" variant="ghost" className="w-full sm:w-auto" disabled={busy} onClick={() => save('next', () => putAgency(''))}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full sm:w-auto"
+            disabled={busy}
+            onClick={() => save('next', 'button', () => putAgency(''))}
+          >
             {copy.profile.notNowAgency}
           </Button>
         }
@@ -234,7 +267,7 @@ function NextQuestion({
   return (
     <Section title={copy.profile.nextTitle}>
       {body}
-      <SaveFailed show={failed} />
+      <SaveFailed from={failed} />
     </Section>
   )
 }
@@ -362,10 +395,10 @@ function EntriesSection({
   question: ProfileQuestion
   adding: boolean
   busy: boolean
-  failed: boolean
+  failed: SavedFrom | null
   onAdd: () => void
   onCancel: () => void
-  onSave: (entries: ProfileEntry[]) => void
+  onSave: (entries: ProfileEntry[], from: SavedFrom) => void
 }) {
   return (
     <Section title={title}>
@@ -382,7 +415,7 @@ function EntriesSection({
                 size="sm"
                 disabled={busy}
                 aria-label={copy.profile.removeLabel.replace('{text}', entry.text)}
-                onClick={() => onSave(entries.filter((other) => other !== entry))}
+                onClick={() => onSave(entries.filter((other) => other !== entry), 'button')}
               >
                 {copy.profile.remove}
               </Button>
@@ -397,7 +430,7 @@ function EntriesSection({
           question={question}
           taken={entries}
           busy={busy}
-          onPick={(entry) => onSave([...entries, entry])}
+          onPick={(entry) => onSave([...entries, entry], fromEntry(entry))}
           extra={
             <Button type="button" variant="ghost" className={WRAP_BUTTON} disabled={busy} onClick={onCancel}>
               {copy.profile.cancel}
@@ -411,7 +444,7 @@ function EntriesSection({
           </Button>
         )
       )}
-      <SaveFailed show={failed} />
+      <SaveFailed from={failed} />
     </Section>
   )
 }
@@ -436,7 +469,7 @@ function ConditionsSection({
   profile: ProfileData
   editing: boolean
   busy: boolean
-  failed: boolean
+  failed: SavedFrom | null
   onEdit: () => void
   onCancel: () => void
   onSave: (conditions: ProfileConditions) => void
@@ -477,12 +510,15 @@ function ConditionsSection({
           </Button>
         </>
       )}
-      <SaveFailed show={failed} />
+      <SaveFailed from={failed} />
     </Section>
   )
 }
 
-/** 条件の入力。時間帯はいくつでも、ほかは一つずつ選ぶ。収入の目安は「まだ決めていない」から始める（Claude の判断）。 */
+/**
+ * 条件の入力。何のために聞くかを一文で添える。時間帯はいくつでも、ほかは一つずつ選ぶ。
+ * 収入の目安は「まだ決めていない」から始め、比べて示すためだけに使うと添える（Claude の判断）。
+ */
 function ConditionsForm({
   initial,
   options,
@@ -515,6 +551,7 @@ function ConditionsForm({
         if (slots.length > 0 && hours !== null && place !== null) onSave({ timeSlots: slots, hoursPerWeek: hours, place, monthlyIncome: income })
       }}
     >
+      <p className="text-sm leading-relaxed font-medium">{copy.profile.conditionsQuestion}</p>
       <Fieldset legend={copy.profile.timeSlots}>
         {TIME_SLOTS.map((slot) => (
           <Choice key={slot} label={copy.profile.timeSlotValues[slot]}>
@@ -553,7 +590,7 @@ function ConditionsForm({
           </Choice>
         ))}
       </Fieldset>
-      <Fieldset legend={copy.profile.monthlyIncome}>
+      <Fieldset legend={copy.profile.monthlyIncome} note={copy.profile.incomeNote}>
         {[...options.monthlyIncome, null].map((n) => (
           <Choice key={n ?? 'undecided'} label={incomeText(n)}>
             <input
@@ -577,10 +614,16 @@ function ConditionsForm({
   )
 }
 
-function Fieldset({ legend, children }: { legend: string; children: ReactNode }) {
+function Fieldset({ legend, note, children }: { legend: string; note?: string; children: ReactNode }) {
+  const noteId = useId()
   return (
-    <fieldset className="min-w-0">
+    <fieldset className="min-w-0" aria-describedby={note ? noteId : undefined}>
       <legend className="text-sm font-medium">{legend}</legend>
+      {note && (
+        <p id={noteId} className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          {note}
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">{children}</div>
     </fieldset>
   )
@@ -607,7 +650,7 @@ function AgencySection({
   agency: string | null
   editing: boolean
   busy: boolean
-  failed: boolean
+  failed: SavedFrom | null
   onEdit: () => void
   onCancel: () => void
   onSave: (text: string) => void
@@ -637,7 +680,7 @@ function AgencySection({
           </Button>
         </>
       )}
-      <SaveFailed show={failed} />
+      <SaveFailed from={failed} />
     </Section>
   )
 }

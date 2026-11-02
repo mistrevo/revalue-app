@@ -4,7 +4,7 @@ using Revalue.Server.Data;
 namespace Revalue.Server.Features.Profile;
 
 /// <summary>好みとやりたいことの項目が、選択肢から選んだ言葉か、本人が書いた言葉か。</summary>
-[JsonConverter(typeof(JsonStringEnumConverter<EntrySource>))]
+[JsonConverter(typeof(NamedEnumConverter<EntrySource>))]
 public enum EntrySource
 {
     [JsonStringEnumMemberName("chosen")]
@@ -18,7 +18,7 @@ public enum EntrySource
 public sealed record ProfileEntry(string Text, EntrySource Source);
 
 /// <summary>使える時間帯（04-profile.md の「条件」）。</summary>
-[JsonConverter(typeof(JsonStringEnumConverter<TimeSlot>))]
+[JsonConverter(typeof(NamedEnumConverter<TimeSlot>))]
 public enum TimeSlot
 {
     [JsonStringEnumMemberName("morning")]
@@ -35,7 +35,7 @@ public enum TimeSlot
 }
 
 /// <summary>家でできることだけか、外にも出られるか。</summary>
-[JsonConverter(typeof(JsonStringEnumConverter<Place>))]
+[JsonConverter(typeof(NamedEnumConverter<Place>))]
 public enum Place
 {
     [JsonStringEnumMemberName("homeOnly")]
