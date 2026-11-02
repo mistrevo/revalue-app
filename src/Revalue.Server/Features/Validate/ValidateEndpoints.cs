@@ -244,7 +244,7 @@ public static class ValidateEndpoints
             CancellationToken ct) =>
         {
             var text = request?.Text?.Trim();
-            if (string.IsNullOrEmpty(text) || new StringInfo(text).LengthInTextElements > TalkStream.MaxAnswerLength)
+            if (string.IsNullOrEmpty(text) || !TalkStream.WithinLength(text))
             {
                 return Problems.Create(StatusCodes.Status400BadRequest, Problems.InvalidAnswer, "The correction is empty or too long.");
             }

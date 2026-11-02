@@ -171,6 +171,11 @@ public sealed class CorrectionTests
         Assert.Equal(reads, ai.ReadCalls);
         Assert.Equal(before, await StoredContent(store));
 
+        // 見た目は 1 文字のまま、結合文字（U+0301）を重ねて中身だけを長くした訂正は断る
+        var combining = await Correct(client, finished, "あ" + new string('\u0301', TalkStream.MaxAnswerUtf16Length));
+        Assert.Equal(HttpStatusCode.BadRequest, combining.StatusCode);
+        Assert.Equal(reads, ai.ReadCalls);
+
         // 2,000 文字ちょうどは受け取る（絵文字などの合成された文字は 1 文字と数える）
         var longest = await Correct(client, finished, string.Concat(Enumerable.Repeat("👨‍👩‍👧", TalkStream.MaxAnswerLength)));
         Assert.Equal(HttpStatusCode.OK, longest.StatusCode);

@@ -373,6 +373,7 @@ public sealed class TalkStreamTests
     [InlineData("", "free")]
     [InlineData("   ", "free")]
     [InlineData("long", "free")]
+    [InlineData("combining", "free")]
     [InlineData("昨日は買い物に行きました。", "voice")]
     [InlineData("昨日は買い物に行きました。", null)]
     public async Task InvalidAnswerIsBadRequest(string text, string? kind)
@@ -381,7 +382,13 @@ public sealed class TalkStreamTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        var body = text == "long" ? new string('あ', TalkStream.MaxAnswerLength + 1) : text;
+        var body = text switch
+        {
+            "long" => new string('あ', TalkStream.MaxAnswerLength + 1),
+            // 見た目は 1 文字のまま、結合文字（U+0301）を重ねて中身だけを長くした答え
+            "combining" => "あ" + new string('\u0301', TalkStream.MaxAnswerUtf16Length),
+            _ => text,
+        };
 
         var response = await client.PostAsJsonAsync($"/api/episodes/{id}/messages", new { text = body, kind }, Ct);
 
