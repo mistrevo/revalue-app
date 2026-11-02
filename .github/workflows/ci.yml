@@ -1,4 +1,4 @@
-# テスト: PR と push のたびに、裏側・画面・フック・コンテナ・Azure の定義を確かめる（foundation-7 公開 URL で動く）
+# テスト: PR と push のたびに、裏側・評価の仕組み・画面・フック・コンテナ・Azure の定義を確かめる（foundation-7 公開 URL で動く）
 name: ci
 
 on:
@@ -25,6 +25,8 @@ jobs:
           dotnet-version: 10.x
       - run: dotnet build
       - run: dotnet test
+      - name: 評価の仕組みを Claude を呼ばずに確かめる（dry-run）
+        run: dotnet run --project evals/Revalue.Evals -- --unit discover --dry-run --out "$RUNNER_TEMP/evals"
 
   web:
     name: 画面

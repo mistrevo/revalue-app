@@ -22,6 +22,19 @@ describe('copy', () => {
     expect(found).toEqual([])
   })
 
+  it('discover-7（返答が少しずつ流れる）: AI が断ったときの言葉は、答えや書き方のせいにせず、飛ばす道も示す', () => {
+    // 断られるのは、話しにくいことを打ち明けたときに起こりやすい。打ち明けた言葉を突き返さない
+    expect(copy.talk.refusal).not.toMatch(/この答え|言い方|書き方/)
+    expect(copy.talk.refusal).toContain('そのまま残しています')
+    expect(copy.talk.refusal).toContain(`「${copy.talk.skip}」`)
+  })
+
+  it('discover-5（つらい話は飛ばせる）: 飛ばす前の確かめに「消す」を使わない', () => {
+    // つらい状態のサインのあとにも出る確かめなので、「消えたい」と書いた人に「消して」を重ねない
+    expect(copy.talk.skipQuestion).not.toContain('消')
+    expect(copy.talk.skipYes).not.toContain('消')
+  })
+
   it('common-1（使わない言葉を出さない）: 照らし合わせは使わない言葉を見つけられる', () => {
     const texts = flatten({ a: ['あなたの診断結果'] })
     expect(forbiddenWords.some((word) => texts.some((text) => text.includes(word)))).toBe(true)

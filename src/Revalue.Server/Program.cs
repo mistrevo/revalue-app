@@ -1,4 +1,6 @@
+using Revalue.Server.Ai;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
@@ -11,8 +13,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddRevalueAuth(builder.Environment);
 builder.Services.AddRevalueData(builder.Configuration, builder.Environment);
+builder.Services.AddConversationAi(builder.Configuration, builder.Environment);
 builder.Services.Configure<LimitOptions>(builder.Configuration.GetSection("Limits"));
 builder.Services.AddSingleton<ICounter, Counter>();
+builder.Services.AddScoped<TalkStream>();
 
 var app = builder.Build();
 
@@ -31,6 +35,7 @@ var api = app.MapGroup("/api").RequireAuthorization();
 api.MapGet("/health", (IConfiguration config) => TypedResults.Ok(new { status = "ok", commit = config["Build:Commit"] ?? "local" }))
     .AllowAnonymous();
 ConsentEndpoints.Map(api);
+DiscoverEndpoints.Map(api);
 api.MapGet("/stats", async (ICounter counter, CancellationToken ct) => TypedResults.Ok(await counter.GetAsync(ct))).RequireConsent();
 
 // テストの環境（Testing）だけ、送信回数の上限を確かめるための API を足す。本番の経路には足さない

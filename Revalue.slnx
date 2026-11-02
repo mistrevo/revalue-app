@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/evals/">
+    <Project Path="evals/Revalue.Evals/Revalue.Evals.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Revalue.Server/Revalue.Server.csproj" />
   </Folder>

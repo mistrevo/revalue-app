@@ -31,6 +31,35 @@ public sealed class CosmosDataStore(Container container) : IDataStore
         return await JsonSerializer.DeserializeAsync<T>(response.Content, DataConstants.Json, ct);
     }
 
+    public async Task<Versioned<T>?> GetVersionedAsync<T>(string userKey, string id, CancellationToken ct) where T : Item
+    {
+        using var response = await container.ReadItemStreamAsync(id, new PartitionKey(userKey), cancellationToken: ct);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        var item = await JsonSerializer.DeserializeAsync<T>(response.Content, DataConstants.Json, ct);
+        return item is null ? null : new Versioned<T>(item, response.Headers.ETag);
+    }
+
+    public async Task<bool> TryReplaceAsync<T>(T item, string etag, CancellationToken ct) where T : Item
+    {
+        // 置き換え（Replace）は、ないアイテムを作らない。IfMatchEtag で、読んだときから変わっていないときだけ書く
+        using var body = ToStream(Serialize(item));
+        var result = await WriteAsync(item.UserKey, item.Id, batch =>
+            batch.ReplaceItemStream(item.Id, body, new TransactionalBatchItemRequestOptions { IfMatchEtag = etag }), ct);
+        if (result.Status is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            // 消えたか、ほかの要求が先に書いた
+            return false;
+        }
+
+        result.EnsureSucceeded();
+        return true;
+    }
+
     public async Task UpsertAsync<T>(T item, CancellationToken ct) where T : Item
     {
         using var body = ToStream(Serialize(item));
@@ -73,6 +102,28 @@ public sealed class CosmosDataStore(Container container) : IDataStore
         }
 
         return count;
+    }
+
+    public async Task DeleteAsync(string userKey, string id, CancellationToken ct)
+    {
+        InMemoryDataStore.EnsureNotGlobal(userKey);
+        await DeleteIgnoringMissingAsync(id, new PartitionKey(userKey), null, ct);
+    }
+
+    public async Task<bool> TryDeleteAsync(string userKey, string id, string etag, CancellationToken ct)
+    {
+        InMemoryDataStore.EnsureNotGlobal(userKey);
+
+        // IfMatchEtag で、読んだときから変わっていないときだけ消す。消すのに了解の記録は要らない（全部消すと同じ）
+        using var response = await container.DeleteItemStreamAsync(id, new PartitionKey(userKey), new ItemRequestOptions { IfMatchEtag = etag }, ct);
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            // 消えたか、ほかの要求が先に書いた
+            return false;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return true;
     }
 
     public async Task DeleteAllAsync(string userKey, CancellationToken ct)

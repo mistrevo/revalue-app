@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 評価を回すコンソールアプリ。製品と同じプロンプトと判断のコードを使うため、Revalue.Server を参照する -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Revalue.Evals</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Revalue.Server.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Revalue.Server\Revalue.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 架空エピソード、判定役の指示、使わない言葉の一覧を出力にコピーして読む -->
+    <None Include="..\episodes\*.md" Link="episodes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\judges\*.md" Link="judges\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\shared\forbidden-words.json" Link="forbidden-words.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

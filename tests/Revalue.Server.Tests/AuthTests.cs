@@ -122,7 +122,8 @@ public sealed class AuthTests
     {
         await using var factory = new RevalueFactory()
             .WithEnvironment(environment)
-            .WithSetting("Cosmos:Endpoint", "https://cosmos.example.com:443/");
+            .WithSetting("Cosmos:Endpoint", "https://cosmos.example.com:443/")
+            .WithSetting("ANTHROPIC_API_KEY", "placeholder-for-tests");
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         using var withCookie = new HttpRequestMessage(HttpMethod.Get, "/api/me");
