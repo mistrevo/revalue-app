@@ -10,11 +10,22 @@ public sealed class CounterTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>数えるのは了解した人だけ（しるしは、その人のパーティションに置くため）。</summary>
+    private static async Task Consent(RevalueFactory factory, params string[] principalIds)
+    {
+        foreach (var id in principalIds)
+        {
+            var response = await factory.CreateUserClient(id).PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+            Assert.Equal(System.Net.HttpStatusCode.NoContent, response.StatusCode);
+        }
+    }
+
     [Fact(DisplayName = "foundation-8（数だけを数える）: 同じ人を何度数えても 1 回だけ")]
     public async Task SamePersonIsCountedOnce()
     {
         await using var factory = new RevalueFactory();
         var counter = factory.Services.GetRequiredService<ICounter>();
+        await Consent(factory, "a", "b");
 
         for (var i = 0; i < 3; i++)
         {
@@ -34,6 +45,7 @@ public sealed class CounterTests
     {
         await using var factory = new RevalueFactory();
         var counter = factory.Services.GetRequiredService<ICounter>();
+        await Consent(factory, "a", "b");
         var keyA = TestUsers.Key("a");
         var keyB = TestUsers.Key("b");
         await counter.CountOnceAsync(keyA, CountMetric.ReachedReport, Ct);

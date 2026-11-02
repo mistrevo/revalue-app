@@ -17,16 +17,18 @@ public sealed class RevalueFactory : WebApplicationFactory<Program>
 
     private readonly string _environment;
     private readonly Dictionary<string, string?> _settings;
+    private readonly Action<IServiceCollection>? _testServices;
     private readonly LogCollector _logs = new();
 
-    public RevalueFactory() : this("Testing", new Dictionary<string, string?>())
+    public RevalueFactory() : this("Testing", new Dictionary<string, string?>(), null)
     {
     }
 
-    private RevalueFactory(string environment, Dictionary<string, string?> settings)
+    private RevalueFactory(string environment, Dictionary<string, string?> settings, Action<IServiceCollection>? testServices)
     {
         _environment = environment;
         _settings = settings;
+        _testServices = testServices;
         // 日本時間 2026-11-02 12:00
         Clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 2, 3, 0, 0, TimeSpan.Zero));
     }
@@ -38,14 +40,19 @@ public sealed class RevalueFactory : WebApplicationFactory<Program>
     public IReadOnlyList<string> CapturedLogs => _logs.Lines.ToArray();
 
     /// <summary>環境を変えたファクトリを返す。</summary>
-    public RevalueFactory WithEnvironment(string environment) => new(environment, new Dictionary<string, string?>(_settings));
+    public RevalueFactory WithEnvironment(string environment) =>
+        new(environment, new Dictionary<string, string?>(_settings), _testServices);
 
     /// <summary>設定を足したファクトリを返す。</summary>
     public RevalueFactory WithSetting(string key, string? value)
     {
         var settings = new Dictionary<string, string?>(_settings) { [key] = value };
-        return new RevalueFactory(_environment, settings);
+        return new RevalueFactory(_environment, settings, _testServices);
     }
+
+    /// <summary>サービスを差し替えたファクトリを返す（保存先を包んで、決まった順で割り込ませるときなど）。</summary>
+    public RevalueFactory WithTestServices(Action<IServiceCollection> configure) =>
+        new(_environment, new Dictionary<string, string?>(_settings), configure);
 
     /// <summary>組み込み認証と同じヘッダーを付けた、ログイン済みのクライアント。</summary>
     public HttpClient CreateUserClient(string principalId)
@@ -71,6 +78,7 @@ public sealed class RevalueFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<TimeProvider>(Clock);
+            _testServices?.Invoke(services);
         });
     }
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -88,6 +89,34 @@ public sealed class AutoDeleteTests
         factory.Clock.Advance(TimeSpan.FromSeconds(1));
         await client.GetAsync("/api/nope", Ct);
         Assert.Equal("2026-11-03", (await store.GetAsync<ActivityItem>(userKey, ActivityItem.ItemId, Ct))!.LastActiveDate);
+    }
+
+    [Fact(DisplayName = "foundation-4（使わなければ自動で消える）: 同じ日のあとで書いたアイテムを、了解の記録が消えたあとに残さない")]
+    public async Task ItemsWrittenLaterInTheDayDoNotOutliveConsent()
+    {
+        await using var factory = new RevalueFactory();
+        var client = factory.CreateUserClient("g-1");
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var userKey = UserKey("google", "g-1");
+
+        // 日本時間 11/02 12:00 に了解し、その日の最初の要求で書き直す
+        await Consent(client);
+        await client.GetAsync("/api/me", Ct);
+        // 同じ日の 23:00 に送る（送信回数のアイテムは、了解の記録より 11 時間あとに書かれる）
+        factory.Clock.SetUtcNow(DateTimeOffset.Parse("2026-11-02T14:00:00Z"));
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/_test/send", null, Ct)).StatusCode);
+
+        // 日本時間 12/02 13:00。了解の記録は 30 日たって消えたが、送信回数のアイテムはまだ TTL が残っている
+        factory.Clock.SetUtcNow(DateTimeOffset.Parse("2026-12-02T04:00:00Z"));
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/me", Ct);
+        Assert.False(me.GetProperty("consented").GetBoolean());
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/stats", Ct)).StatusCode);
+        Assert.Equal(0, await store.CountAllAsync(userKey, Ct));
+
+        // 了解し直しても、前の残りは戻らない（了解の記録と使った記録だけ）
+        await Consent(client);
+        await client.GetAsync("/api/me", Ct);
+        Assert.Equal(2, await store.CountAllAsync(userKey, Ct));
     }
 
     [Fact(DisplayName = "foundation-1（案内はログインなしで見られる）: ログインしていない人のデータは作らない")]

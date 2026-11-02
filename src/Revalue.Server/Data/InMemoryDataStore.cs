@@ -7,6 +7,7 @@ namespace Revalue.Server.Data;
 /// <summary>
 /// メモリの中だけに置く保存先。止めると消える。TimeProvider で Cosmos DB の TTL を再現する
 /// （書いた時刻から ttl 秒たったアイテムは見えなくなる）。
+/// 操作はどれも 1 つのロックの中で行うので、確かめてから書くまでのあいだに、ほかの要求が割り込まない。
 /// </summary>
 public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
 {
@@ -26,11 +27,10 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
 
     public Task UpsertAsync<T>(T item, CancellationToken ct) where T : Item
     {
-        var stored = DataConstants.WithDefaultTtl(item);
-        var json = JsonSerializer.Serialize(stored, stored.GetType(), DataConstants.Json);
         lock (_gate)
         {
-            _items[(stored.UserKey, stored.Id)] = new Entry(json, stored.Type, stored.Ttl, time.GetUtcNow());
+            EnsureConsented(item.UserKey, item.Id);
+            Write(item);
         }
 
         return Task.CompletedTask;
@@ -61,9 +61,20 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
         EnsureNotGlobal(userKey);
         lock (_gate)
         {
-            foreach (var key in _items.Keys.Where(k => k.UserKey == userKey).ToList())
+            RemoveAll(userKey);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteLeftoversAsync(string userKey, CancellationToken ct)
+    {
+        EnsureNotGlobal(userKey);
+        lock (_gate)
+        {
+            if (!TryGetLive(userKey, DataConstants.ConsentId, out _))
             {
-                _items.Remove(key);
+                RemoveAll(userKey);
             }
         }
 
@@ -88,22 +99,32 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
     {
         lock (_gate)
         {
-            var now = time.GetUtcNow();
+            EnsureConsented(userKey, id);
             if (TryGetLive(userKey, id, out var entry))
             {
                 // Cosmos DB の部分更新と同じく、ほかの値はそのまま count だけ増やし、書いた時刻を新しくする
                 var node = JsonNode.Parse(entry.Json)!.AsObject();
                 var count = node["count"]!.GetValue<long>() + 1;
                 node["count"] = count;
-                _items[(userKey, id)] = entry with { Json = node.ToJsonString(DataConstants.Json), WrittenAt = now };
+                _items[(userKey, id)] = entry with { Json = node.ToJsonString(DataConstants.Json), WrittenAt = time.GetUtcNow() };
                 return Task.FromResult(count);
             }
 
-            var created = (CountItem)DataConstants.WithDefaultTtl(
-                new CountItem { Id = id, UserKey = userKey, Type = type, Ttl = ttl, Count = 1 });
-            _items[(userKey, id)] = new Entry(
-                JsonSerializer.Serialize(created, DataConstants.Json), type, created.Ttl, now);
+            Write(new CountItem { Id = id, UserKey = userKey, Type = type, Ttl = ttl, Count = 1 });
             return Task.FromResult(1L);
+        }
+    }
+
+    public Task<long> IncrementDailyAsync(string userKey, string id, string type, string date, int? ttl, CancellationToken ct)
+    {
+        lock (_gate)
+        {
+            EnsureConsented(userKey, id);
+            var count = TryGetLive(userKey, id, out var entry) && Deserialize<DailyCountItem>(entry.Json) is { } current && current.Date == date
+                ? current.Count + 1
+                : 1;
+            Write(new DailyCountItem { Id = id, UserKey = userKey, Type = type, Ttl = ttl, Date = date, Count = count });
+            return Task.FromResult(count);
         }
     }
 
@@ -127,6 +148,31 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
         if (userKey == DataConstants.GlobalPartition)
         {
             throw new ArgumentException("The global partition cannot be deleted.", nameof(userKey));
+        }
+    }
+
+    /// <summary>ロックの中で呼ぶ。利用者のパーティションに書くには、了解の記録が要る。</summary>
+    private void EnsureConsented(string userKey, string id)
+    {
+        if (DataConstants.RequiresConsent(userKey, id) && !TryGetLive(userKey, DataConstants.ConsentId, out _))
+        {
+            throw new ConsentMissingException();
+        }
+    }
+
+    /// <summary>ロックの中で呼ぶ。1 件を書き、書いた時刻から TTL を数える。</summary>
+    private void Write(Item item)
+    {
+        var stored = DataConstants.WithDefaultTtl(item);
+        _items[(stored.UserKey, stored.Id)] = new Entry(
+            JsonSerializer.Serialize(stored, stored.GetType(), DataConstants.Json), stored.Type, stored.Ttl, time.GetUtcNow());
+    }
+
+    private void RemoveAll(string userKey)
+    {
+        foreach (var key in _items.Keys.Where(k => k.UserKey == userKey).ToList())
+        {
+            _items.Remove(key);
         }
     }
 

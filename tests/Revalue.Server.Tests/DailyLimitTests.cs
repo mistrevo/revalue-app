@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Revalue.Server.Data;
 
 namespace Revalue.Server.Tests;
 
@@ -73,6 +75,65 @@ public sealed class DailyLimitTests
 
         factory.Clock.SetUtcNow(DateTimeOffset.Parse("2026-11-02T15:00:00Z"));
         Assert.Equal(HttpStatusCode.NoContent, (await Send(client)).StatusCode);
+    }
+
+    [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 日付が変わったあと、前の日の送信回数を残さない")]
+    public async Task PreviousDayCountIsNotKept()
+    {
+        await using var factory = Limited();
+        factory.Clock.SetUtcNow(DateTimeOffset.Parse("2026-11-02T05:00:00Z"));
+        var client = await Consenting(factory, "a");
+        for (var i = 0; i < 2; i++)
+        {
+            Assert.Equal(HttpStatusCode.NoContent, (await Send(client)).StatusCode);
+        }
+
+        factory.Clock.SetUtcNow(DateTimeOffset.Parse("2026-11-03T05:00:00Z"));
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(client)).StatusCode);
+
+        var store = (InMemoryDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var usage = new List<JsonElement>();
+        await foreach (var json in store.DumpRawJsonAsync(Ct))
+        {
+            using var document = JsonDocument.Parse(json);
+            var item = document.RootElement;
+            if (item.GetProperty("userKey").GetString() == TestUsers.Key("a") && item.GetProperty("type").GetString() == "usage")
+            {
+                usage.Add(item.Clone());
+            }
+        }
+
+        var only = Assert.Single(usage);
+        Assert.Equal("2026-11-03", only.GetProperty("date").GetString());
+        Assert.Equal(1, only.GetProperty("count").GetInt64());
+    }
+
+    [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 1 人が同時に送っても、上限を超えて通さない")]
+    public async Task PerUserLimitHoldsUnderConcurrentSends()
+    {
+        await using var factory = new RevalueFactory().WithSetting("Limits:MessagesPerDay", "1");
+        var client = await Consenting(factory, "a");
+
+        var statuses = await Task.WhenAll(Enumerable.Range(0, 50).Select(_ => Task.Run(async () => (await Send(client)).StatusCode)));
+
+        Assert.Equal(1, statuses.Count(s => s == HttpStatusCode.NoContent));
+        Assert.Equal(49, statuses.Count(s => s == HttpStatusCode.TooManyRequests));
+    }
+
+    [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 大勢が同時に送っても、アプリ全体の上限を超えて通さない")]
+    public async Task TotalLimitHoldsUnderConcurrentSends()
+    {
+        await using var factory = new RevalueFactory().WithSetting("Limits:MessagesPerDayTotal", "1");
+        var clients = new List<HttpClient>();
+        for (var i = 0; i < 40; i++)
+        {
+            clients.Add(await Consenting(factory, $"user-{i}"));
+        }
+
+        var statuses = await Task.WhenAll(clients.Select(client => Task.Run(async () => (await Send(client)).StatusCode)));
+
+        Assert.Equal(1, statuses.Count(s => s == HttpStatusCode.NoContent));
+        Assert.Equal(39, statuses.Count(s => s == HttpStatusCode.TooManyRequests));
     }
 
     [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 了解していない人は上限より先に 403")]

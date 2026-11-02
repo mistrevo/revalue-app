@@ -3,10 +3,13 @@ using Revalue.Server.Features.Foundation.Auth;
 
 namespace Revalue.Server.Features.Foundation.Consent;
 
-/// <summary>「はじめに」に了解した記録。版は、はじめにの中身を変えたときに上げる。</summary>
+/// <summary>
+/// 「はじめに」に了解した記録。版は、はじめにの中身を変えたときに上げる。
+/// その人のパーティションの入口で、これがある間だけ、ほかのアイテムを書ける（<see cref="IDataStore"/>）。
+/// </summary>
 public sealed record ConsentItem : Item
 {
-    public const string ItemId = "consent";
+    public const string ItemId = DataConstants.ConsentId;
     public const string ItemType = "consent";
 
     public required string Version { get; init; }
