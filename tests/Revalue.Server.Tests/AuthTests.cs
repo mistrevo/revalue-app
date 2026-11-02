@@ -46,13 +46,23 @@ public sealed class AuthTests
         Assert.ThrowsAny<Exception>(() => factory.CreateClient());
     }
 
-    [Fact(DisplayName = "foundation-1（案内はログインなしで見られる）: 未ログインの /api は 401 の ProblemDetails")]
-    public async Task AnonymousApiIsProblem401()
+    [Theory(DisplayName = "foundation-1（案内はログインなしで見られる）: 未ログインの /api は 401 の ProblemDetails")]
+    [InlineData("GET", "/api/me")]
+    [InlineData("POST", "/api/consent")]
+    [InlineData("DELETE", "/api/me")]
+    [InlineData("GET", "/api/stats")]
+    [InlineData("GET", "/api/nope")]
+    public async Task AnonymousApiIsProblem401(string method, string path)
     {
         await using var factory = new RevalueFactory();
         var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(new HttpMethod(method), path);
+        if (method == "POST")
+        {
+            request.Content = JsonContent.Create(new { version = "2026-11-02" });
+        }
 
-        var response = await client.GetAsync("/api/me", Ct);
+        var response = await client.SendAsync(request, Ct);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
