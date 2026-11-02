@@ -1,0 +1,104 @@
+# デプロイ: main に入った変更を公開 URL に出す（foundation-7 公開 URL で動く）
+# Azure へは OIDC でログインする。鍵は GitHub に置かない。
+# 使うリポジトリ変数（鍵ではない）: AZURE_CLIENT_ID、AZURE_TENANT_ID、AZURE_SUBSCRIPTION_ID、
+# AZURE_RESOURCE_GROUP、CONTAINER_APP_NAME、APP_URL。手順は infra/README.md
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    # 文書と進み具合だけの変更では、同じアプリを出し直さない
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: デプロイ
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure の準備ができているか確かめる
+        id: ready
+        run: |
+          if [ -z "${{ vars.AZURE_CLIENT_ID }}" ]; then
+            echo "::notice title=デプロイを飛ばしました::Azure の準備がまだです（リポジトリ変数 AZURE_CLIENT_ID がありません）。infra/README.md の手順を流してください"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.ready.outputs.ready == 'true'
+
+      - name: イメージの名前を決める
+        if: steps.ready.outputs.ready == 'true'
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        if: steps.ready.outputs.ready == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: イメージを作って ghcr.io に push する
+        if: steps.ready.outputs.ready == 'true'
+        run: |
+          docker build --build-arg BUILD_COMMIT="$GITHUB_SHA" -t "${{ steps.image.outputs.name }}" .
+          docker push "${{ steps.image.outputs.name }}"
+
+      - uses: azure/login@v2
+        if: steps.ready.outputs.ready == 'true'
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Container App を新しいイメージに更新する
+        if: steps.ready.outputs.ready == 'true'
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt
+          az containerapp update \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ steps.image.outputs.name }}" \
+            --output none
+
+      - name: 公開 URL で新しいイメージが動き、/ が 200 を返すか確かめる
+        if: steps.ready.outputs.ready == 'true'
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          url="${APP_URL%/}"
+          # 新しいリビジョンが起動に失敗すると、古いリビジョンがそのまま応答する。200 だけでは新しいイメージが
+          # 動いているとは言えないので、/api/health が今回のコミットを返すまで待つ。
+          # 0 台から起き上がるのと、新しいリビジョンに切り替わるのを最大 5 分待つ
+          for i in $(seq 1 60); do
+            commit=$(curl -fsS "$url/api/health" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true)
+            home=$(curl -s -o /dev/null -w "%{http_code}" "$url/" || true)
+            if [ "$commit" = "$GITHUB_SHA" ] && [ "$home" = "200" ]; then
+              echo "公開 URL で新しいイメージが動いています: $url（コミット $commit）"
+              exit 0
+            fi
+            echo "待っています（動いているコミット: ${commit:-不明}、/: $home）"
+            sleep 5
+          done
+          echo "::error::公開 URL が 5 分以内に今回のコミット（$GITHUB_SHA）を返しませんでした"
+          # 原因を調べるために、リビジョンの状態を出す
+          az containerapp revision list \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "[].{name:name, active:properties.active, health:properties.healthState, running:properties.runningState, image:properties.template.containers[0].image}" \
+            --output table || true
+          exit 1

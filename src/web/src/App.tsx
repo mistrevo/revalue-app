@@ -1,0 +1,51 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import { RequireUser } from '@/components/RequireUser'
+import { Home } from '@/pages/Home'
+import { Landing } from '@/pages/Landing'
+import { Settings } from '@/pages/Settings'
+import { Start } from '@/pages/Start'
+
+/**
+ * 画面の切り替え。/.auth/* はここに置かない（組み込み認証へページごと移動するため）。
+ * RequireUser には画面ごとに key を付け、画面が変わるたびにログインと了解の状態を読み直す。
+ */
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route
+        path="/start"
+        element={
+          <RequireUser key="start">
+            <Start />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/home"
+        element={
+          <RequireUser key="home" consent>
+            <Home />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <RequireUser key="settings">
+            <Settings />
+          </RequireUser>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  )
+}

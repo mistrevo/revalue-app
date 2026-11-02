@@ -1,0 +1,94 @@
+# テスト: PR と push のたびに、裏側・画面・フック・コンテナ・Azure の定義を確かめる（foundation-7 公開 URL で動く）
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: 裏側
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.x
+      - run: dotnet build
+      - run: dotnet test
+
+  web:
+    name: 画面
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+      - run: npm --prefix src/web ci
+      - run: npm --prefix src/web test
+      - run: npm --prefix src/web run build
+
+  hooks:
+    name: フック
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: node --test .claude/hooks/guard.test.mjs
+
+  container:
+    name: コンテナ
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: イメージを作る
+        run: docker build --build-arg BUILD_COMMIT="$GITHUB_SHA" -t revalue:ci .
+      - name: 起動して /api/health を確かめる
+        # Cosmos DB なしで起動させるため Development にする。鍵は CI だけの仮の値
+        run: |
+          docker run -d --name revalue -p 8080:8080 \
+            -e ASPNETCORE_ENVIRONMENT=Development \
+            -e Auth__UserKeySecret=ci-only-placeholder \
+            revalue:ci
+          for i in $(seq 1 30); do
+            if health=$(curl -fsS http://localhost:8080/api/health); then
+              echo "$health"
+              # deploy.yml は、このコミットで新しいイメージが動いているかを確かめる。イメージにコミットが入っているかを見る
+              commit=$(echo "$health" | jq -r '.commit')
+              if [ "$commit" != "$GITHUB_SHA" ]; then
+                echo "::error::/api/health のコミット（$commit）が、作ったコミット（$GITHUB_SHA）と違います"
+                exit 1
+              fi
+              curl -fsS -o /dev/null http://localhost:8080/
+              echo "コンテナは動いています"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs revalue
+          exit 1
+
+  infra:
+    name: Azure の定義
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Bicep をビルドする
+        # Azure にはつながない。infra/main.bicep が ARM テンプレートに組み立てられるかだけを見る
+        run: |
+          az bicep install
+          az bicep build --file infra/main.bicep --outdir "$RUNNER_TEMP"

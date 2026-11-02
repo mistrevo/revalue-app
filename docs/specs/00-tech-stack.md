@@ -37,7 +37,7 @@ Container Apps はコンテナを動かす Azure のサービスで、組み込�
 | 実行環境 | .NET（LTS） | 10 |
 | 裏側 | ASP.NET Core の Minimal API | 10 |
 | Claude | Anthropic の公式 C# SDK（NuGet `Anthropic`） | 13 系 |
-| データ | Cosmos DB の SDK（NuGet `Microsoft.Azure.Cosmos`） | 3 系 |
+| データ | Cosmos DB の SDK（NuGet `Microsoft.Azure.Cosmos`。SDK が求めるので `Newtonsoft.Json` も参照する） | 3 系 |
 | Azure の認証 | `Azure.Identity`（`DefaultAzureCredential`） | 最新 |
 | 裏側のテスト | xUnit v3（`xunit.v3`）と `Microsoft.AspNetCore.Mvc.Testing` | 最新 |
 | 画面 | React、TypeScript、Vite | React 19、TypeScript 7、Vite 8 |
@@ -53,6 +53,7 @@ Container Apps はコンテナを動かす Azure のサービスで、組み込�
 
 ```
 Revalue.slnx                      ソリューション（.NET 10 の dotnet new sln が作る形式）
+global.json                       dotnet test を Microsoft.Testing.Platform で回す設定（xUnit v3 の雛形が作る）
 Dockerfile                        画面を作る → 裏側を publish → 実行用の小さいイメージ、の 3 段
 src/Revalue.Server/               ASP.NET Core
   Program.cs
@@ -170,7 +171,7 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 - ログインした人の ID は、`Auth__UserKeySecret` を鍵にした HMAC-SHA256（鍵を使って元に戻せない値に変える方法）で変換してから使う（Claude の判断）。メールアドレスと名前は読まず、保存しない
 - Cosmos DB for NoSQL の無料枠を使う。データベース 1 つ、コンテナ（Cosmos DB のデータの入れ物）1 つで、パーティションキー（データを分けて置く基準）は `/userKey`。アイテムの種類は `type` で分ける（Claude の判断）
 - 自動で消す: コンテナの TTL（決まった時間で自動に消す設定）を有効にし、各アイテムの `ttl` を 30 日にする（Claude の判断）。その人がその日に初めて使ったときに 1 回だけ、その人のアイテムの `ttl` を延ばす（Claude の判断）
-- 全部消す: その人のパーティションキーのアイテムをすべて消す
+- 全部消す: 了解の記録を最初に消してから、その人のパーティションキーのアイテムをすべて消す。その人のパーティションに書くときは、了解の記録を読む操作を同じトランザクション（TransactionalBatch）に入れ、了解の記録がなければ何も書かない（Claude の判断）
 - 接続はマネージド ID で行う。Cosmos DB のキーでの接続は無効にする
 - テストはインメモリの保存先を使う。手元で動かすときも、Cosmos DB を用意しなければインメモリで動く
 
@@ -180,8 +181,8 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 - Container Apps の環境と Container App（従量課金。使われないときは 0 台まで減らす）
 - Cosmos DB（無料枠）
-- Key Vault（`anthropic-api-key` と `user-key-secret` を置く）
-- ユーザー割り当てマネージド ID を 2 つ。アプリ用（Key Vault の鍵を読み、Cosmos DB を読み書きする）と、GitHub Actions 用（デプロイし、評価のために Key Vault の鍵を読む）
+- Key Vault（`anthropic-api-key`、`user-key-secret`、`google-client-secret` を置く）
+- ユーザー割り当てマネージド ID を 2 つ。アプリ用（Key Vault の鍵を読み、Cosmos DB を読み書きする）と、GitHub Actions 用（デプロイし、評価のために Key Vault の Claude の鍵 `anthropic-api-key` だけを読む。利用者キーを作る鍵は読めない）
 - Log Analytics（Container Apps のログ）
 
 - コンテナのイメージは GitHub Container Registry（`ghcr.io`、公開）に置く。Azure Container Registry は月額がかかるので使わない（Claude の判断）
@@ -192,8 +193,8 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 | ファイル | いつ | 何をする |
 |---|---|---|
-| `ci.yml` | PR と push | 裏側のビルドとテスト、画面のビルドとテスト、フックのテスト |
-| `deploy.yml` | main への push | イメージを作って `ghcr.io` に push し、Container App を更新する。公開 URL で応答を確かめる |
+| `ci.yml` | PR と push | 裏側のビルドとテスト、画面のビルドとテスト、フックのテスト、Azure の定義（`infra/main.bicep`）のビルド、コンテナを作って起動できるかの確認 |
+| `deploy.yml` | main への push | イメージを作って `ghcr.io` に push し、Container App を更新する。公開 URL で、新しいイメージが応答していることを確かめる |
 | `evals.yml` | 手動 | OIDC で Key Vault から Claude の鍵を読み、評価を回す |
 
 評価は、ふだんは VM で回して結果をコミットする。`evals.yml` は、開発者が手動で回すためのもの（Claude の判断）。
@@ -219,9 +220,11 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 - tech-1（同じコマンドで作れる）: 「コマンド」の表のコマンドが、Windows と Linux の両方で通る
 - tech-2（鍵を置かずに動く）: リポジトリにも GitHub の secrets にも鍵がない状態で、デプロイと評価が動く
-- tech-3（作り直せる）: `infra/main.bicep` から、Azure の環境を作り直せる。手作業は次の 2 つだけにする
-  - 最初の 1 回の `az deployment group create` は、開発者か VM のエージェントが流す（GitHub Actions 用の ID も `main.bicep` が作るため）
-  - Key Vault の `anthropic-api-key` の値は、開発者が入れる。`user-key-secret` は、VM のエージェントが乱数から作って入れてよい
+- tech-3（作り直せる）: `infra/main.bicep` から、Azure の環境を作り直せる。手作業は次だけにする
+  - 最初の 1 回の `az deployment group create` は、開発者かエージェントが流す（GitHub Actions 用の ID も `main.bicep` が作るため）
+  - Google 側のログイン用のアプリ（OAuth クライアント）は開発者が作り、同意画面を「本番」として公開する
+  - Key Vault の `anthropic-api-key` と `google-client-secret` の値は、開発者が入れる。`user-key-secret` は、エージェントが乱数から作って入れてよい
+  - `ghcr.io` のイメージが非公開で作られたら、一度だけ公開にする
 
 ## 評価との対応
 

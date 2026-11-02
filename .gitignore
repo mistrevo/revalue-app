@@ -41,3 +41,6 @@ blob-report/
 Thumbs.db
 .idea/
 .vscode/
+
+# 画面を作った結果（裏側が配る。コミットしない）
+src/Revalue.Server/wwwroot/
