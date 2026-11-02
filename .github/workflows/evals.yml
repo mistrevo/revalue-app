@@ -1,0 +1,57 @@
+# 評価: 架空エピソード集で、本物の AI の振る舞いを確かめる（evals/criteria.md）。開発者が手で流す
+# Azure へは OIDC でログインし、Key Vault から Claude の鍵（anthropic-api-key）だけを読む。鍵は GitHub に置かない。
+# 環境 evals から流す（GitHub Actions 用の ID は、この環境の subject のログインを許している）。
+# 使うリポジトリ変数（鍵ではない）: AZURE_CLIENT_ID、AZURE_TENANT_ID、AZURE_SUBSCRIPTION_ID、KEY_VAULT_NAME。手順は infra/README.md
+name: evals
+
+on:
+  workflow_dispatch:
+    inputs:
+      unit:
+        description: 評価するまとまり
+        required: true
+        default: discover
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: evals
+  cancel-in-progress: false
+
+jobs:
+  evals:
+    name: 評価
+    runs-on: ubuntu-latest
+    environment: evals
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.x
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Claude の鍵を読んで、評価を回す
+        # 鍵はこの手順の中だけで使い、ログに出ないよう先に隠す。ファイルにも GITHUB_ENV にも書かない
+        env:
+          UNIT: ${{ inputs.unit }}
+          KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+        run: |
+          key=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name anthropic-api-key --query value -o tsv)
+          echo "::add-mask::$key"
+          ANTHROPIC_API_KEY="$key" dotnet run --project evals/Revalue.Evals -- --unit "$UNIT"
+
+      - name: 結果を artifact に上げる
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evals-${{ inputs.unit }}-${{ github.run_id }}
+          path: evals/results/
+          if-no-files-found: warn
