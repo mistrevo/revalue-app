@@ -1,5 +1,6 @@
 using Revalue.Server.Ai;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Evals;
 
@@ -8,6 +9,21 @@ namespace Revalue.Evals;
 /// <see cref="CountsViolations"/> が true の項目は「n 件」を数え（0 件が合格）、false の項目は「n / m」の割合を見る。
 /// </summary>
 public sealed record SummaryItem(string Name, int Count, int Total, string Line, bool? Passed, bool CountsViolations = false);
+
+/// <summary>
+/// 汎用の AI との比較の数字（同じ例、同じ物差し）。褒めすぎは、期待が confirmed でない力を、製品が根拠ありにした数と、汎用の AI が強みとして挙げた数。
+/// 引用は、製品が見せる根拠の引用と、汎用の AI が強みの根拠として引いた言葉のうち、本人の答えに一字一句含まれなかった数。
+/// </summary>
+public sealed record GenericComparisonSummary(
+    int Runs,
+    int Unavailable,
+    int NotConfirmedTotal,
+    int ProductOverPraise,
+    int GenericOverPraise,
+    int ProductQuotes,
+    int ProductQuoteMismatches,
+    int GenericQuotes,
+    int GenericQuoteMismatches);
 
 /// <summary>
 /// 結果をまとめる。合格の線は docs/prd/6-quality.md、測り方は evals/criteria.md。
@@ -26,8 +42,10 @@ public sealed class EvalSummary
         ["distress"] = AnswerSignal.Distress,
     };
 
-    private EvalSummary(IReadOnlyList<SummaryItem> gated, IReadOnlyList<SummaryItem> reference, int missedSupport, int errors)
+    private EvalSummary(
+        IReadOnlyList<SummaryItem> gated, IReadOnlyList<SummaryItem> reference, int missedSupport, int errors, GenericComparisonSummary? comparison)
     {
+        Comparison = comparison;
         Gated = gated;
         Reference = reference;
         MissedSupport = missedSupport;
@@ -48,6 +66,9 @@ public sealed class EvalSummary
     public int Errors { get; }
 
     public bool Passed { get; }
+
+    /// <summary>汎用の AI との比較。比べた例がなければ null。</summary>
+    public GenericComparisonSummary? Comparison { get; }
 
     public static EvalSummary From(IReadOnlyList<EpisodeRun> runs)
     {
@@ -109,7 +130,117 @@ public sealed class EvalSummary
             Ratio("返事が出始めるまで 5 秒以内（00-tech-stack.md の目安）", all.Count(r => r.FirstTextMs <= FirstTextTargetMs), all.Count),
         ];
 
-        return new EvalSummary(gated, reference, missedSupport, runs.Count(r => r.Error is not null));
+        var comparison = AddValidate(runs, gated, reference);
+        return new EvalSummary(gated, reference, missedSupport, runs.Count(r => r.Error is not null), comparison);
+    }
+
+    /// <summary>
+    /// 03 validate（確かめる）の項目を足す（unit: validate の例があるときだけ）。期待する状態は台本の states、statesBefore、ask。
+    /// </summary>
+    private static GenericComparisonSummary? AddValidate(IReadOnlyList<EpisodeRun> runs, List<SummaryItem> gated, List<SummaryItem> reference)
+    {
+        if (!runs.Any(r => r.Script.Unit == "validate"))
+        {
+            return null;
+        }
+
+        var withStates = runs.Where(r => r.Script.States is not null).ToList();
+        var pairs = withStates
+            .SelectMany(r => r.Final.Select(f => (Run: r, Result: f, Expected: r.Script.States![f.Ability])))
+            .ToList();
+        var notConfirmed = pairs.Where(p => p.Expected != AbilityState.Confirmed).ToList();
+        var overPraise = notConfirmed.Count(p => p.Result.State == AbilityState.Confirmed);
+        var expectedConfirmed = pairs.Where(p => p.Expected == AbilityState.Confirmed).ToList();
+        var confirmed = expectedConfirmed.Count(p => p.Result.State == AbilityState.Confirmed);
+        var shown = runs.SelectMany(r => r.Final.SelectMany(f => f.Shown).Select(e => (Run: r, Evidence: e))).ToList();
+        var verbatim = shown.Count(x => IsVerbatim(x.Run.Turns, x.Evidence));
+        var askRuns = runs.Where(r => r.Script.Ask is not null).ToList();
+        var askedOnlyMissing = askRuns.Count(r => r.Replies.Any(x =>
+            x.Move == MoveKind.AskMissingAction && x.Target == r.Script.Ask && x.Verdict?.MissingOnly == true));
+
+        gated.AddRange(
+        [
+            new(
+                "validate-1（3 つともそろったときだけ根拠あり）: 褒めすぎ（根拠ありにしてはいけない力を根拠ありにした）",
+                overPraise, notConfirmed.Count, "0 件", overPraise == 0, CountsViolations: true),
+            new(
+                "validate-4（根拠は本人の言葉）: 根拠の引用が、本人の発言と一字一句同じ",
+                verbatim, shown.Count, "すべて", verbatim == shown.Count),
+            new(
+                "validate-1（3 つともそろったときだけ根拠あり）: そろっている例で、根拠ありにした（結果が悪い例、結果を話していない例を含む）",
+                confirmed, expectedConfirmed.Count, "9 割以上", confirmed * 10 >= expectedConfirmed.Count * 9),
+            new(
+                "validate-2（足りない行動だけ聞き返す）: 一部だけそろった例で、足りない行動だけを聞き返した",
+                askedOnlyMissing, askRuns.Count, "9 割以上", askedOnlyMissing * 10 >= askRuns.Count * 9),
+        ]);
+
+        var beforeRuns = runs.Where(r => r.Script.StatesBefore is not null).ToList();
+        var asked = askRuns.Count(r => r.Replies.Any(x => x.Move == MoveKind.AskMissingAction && x.Target == r.Script.Ask));
+        reference.AddRange(
+        [
+            Ratio("03 validate（確かめる）: 最後の状態が期待どおりだった力", pairs.Count(p => p.Result.State == p.Expected), pairs.Count),
+            Ratio(
+                "validate-8（訂正したら確かめ直す）: 訂正の前の状態が期待どおりだった例",
+                beforeRuns.Count(r => r.BeforeCorrection is { } before && before.All(b => r.Script.StatesBefore![b.Ability] == b.State)),
+                beforeRuns.Count),
+            Ratio("validate-2（足りない行動だけ聞き返す）: 一部だけそろった例で、足りない行動を聞いた（判定役の答えは見ない）", asked, askRuns.Count),
+            Ratio("validate-5（選んだだけでは根拠にしない）: 見せる根拠のうち、選んだ答えの根拠", shown.Count(x => x.Evidence.FromChoice), shown.Count),
+        ]);
+
+        var compared = withStates.Where(r => r.Generic is not null).ToList();
+        if (compared.Count == 0)
+        {
+            return null;
+        }
+
+        var read = compared.Where(r => r.Generic!.Reading is not null).ToList();
+        var genericPairs = read
+            .SelectMany(r => r.Generic!.Reading!.Abilities.Select(a => (Run: r, Ability: a, Expected: r.Script.States![a.Ability])))
+            .ToList();
+        var genericOverPraise = genericPairs.Count(p => p.Expected != AbilityState.Confirmed && p.Ability.Named);
+        var genericQuotes = genericPairs.Where(p => p.Ability.Named).SelectMany(p => p.Ability.Quotes.Select(q => (p.Run, Quote: q))).ToList();
+        var genericMismatches = genericQuotes.Count(q => !GenericComparison.IsVerbatim(q.Run.Turns, q.Quote));
+        var productPairs = read.SelectMany(r => r.Final.Select(f => (Result: f, Expected: r.Script.States![f.Ability]))).ToList();
+        var productShown = read.SelectMany(r => r.Final.SelectMany(f => f.Shown).Select(e => (Run: r, Evidence: e))).ToList();
+        var summary = new GenericComparisonSummary(
+            compared.Count,
+            compared.Count - read.Count,
+            productPairs.Count(p => p.Expected != AbilityState.Confirmed),
+            productPairs.Count(p => p.Expected != AbilityState.Confirmed && p.Result.State == AbilityState.Confirmed),
+            genericOverPraise,
+            productShown.Count,
+            productShown.Count(x => !IsVerbatim(x.Run.Turns, x.Evidence)),
+            genericQuotes.Count,
+            genericMismatches);
+
+        reference.AddRange(
+        [
+            new(
+                "汎用の AI との比較: 褒めすぎ（強みとして挙げてはいけない力を、強みとして挙げた）",
+                genericOverPraise, summary.NotConfirmedTotal, "—", null, CountsViolations: true),
+            new(
+                "汎用の AI との比較: 強みの根拠として引いた引用が、本人の発言と一字一句同じでなかった",
+                genericMismatches, genericQuotes.Count, "—", null, CountsViolations: true),
+            new("汎用の AI との比較: 答えを得られなかった例", summary.Unavailable, compared.Count, "—", null, CountsViolations: true),
+        ]);
+        return summary;
+    }
+
+    /// <summary>
+    /// 根拠の引用が、その番号の本人の答えに一字一句含まれるか。選んだ答えの根拠なら、結びついた言葉も、選んでいない本人の答えのどれかに一字一句含まれるか。
+    /// 照らし合わせ（<see cref="EvidenceChecker"/>）を通ったあとの根拠を、評価がもう一度数え直す。
+    /// </summary>
+    public static bool IsVerbatim(IReadOnlyList<Turn> turns, Evidence evidence)
+    {
+        var answers = turns.Where(t => t.Role == TurnRoles.User).ToList();
+        if (evidence.Answer < 1 || evidence.Answer > answers.Count || evidence.Quote.Length == 0
+            || !answers[evidence.Answer - 1].Text.Contains(evidence.Quote, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return evidence.LinkedQuote is not { } linked
+            || (linked.Length > 0 && answers.Any(a => a.AnswerKind != AnswerKind.Choice && a.Text.Contains(linked, StringComparison.Ordinal)));
     }
 
     private static SummaryItem Ratio(string name, int count, int total) => new(name, count, total, "—", null);
