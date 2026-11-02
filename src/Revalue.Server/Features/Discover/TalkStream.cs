@@ -134,6 +134,9 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
                         yield break;
                     }
 
+                    // 利用者ごとの力の状態を、保存してある場面から計算し直す。失敗しても、この往復は成功のまま
+                    await AbilityBook.TryRecomputeAsync(store, episode.UserKey, ChangeReason.Talk, episode.Id, time, logger, ct);
+
                     if (distress)
                     {
                         yield return Event(NoticeEvent, SupportNotice.Distress);

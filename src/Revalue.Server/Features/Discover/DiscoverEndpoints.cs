@@ -4,6 +4,7 @@ using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
 using Revalue.Server.Features.Foundation.Limits;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
 
@@ -118,7 +119,7 @@ public static class DiscoverEndpoints
             return TypedResults.Ok(EpisodeDto.From(finished));
         });
 
-        episodes.MapPost("/{id}/skip", async (string id, HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
+        episodes.MapPost("/{id}/skip", async (string id, HttpContext http, IDataStore store, TimeProvider time, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var userKey = http.User.GetUserKey()!;
 
@@ -148,6 +149,9 @@ public static class DiscoverEndpoints
             {
                 throw new InvalidOperationException($"Could not skip the episode after {DataStoreExtensions.MaxUpdateAttempts} attempts.");
             }
+
+            // 消した場面の根拠を、利用者ごとの力の状態から外す。失敗しても、飛ばすのは成功のまま
+            await AbilityBook.TryRecomputeAsync(store, userKey, ChangeReason.Skip, id, time, loggers.CreateLogger(typeof(AbilityBook)), ct);
 
             // 消したあと、ほかの画面で新しい場面が始まっていたら、2 つ目は作らずに 409 でその場面を知らせる
             var outcome = await EpisodeStarter.StartAsync(
