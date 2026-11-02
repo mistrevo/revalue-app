@@ -68,16 +68,27 @@ public static class EpisodeInsights
                 .Select(r => new SeenAbilityDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability), QuoteDto.From(r.Shown)))
                 .ToList(),
             results.Where(r => r.State == AbilityState.NeedsCheck)
-                .Select(r => new MoreToHearDto(
-                    ActionRef.Key(r.Ability),
-                    AbilityText.Name(r.Ability),
-                    QuoteDto.From(r.Shown),
-                    r.Missing.Select(n => AbilityText.Hint(new ActionRef(r.Ability, n))).ToList()))
+                .Select(r => new MoreToHearDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability), QuoteDto.From(r.Shown), Hints(episode, r)))
                 .ToList(),
             results.Where(r => r.State == AbilityState.NotYet)
                 .Select(r => new AbilityNameDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability)))
                 .ToList(),
             CanResume(episode));
+    }
+
+    /// <summary>
+    /// 要確認の力の、足りない行動の手がかり（「もう少し聞かせてほしいこと」と、見えた力の画面の確かめ中）。
+    /// 訂正で打ち消された行動の手がかりは出さない。後回しにしても、足りない行動がそれだけのときは同じ手がかりが出て、
+    /// 本人が訂正で答えたばかりのことを聞き直すことになるため（Claude の判断）。
+    /// </summary>
+    public static IReadOnlyList<string> Hints(EpisodeItem episode, AbilityResult result)
+    {
+        var withdrawn = CorrectionRound.WithdrawnIn(episode.Turns);
+        return result.Missing
+            .Select(n => new ActionRef(result.Ability, n))
+            .Where(a => !withdrawn.Contains(a))
+            .Select(AbilityText.Hint)
+            .ToList();
     }
 
     /// <summary>続きを話せるか: 話し終えた、印がない、要確認の力が 1 つ以上ある。</summary>
@@ -227,21 +238,21 @@ public static class ValidateEndpoints
 
             // つらい状態のサインなら、AI の返事を使わず決まった言葉で応え、印を付ける。根拠は変えない
             var distress = outcome.Reading!.Has(AnswerSignal.Distress);
-            Turn[] added = distress
-                ?
-                [
-                    correction,
-                    new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.DistressText, Move = TalkStream.MoveName(MoveKind.Distress), At = time.GetUtcNow() },
-                ]
-                : [correction];
+            var distressReply = new Turn
+            {
+                Role = TurnRoles.Assistant, Text = DiscoverText.DistressText, Move = TalkStream.MoveName(MoveKind.Distress), At = time.GetUtcNow(),
+            };
 
-            // 読んでから書くまでに場面が変わっていたら（ほかの画面の訂正、続き、飛ばす）書かない
+            // 読んでから書くまでに場面が変わっていたら（ほかの画面の訂正、続き、飛ばす）書かない。
+            // 訂正で打ち消された行動は、訂正のターンに印を残す（続きの問い、足りない行動を聞く一手、手がかりで聞き直さない）
             var saved = await store.TryUpdateAsync<EpisodeItem>(userKey, id, current =>
                 Unavailable(current) is not null || current.Turns.Count != episode.Turns.Count
                     ? null
                     : current with
                     {
-                        Turns = [.. current.Turns, .. added],
+                        Turns = distress
+                            ? [.. current.Turns, correction, distressReply]
+                            : [.. current.Turns, WithWithdrawn(correction, CorrectionRound.Withdrawn(current.Evidence, outcome.Evidence))],
                         ExcludedFromValidation = distress,
                         Evidence = distress ? current.Evidence : outcome.Evidence,
                     }, ct);
@@ -284,6 +295,10 @@ public static class ValidateEndpoints
             };
         });
     }
+
+    /// <summary>訂正のターンに、訂正で打ち消された行動の印を付ける。打ち消された行動がなければ、印を付けない。</summary>
+    private static Turn WithWithdrawn(Turn correction, IReadOnlyList<ActionRef> withdrawn) =>
+        withdrawn.Count == 0 ? correction : correction with { Withdrawn = [.. withdrawn.Select(a => a.ToString())] };
 
     /// <summary>訂正も続きもできない場面なら、その理由の 409。話している途中なら、その場面の id 付き。できるなら null。</summary>
     private static IResult? Unavailable(EpisodeItem episode)

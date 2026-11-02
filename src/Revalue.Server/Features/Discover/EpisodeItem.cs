@@ -57,6 +57,14 @@ public sealed record Turn
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Target { get; init; }
 
+    /// <summary>
+    /// 訂正のターン（<see cref="AnswerKind.Correction"/>）で、訂正で打ち消された行動（<c>coordinating.2</c> の形）。
+    /// 訂正の読み直しで根拠が消えた行動。本人がもう答えたことを聞き直さないよう、聞いた回数の上限に届いたものとして扱う（03-validate.md の「訂正」）。
+    /// 打ち消された行動がなければ null。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Withdrawn { get; init; }
+
     public required DateTimeOffset At { get; init; }
 }
 

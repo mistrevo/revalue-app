@@ -45,7 +45,10 @@ public sealed class CorrectionTests
         Assert.Empty(Array(insights, "seen"));
         var more = Assert.Single(Array(insights, "moreToHear"));
         Assert.Equal("coordinating", more.GetProperty("key").GetString());
-        Assert.Equal([AbilityText.Hint(new ActionRef(Ability.Coordinating, 2))], Array(more, "hints").Select(h => h.GetString()));
+        // 訂正で打ち消された行動（本人から電話をかけたこと）は、訂正のターンに印を残し、手がかりとして聞き直さない。
+        // 足りないのがその行動だけなら、手がかりは出さない
+        Assert.Equal(["coordinating.2"], Array(last, "withdrawn").Select(w => w.GetString()));
+        Assert.Empty(Array(more, "hints"));
         Assert.True(insights.GetProperty("canResume").GetBoolean());
 
         // 訂正のときは場面全体を読み直した結果で置き換える（前の根拠と合わせない）
@@ -60,6 +63,74 @@ public sealed class CorrectionTests
         Assert.Equal("needsCheck", change.GetProperty("to").GetString());
         Assert.Equal(id, change.GetProperty("episodeId").GetString());
         Assert.Equal(factory.Clock.GetUtcNow(), change.GetProperty("at").GetDateTimeOffset());
+    }
+
+    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 訂正で打ち消された行動は、見えた力の手がかりにも、続きの最初の問いにも、続きの中の聞き返しにも出さない")]
+    public async Task WithdrawnActionIsNotAskedAgain()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        ai.Reading = ReadBeforeAndAfterCorrection;
+        await Send(client, id, CoordinatingAnswer);
+        await Finish(client, id);
+        Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, CorrectionText)).StatusCode);
+
+        var abilities = await Json(await client.GetAsync("/api/abilities", Ct));
+        var coordinating = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "coordinating");
+        Assert.Equal("needsCheck", coordinating.GetProperty("life").GetString());
+        Assert.Empty(Array(coordinating, "hints"));
+
+        // 足りない行動がほかになければ、続きは手がかりを添えない問いで始める
+        var resumed = await Resume(client, id);
+        Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
+        var question = Array(await Json(resumed), "turns")[^1];
+        Assert.False(question.TryGetProperty("target", out _));
+        Assert.EndsWith(AbilityText.ResumeOpenQuestion[AbilityText.ResumeLead.Length..], question.GetProperty("text").GetString(), StringComparison.Ordinal);
+
+        // 続きの中で、読み取りが同じ出来事の行動 1 と 3 を返しても、打ち消された行動 2 は聞き返さない
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[2]);
+        await Send(client, id, "少し覚えています");
+        Assert.DoesNotContain(ai.NextMoves, m => m.Target == new ActionRef(Ability.Coordinating, 2));
+    }
+
+    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 訂正で打ち消された行動が、足りない行動のうち一部なら、ほかの足りない行動の手がかりは出す")]
+    public async Task OtherMissingHintsRemain()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        // 訂正の前は調整する力の 1 と 2、訂正のあとは 1 だけ
+        ai.Reading = turns => turns[^1].AnswerKind == AnswerKind.Correction
+            ? ReadingWith(CoordinatingAll[0])
+            : ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+        await Send(client, id, CoordinatingAnswer);
+        await Finish(client, id);
+
+        var episode = await Json(await Correct(client, id, CorrectionText));
+
+        Assert.Equal(["coordinating.2"], Array(Array(episode, "turns")[^1], "withdrawn").Select(w => w.GetString()));
+        var more = Assert.Single(Array(episode.GetProperty("insights"), "moreToHear"));
+        Assert.Equal([AbilityText.Hint(new ActionRef(Ability.Coordinating, 3))], Array(more, "hints").Select(h => h.GetString()));
+        var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+        Assert.Equal("coordinating.3", question.GetProperty("target").GetString());
+    }
+
+    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 打ち消された行動がない訂正では、訂正のターンに印を残さない")]
+    public async Task CorrectionWithoutWithdrawalHasNoMark()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0]);
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+
+        var episode = await Json(await Correct(client, id, "二人に電話したのは私です。"));
+
+        Assert.False(Array(episode, "turns")[^1].TryGetProperty("withdrawn", out _));
+        Assert.Null((await Saved(factory, "g-1", id)).Turns[^1].Withdrawn);
     }
 
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 話している途中、印のある場面、空や長すぎる訂正は断り、何も保存しない")]

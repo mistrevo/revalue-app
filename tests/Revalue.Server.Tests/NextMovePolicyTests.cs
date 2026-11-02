@@ -259,4 +259,25 @@ public sealed class NextMovePolicyTests
         Assert.Equal(2, context.AskedCounts[target]);
         Assert.Same(evidence, context.Evidence);
     }
+
+    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 訂正で打ち消された行動は、聞いた回数の上限に届いたものとして数える")]
+    public void WithdrawnActionsCountAsAskedToTheLimit()
+    {
+        var withdrawn = new ActionRef(Ability.Coordinating, 2);
+        IReadOnlyList<Turn> turns =
+        [
+            new() { Role = TurnRoles.Assistant, Text = "q1", Move = "opening", At = At },
+            new() { Role = TurnRoles.User, Text = "a1", AnswerKind = AnswerKind.Free, At = At },
+            new() { Role = TurnRoles.Assistant, Text = "q2", Move = "close", At = At },
+            new() { Role = TurnRoles.User, Text = "c1", AnswerKind = AnswerKind.Correction, Withdrawn = [withdrawn.ToString(), "cooking.9"], At = At },
+        ];
+        IReadOnlyList<Evidence> evidence = [E(Ability.Coordinating, 1), E(Ability.Coordinating, 3)];
+
+        var context = ValidationContext.From(turns, evidence);
+
+        Assert.Equal(NextMovePolicy.MaxAskPerAction, context.AskedCounts[withdrawn]);
+        Assert.Single(context.AskedCounts);
+        // 足りないのが打ち消された行動だけなら、足りない行動を聞く一手にしない
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
+    }
 }

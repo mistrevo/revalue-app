@@ -251,7 +251,7 @@ public static class AbilityBook
                 return new AbilityView(ability, AbilityState.NotYet, [], null, [], excluded);
             }
 
-            var hints = best.Result.Missing.Select(n => AbilityText.Hint(new ActionRef(ability, n))).ToList();
+            var hints = EpisodeInsights.Hints(best.Episode, best.Result);
             return new AbilityView(ability, best.Result.State, best.Result.Shown, best.Episode.Id, hints, excluded);
         }).ToList();
 

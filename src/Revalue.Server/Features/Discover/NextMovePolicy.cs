@@ -36,12 +36,13 @@ public sealed record NextMove(MoveKind Kind, ActionRef? Target = null);
 /// </summary>
 /// <param name="Evidence">この場面のここまでの根拠（いまの答えの読み取りで見つかったものも含む）。</param>
 /// <param name="LatestAnswer">いまの答えが何番目の本人の答えか（1 から）。</param>
-/// <param name="AskedCounts">この場面で、行動ごとに聞いた回数。</param>
+/// <param name="AskedCounts">この場面で、行動ごとに聞いた回数。訂正で打ち消された行動は、上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）として数える。</param>
 public sealed record ValidationContext(IReadOnlyList<Evidence> Evidence, int LatestAnswer, IReadOnlyDictionary<ActionRef, int> AskedCounts)
 {
     /// <summary>
     /// ターンから文脈を作る。聞いた回数は、行動を添えた聞き手のターン（足りない行動を聞く一手と、続きを話すときの問い）から数える。
     /// 続きの問いも同じ行動を聞いているので数に入れる（問い詰めないため。Claude の判断）。
+    /// 訂正で打ち消された行動（訂正のターンの <see cref="Turn.Withdrawn"/>）は、本人がもう答えたので、聞いた回数の上限に届いたものとして数える（Claude の判断）。
     /// </summary>
     public static ValidationContext From(IReadOnlyList<Turn> turns, IReadOnlyList<Evidence> evidence)
     {
@@ -52,6 +53,11 @@ public sealed record ValidationContext(IReadOnlyList<Evidence> Evidence, int Lat
             {
                 asked[target] = asked.GetValueOrDefault(target) + 1;
             }
+        }
+
+        foreach (var withdrawn in CorrectionRound.WithdrawnIn(turns))
+        {
+            asked[withdrawn] = Math.Max(asked.GetValueOrDefault(withdrawn), NextMovePolicy.MaxAskPerAction);
         }
 
         return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked);

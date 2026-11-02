@@ -36,4 +36,29 @@ public static class CorrectionRound
 
         return new CorrectionOutcome(reading, EvidenceChecker.Check(turnsWithCorrection, reading.Candidates), null);
     }
+
+    /// <summary>
+    /// 訂正で打ち消された行動: 訂正の前の根拠にあり、読み直したあとの根拠にない行動（力と行動の番号の順）。
+    /// 訂正の読み直しで、読み取りが訂正と関係なく落とした行動もここに入る。どちらも本人がもう話した行動なので、聞き直さない側に倒す（Claude の判断）。
+    /// </summary>
+    public static IReadOnlyList<ActionRef> Withdrawn(IReadOnlyList<Evidence> before, IReadOnlyList<Evidence> after)
+    {
+        var kept = after.Select(e => new ActionRef(e.Ability, e.Action)).ToHashSet();
+        return before
+            .Select(e => new ActionRef(e.Ability, e.Action))
+            .Where(a => !kept.Contains(a))
+            .Distinct()
+            .OrderBy(a => a.Ability)
+            .ThenBy(a => a.Number)
+            .ToList();
+    }
+
+    /// <summary>場面の訂正のターンに残した、訂正で打ち消された行動すべて。形の合わない印は読まない。</summary>
+    public static IReadOnlySet<ActionRef> WithdrawnIn(IEnumerable<Turn> turns) =>
+        turns
+            .Where(t => t.Role == TurnRoles.User && t.Withdrawn is not null)
+            .SelectMany(t => t.Withdrawn!)
+            .Select(ActionRef.Parse)
+            .OfType<ActionRef>()
+            .ToHashSet();
 }
