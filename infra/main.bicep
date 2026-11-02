@@ -91,6 +91,19 @@ resource githubFederationLegacy 'Microsoft.ManagedIdentity/userAssignedIdentitie
   dependsOn: [githubFederation]
 }
 
+// 評価（.github/workflows/evals.yml）は、GitHub の環境 evals から流す。その subject のログインを許す。
+// 評価で読めるのは Claude の鍵だけ（下の githubVaultRole）。同じ ID の資格情報は同時に書けないので、上のあとに作る
+resource githubFederationEvals 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
+  parent: githubIdentity
+  name: 'github-evals'
+  properties: {
+    issuer: 'https://token.actions.githubusercontent.com'
+    subject: 'repo:${split(githubRepo, '/')[0]}@${githubOwnerId}/${split(githubRepo, '/')[1]}@${githubRepoId}:environment:evals'
+    audiences: ['api://AzureADTokenExchange']
+  }
+  dependsOn: [githubFederationLegacy]
+}
+
 // ---- Key Vault（鍵の保管庫） ----
 
 resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {

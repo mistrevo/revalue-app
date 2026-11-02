@@ -22,8 +22,10 @@ public sealed class ClaudeOptions
 /// システムプロンプトは Prompts/*.md の固定の文で、キャッシュの印を付ける。次の一手は会話の最後に system メッセージで足す。
 /// 断られたときに別のモデルが代わりに答えるよう、server-side fallback（既定の形）を有効にする。
 /// ログに書くのは、かかった時間、トークン数、止まった理由、エラーの種類だけ。話した内容と AI の返答は書かない。
+/// 数え役（<see cref="IAiUsageMeter"/>）を渡されたら、トークン数も渡す（評価だけが使う）。
 /// </summary>
-public sealed class ClaudeConversationAi(AnthropicClient client, IOptions<ClaudeOptions> options, ILogger<ClaudeConversationAi> logger)
+public sealed class ClaudeConversationAi(
+    AnthropicClient client, IOptions<ClaudeOptions> options, ILogger<ClaudeConversationAi> logger, IAiUsageMeter? meter = null)
     : IConversationAi
 {
     public const string ServerSideFallbackBeta = "server-side-fallback-2026-07-01";
@@ -60,6 +62,8 @@ public sealed class ClaudeConversationAi(AnthropicClient client, IOptions<Claude
         }
 
         var stopReason = response.StopReason?.Raw();
+        meter?.Record(new AiUsage(
+            "read", response.Usage.InputTokens, response.Usage.CacheReadInputTokens ?? 0, response.Usage.CacheCreationInputTokens ?? 0, response.Usage.OutputTokens));
         logger.LogInformation(
             "Claude read finished in {ElapsedMs} ms. Input {InputTokens}, cache read {CacheReadTokens}, output {OutputTokens} tokens. Stop {StopReason}.",
             watch.ElapsedMilliseconds, response.Usage.InputTokens, response.Usage.CacheReadInputTokens, response.Usage.OutputTokens, stopReason);
@@ -82,7 +86,7 @@ public sealed class ClaudeConversationAi(AnthropicClient client, IOptions<Claude
     {
         var watch = Stopwatch.StartNew();
         long? firstTextMs = null;
-        long inputTokens = 0, cacheReadTokens = 0, outputTokens = 0;
+        long inputTokens = 0, cacheReadTokens = 0, cacheWriteTokens = 0, outputTokens = 0;
         string? stopReason = null;
 
         IAsyncEnumerator<BetaRawMessageStreamEvent> events;
@@ -124,6 +128,7 @@ public sealed class ClaudeConversationAi(AnthropicClient client, IOptions<Claude
                 {
                     inputTokens = start.Message.Usage.InputTokens;
                     cacheReadTokens = start.Message.Usage.CacheReadInputTokens ?? 0;
+                    cacheWriteTokens = start.Message.Usage.CacheCreationInputTokens ?? 0;
                 }
                 else if (current.TryPickDelta(out var delta))
                 {
@@ -138,6 +143,7 @@ public sealed class ClaudeConversationAi(AnthropicClient client, IOptions<Claude
             }
         }
 
+        meter?.Record(new AiUsage("reply", inputTokens, cacheReadTokens, cacheWriteTokens, outputTokens));
         logger.LogInformation(
             "Claude reply finished in {ElapsedMs} ms (first text at {FirstTextMs} ms). Input {InputTokens}, cache read {CacheReadTokens}, output {OutputTokens} tokens. Stop {StopReason}.",
             watch.ElapsedMilliseconds, firstTextMs, inputTokens, cacheReadTokens, outputTokens, stopReason);

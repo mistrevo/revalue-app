@@ -68,7 +68,8 @@ src/web/                          React と TypeScript の画面（Vite）
 tests/Revalue.Server.Tests/       裏側のテスト
 evals/
   episodes/                       架空エピソード（e01-*.md から）
-  criteria.md                     合格基準
+  judges/                         AI の判定役の指示（まとまりごと）
+  criteria.md                     測り方（合格の数字は PRD の 6-quality.md）
   results/                        評価の結果（日付つき）
   Revalue.Evals/                  評価を回すコンソールアプリ（Revalue.Server を参照する）
 infra/main.bicep                  Azure のリソースの定義
@@ -88,7 +89,7 @@ Windows と Linux のどちらでも同じように動く形で書く。`cd` で
 | 画面のテスト | `npm --prefix src/web test` |
 | 手元で動かす（裏側） | `dotnet run --project src/Revalue.Server` |
 | 手元で動かす（画面） | `npm --prefix src/web run dev`（`/api` を裏側へ転送する） |
-| 評価を回す | `dotnet run --project evals/Revalue.Evals` |
+| 評価を回す | `dotnet run --project evals/Revalue.Evals -- --unit discover`（`--dry-run` で、Claude を呼ばずに仕組みだけを確かめる） |
 | フックのテスト | `node --test .claude/hooks/guard.test.mjs` |
 
 雛形を作るときは、公式の作り方に従う。
@@ -193,9 +194,9 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 | ファイル | いつ | 何をする |
 |---|---|---|
-| `ci.yml` | PR と push | 裏側のビルドとテスト、画面のビルドとテスト、フックのテスト、Azure の定義（`infra/main.bicep`）のビルド、コンテナを作って起動できるかの確認 |
+| `ci.yml` | PR と push | 裏側のビルドとテスト、評価の dry-run、画面のビルドとテスト、フックのテスト、Azure の定義（`infra/main.bicep`）のビルド、コンテナを作って起動できるかの確認 |
 | `deploy.yml` | main への push | イメージを作って `ghcr.io` に push し、Container App を更新する。公開 URL で、新しいイメージが応答していることを確かめる |
-| `evals.yml` | 手動 | OIDC で Key Vault から Claude の鍵を読み、評価を回す |
+| `evals.yml` | 手動 | GitHub の環境 `evals` から OIDC でログインし、Key Vault から Claude の鍵だけを読んで、評価を回す。結果は artifact に上げる |
 
 評価は、ふだんは VM で回して結果をコミットする。`evals.yml` は、開発者が手動で回すためのもの（Claude の判断）。
 

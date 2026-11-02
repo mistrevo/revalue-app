@@ -104,12 +104,12 @@ public sealed class ClaudeConversationAiTests
     }
 
     private static (ClaudeConversationAi Ai, FakeAnthropic Http, ListLogger<ClaudeConversationAi> Logs) Create(
-        HttpStatusCode status, string body, string mediaType = "application/json")
+        HttpStatusCode status, string body, string mediaType = "application/json", IAiUsageMeter? meter = null)
     {
         var http = new FakeAnthropic(status, body, mediaType);
         var client = new AnthropicClient { ApiKey = "placeholder-for-tests", HttpClient = new HttpClient(http), MaxRetries = 0 };
         var logs = new ListLogger<ClaudeConversationAi>();
-        var ai = new ClaudeConversationAi(client, Options.Create(new ClaudeOptions { Model = Model }), logs);
+        var ai = new ClaudeConversationAi(client, Options.Create(new ClaudeOptions { Model = Model }), logs, meter);
         return (ai, http, logs);
     }
 
@@ -261,6 +261,26 @@ public sealed class ClaudeConversationAiTests
         var error = await Assert.ThrowsAsync<ConversationAiException>(() => Collect(ai.StreamReplyAsync(Conversation(), MoveKind.AskWhatYouDid, Ct)));
 
         Assert.Equal("failure", error.Kind);
+    }
+
+    private sealed class ListMeter : IAiUsageMeter
+    {
+        public ConcurrentQueue<AiUsage> Usages { get; } = new();
+
+        public void Record(AiUsage usage) => Usages.Enqueue(usage);
+    }
+
+    [Fact(DisplayName = "評価: 読み取りと返事のトークン数を、評価の数え役に渡す")]
+    public async Task ReportsTokenUsageToMeter()
+    {
+        var readMeter = new ListMeter();
+        await Create(HttpStatusCode.OK, MessageJson(ReadingJson, "end_turn"), meter: readMeter).Ai.ReadAsync(Conversation(), Ct);
+        var replyMeter = new ListMeter();
+        await Collect(Create(HttpStatusCode.OK, Sse("end_turn", "ありがとう。"), "text/event-stream", replyMeter).Ai
+            .StreamReplyAsync(Conversation(), MoveKind.AskWhatYouDid, Ct));
+
+        Assert.Equal(new AiUsage("read", 100, 80, 0, 20), Assert.Single(readMeter.Usages));
+        Assert.Equal(new AiUsage("reply", 100, 0, 0, 30), Assert.Single(replyMeter.Usages));
     }
 
     [Fact(DisplayName = "common-2（ログに中身を書かない）: AI の呼び出しのログに、話した内容と AI の返答を書かない")]

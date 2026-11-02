@@ -27,6 +27,9 @@ public sealed class FakeConversationAi : IConversationAi
     public Func<IReadOnlyList<Turn>, TurnReading> Reading { get; set; } =
         _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent });
 
+    /// <summary>選択肢を求める一手で返すかけら。既定は <see cref="DefaultChunks"/>。</summary>
+    public IReadOnlyList<string> ReplyChunks { get; set; } = DefaultChunks;
+
     /// <summary>次の読み取りで投げる例外の種類（refusal か failure）。1 回だけ効く。</summary>
     public string? FailNextRead { get; set; }
 
@@ -76,8 +79,8 @@ public sealed class FakeConversationAi : IConversationAi
             await before();
         }
 
-        var chunks = move == MoveKind.Close ? CloseChunks : DefaultChunks;
-        for (var i = 0; i < chunks.Length; i++)
+        IReadOnlyList<string> chunks = move == MoveKind.Close ? CloseChunks : ReplyChunks;
+        for (var i = 0; i < chunks.Count; i++)
         {
             if (fail is { } f && i == f.AfterChunks)
             {
@@ -89,7 +92,7 @@ public sealed class FakeConversationAi : IConversationAi
         }
 
         // 本物の AI は、拒否を最後（止まった理由）で知らせることがある
-        if (fail is { } last && last.AfterChunks >= chunks.Length)
+        if (fail is { } last && last.AfterChunks >= chunks.Count)
         {
             throw new ConversationAiException(last.Kind);
         }

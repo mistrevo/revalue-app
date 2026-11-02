@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Revalue.Server\Revalue.Server.csproj" />
+    <ProjectReference Include="..\..\evals\Revalue.Evals\Revalue.Evals.csproj" />
   </ItemGroup>
 
 </Project>

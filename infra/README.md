@@ -62,7 +62,10 @@ gh variable set AZURE_SUBSCRIPTION_ID --body <subscriptionId>
 gh variable set AZURE_RESOURCE_GROUP --body <リソースグループ>
 gh variable set CONTAINER_APP_NAME --body <containerAppName>
 gh variable set APP_URL --body <appUrl>
+gh variable set KEY_VAULT_NAME --body <keyVaultName>
 ```
+
+`KEY_VAULT_NAME` は、評価（`.github/workflows/evals.yml`）が Claude の鍵を読む Key Vault の名前（手順 1 の出力）。
 
 ### 5. Google 側にリダイレクト URI を足す（開発者）
 
@@ -90,9 +93,20 @@ gh variable set APP_URL --body <appUrl>
 
 確かめた結果: まだ（2026-11-02 時点では Azure のリソースグループがなく、最初のデプロイを流していない）。流したら、ここに日付と結果を書く。
 
+### 8. 評価を流せるようにする
+
+評価（`.github/workflows/evals.yml`）は、GitHub の環境 `evals` から流す。環境を作り、手で流す。
+
+```
+gh api -X PUT repos/<所有者>/<名前>/environments/evals
+gh workflow run evals.yml -f unit=discover
+```
+
+流した結果は、実行の artifact（`evals-<まとまり>-<実行の番号>`）に入る。中の `evals/results/<日付>-<まとまり>.md` をリポジトリにコミットする。
+
 ## GitHub Actions からのログイン（OIDC）
 
-GitHub Actions が Azure に渡す subject は、所有者とリポジトリの番号が入った形（`repo:所有者@番号/名前@番号:ref:refs/heads/main`）で届く。`main.bicep` は、この形と、番号のない古い形（`repo:所有者/名前:ref:refs/heads/main`）の両方を許す。番号はパラメーター `githubOwnerId` と `githubRepoId` で渡す（`gh api repos/<所有者>/<名前>` の `owner.id` と `id`）。`AADSTS700213` で止まったら、ログに出た subject と、この 2 つを比べる。
+GitHub Actions が Azure に渡す subject は、所有者とリポジトリの番号が入った形（`repo:所有者@番号/名前@番号:ref:refs/heads/main`）で届く。`main.bicep` は、この形と、番号のない古い形（`repo:所有者/名前:ref:refs/heads/main`）の両方を許す。評価は環境 `evals` から流すので、番号の入った `repo:所有者@番号/名前@番号:environment:evals` も許す（資格情報 `github-evals`）。番号はパラメーター `githubOwnerId` と `githubRepoId` で渡す（`gh api repos/<所有者>/<名前>` の `owner.id` と `id`）。`AADSTS700213` で止まったら、ログに出た subject と、この 2 つを比べる。
 
 ## 作り直すとき
 
