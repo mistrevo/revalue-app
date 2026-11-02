@@ -58,7 +58,6 @@ export const copy = {
       },
     ],
     agree: '了解して始める',
-    alreadyAgreed: 'ホームへ進む',
   },
   home: {
     greeting: 'ようこそ。ここから、最近の一日の話を始めます。',
@@ -78,8 +77,9 @@ export const copy = {
   },
   limit: {
     title: '今日はここで一区切りにしましょう',
-    body: '{time} から、また続きを話せます。',
+    body: '{time}から、また続きを話せます。',
     time: '{month} 月 {day} 日の {hour} 時（日本時間）',
+    timeFallback: '日本時間の 0 時',
   },
   loading: '読み込んでいます…',
   errors: {

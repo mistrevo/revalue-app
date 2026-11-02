@@ -310,7 +310,7 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `<RequireUser consent?: boolean>` — `getMe()` が null なら `/` へ、`consent` が true で未了解なら `/start` へ
 - Produces: `<DailyLimitNotice resetAt: string />` — `copy.limit` を出し、`{time}` に「明日の 0 時（日本時間）」のように日本時間で表す
 
-- [ ] **Step 1: 失敗するテストを書く（`MemoryRouter` と `fetch` の差し替えで）**
+- [x] **Step 1: 失敗するテストを書く（`MemoryRouter` と `fetch` の差し替えで）**
   - `foundation-1（案内はログインなしで見られる）: 未ログインで案内が出て、ログインは素のリンク` — `/` に 3 つの約束の見出しが出る。「Google でログインして始める」は `<a>` で `href` が `LOGIN_URL`
   - `foundation-1（案内はログインなしで見られる）: 未ログインでログインの要る画面を開くと案内へ戻る` — `/home` を開くと Landing が出る
   - `foundation-2（始める前に保存するものを示す）: はじめにの画面に 5 つの項目が出る` — 見出しと 5 項目の見出しの文言があり、使い道に「Claude」と「開発者も」が含まれる。「了解して始める」で `POST /api/consent` が `{version: currentVersion}` で呼ばれ、`/home` へ進む
@@ -318,7 +318,7 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-3（いつでも全部消せる）: もう一度確かめてから消し、はじめにへ進む` — 「全部消す」を押しただけでは `DELETE` が呼ばれない。「本当に全部消しますか？」が出て、「やめる」で戻る。「消す」で `DELETE /api/me` が 1 回呼ばれ、`/start` へ進む。`window.confirm` を呼ばない
   - `foundation-6（使いすぎを穏やかに止める）: 上限の表示は穏やかな言葉と次の時刻を出す` — `resetAt="2026-11-03T00:00:00+09:00"` で「今日はここで一区切りにしましょう」と「0 時」が出る
 
-- [ ] **Step 2: 失敗を確かめる** → **Step 3: 実装する**（幅 375px で崩れないよう、1 列で読みやすい幅に収める）→ **Step 4: `npm --prefix src/web test` と `npm --prefix src/web run build` が通ることを確かめ、コミットする**
+- [x] **Step 2: 失敗を確かめる** → **Step 3: 実装する**（幅 375px で崩れないよう、1 列で読みやすい幅に収める）→ **Step 4: `npm --prefix src/web test` と `npm --prefix src/web run build` が通ることを確かめ、コミットする**
   `案内・はじめに・ホーム・設定の画面と、上限の表示を作る（foundation-1、foundation-2、foundation-3、foundation-6）`
 
 - [ ] **Step 5: 実際のブラウザで見る**
