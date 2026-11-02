@@ -136,6 +136,7 @@ public static class EpisodeStarter
                         FinishedAt = original.FinishedAt,
                         TurnLimit = original.TurnLimit,
                         Turns = original.Turns,
+                        BeforeResume = original.BeforeResume,
                     }
                     : null, ct);
         }

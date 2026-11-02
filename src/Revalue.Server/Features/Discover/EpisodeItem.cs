@@ -60,6 +60,10 @@ public sealed record Turn
     public required DateTimeOffset At { get; init; }
 }
 
+/// <summary>続きを話す前の、話し終えた場面の姿。</summary>
+/// <param name="TurnCount">続きの問いを足す前のターンの数。</param>
+public sealed record ResumePoint(int TurnCount, DateTimeOffset? FinishedAt, int TurnLimit, IReadOnlyList<Evidence> Evidence);
+
 /// <summary>
 /// エピソード（話した一つの場面）。始めたときから保存し、やりとりのターンをすべて持つ。
 /// 状態は <see cref="EpisodeStatus.Talking"/>（話している途中）と <see cref="EpisodeStatus.Finished"/>（話し終えた）。
@@ -87,6 +91,13 @@ public sealed record EpisodeItem : Item
     /// この場面で確かめた、核となる行動の根拠（照らし合わせを通ったもの）。会話の途中では足していき、訂正のときだけ読み直した結果で置き換える。
     /// </summary>
     public IReadOnlyList<Evidence> Evidence { get; init; } = [];
+
+    /// <summary>
+    /// 続きを話す前の姿（03-validate.md の「続きを話す」）。続きを話している途中で飛ばしたときに、ここへ戻す
+    /// （続きで足したやりとりと根拠だけを残さず、前に話し終えていた分は残す）。続きを話したことのない場面では null。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ResumePoint? BeforeResume { get; init; }
 
     /// <summary>利用者が答えた数（往復の数）。</summary>
     [JsonIgnore]

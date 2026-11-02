@@ -144,6 +144,37 @@ public sealed class NextMovePolicyTests
             NextMovePolicy.Decide(Concrete, 3, noneInLatest));
     }
 
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: いまの出来事は読み取りごとに見分け、前の読み取りの同じ番号の行動とは合わせない")]
+    public void CurrentEventIsPerReading()
+    {
+        // 1 回目の読み取りの出来事 1 に行動 1。2 回目の読み取りは、いまの答え（2 番目）を出来事 1 として行動 2 だけを返した。
+        // 2 回目の出来事 1 で足りないのは行動 1 と 3。1 回目の行動 1 は別の日のことかもしれないので、そろったとは数えない。
+        // 聞くのは、この場面でまだどこにも話に出ていない行動 3 が先
+        IReadOnlyList<Evidence> evidence =
+        [
+            E(Ability.Prioritizing, 1, @event: 1, answer: 1) with { Reading = 1 },
+            E(Ability.Prioritizing, 2, @event: 1, answer: 2) with { Reading = 2 },
+        ];
+        var third = new ActionRef(Ability.Prioritizing, 3);
+
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, third), NextMovePolicy.Decide(Concrete, 2, Context(2, evidence)));
+
+        // 行動 3 を 2 回聞いたら、別の読み取りで話に出た行動 1 も、いまの出来事の中で聞く
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 1)),
+            NextMovePolicy.Decide(Concrete, 2, Context(2, evidence, (third, 2))));
+
+        // いまの答えに根拠がなければ、いちばん新しい読み取りの、番号の大きい出来事で聞く
+        var noneInLatest = Context(3,
+        [
+            E(Ability.Prioritizing, 1, @event: 2, answer: 1) with { Reading = 1 },
+            E(Ability.Noticing, 1, @event: 1, answer: 2) with { Reading = 2 },
+        ]);
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Noticing, 2)),
+            NextMovePolicy.Decide(Concrete, 3, noneInLatest));
+    }
+
     [Fact(DisplayName = "validate-10（一般論には具体的な出来事を聞く）: いまの答えが一般論だけなら、足りない行動ではなく具体的な出来事を聞く")]
     public void GeneralOnlyAsksConcreteEventEvenWithEvidence()
     {

@@ -226,10 +226,10 @@ public sealed class AbilityBookTests
         Assert.Equal(0, await store.CountAllAsync(User, Ct));
     }
 
-    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 理由は JSON で talk、correction、skip、exclude、restore")]
+    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 理由は JSON で talk、correction、skip、exclude、restore、setAside")]
     public void ReasonsSerializeAsCamelCase()
     {
         var names = Enum.GetValues<ChangeReason>().Select(r => JsonSerializer.Serialize(r, DataConstants.Json));
-        Assert.Equal(["\"talk\"", "\"correction\"", "\"skip\"", "\"exclude\"", "\"restore\""], names);
+        Assert.Equal(["\"talk\"", "\"correction\"", "\"skip\"", "\"exclude\"", "\"restore\"", "\"setAside\""], names);
     }
 }

@@ -51,13 +51,41 @@ public sealed class AbilityTextTests
         Assert.Equal("優先順位をつける力", AbilityText.Name(Ability.Prioritizing));
     }
 
-    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いは、手がかりを一つ添えて聞く。選択肢は 3 つ")]
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いは、決まった受け止めの一文のあとに、行動ごとの問いを一つ。選択肢は 3 つ")]
     public void ResumeQuestionAddsOneHint()
     {
-        var target = new ActionRef(Ability.Prioritizing, 3);
+        var target = new ActionRef(Ability.Coordinating, 2);
 
-        Assert.Equal("この場面の続きを聞かせてください。そう決めた理由について、覚えていることはありますか？", AbilityText.ResumeQuestion(target));
-        Assert.Equal(["少し覚えています", "よく覚えていません", "その日のほかのことを話したい"], AbilityText.ResumeChoices);
+        Assert.Equal("また話しに来てくれて、ありがとうございます。その日、だれかに声をかけたり、頼んだりしたことはありましたか？", AbilityText.ResumeQuestion(target));
+        Assert.Equal(["少し覚えています", "とくになかったと思います", "その日のほかのことを話したい"], AbilityText.ResumeChoices);
+        Assert.StartsWith(AbilityText.ResumeLead, AbilityText.ResumeOpenQuestion, StringComparison.Ordinal);
+        Assert.Throws<ArgumentOutOfRangeException>(() => AbilityText.ResumeQuestion(new ActionRef(Ability.Noticing, 4)));
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いは 9 つすべて別の文で、その行動をしたことを前提にせず、問いは一つ")]
+    public void ResumeQuestionsDoNotPresuppose()
+    {
+        var questions = AllActions().Select(a => AbilityText.ResumeQuestion(a)[AbilityText.ResumeLead.Length..]).ToList();
+
+        Assert.Equal(9, questions.Distinct().Count());
+        Assert.All(questions, q =>
+        {
+            // 「〜したことについて」のように、したことを前提にした聞き方をしない。「ありましたか」か、「あれば」「いれば」で聞く
+            Assert.DoesNotContain("について", q, StringComparison.Ordinal);
+            Assert.True(new[] { "ありましたか", "あれば", "いれば" }.Any(w => q.Contains(w, StringComparison.Ordinal)), q);
+            Assert.Equal(1, q.Count(c => c == '？'));
+            Assert.EndsWith("？", q, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 手がかりは前の文脈に頼らない（「そう」で前を指さない、かっこ書きを入れない）")]
+    public void HintsStandAlone()
+    {
+        Assert.All(AllActions().Select(AbilityText.Hint), h =>
+        {
+            Assert.DoesNotContain("そう", h, StringComparison.Ordinal);
+            Assert.DoesNotContain("（", h, StringComparison.Ordinal);
+        });
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 行動の呼び名は coordinating.3 の形で、読み戻せる")]

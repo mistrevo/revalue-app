@@ -4,12 +4,14 @@ import { copy } from '@/copy'
 
 /**
  * 話し終えた場面から見えたこと（03-validate.md の「話し終えたとき」）。
+ * 先頭に、AI の読み取りであることと、本人が直せることを添える。
  * 見えた力、もう少し聞かせてほしいこと、まだ聞けていない力の順に出す。中身のない見出しは出さない。
  * 状態の呼び名やチェック表、点数は出さない。
  */
 export function Insights({ insights }: { insights: EpisodeInsights }) {
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-sm leading-relaxed text-muted-foreground">{copy.insights.lead}</p>
       {insights.seen.length > 0 && (
         <Section title={copy.insights.seenTitle}>
           {insights.seen.map((ability) => (

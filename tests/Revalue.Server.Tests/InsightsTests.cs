@@ -102,4 +102,46 @@ public sealed class InsightsTests
         var canResume = list!.ToDictionary(e => e.GetProperty("id").GetString()!, e => e.GetProperty("canResume").GetBoolean());
         Assert.Equal(new Dictionary<string, bool> { [confirmed] = false, [partial] = true, [talking] = false }, canResume);
     }
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りが出来事の番号を振り直しても、別の日の行動を同じ出来事としてそろえない")]
+    public async Task RenumberedEventsDoNotCombineAcrossDays()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        const string monday = "月曜は、通院の付き添いと、学校の面談と、町内会の集まりが重なっていました。";
+        const string thursday = "木曜は、先に買い物をすませて、洗濯は後回しにしました。雨が降りそうだったので。";
+
+        // どの回の読み取りも、その回の中では月曜と木曜を正しく分けている。3 回目だけ月曜を候補から外し、木曜を出来事 1 と振り直す
+        ai.Reading = turns => turns.Count(t => t.Role == TurnRoles.User) switch
+        {
+            1 => ReadingWith(At(1, "通院の付き添いと、学校の面談と、町内会の集まりが重なっていました", answer: 1, @event: 1)),
+            2 => ReadingWith(
+                At(1, "通院の付き添いと、学校の面談と、町内会の集まりが重なっていました", answer: 1, @event: 1),
+                At(2, "先に買い物をすませて、洗濯は後回しにしました", answer: 2, @event: 2),
+                At(3, "雨が降りそうだったので", answer: 2, @event: 2)),
+            _ => ReadingWith(
+                At(2, "先に買い物をすませて", answer: 2, @event: 1),
+                At(3, "雨が降りそうだった", answer: 2, @event: 1)),
+        };
+        await Send(client, id, monday);
+        await Send(client, id, thursday);
+        await Send(client, id, "少し覚えています", "choice");
+        await Finish(client, id);
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+        Assert.Empty(Array(insights, "seen"));
+        var more = Assert.Single(Array(insights, "moreToHear"));
+        Assert.Equal("prioritizing", more.GetProperty("key").GetString());
+        Assert.Equal([AbilityText.Hint(new ActionRef(Ability.Prioritizing, 1))], Array(more, "hints").Select(h => h.GetString()));
+        Assert.Equal(AbilityState.NeedsCheck, AbilityStates.Evaluate((await Saved(factory, "g-1", id)).Evidence).Single(r => r.Ability == Ability.Prioritizing).State);
+
+        var abilities = await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct);
+        var prioritizing = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "prioritizing");
+        Assert.Equal("needsCheck", prioritizing.GetProperty("life").GetString());
+
+        static EvidenceCandidate At(int action, string quote, int answer, int @event) =>
+            new(Ability.Prioritizing, action, quote, answer, @event, false, "", 0);
+    }
 }

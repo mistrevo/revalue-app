@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Revalue.Server.Ai;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Validate;
@@ -195,6 +197,90 @@ public sealed class ResumeTests
             .Where(e => e.Status == EpisodeStatus.Talking)
             .Select(e => e.Id);
         Assert.Equal([otherId], talking);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きを話している場面を飛ばすと、続きで足したやりとりと根拠だけを残さず、話し終えた姿に戻す")]
+    public async Task SkipAfterResumeKeepsFinishedPart()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        var before = await Saved(factory, "g-1", id);
+        var beforeInsights = (await GetEpisode(client, id)).GetProperty("insights").GetRawText();
+
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Noticing, 1, "いつもと違う", answer: 2));
+        await Send(client, id, "その朝は、子どもの様子がいつもと違うと思いました");
+
+        var skip = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
+
+        Assert.Equal(HttpStatusCode.Created, skip.StatusCode);
+        Assert.NotEqual(id, (await Json(skip)).GetProperty("id").GetString());
+        var after = await Saved(factory, "g-1", id);
+        Assert.Equal(EpisodeStatus.Finished, after.Status);
+        Assert.Equal(before.FinishedAt, after.FinishedAt);
+        Assert.Equal(before.TurnLimit, after.TurnLimit);
+        Assert.Equal(before.Turns.Select(t => (t.Role, t.Text, t.Move)), after.Turns.Select(t => (t.Role, t.Text, t.Move)));
+        Assert.Equal(before.Evidence, after.Evidence);
+        Assert.Null(after.BeforeResume);
+        Assert.False(after.ExcludedFromValidation);
+        Assert.Equal(beforeInsights, (await GetEpisode(client, id)).GetProperty("insights").GetRawText());
+
+        // 見えた力も続きを話す前に戻る。前に話し終えていた調整する力は下がらない
+        var abilities = await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct);
+        var life = Array(abilities, "abilities").ToDictionary(a => a.GetProperty("key").GetString()!, a => a.GetProperty("life").GetString());
+        Assert.Equal("needsCheck", life["coordinating"]);
+        Assert.Equal("notYet", life["noticing"]);
+        Assert.DoesNotContain(
+            Array(abilities, "history"),
+            h => h.GetProperty("key").GetString() == "coordinating" && h.GetProperty("reason").GetString() == "skip");
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きを話すと押してすぐ飛ばしても、話し終えていた場面と見えた力は残る")]
+    public async Task SkipRightAfterResumeKeepsEpisode()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        Assert.Equal(3, (await Saved(factory, "g-1", id)).Turns.Count);
+
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+
+        var episode = await GetEpisode(client, id);
+        Assert.Equal("finished", episode.GetProperty("status").GetString());
+        Assert.Equal(3, Array(episode, "turns").Length);
+        Assert.Equal("coordinating", Assert.Single(Array(episode.GetProperty("insights"), "moreToHear")).GetProperty("key").GetString());
+        var history = Array(await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct), "history");
+        Assert.Equal(
+            [("coordinating", "notYet", "needsCheck", "talk")],
+            history.Select(h => (
+                h.GetProperty("key").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString(), h.GetProperty("reason").GetString())));
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 続きでつらい状態のサインが出た場面を飛ばすと、続きは残さず、力の確かめに使わない印は残す")]
+    public async Task SkipAfterResumeWithDistressKeepsMark()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0]);
+        var before = await Saved(factory, "g-1", id);
+
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+        await Send(client, id, "最近ずっと眠れなくて、つらいです");
+
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+
+        var after = await Saved(factory, "g-1", id);
+        Assert.Equal(EpisodeStatus.Finished, after.Status);
+        Assert.Equal(before.Turns.Count, after.Turns.Count);
+        Assert.DoesNotContain(after.Turns, t => t.Text.Contains("眠れなくて", StringComparison.Ordinal));
+        Assert.True(after.ExcludedFromValidation);
+        Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("insights").ValueKind);
     }
 
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 印を書き換える直前にほかの画面で印が変わったら、続けた場面を話し終えた状態に戻す")]

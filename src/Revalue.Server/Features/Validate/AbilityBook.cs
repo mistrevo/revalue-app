@@ -27,6 +27,13 @@ public enum ChangeReason
     /// <summary>本人が戻した。</summary>
     [JsonStringEnumMemberName("restore")]
     Restore,
+
+    /// <summary>
+    /// つらい状態のサインが出て、その場面を力の確かめに使わないことにした（03-validate.md の「力の状態」）。
+    /// 打ち明けた直後に、見立てが下がったと読める行を出さないよう、画面では状態の移り変わりを書かず、理由だけを穏やかに出す（Claude の判断）。
+    /// </summary>
+    [JsonStringEnumMemberName("setAside")]
+    SetAside,
 }
 
 /// <summary>利用者ごとの力の状態の履歴 1 件。外す・戻すでは、From と To はどちらもそのときの状態。</summary>

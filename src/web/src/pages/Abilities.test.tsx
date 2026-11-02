@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { copy } from '@/copy'
-import { installFakeApi } from '@/test/fake-api'
+import { FAKE_HINT, installFakeApi } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
@@ -30,7 +30,7 @@ describe('Abilities', () => {
     // 確かめ中の力には、手がかりを出す
     const prioritizing = screen.getByRole('region', { name: '優先順位をつける力' })
     expect(within(prioritizing).getByText(copy.abilities.states.needsCheck)).toBeInTheDocument()
-    expect(within(prioritizing).getByText('そう決めた理由')).toBeInTheDocument()
+    expect(within(prioritizing).getByText(FAKE_HINT)).toBeInTheDocument()
 
     // まだ聞けていない力は、根拠も場面へのリンクも出さない
     const noticing = screen.getByRole('region', { name: '見立てる力' })
@@ -62,6 +62,31 @@ describe('Abilities', () => {
       '/api/abilities/coordinating/exclude',
       '/api/abilities/coordinating/restore',
     ])
+  })
+
+  it('discover-10（つらい状態のサインに応える）: 確かめに使わなくなった場面の履歴は、状態の移り変わりを書かず、理由だけを出す', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    api.state.abilities = {
+      ...api.state.abilities,
+      history: [
+        {
+          at: '2026-11-03T04:00:00Z',
+          key: 'coordinating',
+          name: '調整する力',
+          from: 'confirmed',
+          to: 'notYet',
+          reason: 'setAside',
+          episodeId: 'episode-1',
+        },
+      ],
+    }
+    renderApp('/abilities')
+
+    const history = await screen.findByRole('region', { name: copy.abilities.historyTitle })
+    const item = within(history).getByRole('listitem')
+    expect(item).toHaveTextContent(`調整する力: ${copy.abilities.reasons.setAside}`)
+    expect(item).not.toHaveTextContent('→')
+    expect(item).not.toHaveTextContent(copy.abilities.stateWords.notYet)
   })
 
   it('validate-12（本人が見立てを外せる）: 履歴がなければ、まだありませんと出す', async () => {

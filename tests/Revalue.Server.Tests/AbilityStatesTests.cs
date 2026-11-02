@@ -55,6 +55,45 @@ public sealed class AbilityStatesTests
         Assert.Equal([3], coordinating.Missing);
     }
 
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 同じ番号でも読み取りが違えば別の出来事として扱い、NeedsCheck のまま")]
+    public void SameEventNumberFromDifferentReadingsNeedsCheck()
+    {
+        var results = AbilityStates.Evaluate(
+        [
+            E(Ability.Prioritizing, 1, 1) with { Reading = 1 },
+            E(Ability.Prioritizing, 2, 1) with { Reading = 2 },
+            E(Ability.Prioritizing, 3, 1) with { Reading = 2 },
+        ]);
+
+        var prioritizing = Of(results, Ability.Prioritizing);
+        Assert.Equal(AbilityState.NeedsCheck, prioritizing.State);
+        Assert.Equal([1], prioritizing.Missing);
+
+        // 同じ読み取りの同じ出来事に 3 つそろえば Confirmed
+        var confirmed = Of(AbilityStates.Evaluate(
+        [
+            E(Ability.Prioritizing, 1, 1) with { Reading = 1 },
+            E(Ability.Prioritizing, 1, 1) with { Reading = 2 },
+            E(Ability.Prioritizing, 2, 1) with { Reading = 2 },
+            E(Ability.Prioritizing, 3, 1) with { Reading = 2 },
+        ]), Ability.Prioritizing);
+        Assert.Equal(AbilityState.Confirmed, confirmed.State);
+        Assert.All(confirmed.Shown, e => Assert.Equal(2, e.Reading));
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 行動の数が同じなら、新しい読み取りの出来事の根拠を出す")]
+    public void TiePrefersNewerReading()
+    {
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(Ability.Noticing, 1, 2) with { Reading = 1 },
+            E(Ability.Noticing, 2, 1) with { Reading = 2 },
+        ]), Ability.Noticing);
+
+        Assert.Equal(2, Assert.Single(result.Shown).Reading);
+        Assert.Equal([1, 3], result.Missing);
+    }
+
     [Fact(DisplayName = "validate-10（一般論には具体的な出来事を聞く）: 一般論の根拠だけなら、3 つあっても NeedsCheck")]
     public void GeneralOnlyNeedsCheck()
     {

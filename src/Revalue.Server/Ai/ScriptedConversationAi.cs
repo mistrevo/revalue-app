@@ -7,8 +7,10 @@ namespace Revalue.Server.Ai;
 /// <summary>
 /// 決まった返事を返す偽物の AI。開発（Development）で画面を通すためと、テストのためのもの。Claude を呼ばない。
 /// 読み取りは目印の言葉で決め、返事は一手ごとの決まった文を数かけらに分けて返す。言い方の品質は問わない。
-/// 開発で「見えたこと」を確かめられるよう、いまの答え（自由に書いた答えか訂正）に行動の目印の言葉があれば、
+/// 開発で「見えたこと」を確かめられるよう、場面の答え（自由に書いた答えか訂正）に行動の目印の言葉があれば、
 /// その答えの文全体を引用にした根拠の候補を返す（出来事 1、一般論でない。Claude の判断）。
+/// 本物の読み取り（reader.md）と同じく、いまの答えだけでなく場面のやりとり全体から探す。出来事の番号は読み取りごとに見分けるので
+/// （03-validate.md の「力の状態」）、いまの答えだけを返すと、答えをまたいだ行動が一つの出来事にそろわない。
 /// </summary>
 public sealed class ScriptedConversationAi : IConversationAi
 {
@@ -61,22 +63,19 @@ public sealed class ScriptedConversationAi : IConversationAi
             signals.Add(AnswerSignal.ConcreteEvent);
         }
 
-        return Task.FromResult(new TurnReading(signals, Candidates(last, turns.Count(t => t.Role == TurnRoles.User))));
+        return Task.FromResult(new TurnReading(signals, Candidates(turns)));
     }
 
-    private static List<EvidenceCandidate> Candidates(Turn? last, int answerNumber)
-    {
-        // 選んだ答えは、それだけでは根拠にしないので、候補を返さない
-        if (last is null || last.AnswerKind == AnswerKind.Choice)
-        {
-            return [];
-        }
-
-        return ActionMarkers
-            .Where(m => ContainsAny(last.Text, m.Markers))
-            .Select(m => new EvidenceCandidate(m.Ability, m.Action, last.Text, answerNumber, 1, false, "", 0))
+    private static List<EvidenceCandidate> Candidates(IReadOnlyList<Turn> turns) =>
+        turns
+            .Where(t => t.Role == TurnRoles.User)
+            .Select((answer, index) => (Answer: answer, Number: index + 1))
+            // 選んだ答えは、それだけでは根拠にしないので、候補を返さない
+            .Where(a => a.Answer.AnswerKind != AnswerKind.Choice)
+            .SelectMany(a => ActionMarkers
+                .Where(m => ContainsAny(a.Answer.Text, m.Markers))
+                .Select(m => new EvidenceCandidate(m.Ability, m.Action, a.Answer.Text, a.Number, 1, false, "", 0)))
             .ToList();
-    }
 
     public async IAsyncEnumerable<string> StreamReplyAsync(IReadOnlyList<Turn> turns, NextMove move, [EnumeratorCancellation] CancellationToken ct)
     {

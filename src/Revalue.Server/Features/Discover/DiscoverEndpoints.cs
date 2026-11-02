@@ -130,7 +130,9 @@ public static class DiscoverEndpoints
             // 中身を残さないよう、先に元の場面を消してから、新しい場面を作る。
             // 消すのは、読んだときから変わっていない、話している途中の場面だけ（版が合うときだけ消す）。
             // ほかの画面で区切られた場面は消さず、ほかの画面で先に飛ばされていたら 404 を返す。
-            // 読んでから消すまでにほかの画面で 1 往復が保存されたときは、読み直して、それも含めて消す（飛ばすのは場面ごと）
+            // 読んでから消すまでにほかの画面で 1 往復が保存されたときは、読み直して、それも含めて消す（飛ばすのは場面ごと）。
+            // 続きを話している場面（03-validate.md の「続きを話す」）は消さず、続きで足したやりとりと根拠だけを残さずに、
+            // 話し終えた姿に戻す。前に話し終えていた分は、飛ばす前の確かめ「このやりとりは残さずに」の外にあるため（Claude の判断）
             var removed = false;
             for (var attempt = 0; attempt < DataStoreExtensions.MaxUpdateAttempts && !removed; attempt++)
             {
@@ -146,7 +148,9 @@ public static class DiscoverEndpoints
                     return AlreadyFinished();
                 }
 
-                removed = await store.TryDeleteAsync(userKey, id, read.ETag, ct);
+                removed = EpisodeInsights.Rewind(read.Item, time.GetUtcNow()) is { } rewound
+                    ? await store.TryReplaceAsync(rewound, read.ETag, ct)
+                    : await store.TryDeleteAsync(userKey, id, read.ETag, ct);
             }
 
             if (!removed)

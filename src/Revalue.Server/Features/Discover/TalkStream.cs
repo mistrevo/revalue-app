@@ -134,8 +134,10 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
                         yield break;
                     }
 
-                    // 利用者ごとの力の状態を、保存してある場面から計算し直す。失敗しても、この往復は成功のまま
-                    await AbilityBook.TryRecomputeAsync(store, episode.UserKey, ChangeReason.Talk, episode.Id, time, logger, ct);
+                    // 利用者ごとの力の状態を、保存してある場面から計算し直す。失敗しても、この往復は成功のまま。
+                    // つらい状態のサインで場面を確かめに使わなくなったときは、話した内容から確かめたのとは別の理由で残す
+                    var reason = distress ? ChangeReason.SetAside : ChangeReason.Talk;
+                    await AbilityBook.TryRecomputeAsync(store, episode.UserKey, reason, episode.Id, time, logger, ct);
 
                     if (distress)
                     {

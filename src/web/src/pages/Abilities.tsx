@@ -141,10 +141,13 @@ function History({ history }: { history: AbilityChange[] }) {
   )
 }
 
-/** 履歴の 1 行。外す・戻すは理由だけ、ほかは状態の移り変わりと理由。状態は画面の言葉にする。 */
+/**
+ * 履歴の 1 行。外す・戻す・確かめに使わなくなった場面は理由だけ、ほかは状態の移り変わりと理由。状態は画面の言葉にする。
+ * 確かめに使わなくなった場面（つらい状態のサインが出た場面）は、打ち明けた直後に見立てが下がったと読めないよう、移り変わりを書かない。
+ */
 function describe(change: AbilityChange): string {
   const reason = copy.abilities.reasons[change.reason]
-  if (change.reason === 'exclude' || change.reason === 'restore') {
+  if (change.reason === 'exclude' || change.reason === 'restore' || change.reason === 'setAside') {
     return `${change.name}: ${reason}`
   }
   return `${change.name}: ${copy.abilities.stateWords[change.from]} → ${copy.abilities.stateWords[change.to]}（${reason}）`

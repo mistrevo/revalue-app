@@ -35,6 +35,18 @@ describe('copy', () => {
     expect(copy.talk.skipYes).not.toContain('消')
   })
 
+  it('validate-6（否定の言葉を使わない）: copy.ts に状態の呼び名（根拠あり、要確認、未確認）がない', () => {
+    const texts = flatten(copy)
+    const found = ['根拠あり', '要確認', '未確認'].flatMap((word) =>
+      texts.filter((text) => text.includes(word)).map((text) => `${word}: ${text}`),
+    )
+    expect(found).toEqual([])
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 見えたことの前置きは、直す道としてボタンの言葉をそのまま示す', () => {
+    expect(copy.insights.lead).toContain(`「${copy.insights.correct}」`)
+  })
+
   it('common-1（使わない言葉を出さない）: 照らし合わせは使わない言葉を見つけられる', () => {
     const texts = flatten({ a: ['あなたの診断結果'] })
     expect(forbiddenWords.some((word) => texts.some((text) => text.includes(word)))).toBe(true)

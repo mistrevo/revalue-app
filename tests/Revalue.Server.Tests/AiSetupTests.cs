@@ -128,6 +128,23 @@ public sealed class AiSetupTests
         Assert.Empty((await new ScriptedConversationAi().ReadAsync(chosen, Ct)).Candidates!);
     }
 
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 偽物の AI も、本物の読み取りと同じく前の答えから根拠を探す")]
+    public async Task ScriptedReadsWholeScene()
+    {
+        IReadOnlyList<Turn> turns =
+        [
+            .. Answer("朝、用事が三つ重なっていました。"),
+            new Turn { Role = TurnRoles.Assistant, Text = "そのとき、何をしましたか？", At = At },
+            new Turn { Role = TurnRoles.User, Text = "病院を先にしました。", AnswerKind = AnswerKind.Free, At = At },
+        ];
+
+        var reading = await new ScriptedConversationAi().ReadAsync(turns, Ct);
+
+        Assert.Equal(
+            [(1, "朝、用事が三つ重なっていました。", 1), (2, "病院を先にしました。", 2)],
+            reading.Candidates!.Select(c => (c.Action, c.Quote, c.Answer)));
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 偽物の AI の、足りない行動を聞く返事には手がかりが出る")]
     public async Task ScriptedAskMissingActionShowsHint()
     {

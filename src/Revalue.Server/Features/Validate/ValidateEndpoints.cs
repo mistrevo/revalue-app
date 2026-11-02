@@ -85,8 +85,9 @@ public static class EpisodeInsights
         IsCheckable(episode) && AbilityStates.Evaluate(episode.Evidence).Any(r => r.State == AbilityState.NeedsCheck);
 
     /// <summary>
-    /// 続きの問いで聞く行動。要確認の力のうち行動の多いもの（同じ数なら <see cref="Ability"/> の順）の、番号の小さい足りない行動で、
-    /// この場面で聞いた回数が上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）に届いていないもの。なければ null（手がかりを添えずに聞く）。
+    /// 続きの問いで聞く行動。要確認の力のうち行動の多いもの（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
+    /// <see cref="AbilityStates.AskOrder"/> の順に見て、この場面で聞いた回数が上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）に届いていないもの。
+    /// なければ null（手がかりを添えずに聞く）。
     /// </summary>
     public static ActionRef? ResumeTarget(EpisodeItem episode)
     {
@@ -95,7 +96,7 @@ public static class EpisodeInsights
             .Where(r => r.State == AbilityState.NeedsCheck)
             .OrderByDescending(r => r.Shown.Count)
             .ThenBy(r => r.Ability)
-            .SelectMany(r => r.Missing.Select(n => new ActionRef(r.Ability, n)))
+            .SelectMany(r => AbilityStates.AskOrder(r.Ability, r.Missing, episode.Evidence))
             .FirstOrDefault(a => asked.GetValueOrDefault(a) < NextMovePolicy.MaxAskPerAction);
     }
 
@@ -126,6 +127,30 @@ public static class EpisodeInsights
             FinishedAt = null,
             TurnLimit = episode.UserTurnCount + NextMovePolicy.ResumeExtraTurns,
             Turns = [.. episode.Turns, question],
+            BeforeResume = new ResumePoint(episode.Turns.Count, episode.FinishedAt, episode.TurnLimit, episode.Evidence),
+        };
+    }
+
+    /// <summary>
+    /// 続きを話している場面を、続きを話す前の話し終えた姿に戻す（まだ保存しない）。続きで足したやりとりと根拠は残さない。
+    /// 続きの中でつらい状態のサインが出て付いた、力の確かめに使わない印は残す（安全な側。Claude の判断）。
+    /// 続きを話している場面でなければ null。
+    /// </summary>
+    public static EpisodeItem? Rewind(EpisodeItem episode, DateTimeOffset now)
+    {
+        if (episode.Status != EpisodeStatus.Talking || episode.BeforeResume is not { } point)
+        {
+            return null;
+        }
+
+        return episode with
+        {
+            Status = EpisodeStatus.Finished,
+            FinishedAt = point.FinishedAt ?? now,
+            TurnLimit = point.TurnLimit,
+            Turns = [.. episode.Turns.Take(point.TurnCount)],
+            Evidence = point.Evidence,
+            BeforeResume = null,
         };
     }
 
@@ -225,7 +250,7 @@ public static class ValidateEndpoints
                 return await ConflictAsync(store, userKey, id, ct);
             }
 
-            await AbilityBook.TryRecomputeAsync(store, userKey, ChangeReason.Correction, id, time, logger, ct);
+            await AbilityBook.TryRecomputeAsync(store, userKey, distress ? ChangeReason.SetAside : ChangeReason.Correction, id, time, logger, ct);
             return TypedResults.Ok(EpisodeDto.From(saved));
         }).RequireDailyLimit();
 

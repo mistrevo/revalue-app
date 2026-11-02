@@ -125,17 +125,85 @@ public sealed class EvidenceTests
         Assert.Equal(2, evidence.Answer);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: EvidenceSet.Merge は重複をまとめ、前の根拠を消さない")]
-    public void MergeKeepsKnownAndDeduplicates()
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 照らし合わせを通った根拠には、どの読み取りかとして、読んだときの本人の答えの数が入る")]
+    public void CheckTagsReading()
     {
-        var a = new Evidence(Ability.Noticing, 1, "いつもと違う", 1, 1, false, false, null);
-        var b = new Evidence(Ability.Noticing, 2, "顔色", 1, 1, false, false, null);
-        var aAgain = a with { Event = 2 };
-        var c = new Evidence(Ability.Noticing, 3, "前は", 2, 1, false, false, null);
+        IReadOnlyList<Turn> turns =
+        [
+            Asked("昨日はどんな一日でしたか？"),
+            Answered("朝、子どもの顔色がいつもと違うと気づきました"),
+            Asked("そのとき、どうしましたか？"),
+            Answered("熱を測りました"),
+        ];
 
-        var merged = EvidenceSet.Merge([a, b], [aAgain, c]);
+        var kept = Assert.Single(EvidenceChecker.Check(turns, [Candidate("熱を測りました", answer: 2, @event: 1)]));
 
-        Assert.Equal([a, b, c], merged);
+        Assert.Equal(2, kept.Reading);
+    }
+
+    private static Evidence E(int action, string quote, int answer, int @event, int reading) =>
+        new(Ability.Prioritizing, action, quote, answer, @event, false, false, null, reading);
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: EvidenceSet.Merge は前の読み取りの根拠を消さず、新しい読み取りの根拠を番号ごと足す")]
+    public void MergeKeepsKnownAndAddsNewReading()
+    {
+        var a = E(1, "重なっていました", answer: 1, @event: 1, reading: 1);
+        var b = E(2, "先に買い物を", answer: 2, @event: 2, reading: 2);
+        var c = E(3, "雨が降りそう", answer: 3, @event: 1, reading: 3);
+
+        // 新しい読み取りの根拠は、前の出来事 1 と番号が同じでも、その読み取りの番号のまま足す。同じものは 1 つにする
+        Assert.Equal([a, b, c], EvidenceSet.Merge([a, b], [c, c]));
+
+        // 新しい読み取りが a と同じ言葉を別の番号で返したら、前の a は新しいものに含まれるので残さず、新しい番号のものを残す
+        var aRenumbered = a with { Event = 2, Reading = 3 };
+        Assert.Equal([b, aRenumbered], EvidenceSet.Merge([a, b], [aRenumbered]));
+
         Assert.Equal([a, b], EvidenceSet.Merge([a, b], []));
+    }
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: EvidenceSet.Merge は、新しい読み取りのある出来事に中身がすべて含まれる前の出来事だけをまとめる")]
+    public void MergeDropsOnlyCoveredEarlierEvents()
+    {
+        var first = E(1, "重なっていました", answer: 1, @event: 1, reading: 1);
+        var monday = E(1, "重なっていました", answer: 1, @event: 1, reading: 2);
+        var thursday2 = E(2, "先に買い物を", answer: 2, @event: 2, reading: 2);
+        var thursday3 = E(3, "雨が降りそう", answer: 2, @event: 2, reading: 2);
+
+        // 1 回目の出来事 1（月曜）は、2 回目の出来事 1 にすべて含まれるので残さない
+        Assert.Equal([monday, thursday2, thursday3], EvidenceSet.Merge([first], [monday, thursday2, thursday3]));
+
+        // 新しい読み取りが月曜を外して木曜を出来事 1 と振り直しても、前の月曜の根拠は残し、木曜の前の根拠は新しいものに含まれるので残さない
+        var thursdayAgain2 = thursday2 with { Event = 1, Reading = 3 };
+        var thursdayAgain3 = thursday3 with { Event = 1, Reading = 3 };
+        Assert.Equal(
+            [monday, thursdayAgain2, thursdayAgain3],
+            EvidenceSet.Merge([monday, thursday2, thursday3], [thursdayAgain2, thursdayAgain3]));
+
+        // 力が違えば、同じ言葉でも含まれるとはみなさない
+        var coordinating = first with { Ability = Ability.Coordinating };
+        Assert.Equal([coordinating, monday], EvidenceSet.Merge([coordinating], [monday]));
+    }
+
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 番号を振り直す読み取りを重ねても、別の日の行動はそろわない")]
+    public void RenumberingReadingsDoNotConfirmAcrossDays()
+    {
+        // 2 回目: 月曜（出来事 1）に行動 1、木曜（出来事 2）に行動 2 と 3。3 回目: 月曜を外し、木曜を出来事 1 に振り直す
+        IReadOnlyList<Evidence> second =
+        [
+            E(1, "重なっていました", answer: 1, @event: 1, reading: 2),
+            E(2, "先に買い物をすませて、洗濯は後回しにしました", answer: 2, @event: 2, reading: 2),
+            E(3, "雨が降りそうだったので", answer: 2, @event: 2, reading: 2),
+        ];
+        IReadOnlyList<Evidence> third =
+        [
+            E(2, "先に買い物をすませて", answer: 2, @event: 1, reading: 3),
+            E(3, "雨が降りそうだった", answer: 2, @event: 1, reading: 3),
+        ];
+
+        var result = AbilityStates.Evaluate(EvidenceSet.Merge(second, third)).Single(r => r.Ability == Ability.Prioritizing);
+
+        Assert.Equal(AbilityState.NeedsCheck, result.State);
+        Assert.Equal([1], result.Missing);
+        Assert.All(result.Shown, e => Assert.Equal(3, e.Reading));
     }
 }

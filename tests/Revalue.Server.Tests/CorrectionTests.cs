@@ -152,6 +152,33 @@ public sealed class CorrectionTests
         Assert.Equal(before.Evidence, saved.Evidence);
         Assert.Equal(EpisodeStatus.Finished, saved.Status);
         Assert.Equal(0, ai.Moves.Count(m => m == MoveKind.Distress));
+
+        // 場面を確かめに使わなくなったことを、訂正とは別の理由で履歴に残す（validate-8 の「なぜ」を取り違えない）
+        var change = (await Json(await client.GetAsync("/api/abilities", Ct))).GetProperty("history")[0];
+        Assert.Equal("coordinating", change.GetProperty("key").GetString());
+        Assert.Equal("setAside", change.GetProperty("reason").GetString());
+        Assert.Equal("confirmed", change.GetProperty("from").GetString());
+        Assert.Equal("notYet", change.GetProperty("to").GetString());
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 話している途中にサインが出て場面を確かめに使わなくなったら、履歴の理由は setAside")]
+    public async Task DistressWhileTalkingRecordsSetAside()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        await Send(client, id, CoordinatingAnswer);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+
+        await Send(client, id, "最近ずっと眠れなくて、つらいです。");
+
+        var history = Array(await Json(await client.GetAsync("/api/abilities", Ct)), "history");
+        Assert.Equal(
+            [("coordinating", "setAside", "confirmed", "notYet"), ("coordinating", "talk", "notYet", "confirmed")],
+            history.Select(h => (
+                h.GetProperty("key").GetString(), h.GetProperty("reason").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString())));
     }
 
     [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 訂正にも送信回数の上限が効く")]

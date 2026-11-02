@@ -1,12 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import forbiddenWords from '../../../shared/forbidden-words.json'
 import { copy } from '@/copy'
 import {
   distressEvents,
   FAKE_AFTER_SKIP,
   FAKE_DISTRESS_ACTIONS,
   FAKE_DISTRESS_TEXT,
+  FAKE_HINT,
   FAKE_OPENING,
   FAKE_OPENING_CHOICES,
   FAKE_RESUME_CHOICES,
@@ -416,7 +418,7 @@ describe('Talk', () => {
     expect(within(more).getByText('優先順位をつける力')).toBeInTheDocument()
     expect(within(more).getByText('「先に書類を仕上げました」')).toBeInTheDocument()
     expect(within(more).getByText(copy.insights.hintLead)).toBeInTheDocument()
-    expect(within(more).getByText('そう決めた理由')).toBeInTheDocument()
+    expect(within(more).getByText(FAKE_HINT)).toBeInTheDocument()
 
     const notYet = screen.getByRole('region', { name: copy.insights.notYetTitle })
     expect(within(notYet).getByText('見立てる力')).toBeInTheDocument()
@@ -443,6 +445,28 @@ describe('Talk', () => {
     expect(await screen.findByRole('region', { name: copy.insights.moreTitle })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: copy.insights.seenTitle })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: copy.insights.notYetTitle })).not.toBeInTheDocument()
+  })
+
+  it('validate-6（否定の言葉を使わない）: 見えたことに状態の呼び名、使わない言葉、点数・順位が出ない', async () => {
+    setup(finishedWithInsights())
+
+    await screen.findByRole('region', { name: copy.insights.seenTitle })
+    // 「優先順位をつける力」は PRD が決めた力の名前。使わない言葉の「順位」は人や仕事の順位づけのことなので、この言葉だけ除いて見る
+    const text = (document.body.textContent ?? '').replaceAll('優先順位', '')
+    for (const word of ['根拠あり', '要確認', '未確認', ...forbiddenWords]) {
+      expect(text).not.toContain(word)
+    }
+    expect(text).not.toMatch(/[0-9０-９]+\s*(点|位)/)
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 見えたことの先頭に、話した言葉からの読み取りであることと、直せることを添える', async () => {
+    setup(finishedWithInsights())
+
+    const lead = await screen.findByText(copy.insights.lead)
+    expect(lead.compareDocumentPosition(screen.getByRole('region', { name: copy.insights.seenTitle }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(screen.getByRole('button', { name: copy.insights.correct })).toBeInTheDocument()
   })
 
   it('validate-4（根拠は本人の言葉）: 引用は「」で一字一句、選んだ答えには（選んだ答え）と結びついた言葉', async () => {

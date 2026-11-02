@@ -130,9 +130,10 @@ public static class NextMovePolicy
     }
 
     /// <summary>
-    /// 足りない行動を一つ選ぶ。いまの答えが一般論だけなら選ばない（具体的な出来事を聞く。validate-10）。
-    /// いまの出来事の中で 3 つそろっていない力のうち、行動の多い力（同じ数なら <see cref="Ability"/> の順）の、
-    /// 番号の小さい足りない行動で、聞いた回数が上限に届いていないもの。
+    /// 足りない行動を一つ選ぶ。いまの答えが具体的な出来事でなく、いまの答えから一般論でない根拠も見つからなければ選ばない
+    /// （一般論だけには具体的な出来事を聞く（validate-10）。分からない・何もないには答えやすい場面を聞き、問い詰めない）。
+    /// いまの出来事の中で 3 つそろっていない力のうち、行動の多い力（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
+    /// <see cref="AbilityStates.AskOrder"/> の順に見て、聞いた回数が上限に届いていないもの。
     /// </summary>
     private static ActionRef? MissingActionToAsk(TurnReading reading, ValidationContext? validation)
     {
@@ -148,16 +149,17 @@ public static class NextMovePolicy
             return null;
         }
 
-        // いまの出来事: いまの答えの根拠の出来事。なければ、いちばん新しい出来事
+        // いまの出来事: いまの答えの根拠の出来事。なければ、いちばん新しい出来事（いちばん新しい読み取りの、番号の大きい出来事）。
+        // 出来事の番号は読み取りごとに振り直されるので、読み取りと番号の組で見分ける
         var pool = inLatest.Count > 0 ? inLatest : specific;
         if (pool.Count == 0)
         {
             return null;
         }
 
-        var currentEvent = pool.Max(e => e.Event);
+        var currentEvent = pool.Select(e => (e.Reading, e.Event)).Max();
         var candidates = specific
-            .Where(e => e.Event == currentEvent)
+            .Where(e => (e.Reading, e.Event) == currentEvent)
             .GroupBy(e => e.Ability)
             .Select(g => (Ability: g.Key, Actions: g.Select(e => e.Action).Distinct().ToHashSet()))
             .Where(c => c.Actions.Count < ActionRef.ActionsPerAbility)
@@ -166,13 +168,12 @@ public static class NextMovePolicy
 
         foreach (var (ability, actions) in candidates)
         {
-            for (var number = 1; number <= ActionRef.ActionsPerAbility; number++)
+            var missing = Enumerable.Range(1, ActionRef.ActionsPerAbility).Where(n => !actions.Contains(n));
+            var next = AbilityStates.AskOrder(ability, missing, validation.Evidence)
+                .FirstOrDefault(a => validation.AskedCounts.GetValueOrDefault(a) < MaxAskPerAction);
+            if (next is not null)
             {
-                var action = new ActionRef(ability, number);
-                if (!actions.Contains(number) && validation.AskedCounts.GetValueOrDefault(action) < MaxAskPerAction)
-                {
-                    return action;
-                }
+                return next;
             }
         }
 

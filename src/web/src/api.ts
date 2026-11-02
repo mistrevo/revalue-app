@@ -168,7 +168,7 @@ export type AbilityView = {
   excluded: boolean
 }
 
-export type ChangeReason = 'talk' | 'correction' | 'skip' | 'exclude' | 'restore'
+export type ChangeReason = 'talk' | 'correction' | 'skip' | 'exclude' | 'restore' | 'setAside'
 
 export type AbilityChange = {
   at: string

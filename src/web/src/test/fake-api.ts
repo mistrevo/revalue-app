@@ -30,8 +30,11 @@ export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {
 }
 
 /** 裏側が決める続きの問いと選択肢の代わり（本物は AbilityText.cs）。 */
-export const FAKE_RESUME_QUESTION = 'この場面の続きを聞かせてください。そう決めた理由について、覚えていることはありますか？'
-export const FAKE_RESUME_CHOICES = ['少し覚えています', 'よく覚えていません', 'その日のほかのことを話したい']
+export const FAKE_RESUME_QUESTION = 'また話しに来てくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
+export const FAKE_RESUME_CHOICES = ['少し覚えています', 'とくになかったと思います', 'その日のほかのことを話したい']
+
+/** 裏側が決める手がかりの言葉の代わり（本物は AbilityText.cs）。 */
+export const FAKE_HINT = '先にすること、後に回すことを、どう考えて決めたか'
 
 /** 架空の場面の「見えたこと」。引用はすべて架空。 */
 export function fakeInsights(overrides: Partial<EpisodeInsights> = {}): EpisodeInsights {
@@ -55,7 +58,7 @@ export function fakeInsights(overrides: Partial<EpisodeInsights> = {}): EpisodeI
           { text: '用事が重なっていました', fromChoice: false, linkedText: null },
           { text: '先に書類を仕上げました', fromChoice: false, linkedText: null },
         ],
-        hints: ['そう決めた理由'],
+        hints: [FAKE_HINT],
       },
     ],
     notYet: [{ key: 'noticing', name: '見立てる力' }],
@@ -94,7 +97,7 @@ export function fakeAbilities(): Abilities {
         life: 'needsCheck',
         quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
         episodeId: 'episode-1',
-        hints: ['そう決めた理由'],
+        hints: [FAKE_HINT],
         work: 'notChecked',
         excluded: false,
       },
