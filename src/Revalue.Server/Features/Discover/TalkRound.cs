@@ -62,7 +62,7 @@ public static class TalkRound
         }
 
         // 2. 次の一手
-        var move = NextMovePolicy.Decide(reading, userTurnNumber);
+        var move = NextMovePolicy.Decide(reading, userTurnNumber).Kind;
         yield return new RoundStep.Decided(reading, move);
 
         // つらい状態のサインには AI の返事を使わず、決まった言葉で応える

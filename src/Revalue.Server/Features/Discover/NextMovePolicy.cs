@@ -1,4 +1,5 @@
 using Revalue.Server.Ai;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
 
@@ -20,29 +21,82 @@ public enum MoveKind
     /// <summary>つらい状態のサイン。AI の返事は使わず、コードが決めた言葉と相談窓口を出す。</summary>
     Distress,
 
-    /// <summary>8 往復目。受け止めて映し返し、問いを出さずに場面を締める。</summary>
+    /// <summary>往復の上限。受け止めて映し返し、問いを出さずに場面を締める。</summary>
     Close,
+
+    /// <summary>いまの出来事の中で、要確認の力の足りない行動を一つ聞く（03-validate.md）。聞き手には手がかりだけを渡す。</summary>
+    AskMissingAction,
 }
 
-/// <summary>読み取りと往復の数から、次の一手を決める（02-discover.md の「次の一手」）。</summary>
+/// <summary>次の一手。<see cref="Target"/> は <see cref="MoveKind.AskMissingAction"/> のときだけ、聞く行動。</summary>
+public sealed record NextMove(MoveKind Kind, ActionRef? Target = null);
+
+/// <summary>
+/// 足りない行動を聞くかを決めるための、場面の確かめの文脈。
+/// </summary>
+/// <param name="Evidence">この場面のここまでの根拠（いまの答えの読み取りで見つかったものも含む）。</param>
+/// <param name="LatestAnswer">いまの答えが何番目の本人の答えか（1 から）。</param>
+/// <param name="AskedCounts">この場面で、行動ごとに聞いた回数。</param>
+public sealed record ValidationContext(IReadOnlyList<Evidence> Evidence, int LatestAnswer, IReadOnlyDictionary<ActionRef, int> AskedCounts)
+{
+    /// <summary>
+    /// ターンから文脈を作る。聞いた回数は、行動を添えた聞き手のターン（足りない行動を聞く一手と、続きを話すときの問い）から数える。
+    /// 続きの問いも同じ行動を聞いているので数に入れる（問い詰めないため。Claude の判断）。
+    /// </summary>
+    public static ValidationContext From(IReadOnlyList<Turn> turns, IReadOnlyList<Evidence> evidence)
+    {
+        var asked = new Dictionary<ActionRef, int>();
+        foreach (var turn in turns)
+        {
+            if (turn.Role == TurnRoles.Assistant && ActionRef.Parse(turn.Target) is { } target)
+            {
+                asked[target] = asked.GetValueOrDefault(target) + 1;
+            }
+        }
+
+        return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked);
+    }
+}
+
+/// <summary>読み取りと往復の数と根拠から、次の一手を決める（02-discover.md と 03-validate.md の「次の一手」）。</summary>
 public static class NextMovePolicy
 {
-    /// <summary>1 場面の往復の上限。この数の答えへの返事で場面を締める。</summary>
+    /// <summary>1 場面の往復の上限の既定。この数の答えへの返事で場面を締める。</summary>
     public const int MaxUserTurns = 8;
 
+    /// <summary>同じ場面で同じ行動を聞く回数の上限。問い詰めないため（Claude の判断）。</summary>
+    public const int MaxAskPerAction = 2;
+
     /// <summary>
-    /// 優先の順: つらい状態のサイン → 8 往復目の締め → 家族の病気の話 → 具体的な出来事がある → 分からない・何もない → 一般論だけ → それ以外。
+    /// 優先の順: つらい状態のサイン → 往復の上限の締め → 家族の病気の話 → 足りない行動を一つ聞く → 具体的な出来事がある →
+    /// 分からない・何もない → 一般論だけ → それ以外。
     /// </summary>
     /// <param name="reading">いまの答えの読み取り。</param>
     /// <param name="userTurnNumber">いまの答えが何往復目か（1 から）。</param>
-    public static MoveKind Decide(TurnReading reading, int userTurnNumber)
+    /// <param name="validation">場面の確かめの文脈。null なら足りない行動は聞かない。</param>
+    /// <param name="turnLimit">この場面の往復の上限。</param>
+    public static NextMove Decide(TurnReading reading, int userTurnNumber, ValidationContext? validation = null, int turnLimit = MaxUserTurns)
+    {
+        var basic = Basic(reading, userTurnNumber, turnLimit);
+        if (basic is MoveKind.Distress or MoveKind.Close or MoveKind.ReturnFromIllness)
+        {
+            return new NextMove(basic);
+        }
+
+        return MissingActionToAsk(reading, validation) is { } target
+            ? new NextMove(MoveKind.AskMissingAction, target)
+            : new NextMove(basic);
+    }
+
+    /// <summary>02 discover（話す）の一手。足りない行動を聞かないときに使う。</summary>
+    private static MoveKind Basic(TurnReading reading, int userTurnNumber, int turnLimit)
     {
         if (reading.Has(AnswerSignal.Distress))
         {
             return MoveKind.Distress;
         }
 
-        if (userTurnNumber >= MaxUserTurns)
+        if (userTurnNumber >= turnLimit)
         {
             return MoveKind.Close;
         }
@@ -70,5 +124,55 @@ public static class NextMovePolicy
         }
 
         return MoveKind.AskWhatYouDid;
+    }
+
+    /// <summary>
+    /// 足りない行動を一つ選ぶ。いまの答えが一般論だけなら選ばない（具体的な出来事を聞く。validate-10）。
+    /// いまの出来事の中で 3 つそろっていない力のうち、行動の多い力（同じ数なら <see cref="Ability"/> の順）の、
+    /// 番号の小さい足りない行動で、聞いた回数が上限に届いていないもの。
+    /// </summary>
+    private static ActionRef? MissingActionToAsk(TurnReading reading, ValidationContext? validation)
+    {
+        if (validation is null)
+        {
+            return null;
+        }
+
+        var specific = validation.Evidence.Where(e => !e.General).ToList();
+        var inLatest = specific.Where(e => e.Answer == validation.LatestAnswer).ToList();
+        if (!reading.Has(AnswerSignal.ConcreteEvent) && inLatest.Count == 0)
+        {
+            return null;
+        }
+
+        // いまの出来事: いまの答えの根拠の出来事。なければ、いちばん新しい出来事
+        var pool = inLatest.Count > 0 ? inLatest : specific;
+        if (pool.Count == 0)
+        {
+            return null;
+        }
+
+        var currentEvent = pool.Max(e => e.Event);
+        var candidates = specific
+            .Where(e => e.Event == currentEvent)
+            .GroupBy(e => e.Ability)
+            .Select(g => (Ability: g.Key, Actions: g.Select(e => e.Action).Distinct().ToHashSet()))
+            .Where(c => c.Actions.Count < ActionRef.ActionsPerAbility)
+            .OrderByDescending(c => c.Actions.Count)
+            .ThenBy(c => c.Ability);
+
+        foreach (var (ability, actions) in candidates)
+        {
+            for (var number = 1; number <= ActionRef.ActionsPerAbility; number++)
+            {
+                var action = new ActionRef(ability, number);
+                if (!actions.Contains(number) && validation.AskedCounts.GetValueOrDefault(action) < MaxAskPerAction)
+                {
+                    return action;
+                }
+            }
+        }
+
+        return null;
     }
 }

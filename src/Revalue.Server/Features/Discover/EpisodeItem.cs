@@ -50,6 +50,12 @@ public sealed record Turn
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Move { get; init; }
 
+    /// <summary>
+    /// assistant のターンで、聞いた核となる行動（<c>coordinating.3</c> の形）。足りない行動を聞く一手と、続きを話すときの問いだけ。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Target { get; init; }
+
     public required DateTimeOffset At { get; init; }
 }
 
@@ -72,6 +78,9 @@ public sealed record EpisodeItem : Item
 
     /// <summary>力の確かめに使わない印。つらい状態のサインが出た場面に付ける。</summary>
     public bool ExcludedFromValidation { get; init; }
+
+    /// <summary>この場面の往復の上限。この数の答えへの返事で場面を締める。続きを話すときに増やす。</summary>
+    public int TurnLimit { get; init; } = NextMovePolicy.MaxUserTurns;
 
     /// <summary>利用者が答えた数（往復の数）。</summary>
     [JsonIgnore]
