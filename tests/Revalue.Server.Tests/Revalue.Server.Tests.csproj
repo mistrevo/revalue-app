@@ -10,6 +10,7 @@
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="TestWebRoot/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\shared\forbidden-words.json" Link="forbidden-words.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

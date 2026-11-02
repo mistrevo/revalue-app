@@ -121,6 +121,36 @@ public sealed class DataStoreTests
         await Assert.ThrowsAsync<ArgumentException>(() => store.DeleteLeftoversAsync(DataConstants.GlobalPartition, Ct));
     }
 
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 1 件だけ消せて、ほかは残る。ないものを消しても何もしない")]
+    public async Task DeleteRemovesOnlyOneItem()
+    {
+        var (store, _) = Create();
+        await Consent(store, "u_a");
+        await Consent(store, "u_b");
+        await store.UpsertAsync(Note("u_a", "n1"), Ct);
+        await store.UpsertAsync(Note("u_a", "n2"), Ct);
+        await store.UpsertAsync(Note("u_b", "n1"), Ct);
+
+        await store.DeleteAsync("u_a", "n1", Ct);
+        await store.DeleteAsync("u_a", "missing", Ct);
+
+        Assert.Null(await store.GetAsync<NoteItem>("u_a", "n1", Ct));
+        Assert.NotNull(await store.GetAsync<NoteItem>("u_a", "n2", Ct));
+        Assert.NotNull(await store.GetAsync<NoteItem>("u_b", "n1", Ct));
+        await foreach (var json in store.DumpRawJsonAsync(Ct))
+        {
+            Assert.False(json.Contains("\"id\":\"n1\"") && json.Contains("\"userKey\":\"u_a\""));
+        }
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: global の 1 件は消せない")]
+    public async Task DeleteRefusesGlobal()
+    {
+        var (store, _) = Create();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => store.DeleteAsync(DataConstants.GlobalPartition, "g1", Ct));
+    }
+
     [Fact(DisplayName = "foundation-8（数だけを数える）: 数は 1 ずつ増え、なければ作る")]
     public async Task IncrementCreatesAndIncrements()
     {

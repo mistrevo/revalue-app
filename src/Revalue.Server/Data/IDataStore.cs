@@ -25,6 +25,9 @@ public interface IDataStore
     /// <summary>その人のアイテムの数。テストと確認用。</summary>
     Task<int> CountAllAsync(string userKey, CancellationToken ct);
 
+    /// <summary>その人のアイテムを 1 件消す。なければ何もしない。global は消せない。</summary>
+    Task DeleteAsync(string userKey, string id, CancellationToken ct);
+
     /// <summary>その人のアイテムをすべて消す。了解の記録を最初に消し、そのあとの書き込みを止めてから残りを消す。global は消せない。</summary>
     Task DeleteAllAsync(string userKey, CancellationToken ct);
 

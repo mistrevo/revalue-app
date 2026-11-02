@@ -37,6 +37,8 @@ public sealed class InterruptingDataStore(IDataStore inner) : IDataStore
 
     public Task<int> CountAllAsync(string userKey, CancellationToken ct) => inner.CountAllAsync(userKey, ct);
 
+    public Task DeleteAsync(string userKey, string id, CancellationToken ct) => inner.DeleteAsync(userKey, id, ct);
+
     public Task DeleteAllAsync(string userKey, CancellationToken ct) => inner.DeleteAllAsync(userKey, ct);
 
     public Task DeleteLeftoversAsync(string userKey, CancellationToken ct) => inner.DeleteLeftoversAsync(userKey, ct);

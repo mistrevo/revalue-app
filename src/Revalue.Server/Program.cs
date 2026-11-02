@@ -1,4 +1,5 @@
 using Revalue.Server.Data;
+using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
@@ -31,6 +32,7 @@ var api = app.MapGroup("/api").RequireAuthorization();
 api.MapGet("/health", (IConfiguration config) => TypedResults.Ok(new { status = "ok", commit = config["Build:Commit"] ?? "local" }))
     .AllowAnonymous();
 ConsentEndpoints.Map(api);
+DiscoverEndpoints.Map(api);
 api.MapGet("/stats", async (ICounter counter, CancellationToken ct) => TypedResults.Ok(await counter.GetAsync(ct))).RequireConsent();
 
 // テストの環境（Testing）だけ、送信回数の上限を確かめるための API を足す。本番の経路には足さない

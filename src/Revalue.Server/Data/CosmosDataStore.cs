@@ -75,6 +75,12 @@ public sealed class CosmosDataStore(Container container) : IDataStore
         return count;
     }
 
+    public async Task DeleteAsync(string userKey, string id, CancellationToken ct)
+    {
+        InMemoryDataStore.EnsureNotGlobal(userKey);
+        await DeleteIgnoringMissingAsync(id, new PartitionKey(userKey), null, ct);
+    }
+
     public async Task DeleteAllAsync(string userKey, CancellationToken ct)
     {
         InMemoryDataStore.EnsureNotGlobal(userKey);
