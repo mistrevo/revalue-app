@@ -90,7 +90,7 @@ infra/README.md                                       最初の 1 回の手順
 
 **Files:**
 - Create: `Revalue.slnx`、`src/Revalue.Server/*`（`dotnet new web`）、`src/Revalue.Server/Foundation/Problems.cs`、`src/Revalue.Server/Ai/Prompts/.gitkeep`、`src/shared/forbidden-words.json`
-- Create: `tests/Revalue.Server.Tests/*`（`dotnet new xunit3`）、`RevalueFactory.cs`、`TestWebRoot/index.html`、`HostingTests.cs`、`ForbiddenWordsTests.cs`
+- Create: `tests/Revalue.Server.Tests/*`（`dotnet new xunit3`）、`RevalueFactory.cs`、`TestWebRoot/index.html`、`HostingTests.cs`
 
 **Interfaces:**
 - Produces: `public partial class Program`（テストから参照）。`static class Problems { const string LoginRequired = "/problems/login-required"; const string ConsentRequired = "/problems/consent-required"; const string DailyLimit = "/problems/daily-limit"; static IResult Create(int status, string type, string title, IDictionary<string, object?>? extensions = null) }`
@@ -105,15 +105,12 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-1（案内はログインなしで見られる）: /api 以外の知らないパスは index.html を返す` — `GET /settings` が 200、`text/html`、本文に TestWebRoot の目印 `revalue-test-root`
   - `foundation-1（案内はログインなしで見られる）: /api の知らないパスは 404 の ProblemDetails` — `GET /api/nope`（ログイン済みのクライアントで）が 404、`application/problem+json`
 
-- [ ] **Step 3: 失敗するテストを書く（`ForbiddenWordsTests.cs`）**
-  - `common-1（使わない言葉を出さない）: プロンプトに使わない言葉がない` — `src/Revalue.Server/Ai/Prompts/**/*.md` をすべて読み、`forbidden-words.json` のどの語も含まない（ファイルが 0 件でも通る）
+- [ ] **Step 3: `dotnet test` で失敗を確かめる**
 
-- [ ] **Step 4: `dotnet test` で失敗を確かめる**
-
-- [ ] **Step 5: 実装する**
+- [ ] **Step 4: 実装する**
   `Program.cs` で `AddProblemDetails()`、`GET /api/health` → `{ status = "ok" }`、`UseDefaultFiles` / `UseStaticFiles`、`/api` 以外のフォールバックだけ `index.html`（`/api/{**rest}` は 404 の ProblemDetails）。`launchSettings.json` は `http://localhost:5080`。
 
-- [ ] **Step 6: `dotnet test` が通ることを確かめ、コミットする**
+- [ ] **Step 5: `dotnet test` が通ることを確かめ、コミットする**
   `雛形とヘルスチェック、SPA の配信を作る（foundation-7 公開 URL で動く の土台）`
 
 ---
@@ -130,7 +127,7 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `sealed class UserKeyHasher(IConfiguration config) { string Hash(string provider, string principalId) }` — `"u_" + 小文字 16 進(HMACSHA256(key: UTF8(Auth:UserKeySecret), data: UTF8($"{provider}:{principalId}")))`。秘密が空なら起動時に例外
 - Produces: `static class AuthSetup { IServiceCollection AddRevalueAuth(this IServiceCollection, IHostEnvironment); void MapDevAuth(this WebApplication) /* Development のときだけ経路を足す */ ; string? GetUserKey(this ClaimsPrincipal) /* claim "user_key" */ }`
 - Produces: `/api` のグループ `api`（`MapGroup("/api").RequireAuthorization()`、`/api/health` だけ `AllowAnonymous`）。未ログインの challenge は 401 + `Problems.LoginRequired`
-- Produces: 開発用ログイン: cookie `revalue_dev_user`。`GET /.auth/login/google?post_login_redirect_uri=…` で値 `dev-user` を入れてリダイレクト、`GET /.auth/logout?post_logout_redirect_uri=…` で消してリダイレクト。開発用の利用者キーは `Hash("dev", <cookie の値>)`
+- Produces: 開発用ログイン: cookie `revalue_dev_user`。`GET /.auth/login/google?post_login_redirect_uri=…&dev_user=…` で値（`dev_user` がなければ `dev-user`。英数字とハイフンだけ許す）を入れてリダイレクト、`GET /.auth/logout?post_logout_redirect_uri=…` で消してリダイレクト。開発用の利用者キーは `Hash("dev", <cookie の値>)`
 
 - [ ] **Step 1: 失敗するテストを書く**
   - `foundation-5（名前とメールアドレスを残さない）: 同じ人は同じ利用者キー、違う人は違うキー、元の ID を含まない` — `Hash("google","123")` が 2 回同じ、`Hash("google","456")` と違う、`"123"` を含まない、`u_` で始まり 64 桁の 16 進が続く
@@ -139,6 +136,7 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-5（名前とメールアドレスを残さない）: Testing と Production では偽のログインが効かない` — cookie `revalue_dev_user=x` だけを付けた `GET /api/me` が 401。`GET /.auth/login/google` が 404
   - `foundation-5（名前とメールアドレスを残さない）: Development では偽のログインで入れる` — `WithEnvironment("Development")` で `/.auth/login/google?post_login_redirect_uri=/start` が 302 で `/start` へ、cookie を付けた `GET /api/nope` が 404
   - `foundation-5（名前とメールアドレスを残さない）: 開発用ログインは外のサイトへ飛ばさない` — `post_login_redirect_uri` が `https://evil.example.com` と `//evil.example.com` のとき、`Location` は `/start`
+  - `foundation-5（名前とメールアドレスを残さない）: 開発用ログインで利用者を切り替えられる` — Development で `dev_user=a` と `dev_user=b` でログインしたクライアントは、別々の利用者キーになる（Task 4 のあとなら `/api/me` の了解の状態が別々になることで確かめてよい。ここでは `GetUserKey` の値を返す仕組みがなければ、Task 4 のテストに回してよい）
 
 - [ ] **Step 2: `dotnet test --filter` で失敗を確かめる**
 
@@ -170,7 +168,7 @@ infra/README.md                                       最初の 1 回の手順
   - `IAsyncEnumerable<string> DumpRawJsonAsync(CancellationToken ct)` — インメモリだけ。保存した生の JSON を全部返す（Task 6 のテスト用）。Cosmos では `NotSupportedException`
 - Produces: `static class Jst { DateOnly Today(TimeProvider t); DateTimeOffset NextMidnight(TimeProvider t) /* +09:00 */ }`
 - Produces: `record ActivityItem : Item`（`Id = "activity"`、`Type = "activity"`、`string LastActiveDate`（`yyyy-MM-dd`、日本時間））。`DailyTouchMiddleware` は認証のあと、ログインした人の `LastActiveDate` が今日（日本時間）でなければ `TouchAllAsync` してから更新する
-- Produces: `DataSetup.AddRevalueData(IServiceCollection, IConfiguration)` — `Cosmos:Endpoint` があれば `CosmosDataStore`（`DefaultAzureCredential`、DB `Cosmos:Database` 既定 `revalue`、コンテナ `Cosmos:Container` 既定 `items`、System.Text.Json の camelCase）、なければ `InMemoryDataStore`（シングルトン）
+- Produces: `DataSetup.AddRevalueData(IServiceCollection, IConfiguration, IHostEnvironment)` — `Cosmos:Endpoint` があれば `CosmosDataStore`（`DefaultAzureCredential`、DB `Cosmos:Database` 既定 `revalue`、コンテナ `Cosmos:Container` 既定 `items`、System.Text.Json の camelCase）、なければ `InMemoryDataStore`（シングルトン）。ただし環境が Production で `Cosmos:Endpoint` がなければ、`InvalidOperationException` で起動を止める
 
 - [ ] **Step 1: 失敗するテストを書く**
   - `JstTests`: UTC `2026-11-02T14:59:59Z` の今日は `2026-11-02`、`15:00:00Z` は `2026-11-03`。`NextMidnight` は `2026-11-03T00:00:00+09:00`（UTC 14:59 のとき）
@@ -178,6 +176,7 @@ infra/README.md                                       最初の 1 回の手順
   - `foundation-4（使わなければ自動で消える）: 30 日たつと消える` — 保存して時計を 30 日進めると `GetAsync` が null、`CountAllAsync` が 0
   - `foundation-4（使わなければ自動で消える）: 29 日目に使うと、そこから 30 日残る` — ログイン済みで `GET /api/nope` を叩いて活動を作る → 時計を 29 日進めて再び叩く → さらに 29 日進めてもアイテムが残る → さらに 2 日進めると消える
   - `foundation-4（使わなければ自動で消える）: Cosmos に保存するアイテムには ttl が付く` — `CosmosDataStore` が送る JSON を作る関数（`internal static string Serialize<T>(T item)` など）に `"ttl":2592000` が入る。本物の Cosmos には接続しない
+  - `foundation-4（使わなければ自動で消える）: 本番で Cosmos の場所がなければ起動しない` — `WithEnvironment("Production")` で `Cosmos:Endpoint` を設定せずにクライアントを作ると例外になる
 
 - [ ] **Step 2: 失敗を確かめる**
 
@@ -277,7 +276,7 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `package.json` の scripts: `dev`、`build`（`tsc -b && vite build`）、`test`（`vitest run`）
 - Produces: `src/copy.ts` — `export const copy = { landing, start, home, settings, limit, errors, nav } as const`。下書き（Claude の判断。言い方は voice-reviewer が点検する）:
   - `landing`: 見出し「RE:VALUE（リバリュー）」、ひとこと「キャリアには空白があっても、人生に空白はない。」、説明「育児などで仕事を離れていたあいだの経験を、AI が聞き手になって、一緒に言葉にします。」、3 つの約束「あなたの言葉が根拠です」（AI が力を見立てるときは、あなたが話した言葉をそのまま添えます。話していないことを、力として書きません）、「決めるのはあなたです」（見立てはいつでも直したり外したりできます。仕事の選択肢も、選ぶ・保留する・自分で書く、のどれでもかまいません）、「安心して話せます」（名前やメールアドレスは保存しません。最後に使った日から 30 日で自動で消え、いつでも全部消せます）、流れ「最近の一日を話す → 見えた力を確かめる → 生活に合う仕事の選択肢から選ぶ」、ボタン「Google でログインして始める」「続きから」
-  - `start`: 見出し「はじめる前に」、5 項目（保存するもの／保存しないもの／使い道／保存期間／全部消せる。中身は Spec の「はじめに」に書くこと）、ボタン「了解して始める」
+  - `start`: 見出し「はじめる前に」、5 項目（保存するもの／保存しないもの／使い道／保存期間／全部消せる）。中身は Spec の「「はじめに」に書くこと」をそのまま言い換える。特に、使い道に「返事や見立てを作るために、話した内容を AI（Anthropic の Claude）に送る」ことを必ず入れる。ボタン「了解して始める」
   - `home`: 「ようこそ。ここから、最近の一日の話を始めます。」、「話す（準備中）」
   - `settings`: 見出し「設定」、「全部消す」の説明「話した内容、見立て、記録、レポートをすべて消します。消したものは戻せません。」、ボタン「全部消す」、確かめ「本当に全部消しますか？」「消す」「やめる」、「ログアウト」
   - `limit`: 「今日はここで一区切りにしましょう」「{time} から、また続きを話せます。」
@@ -314,7 +313,7 @@ infra/README.md                                       最初の 1 回の手順
 - [ ] **Step 1: 失敗するテストを書く（`MemoryRouter` と `fetch` の差し替えで）**
   - `foundation-1（案内はログインなしで見られる）: 未ログインで案内が出て、ログインは素のリンク` — `/` に 3 つの約束の見出しが出る。「Google でログインして始める」は `<a>` で `href` が `LOGIN_URL`
   - `foundation-1（案内はログインなしで見られる）: 未ログインでログインの要る画面を開くと案内へ戻る` — `/home` を開くと Landing が出る
-  - `foundation-2（始める前に保存するものを示す）: はじめにの画面に 5 つの項目が出る` — 見出しと 5 項目の見出しの文言がある。「了解して始める」で `POST /api/consent` が `{version: currentVersion}` で呼ばれ、`/home` へ進む
+  - `foundation-2（始める前に保存するものを示す）: はじめにの画面に 5 つの項目が出る` — 見出しと 5 項目の見出しの文言があり、使い道に「Claude」と「開発者も」が含まれる。「了解して始める」で `POST /api/consent` が `{version: currentVersion}` で呼ばれ、`/home` へ進む
   - `foundation-2（始める前に保存するものを示す）: 了解していない人がホームを開くと、はじめにへ進む`
   - `foundation-3（いつでも全部消せる）: もう一度確かめてから消し、はじめにへ進む` — 「全部消す」を押しただけでは `DELETE` が呼ばれない。「本当に全部消しますか？」が出て、「やめる」で戻る。「消す」で `DELETE /api/me` が 1 回呼ばれ、`/start` へ進む。`window.confirm` を呼ばない
   - `foundation-6（使いすぎを穏やかに止める）: 上限の表示は穏やかな言葉と次の時刻を出す` — `resetAt="2026-11-03T00:00:00+09:00"` で「今日はここで一区切りにしましょう」と「0 時」が出る
@@ -338,11 +337,11 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `infra/main.bicep` のパラメーター: `location`（既定 `resourceGroup().location`）、`appName`（既定 `revalue`）、`googleClientId`、`githubRepo`（既定 `mistrevo/revalue-app`）、`containerImage`（既定は Microsoft の仮イメージ）、`deployApp`（bool。既定 true）、`enableCosmosFreeTier`（既定 true）
 - Produces: Key Vault の secret の名前: `anthropic-api-key`、`user-key-secret`、`google-client-secret`
 
-- [ ] **Step 1: `Dockerfile` を書き、`docker build -t revalue-app:local .` が通ることを確かめる**
-  3 段: Node 24 で `npm ci` と画面のビルド → .NET 10 SDK で `dotnet publish src/Revalue.Server -c Release` → `mcr.microsoft.com/dotnet/aspnet:10.0` で実行。ポート 8080、root でない利用者で動かす。`docker run` で `/api/health` が 200 になることも確かめる（`Auth__UserKeySecret` はその場の仮の値を環境変数で渡す）
+- [ ] **Step 1: `Dockerfile` を書く**
+  3 段: Node 24 で `npm ci` と画面のビルド → .NET 10 SDK で `dotnet publish src/Revalue.Server -c Release` → `mcr.microsoft.com/dotnet/aspnet:10.0` で実行。ポート 8080、root でない利用者で動かす。手元の Docker デーモンは動いていないことがあるので、ビルドの確認は Step 2 の CI のジョブで行う（手元で `docker info` が通るときだけ、`docker build` も流してよい）
 
 - [ ] **Step 2: `ci.yml` を書く**
-  `pull_request` と `push` で、3 つのジョブ: 裏側（`actions/setup-dotnet` で 10.x、`dotnet build`、`dotnet test`）、画面（`actions/setup-node` で 24、`npm --prefix src/web ci`、`npm --prefix src/web test`、`npm --prefix src/web run build`）、フック（`node --test .claude/hooks/guard.test.mjs`）。`permissions: contents: read`
+  `pull_request` と `push` で、4 つのジョブ: 裏側（`actions/setup-dotnet` で 10.x、`dotnet build`、`dotnet test`）、画面（`actions/setup-node` で 24、`npm --prefix src/web ci`、`npm --prefix src/web test`、`npm --prefix src/web run build`）、フック（`node --test .claude/hooks/guard.test.mjs`）、コンテナ（`docker build` したあと `docker run` で `Auth__UserKeySecret` に仮の値、`ASPNETCORE_ENVIRONMENT=Development` を渡して起動し、`/api/health` が 200 になることを確かめる。Development なのは Cosmos なしで起動させるため）。`permissions: contents: read`
 
 - [ ] **Step 3: `infra/main.bicep` を書き、`az bicep build --file infra/main.bicep` が通ることを確かめる**
   中身は `00-tech-stack.md` の「Azure の構成」と、Spec の「公開 URL に出す仕組み」。要点:
@@ -358,7 +357,7 @@ infra/README.md                                       最初の 1 回の手順
   `push`（main）と `workflow_dispatch`。`permissions: id-token: write, contents: read, packages: write`。リポジトリ変数 `AZURE_CLIENT_ID` が空なら、デプロイを飛ばして「Azure の準備がまだ」と出し、失敗にしない。ある場合は、イメージを `ghcr.io/${{ github.repository }}:${{ github.sha }}` で push → `azure/login`（OIDC）→ `az containerapp update --image` → `APP_URL` の `/api/health` と `/` が 200 になるまで最大 3 分待って確かめる
 
 - [ ] **Step 5: `infra/README.md` に最初の 1 回の手順を書く**
-  順に: (1) `az deployment group create -g <リソースグループ> -f infra/main.bicep -p deployApp=false googleClientId=<…>` → (2) Key Vault に `anthropic-api-key`（開発者）、`user-key-secret`（乱数で作ってよい）、`google-client-secret`（開発者）を入れる → (3) `deployApp=true` でもう一度流す → (4) 出力からリポジトリ変数を `gh variable set` で入れる → (5) Google 側の「承認済みのリダイレクト URI」に `https://<アプリの URL>/.auth/login/google/callback` を足し、OAuth の同意画面を「本番」にする → (6) `ghcr.io` のパッケージを公開にする（Container App が鍵なしで取れるように）→ (7) `deploy.yml` を手動で流し、`/api/health` を確かめる
+  順に: (0) 開発者が Google 側でログイン用のアプリ（OAuth クライアント、種類はウェブアプリ）を作る → (1) `az deployment group create -g <リソースグループ> -f infra/main.bicep -p deployApp=false googleClientId=<…>` → (2) Key Vault に `anthropic-api-key`（開発者）、`user-key-secret`（乱数で作ってよい）、`google-client-secret`（開発者）を入れる → (3) `deployApp=true` でもう一度流す → (4) 出力からリポジトリ変数を `gh variable set` で入れる → (5) Google 側の「承認済みのリダイレクト URI」に `https://<アプリの URL>/.auth/login/google/callback` を足し、OAuth の同意画面を「本番」にする → (6) `ghcr.io` のパッケージを公開にする（Container App が鍵なしで取れるように）→ (7) `deploy.yml` を手動で流し、`/api/health` を確かめる
 
 - [ ] **Step 6: コミットする**
   `コンテナ、CI、デプロイ、Azure の定義を作る（foundation-7 公開 URL で動く）`
@@ -376,8 +375,9 @@ npm --prefix src/web ci
 npm --prefix src/web test
 npm --prefix src/web run build
 node --test .claude/hooks/guard.test.mjs
-az bicep build --file infra/main.bicep
-docker build -t revalue-app:local .
+az bicep build --file infra/main.bicep --stdout
 ```
+
+コンテナのビルドは、PR の `ci.yml` の「コンテナ」ジョブで確かめる。
 
 main に入れたあとに確かめること（Workflow の外で、メインのセッションが行う）: `deploy.yml` の結果、公開 URL の `/api/health` と `/`、Playwright での幅 375px と PC の表示（foundation-7 公開 URL で動く）。Azure のリソースグループと Google の OAuth クライアントがまだなければ、`deploy.yml` は飛ばされるので、開発者からの情報を待って `infra/README.md` の手順を流す。

@@ -180,7 +180,7 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 - Container Apps の環境と Container App（従量課金。使われないときは 0 台まで減らす）
 - Cosmos DB（無料枠）
-- Key Vault（`anthropic-api-key` と `user-key-secret` を置く）
+- Key Vault（`anthropic-api-key`、`user-key-secret`、`google-client-secret` を置く）
 - ユーザー割り当てマネージド ID を 2 つ。アプリ用（Key Vault の鍵を読み、Cosmos DB を読み書きする）と、GitHub Actions 用（デプロイし、評価のために Key Vault の鍵を読む）
 - Log Analytics（Container Apps のログ）
 
@@ -219,9 +219,11 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 - tech-1（同じコマンドで作れる）: 「コマンド」の表のコマンドが、Windows と Linux の両方で通る
 - tech-2（鍵を置かずに動く）: リポジトリにも GitHub の secrets にも鍵がない状態で、デプロイと評価が動く
-- tech-3（作り直せる）: `infra/main.bicep` から、Azure の環境を作り直せる。手作業は次の 2 つだけにする
-  - 最初の 1 回の `az deployment group create` は、開発者か VM のエージェントが流す（GitHub Actions 用の ID も `main.bicep` が作るため）
-  - Key Vault の `anthropic-api-key` の値は、開発者が入れる。`user-key-secret` は、VM のエージェントが乱数から作って入れてよい
+- tech-3（作り直せる）: `infra/main.bicep` から、Azure の環境を作り直せる。手作業は次だけにする
+  - 最初の 1 回の `az deployment group create` は、開発者かエージェントが流す（GitHub Actions 用の ID も `main.bicep` が作るため）
+  - Google 側のログイン用のアプリ（OAuth クライアント）は開発者が作り、同意画面を「本番」として公開する
+  - Key Vault の `anthropic-api-key` と `google-client-secret` の値は、開発者が入れる。`user-key-secret` は、エージェントが乱数から作って入れてよい
+  - `ghcr.io` のイメージが非公開で作られたら、一度だけ公開にする
 
 ## 評価との対応
 
