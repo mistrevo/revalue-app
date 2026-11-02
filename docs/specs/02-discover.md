@@ -105,6 +105,9 @@ AI が聞き手になり、利用者の最近の具体的な一日を、一つ�
 - AI への指示は `src/Revalue.Server/Ai/Prompts/` に日本語で置く（`listener.md`: 返事、`reader.md`: 読み取り）。評価からも同じファイルを読む
 - AI の呼び方は [00-tech-stack.md](00-tech-stack.md) の「Claude の呼び方」に従う（返事はストリーミングで effort low、読み取りは構造化出力で effort medium。effort は、どれだけ考えさせるかの設定）
 - 次の一手のように毎回変わる指示は、システムプロンプト（毎回の呼び出しで最初に渡す指示）に入れず、会話の最後に足す。システムプロンプトを毎回同じにして、キャッシュを効かせるため
+- 次の一手は、会話の最後の利用者の答えのあとに、system メッセージ（会話の途中で渡す指示）として `<next_move>一手の名前</next_move>` の形で渡す。一手ごとの書き方は `listener.md` に書く（Claude の判断）
+- AI が答えを断ったときに別のモデルが代わりに答える仕組み（server-side fallback の既定の形）を、読み取りと返事の両方で有効にする
+- Claude の鍵（`ANTHROPIC_API_KEY`）があれば本物の AI を使う。鍵がなければ、開発（Development）では決まった返事を返す偽物の AI で動き、本番（Production）では起動しない。テスト（Testing）では、鍵があっても偽物の AI を使う（Claude の判断）
 
 ## 受け入れ基準
 

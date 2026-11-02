@@ -1,3 +1,4 @@
+using Revalue.Server.Ai;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Foundation;
@@ -12,6 +13,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddRevalueAuth(builder.Environment);
 builder.Services.AddRevalueData(builder.Configuration, builder.Environment);
+builder.Services.AddConversationAi(builder.Configuration, builder.Environment);
 builder.Services.Configure<LimitOptions>(builder.Configuration.GetSection("Limits"));
 builder.Services.AddSingleton<ICounter, Counter>();
 
