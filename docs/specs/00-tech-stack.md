@@ -196,7 +196,7 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 |---|---|---|
 | `ci.yml` | PR と push | 裏側のビルドとテスト、評価の dry-run、画面のビルドとテスト、フックのテスト、Azure の定義（`infra/main.bicep`）のビルド、コンテナを作って起動できるかの確認 |
 | `deploy.yml` | main への push | イメージを作って `ghcr.io` に push し、Container App を更新する。公開 URL で、新しいイメージが応答していることを確かめる |
-| `evals.yml` | 手動 | GitHub の環境 `evals` から OIDC でログインし、Key Vault から Claude の鍵だけを読んで、評価を回す。結果は artifact に上げる |
+| `evals.yml` | 手動 | GitHub の環境 `evals` から OIDC でログインし、Key Vault から Claude の鍵だけを読んで、評価を回す。結果は artifact（実行ごとに GitHub に残すファイル）に上げる |
 
 評価は、ふだんは VM で回して結果をコミットする。`evals.yml` は、開発者が手動で回すためのもの（Claude の判断）。
 
