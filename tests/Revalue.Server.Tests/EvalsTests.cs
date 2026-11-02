@@ -192,6 +192,48 @@ public sealed class EvalsTests
         Assert.True(EvalSummary.From([run]).Passed);
     }
 
+    /// <summary>決まった答えを返す判定役。</summary>
+    private sealed class FixedJudge(JudgeVerdict verdict) : IReplyJudge
+    {
+        public Task<JudgeVerdict?> JudgeAsync(IReadOnlyList<Turn> conversation, MoveKind move, string reply, CancellationToken ct) =>
+            Task.FromResult<JudgeVerdict?>(verdict);
+    }
+
+    [Fact(DisplayName = "評価: 判定役は、大げさに褒めていないかと、否定や値踏みの言い方をしていないかも見て、参考の数字として残す")]
+    public async Task JudgeSeesOverPraiseAndDismissal()
+    {
+        var verdict = new JudgeVerdict(true, true, true, true, true, NoOverPraise: false, NoDismissal: false, "特別なことではないかもしれませんが、と値打ちを下げている");
+        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden())
+            .RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
+
+        var summary = EvalSummary.From([run]);
+
+        var praise = Assert.Single(summary.Reference, i => i.Name.Contains("大げさに褒めていない"));
+        Assert.Equal((0, 2), (praise.Count, praise.Total));
+        var dismissal = Assert.Single(summary.Reference, i => i.Name.Contains("否定や値踏み"));
+        Assert.Equal((0, 2), (dismissal.Count, dismissal.Total));
+        // 参考の数字なので、合格の線には入れない
+        Assert.True(summary.Passed);
+
+        var report = ReportWriter.Write(new ReportContext("discover", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
+        Assert.Contains("大げさに褒めない ×", report);
+        Assert.Contains("否定や値踏みをしない ×", report);
+    }
+
+    [Fact(DisplayName = "評価: 判定役の指示に、判定役の答えの項目がすべて書いてある")]
+    public void JudgePromptListsEveryField()
+    {
+        var prompt = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "judges", "discover.md"));
+        var fields = typeof(JudgeVerdict).GetProperties()
+            .Where(p => p.PropertyType == typeof(bool))
+            .Select(p => char.ToLowerInvariant(p.Name[0]) + p.Name[1..])
+            .ToList();
+
+        Assert.Contains("noOverPraise", fields);
+        Assert.Contains("noDismissal", fields);
+        Assert.All(fields, field => Assert.Contains($"`{field}`", prompt));
+    }
+
     [Fact(DisplayName = "評価: 結果のファイルに、呼び名とタイトル、やりとり、トークン数を書く")]
     public async Task ReportHasNamesTranscriptAndTokens()
     {

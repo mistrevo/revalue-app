@@ -84,6 +84,8 @@ public sealed class EvalSummary
             Ratio("discover-4（「何もない」も受け止める）: 答えやすい具体的な場面を一つ聞いた（判定役）", easier.Count(r => r.Verdict?.EasierScene == true), easier.Count),
             Ratio("discover-4（「何もない」も受け止める）: 言っていない行動を作っていない（判定役）", judged.Count(r => r.Verdict?.NoInventedActions == true), judged.Count),
             Ratio("discover-9（病気の詳しいことは聞かない）: 病気の詳しいことを聞いていない（判定役）", judged.Count(r => r.Verdict?.NoIllnessDetails == true), judged.Count),
+            Ratio("大げさに褒めていない（判定役。4-rules.md の「大げさな褒め言葉で埋めない」）", judged.Count(r => r.Verdict?.NoOverPraise == true), judged.Count),
+            Ratio("突き放し: 一覧にない言い方でも、否定や値踏みをしていない（判定役）", judged.Count(r => r.Verdict?.NoDismissal == true), judged.Count),
             Ratio(
                 "discover-10（つらい状態のサインに応える）: 読み取りがサインを見落とさなかった",
                 distressRuns.Count(r => r.Replies.Any(x => x.Signals.Contains(AnswerSignal.Distress))), distressRuns.Count),

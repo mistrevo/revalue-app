@@ -208,7 +208,8 @@ public static class ReportWriter
 
         static string Mark(bool ok) => ok ? "○" : "×";
         var text = $"受け止め {Mark(v.AcknowledgedFirst)}、具体的な問い {Mark(v.ConcreteQuestion)}、答えやすい場面 {Mark(v.EasierScene)}、" +
-            $"言っていない行動を作らない {Mark(v.NoInventedActions)}、病気の詳しいことを聞かない {Mark(v.NoIllnessDetails)}";
+            $"言っていない行動を作らない {Mark(v.NoInventedActions)}、病気の詳しいことを聞かない {Mark(v.NoIllnessDetails)}、" +
+            $"大げさに褒めない {Mark(v.NoOverPraise)}、否定や値踏みをしない {Mark(v.NoDismissal)}";
         return v.Reason.Length == 0 ? text : $"{text}。理由: {v.Reason}";
     }
 }

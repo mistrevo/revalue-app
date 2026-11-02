@@ -9,7 +9,14 @@ namespace Revalue.Evals;
 
 /// <summary>判定役の答え。項目は evals/judges/discover.md に合わせる。</summary>
 public sealed record JudgeVerdict(
-    bool AcknowledgedFirst, bool ConcreteQuestion, bool EasierScene, bool NoInventedActions, bool NoIllnessDetails, string Reason);
+    bool AcknowledgedFirst,
+    bool ConcreteQuestion,
+    bool EasierScene,
+    bool NoInventedActions,
+    bool NoIllnessDetails,
+    bool NoOverPraise,
+    bool NoDismissal,
+    string Reason);
 
 /// <summary>返事を判定する役。答えられなかったときは null を返す（評価では、問題があったと数える）。</summary>
 public interface IReplyJudge
@@ -22,7 +29,7 @@ public interface IReplyJudge
 public sealed class DryRunJudge : IReplyJudge
 {
     public Task<JudgeVerdict?> JudgeAsync(IReadOnlyList<Turn> conversation, MoveKind move, string reply, CancellationToken ct) =>
-        Task.FromResult<JudgeVerdict?>(new JudgeVerdict(true, true, true, true, true, ""));
+        Task.FromResult<JudgeVerdict?>(new JudgeVerdict(true, true, true, true, true, true, true, ""));
 }
 
 /// <summary>Claude の判定役。構造化出力（effort high）で、項目ごとに true か false を受け取る。</summary>
@@ -31,7 +38,7 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
     private const int MaxTokens = 16000;
 
     private static readonly string[] BooleanFields =
-        ["acknowledgedFirst", "concreteQuestion", "easierScene", "noInventedActions", "noIllnessDetails"];
+        ["acknowledgedFirst", "concreteQuestion", "easierScene", "noInventedActions", "noIllnessDetails", "noOverPraise", "noDismissal"];
 
     public async Task<JudgeVerdict?> JudgeAsync(IReadOnlyList<Turn> conversation, MoveKind move, string reply, CancellationToken ct)
     {
@@ -63,7 +70,7 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
             bool Get(string name) => root.GetProperty(name).GetBoolean();
             return new JudgeVerdict(
                 Get("acknowledgedFirst"), Get("concreteQuestion"), Get("easierScene"), Get("noInventedActions"), Get("noIllnessDetails"),
-                root.GetProperty("reason").GetString() ?? "");
+                Get("noOverPraise"), Get("noDismissal"), root.GetProperty("reason").GetString() ?? "");
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)
         {
