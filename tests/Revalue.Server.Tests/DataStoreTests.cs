@@ -143,6 +143,107 @@ public sealed class DataStoreTests
         }
     }
 
+    [Fact(DisplayName = "discover-8（話した出来事が残る）: 版が読んだときのままなら置き換え、ほかの要求が先に書いていたら何もしない")]
+    public async Task ReplaceOnlyWhenVersionMatches()
+    {
+        var (store, _) = Create();
+        await Consent(store, "u_a");
+        await store.UpsertAsync(Note("u_a", "n1", "一つ目"), Ct);
+        var read = (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!;
+        Assert.Equal("一つ目", read.Item.Text);
+
+        // ほかの要求が先に書いた
+        await store.UpsertAsync(Note("u_a", "n1", "ほかの画面"), Ct);
+        Assert.False(await store.TryReplaceAsync(Note("u_a", "n1", "古い版から"), read.ETag, Ct));
+        Assert.Equal("ほかの画面", (await store.GetAsync<NoteItem>("u_a", "n1", Ct))!.Text);
+
+        // 読み直した版なら置き換えられ、置き換えると版が変わる
+        var again = (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!;
+        Assert.NotEqual(read.ETag, again.ETag);
+        Assert.True(await store.TryReplaceAsync(Note("u_a", "n1", "読み直してから"), again.ETag, Ct));
+        Assert.Equal("読み直してから", (await store.GetAsync<NoteItem>("u_a", "n1", Ct))!.Text);
+        Assert.False(await store.TryReplaceAsync(Note("u_a", "n1", "同じ版でもう一度"), again.ETag, Ct));
+        Assert.Equal(DataConstants.UserTtlSeconds, (await store.GetAsync<NoteItem>("u_a", "n1", Ct))!.Ttl);
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 置き換える直前に消されたら、作り直さない")]
+    public async Task ReplaceDoesNotRecreateDeletedItem()
+    {
+        var (store, _) = Create();
+        await Consent(store, "u_a");
+        await store.UpsertAsync(Note("u_a", "n1", "消す前"), Ct);
+        var read = (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!;
+
+        await store.DeleteAsync("u_a", "n1", Ct);
+
+        Assert.False(await store.TryReplaceAsync(Note("u_a", "n1", "消したあとに届いた"), read.ETag, Ct));
+        Assert.Null(await store.GetAsync<NoteItem>("u_a", "n1", Ct));
+        Assert.Null(await store.GetVersionedAsync<NoteItem>("u_a", "missing", Ct));
+        await foreach (var json in store.DumpRawJsonAsync(Ct))
+        {
+            Assert.DoesNotContain("消したあとに届いた", json);
+        }
+    }
+
+    [Fact(DisplayName = "foundation-4（使わなければ自動で消える）: 残す期間を延ばす書き直しでも版が変わる")]
+    public async Task TouchChangesVersion()
+    {
+        var (store, _) = Create();
+        await Consent(store, "u_a");
+        await store.UpsertAsync(Note("u_a", "n1"), Ct);
+        var read = (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!;
+
+        await store.TouchAllAsync("u_a", Ct);
+
+        Assert.False(await store.TryReplaceAsync(Note("u_a", "n1", "古い版から"), read.ETag, Ct));
+        Assert.NotEqual(read.ETag, (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!.ETag);
+    }
+
+    [Fact(DisplayName = "foundation-3（いつでも全部消せる）: 全部消したあとの置き換えは断り、何も作り直さない")]
+    public async Task ReplaceAfterDeleteAllIsRefused()
+    {
+        var (store, _) = Create();
+        await Consent(store, "u_a");
+        await store.UpsertAsync(Note("u_a", "n1"), Ct);
+        var read = (await store.GetVersionedAsync<NoteItem>("u_a", "n1", Ct))!;
+
+        await store.DeleteAllAsync("u_a", Ct);
+
+        await Assert.ThrowsAsync<ConsentMissingException>(() => store.TryReplaceAsync(Note("u_a", "n1"), read.ETag, Ct));
+        Assert.Equal(0, await store.CountAllAsync("u_a", Ct));
+    }
+
+    [Fact(DisplayName = "discover-8（話した出来事が残る）: 読んで直して書くとき、ほかの要求が先に書いていたら、読み直して確かめ直す")]
+    public async Task TryUpdateRereadsAfterConflict()
+    {
+        var (store, _) = Create();
+        await Consent(store, "u_a");
+        await store.UpsertAsync(Note("u_a", "n1", "a"), Ct);
+        var seen = new List<string>();
+
+        var updated = await store.TryUpdateAsync<NoteItem>("u_a", "n1", current =>
+        {
+            seen.Add(current.Text);
+            if (seen.Count == 1)
+            {
+                // 1 回目に読んだあと、書く前に、ほかの要求が書く
+                store.UpsertAsync(Note("u_a", "n1", "ほかの画面"), Ct).GetAwaiter().GetResult();
+            }
+
+            return current with { Text = current.Text + "+直した" };
+        }, Ct);
+
+        Assert.Equal(["a", "ほかの画面"], seen);
+        Assert.Equal("ほかの画面+直した", updated!.Text);
+        Assert.Equal("ほかの画面+直した", (await store.GetAsync<NoteItem>("u_a", "n1", Ct))!.Text);
+
+        // ないとき、直さないと決めたときは、何も書かない
+        Assert.Null(await store.TryUpdateAsync<NoteItem>("u_a", "missing", c => c, Ct));
+        Assert.Null(await store.TryUpdateAsync<NoteItem>("u_a", "n1", _ => null, Ct));
+        Assert.Null(await store.GetAsync<NoteItem>("u_a", "missing", Ct));
+        Assert.Equal("ほかの画面+直した", (await store.GetAsync<NoteItem>("u_a", "n1", Ct))!.Text);
+    }
+
     [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: global の 1 件は消せない")]
     public async Task DeleteRefusesGlobal()
     {

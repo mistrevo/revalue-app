@@ -31,6 +31,35 @@ public sealed class CosmosDataStore(Container container) : IDataStore
         return await JsonSerializer.DeserializeAsync<T>(response.Content, DataConstants.Json, ct);
     }
 
+    public async Task<Versioned<T>?> GetVersionedAsync<T>(string userKey, string id, CancellationToken ct) where T : Item
+    {
+        using var response = await container.ReadItemStreamAsync(id, new PartitionKey(userKey), cancellationToken: ct);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        var item = await JsonSerializer.DeserializeAsync<T>(response.Content, DataConstants.Json, ct);
+        return item is null ? null : new Versioned<T>(item, response.Headers.ETag);
+    }
+
+    public async Task<bool> TryReplaceAsync<T>(T item, string etag, CancellationToken ct) where T : Item
+    {
+        // 置き換え（Replace）は、ないアイテムを作らない。IfMatchEtag で、読んだときから変わっていないときだけ書く
+        using var body = ToStream(Serialize(item));
+        var result = await WriteAsync(item.UserKey, item.Id, batch =>
+            batch.ReplaceItemStream(item.Id, body, new TransactionalBatchItemRequestOptions { IfMatchEtag = etag }), ct);
+        if (result.Status is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            // 消えたか、ほかの要求が先に書いた
+            return false;
+        }
+
+        result.EnsureSucceeded();
+        return true;
+    }
+
     public async Task UpsertAsync<T>(T item, CancellationToken ct) where T : Item
     {
         using var body = ToStream(Serialize(item));

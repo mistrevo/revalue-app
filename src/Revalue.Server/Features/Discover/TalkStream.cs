@@ -188,28 +188,29 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
     }
 
     /// <summary>
-    /// 2 ターンを足して保存する。返事を流しているあいだに、場面が飛ばされた・区切られた・ほかの答えが入ったときは、
+    /// 2 ターンを足して保存する。返事を流しているあいだや保存する直前に、場面が飛ばされた・区切られた・ほかの答えが入ったときは、
     /// 消した中身を作り直したり、やりとりを上書きしたりしないよう、保存せずに null を返す（Claude の判断）。
+    /// 確かめてから書くまでを、版（ETag）が合うときだけ置き換える操作で一続きにする。
     /// </summary>
     private async Task<EpisodeItem?> SaveAsync(EpisodeItem episode, Turn answer, Turn reply, bool finish, bool excluded, CancellationToken ct)
     {
         try
         {
-            var current = await store.GetAsync<EpisodeItem>(episode.UserKey, episode.Id, ct);
-            if (current is null || current.Status != EpisodeStatus.Talking || current.Turns.Count != episode.Turns.Count)
+            var updated = await store.TryUpdateAsync<EpisodeItem>(episode.UserKey, episode.Id, current =>
+                current.Status != EpisodeStatus.Talking || current.Turns.Count != episode.Turns.Count
+                    ? null
+                    : current with
+                    {
+                        Turns = [.. current.Turns, answer, reply],
+                        Status = finish ? EpisodeStatus.Finished : current.Status,
+                        FinishedAt = finish ? time.GetUtcNow() : current.FinishedAt,
+                        ExcludedFromValidation = current.ExcludedFromValidation || excluded,
+                    }, ct);
+            if (updated is null)
             {
                 logger.LogWarning("Episode changed while replying. The answer was not saved.");
-                return null;
             }
 
-            var updated = current with
-            {
-                Turns = [.. current.Turns, answer, reply],
-                Status = finish ? EpisodeStatus.Finished : current.Status,
-                FinishedAt = finish ? time.GetUtcNow() : current.FinishedAt,
-                ExcludedFromValidation = current.ExcludedFromValidation || excluded,
-            };
-            await store.UpsertAsync(updated, ct);
             return updated;
         }
         catch (Exception e) when (e is not OperationCanceledException)

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -8,13 +9,15 @@ namespace Revalue.Server.Data;
 /// メモリの中だけに置く保存先。止めると消える。TimeProvider で Cosmos DB の TTL を再現する
 /// （書いた時刻から ttl 秒たったアイテムは見えなくなる）。
 /// 操作はどれも 1 つのロックの中で行うので、確かめてから書くまでのあいだに、ほかの要求が割り込まない。
+/// 書くたびに版（Cosmos DB の _etag にあたる）を新しくする。中身を変えない書き直しでも新しくする。
 /// </summary>
 public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
 {
-    private readonly record struct Entry(string Json, string Type, int? Ttl, DateTimeOffset WrittenAt);
+    private readonly record struct Entry(string Json, string Type, int? Ttl, DateTimeOffset WrittenAt, long Version);
 
     private readonly Dictionary<(string UserKey, string Id), Entry> _items = new();
     private readonly Lock _gate = new();
+    private long _lastVersion;
 
     public Task<T?> GetAsync<T>(string userKey, string id, CancellationToken ct) where T : Item
     {
@@ -22,6 +25,33 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
         {
             var result = TryGetLive(userKey, id, out var entry) ? Deserialize<T>(entry.Json) : null;
             return Task.FromResult(result);
+        }
+    }
+
+    public Task<Versioned<T>?> GetVersionedAsync<T>(string userKey, string id, CancellationToken ct) where T : Item
+    {
+        lock (_gate)
+        {
+            Versioned<T>? result = TryGetLive(userKey, id, out var entry) && Deserialize<T>(entry.Json) is { } item
+                ? new Versioned<T>(item, ETagOf(entry))
+                : null;
+            return Task.FromResult(result);
+        }
+    }
+
+    public Task<bool> TryReplaceAsync<T>(T item, string etag, CancellationToken ct) where T : Item
+    {
+        lock (_gate)
+        {
+            // Cosmos DB と同じく、了解の記録を先に確かめる（なければ、置き換えるものがあってもなくても断る）
+            EnsureConsented(item.UserKey, item.Id);
+            if (!TryGetLive(item.UserKey, item.Id, out var entry) || ETagOf(entry) != etag)
+            {
+                return Task.FromResult(false);
+            }
+
+            Write(item);
+            return Task.FromResult(true);
         }
     }
 
@@ -114,7 +144,7 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
             var now = time.GetUtcNow();
             foreach (var (key, entry) in LiveEntries(userKey).ToList())
             {
-                _items[key] = entry with { WrittenAt = now };
+                _items[key] = entry with { WrittenAt = now, Version = NextVersion() };
             }
         }
 
@@ -132,7 +162,7 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
                 var node = JsonNode.Parse(entry.Json)!.AsObject();
                 var count = node["count"]!.GetValue<long>() + 1;
                 node["count"] = count;
-                _items[(userKey, id)] = entry with { Json = node.ToJsonString(DataConstants.Json), WrittenAt = time.GetUtcNow() };
+                _items[(userKey, id)] = entry with { Json = node.ToJsonString(DataConstants.Json), WrittenAt = time.GetUtcNow(), Version = NextVersion() };
                 return Task.FromResult(count);
             }
 
@@ -191,8 +221,13 @@ public sealed class InMemoryDataStore(TimeProvider time) : IDataStore
     {
         var stored = DataConstants.WithDefaultTtl(item);
         _items[(stored.UserKey, stored.Id)] = new Entry(
-            JsonSerializer.Serialize(stored, stored.GetType(), DataConstants.Json), stored.Type, stored.Ttl, time.GetUtcNow());
+            JsonSerializer.Serialize(stored, stored.GetType(), DataConstants.Json), stored.Type, stored.Ttl, time.GetUtcNow(), NextVersion());
     }
+
+    /// <summary>ロックの中で呼ぶ。</summary>
+    private long NextVersion() => ++_lastVersion;
+
+    private static string ETagOf(Entry entry) => entry.Version.ToString(CultureInfo.InvariantCulture);
 
     private void RemoveAll(string userKey)
     {

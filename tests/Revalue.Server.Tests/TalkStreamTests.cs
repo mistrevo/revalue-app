@@ -24,6 +24,18 @@ public sealed class TalkStreamTests
         return (factory, ai);
     }
 
+    /// <summary>偽物の AI と、書き込みの直前にほかの要求を割り込ませる保存先で立ち上げる。</summary>
+    private static (RevalueFactory Factory, FakeConversationAi Ai) CreateInterrupting()
+    {
+        var ai = new FakeConversationAi();
+        var factory = new RevalueFactory().WithTestServices(services =>
+        {
+            services.AddSingleton<IConversationAi>(ai);
+            InterruptingDataStore.Install(services);
+        });
+        return (factory, ai);
+    }
+
     private static async Task<HttpClient> Consenting(RevalueFactory factory, string id)
     {
         var client = factory.CreateUserClient(id);
@@ -392,5 +404,96 @@ public sealed class TalkStreamTests
         {
             Assert.DoesNotContain("昨日は買い物に行きました。", json);
         }
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 返事を保存する直前に飛ばされても、消した場面を作り直さない")]
+    public async Task SkipRightBeforeSaveIsNotResurrected()
+    {
+        var (factory, _) = CreateInterrupting();
+        await using var _f = factory;
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        // 返事を受け取り終え、保存を書く直前に、ほかの画面から飛ばす
+        store.RunOnceBeforeWriting(id, async () =>
+        {
+            var skip = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
+            Assert.Equal(HttpStatusCode.Created, skip.StatusCode);
+        });
+
+        var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
+
+        Assert.Equal("error", events[^1].Event);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/episodes/{id}", Ct)).StatusCode);
+        await foreach (var json in store.DumpRawJsonAsync(Ct))
+        {
+            Assert.DoesNotContain("昨日は買い物に行きました。", json);
+        }
+    }
+
+    [Fact(DisplayName = "discover-6（一場面ずつ区切り、続きから話せる）: 返事を保存する直前に区切られたら、区切った場面に答えを足さない")]
+    public async Task FinishRightBeforeSaveKeepsFinished()
+    {
+        var (factory, _) = CreateInterrupting();
+        await using var _f = factory;
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        store.RunOnceBeforeWriting(id, async () =>
+        {
+            var finish = await client.PostAsync($"/api/episodes/{id}/finish", null, Ct);
+            Assert.Equal(HttpStatusCode.OK, finish.StatusCode);
+        });
+
+        var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
+
+        Assert.Equal("error", events[^1].Event);
+        var episode = await GetEpisode(client, id);
+        Assert.Equal("finished", episode.GetProperty("status").GetString());
+        Assert.Equal(1, episode.GetProperty("turns").GetArrayLength());
+    }
+
+    [Fact(DisplayName = "discover-8（話した出来事が残る）: 2 つの画面から続けて送っても、先に保存した 1 往復を上書きしない")]
+    public async Task TwoTabsDoNotOverwriteEachOther()
+    {
+        var (factory, _) = CreateInterrupting();
+        await using var _f = factory;
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        // こちらの保存を書く直前に、ほかの画面の答えが先に保存される
+        store.RunOnceBeforeWriting(id, async () =>
+        {
+            var other = await SendAndRead(client, id, "別の画面からの答えです。");
+            Assert.Equal("done", other[^1].Event);
+        });
+
+        var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
+
+        Assert.Equal("error", events[^1].Event);
+        var turns = (await GetEpisode(client, id)).GetProperty("turns");
+        Assert.Equal(3, turns.GetArrayLength());
+        Assert.Equal("別の画面からの答えです。", turns[1].GetProperty("text").GetString());
+    }
+
+    [Fact(DisplayName = "discover-8（話した出来事が残る）: 保存の直前に残す期間を延ばす書き直しが入っても、1 往復を保存する")]
+    public async Task TouchRightBeforeSaveStillSaves()
+    {
+        var (factory, _) = CreateInterrupting();
+        await using var _f = factory;
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        // 中身は変えずに書き直す（版だけが変わる）
+        store.RunOnceBeforeWriting(id, inner => inner.TouchAllAsync(TestUsers.Key("g-1"), Ct));
+
+        var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
+
+        Assert.Equal("done", events[^1].Event);
+        Assert.Equal(3, await TurnCount(client, id));
     }
 }

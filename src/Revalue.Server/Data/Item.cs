@@ -20,6 +20,9 @@ public abstract record Item
     public int? Ttl { get; init; }
 }
 
+/// <summary>読んだアイテムと、読んだときの版（ETag）。<see cref="IDataStore.TryReplaceAsync"/> に版を渡す。</summary>
+public sealed record Versioned<T>(T Item, string ETag) where T : Item;
+
 /// <summary>数のアイテム。<see cref="IDataStore.IncrementAsync"/> が増やす。</summary>
 public sealed record CountItem : Item
 {

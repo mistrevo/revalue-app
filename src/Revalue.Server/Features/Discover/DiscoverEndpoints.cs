@@ -97,7 +97,8 @@ public static class DiscoverEndpoints
 
         episodes.MapPost("/{id}/finish", async (string id, HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
         {
-            var episode = await FindAsync(store, http.User.GetUserKey()!, id, ct);
+            var userKey = http.User.GetUserKey()!;
+            var episode = await FindAsync(store, userKey, id, ct);
             if (episode is null)
             {
                 return NotFound();
@@ -108,8 +109,17 @@ public static class DiscoverEndpoints
                 return AlreadyFinished();
             }
 
-            var finished = episode with { Status = EpisodeStatus.Finished, FinishedAt = time.GetUtcNow() };
-            await store.UpsertAsync(finished, ct);
+            // 読んでから書くまでに、ほかの画面で 1 往復が保存されたら、それを残して区切る。
+            // 飛ばされて消えていたら、作り直さない（版が合うときだけ置き換える）
+            var finished = await store.TryUpdateAsync<EpisodeItem>(userKey, episode.Id, current =>
+                current.Status == EpisodeStatus.Talking
+                    ? current with { Status = EpisodeStatus.Finished, FinishedAt = time.GetUtcNow() }
+                    : null, ct);
+            if (finished is null)
+            {
+                return await FindAsync(store, userKey, id, ct) is null ? NotFound() : AlreadyFinished();
+            }
+
             return TypedResults.Ok(EpisodeDto.From(finished));
         });
 

@@ -220,4 +220,50 @@ public sealed class EpisodeTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/episodes", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/episodes", null, Ct)).StatusCode);
     }
+
+    [Fact(DisplayName = "discover-6（一場面ずつ区切り、続きから話せる）: 区切る直前に 1 往復が保存されても、その 1 往復を残して区切る")]
+    public async Task FinishKeepsRoundSavedJustBefore()
+    {
+        await using var factory = new RevalueFactory().WithTestServices(InterruptingDataStore.Install);
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = (await Start(client)).GetProperty("id").GetString()!;
+
+        // 区切りを書く直前に、ほかの画面の答えと返事が保存される
+        store.RunOnceBeforeWriting(id, async () =>
+        {
+            var sent = await client.PostAsJsonAsync($"/api/episodes/{id}/messages", new { text = "昨日は買い物に行きました。", kind = "free" }, Ct);
+            Assert.Contains("event: done", await sent.Content.ReadAsStringAsync(Ct));
+        });
+
+        var finished = await client.PostAsync($"/api/episodes/{id}/finish", null, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, finished.StatusCode);
+        var body = await Json(finished);
+        Assert.Equal("finished", body.GetProperty("status").GetString());
+        Assert.Equal(3, body.GetProperty("turns").GetArrayLength());
+        var saved = (await store.GetAsync<EpisodeItem>(TestUsers.Key("g-1"), id, Ct))!;
+        Assert.Equal(EpisodeStatus.Finished, saved.Status);
+        Assert.Equal(3, saved.Turns.Count);
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 区切る直前に飛ばされたら、消した場面を作り直さない")]
+    public async Task FinishAfterSkipDoesNotResurrect()
+    {
+        await using var factory = new RevalueFactory().WithTestServices(InterruptingDataStore.Install);
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = (await Start(client)).GetProperty("id").GetString()!;
+
+        store.RunOnceBeforeWriting(id, async () =>
+        {
+            var skip = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
+            Assert.Equal(HttpStatusCode.Created, skip.StatusCode);
+        });
+
+        var finished = await client.PostAsync($"/api/episodes/{id}/finish", null, Ct);
+
+        Assert.Equal(HttpStatusCode.NotFound, finished.StatusCode);
+        Assert.Null(await store.GetAsync<EpisodeItem>(TestUsers.Key("g-1"), id, Ct));
+    }
 }

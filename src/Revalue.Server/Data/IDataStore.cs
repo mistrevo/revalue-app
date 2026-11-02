@@ -11,6 +11,18 @@ public interface IDataStore
 {
     Task<T?> GetAsync<T>(string userKey, string id, CancellationToken ct) where T : Item;
 
+    /// <summary>
+    /// 読んだときの版（ETag）と一緒に読む。なければ null。版は <see cref="TryReplaceAsync"/> に渡し、
+    /// 読んでから変わっていないときだけ書くために使う。中身を変えない書き直し（<see cref="TouchAllAsync"/>）でも版は変わる。
+    /// </summary>
+    Task<Versioned<T>?> GetVersionedAsync<T>(string userKey, string id, CancellationToken ct) where T : Item;
+
+    /// <summary>
+    /// 版が etag のままのときだけ置き換えて true を返す。消えていた、ほかの要求が先に書いた、のどちらでも、何もせず false を返す。
+    /// ないアイテムは作らない（消したものを作り直さない）。確かめて書くまでを一続きで行う。
+    /// </summary>
+    Task<bool> TryReplaceAsync<T>(T item, string etag, CancellationToken ct) where T : Item;
+
     /// <summary>保存する。利用者のパーティションでは、Ttl が null なら 30 日にする。</summary>
     Task UpsertAsync<T>(T item, CancellationToken ct) where T : Item;
 
