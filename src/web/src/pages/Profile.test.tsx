@@ -140,7 +140,7 @@ describe('Profile', () => {
     expect(api.calls.filter((c) => c.method !== 'GET')).toEqual([])
   })
 
-  it('profile-2（できることは根拠とつなぐ）: 外した力があるときだけ注記を出し、何もなければ、まだないことを伝える', async () => {
+  it('profile-2（できることは根拠とつなぐ）: 外した力しかないときは、まだないとは言わず、外した注記だけを出す', async () => {
     installFakeApi({
       loggedIn: true,
       consented: true,
@@ -150,9 +150,22 @@ describe('Profile', () => {
 
     const canDo = await screen.findByRole('region', { name: copy.profile.canDoTitle })
     expect(within(canDo).getByText(copy.profile.excludedNote)).toBeInTheDocument()
-    expect(within(canDo).getByText(copy.profile.canDoEmpty)).toBeInTheDocument()
+    expect(within(canDo).queryByText(copy.profile.canDoEmpty)).not.toBeInTheDocument()
     expect(within(canDo).queryByRole('group', { name: copy.profile.seenTitle })).not.toBeInTheDocument()
     expect(within(canDo).queryByRole('group', { name: copy.profile.checkingTitle })).not.toBeInTheDocument()
+  })
+
+  it('profile-2（できることは根拠とつなぐ）: 見えた力も確かめ中の力もなければ、まだないことと、見えてきたら出ることを伝える', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      profile: answeredProfile({ canDo: { seen: [], checking: [], hasExcluded: false } }),
+    })
+    renderApp('/profile')
+
+    const canDo = await screen.findByRole('region', { name: copy.profile.canDoTitle })
+    expect(within(canDo).getByText(copy.profile.canDoEmpty)).toBeInTheDocument()
+    expect(within(canDo).queryByText(copy.profile.excludedNote)).not.toBeInTheDocument()
   })
 
   it('profile-4（本人が直せる）: 記録の欄から、好みの項目を消し、やりたいことを足し、条件を書き直せる', async () => {

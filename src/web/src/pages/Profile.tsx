@@ -305,8 +305,9 @@ function EntryPicker({
   )
 }
 
+/** できること。外した力しかないときは「まだありません」と言わず、外した注記だけを出す（Claude の判断）。 */
 function CanDoSection({ canDo }: { canDo: ProfileData['canDo'] }) {
-  const empty = canDo.seen.length === 0 && canDo.checking.length === 0
+  const empty = canDo.seen.length === 0 && canDo.checking.length === 0 && !canDo.hasExcluded
   return (
     <Section title={copy.profile.canDoTitle}>
       {canDo.seen.length > 0 && <CanDoGroup title={copy.profile.seenTitle} abilities={canDo.seen} />}
