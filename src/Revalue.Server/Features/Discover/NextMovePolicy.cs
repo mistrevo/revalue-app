@@ -31,7 +31,7 @@ public static class NextMovePolicy
     public const int MaxUserTurns = 8;
 
     /// <summary>
-    /// 優先の順: つらい状態のサイン → 8 往復目の締め → 家族の病気の話 → 分からない・何もない → 一般論だけ → それ以外。
+    /// 優先の順: つらい状態のサイン → 8 往復目の締め → 家族の病気の話 → 具体的な出来事がある → 分からない・何もない → 一般論だけ → それ以外。
     /// </summary>
     /// <param name="reading">いまの答えの読み取り。</param>
     /// <param name="userTurnNumber">いまの答えが何往復目か（1 から）。</param>
@@ -50,6 +50,13 @@ public static class NextMovePolicy
         if (reading.Has(AnswerSignal.FamilyIllness))
         {
             return MoveKind.ReturnFromIllness;
+        }
+
+        // 具体的な出来事を話していれば、「特別なことは何も」のような言葉や一般論が添えてあっても、
+        // 話してくれた行動を映し返し、その出来事の中で聞く。別の場面へ移ると、本人の話を受け取らなかったことになる（Claude の判断）
+        if (reading.Has(AnswerSignal.ConcreteEvent))
+        {
+            return MoveKind.AskWhatYouDid;
         }
 
         if (reading.Has(AnswerSignal.DontKnow))

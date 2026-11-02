@@ -15,6 +15,23 @@ public sealed class NextMovePolicyTests
     public void DontKnowWinsOverGeneralOnly() =>
         Assert.Equal(MoveKind.AskEasierScene, NextMovePolicy.Decide(Read(AnswerSignal.GeneralOnly, AnswerSignal.DontKnow), 2));
 
+    [Fact(DisplayName = "discover-4（「何もない」も受け止める）: 行動を話したうえで「特別なことは何も」と添えても、その出来事の中で本人がしたことを聞く")]
+    public void ConcreteEventWinsOverDontKnow() =>
+        Assert.Equal(MoveKind.AskWhatYouDid, NextMovePolicy.Decide(Read(AnswerSignal.ConcreteEvent, AnswerSignal.DontKnow), 2));
+
+    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 具体的な出来事があれば、一般論が添えてあっても、その出来事の中で本人がしたことを聞く")]
+    public void ConcreteEventWinsOverGeneralOnly()
+    {
+        Assert.Equal(MoveKind.AskWhatYouDid, NextMovePolicy.Decide(Read(AnswerSignal.ConcreteEvent, AnswerSignal.GeneralOnly), 2));
+        Assert.Equal(MoveKind.AskWhatYouDid, NextMovePolicy.Decide(Read(AnswerSignal.ConcreteEvent, AnswerSignal.GeneralOnly, AnswerSignal.DontKnow), 2));
+    }
+
+    [Fact(DisplayName = "discover-9（病気の詳しいことは聞かない）: 具体的な出来事と「何もない」が重なっても、家族の病気の話が先")]
+    public void FamilyIllnessWinsOverConcreteEventAndDontKnow() =>
+        Assert.Equal(
+            MoveKind.ReturnFromIllness,
+            NextMovePolicy.Decide(Read(AnswerSignal.FamilyIllness, AnswerSignal.ConcreteEvent, AnswerSignal.DontKnow), 3));
+
     [Fact(DisplayName = "discover-9（病気の詳しいことは聞かない）: 家族の病気の話には、本人がしたことに戻す")]
     public void FamilyIllnessReturnsToWhatYouDid() =>
         Assert.Equal(MoveKind.ReturnFromIllness, NextMovePolicy.Decide(Read(AnswerSignal.FamilyIllness, AnswerSignal.ConcreteEvent), 3));

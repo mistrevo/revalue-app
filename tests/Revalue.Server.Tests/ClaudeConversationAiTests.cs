@@ -334,6 +334,55 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("どの一手でも", rules);
         Assert.Contains("病気や症状", rules);
     }
+
+    /// <summary>返事の指示の「次の一手」から、その一手の説明の行を取り出す。</summary>
+    private static string MoveLine(string listener, MoveKind move) =>
+        listener.Split('\n').Single(l => l.StartsWith($"- `{move}`", StringComparison.Ordinal));
+
+    [Fact(DisplayName = "discover-4（「何もない」も受け止める）: 返事の指示は、行動を話していれば「何もない」が添えてあっても映し返し、その場面の中で聞くと書いている")]
+    public void ListenerReflectsActionsEvenWithNothingSpecial()
+    {
+        var listener = PromptFiles.Read(PromptFiles.Listener);
+
+        // 映し返しを省くのは、行動を話していないときだけ。「特別なことは何も」に黙って同意したように受け取られないように
+        var easier = MoveLine(listener, MoveKind.AskEasierScene);
+        Assert.Contains("行動を話していないときは、映し返しは書かない", easier);
+        Assert.Contains("行動を話しているときは", easier);
+        Assert.Contains("その場面の中で一つ聞く", easier);
+
+        var shape = listener[listener.IndexOf("# 返事の形", StringComparison.Ordinal)..listener.IndexOf("# 次の一手", StringComparison.Ordinal)];
+        Assert.Contains("特別なことは何も", shape);
+    }
+
+    [Fact(DisplayName = "discover-9（病気の詳しいことは聞かない）: 返事の指示は、本人がすでにしたことを話していれば、映し返してその流れのまま聞くと書いている")]
+    public void ListenerKeepsFlowWhenActionsAreAlreadyTold()
+    {
+        var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.ReturnFromIllness);
+
+        Assert.Contains("すでに自分のしたことを話しているときは", line);
+        Assert.Contains("その流れのまま一つ聞く", line);
+        Assert.Contains("病気の話を避けているように聞こえる言い方をしない", line);
+    }
+
+    [Fact(DisplayName = "discover-4（「何もない」も受け止める）: 読み取りの指示は、「特別なことは何も」が添えてあっても、行動を話していれば具体的な出来事とすると書いている")]
+    public void ReaderKeepsConcreteEventWithNothingSpecial()
+    {
+        // 「見分けるもの」の定義の行（「迷ったとき」の行ではない）
+        var line = PromptFiles.Read(PromptFiles.Reader).Split('\n').Single(l => l.StartsWith("- `concreteEvent`（", StringComparison.Ordinal));
+
+        Assert.Contains("特別なことは何も", line);
+        Assert.Contains("添えてあっても", line);
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 読み取りの指示は、寝不足を暮らしの事情として話すだけではサインにせず、見落とさない側に倒す方針は残している")]
+    public void ReaderSeparatesShortSleepFromDistress()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+
+        Assert.Contains("見落とさない側に倒す", reader);
+        Assert.Contains("暮らしの事情", reader);
+        Assert.Contains("夜泣き", reader);
+    }
 }
 
 internal static class ContentJson
