@@ -250,6 +250,26 @@ describe('Talk', () => {
     expect(screen.queryByRole('button', { name: FAKE_DISTRESS_ACTIONS[0] })).not.toBeInTheDocument()
   })
 
+  it('discover-10（つらい状態のサインに応える）: 返事の途中で AI が断ったときも、窓口を小さく添え、途中の返事は消す', async () => {
+    const api = setup()
+    api.state.reply = [
+      { event: 'delta', data: { text: '途中まで' } },
+      {
+        event: 'notice',
+        data: { kind: 'support', text: 'つらいときは、こちらの相談先も使えます。', linkUrl: FAKE_SUPPORT_URL, linkLabel: FAKE_SUPPORT_LABEL },
+      },
+      { event: 'error', data: { kind: 'refusal' } },
+    ]
+
+    await typeAndSend('昨日のこと')
+
+    expect(await screen.findByText(copy.talk.refusal)).toBeInTheDocument()
+    expect(screen.getByText('つらいときは、こちらの相談先も使えます。')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toHaveAttribute('href', FAKE_SUPPORT_URL)
+    expect(screen.queryByText('途中まで')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('昨日のこと')
+  })
+
   it('discover-7（返答が少しずつ流れる）: 失敗したら穏やかな言葉が出て、書いた答えが入力欄に残る', async () => {
     const api = setup()
     api.state.reply = [

@@ -28,8 +28,8 @@ public sealed record ReplyRecord(
 public sealed record EpisodeRun(EpisodeScript Script, IReadOnlyList<ReplyRecord> Replies, bool SupportShown, string? Error);
 
 /// <summary>
-/// 台本どおりに会話を流す。製品の 1 往復（TalkStream）と同じ順で、読み取り → 次の一手 → 返事 → 本文と選択肢に分ける、を行う。
-/// 製品と同じ判断のコード（NextMovePolicy、ReplyStreamSplitter、DiscoverText）を使う。保存はしない。
+/// 台本どおりに会話を流す。1 往復の中身（読み取り → 次の一手 → 返事 → 本文と選択肢に分ける、失敗の扱い）は、
+/// 製品と同じ <see cref="TalkRound"/> を呼ぶ。ここで持つのは、台本の読み方、記録、判定役の呼び出しだけ。保存はしない。
 /// </summary>
 public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenWords forbidden)
 {
@@ -72,73 +72,79 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
             List<Turn> conversation = [.. turns, userTurn];
             var watch = Stopwatch.StartNew();
 
-            TurnReading reading;
-            try
+            RoundStep.Decided? decided = null;
+            RoundStep.Replied? replied = null;
+            RoundStep.Failed? failed = null;
+            long? firstTextMs = null;
+            await foreach (var step in TalkRound.RunAsync(ai, conversation, userTurnNumber, TimeProvider.System, ct))
             {
-                reading = await ai.ReadAsync(conversation, ct);
+                switch (step)
+                {
+                    case RoundStep.Decided d:
+                        decided = d;
+                        break;
+                    case RoundStep.Text:
+                        firstTextMs ??= watch.ElapsedMilliseconds;
+                        break;
+                    case RoundStep.Failed f:
+                        failed = f;
+                        break;
+                    case RoundStep.Replied r:
+                        replied = r;
+                        break;
+                }
             }
-            catch (ConversationAiException e)
+
+            if (failed is not null || decided is null || replied is null)
             {
-                // 製品では、読み取りに失敗したら窓口を添える
-                supportShown = true;
-                error = $"読み取りで {e.Kind}";
+                // 製品で窓口を添える失敗（読み取りの失敗、返事を AI が断った）なら、窓口を出したと数える
+                supportShown |= failed?.AddSupport ?? false;
+                error = Describe(failed);
                 break;
             }
 
-            var move = NextMovePolicy.Decide(reading, userTurnNumber);
+            var move = decided.Move;
+            var reply = replied.Reply;
+            firstTextMs ??= watch.ElapsedMilliseconds;
             if (move == MoveKind.Distress)
             {
                 supportShown = true;
                 replies.Add(new ReplyRecord(
-                    text, answer.IsChoice, reading.Signals, move, DiscoverText.DistressText, [], false, watch.ElapsedMilliseconds, 0,
-                    forbidden.Find(DiscoverText.DistressText), null));
+                    text, answer.IsChoice, decided.Reading.Signals, move, reply.Text, [], false, firstTextMs.Value, 0,
+                    forbidden.Find(reply.Text), null));
                 break;
             }
 
-            var splitter = new ReplyStreamSplitter();
-            long? firstTextMs = null;
-            try
-            {
-                await foreach (var chunk in ai.StreamReplyAsync(conversation, move, ct))
-                {
-                    if (splitter.Push(chunk).Any())
-                    {
-                        firstTextMs ??= watch.ElapsedMilliseconds;
-                    }
-                }
-            }
-            catch (ConversationAiException e)
-            {
-                error = $"返事で {e.Kind}";
-                break;
-            }
-
-            var close = move == MoveKind.Close;
-            var parts = splitter.Complete(expectChoices: !close);
-            firstTextMs ??= watch.ElapsedMilliseconds;
-            if (parts.Body.Length == 0)
-            {
-                error = "本文のない返事";
-                break;
-            }
-
-            IReadOnlyList<string> choicesShown = close ? [] : parts.Choices;
-            var verdict = await judge.JudgeAsync(conversation, move, parts.Body, ct);
+            IReadOnlyList<string> choicesShown = reply.Choices ?? [];
+            var verdict = await judge.JudgeAsync(conversation, move, reply.Text, ct);
             replies.Add(new ReplyRecord(
-                text, answer.IsChoice, reading.Signals, move, parts.Body, choicesShown, !close && parts.UsedFallback, firstTextMs.Value,
-                ReplyChecks.CountQuestions(parts.Body), forbidden.Find(string.Join("\n", [parts.Body, .. choicesShown])), verdict));
+                text, answer.IsChoice, decided.Reading.Signals, move, reply.Text, choicesShown, replied.UsedFallbackChoices, firstTextMs.Value,
+                ReplyChecks.CountQuestions(reply.Text), forbidden.Find(string.Join("\n", [reply.Text, .. choicesShown])), verdict));
 
             turns.Add(userTurn);
-            turns.Add(new Turn
-            {
-                Role = TurnRoles.Assistant, Text = parts.Body, Choices = close ? null : parts.Choices, Move = TalkStream.MoveName(move), At = now,
-            });
-            if (close)
+            turns.Add(reply);
+            if (move == MoveKind.Close)
             {
                 break;
             }
         }
 
         return new EpisodeRun(script, replies, supportShown, error);
+    }
+
+    private static string Describe(RoundStep.Failed? failed)
+    {
+        if (failed is null)
+        {
+            return "1 往復が最後まで進まなかった";
+        }
+
+        if (failed.EmptyBody)
+        {
+            return "本文のない返事";
+        }
+
+        var where = failed.InReading ? "読み取り" : "返事";
+        return failed.UnexpectedError is { } type ? $"{where}で {failed.Kind}（{type}）" : $"{where}で {failed.Kind}";
     }
 }

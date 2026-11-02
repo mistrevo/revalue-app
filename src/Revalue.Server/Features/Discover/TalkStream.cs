@@ -9,22 +9,23 @@ using Revalue.Server.Data;
 namespace Revalue.Server.Features.Discover;
 
 /// <summary>
-/// 相談窓口の知らせ。<c>kind</c> は "distress"（つらい状態のサインへの応え）か "support"（読み取りに失敗したときに添える）。
+/// 相談窓口の知らせ。<c>kind</c> は "distress"（つらい状態のサインへの応え）か
+/// "support"（読み取りに失敗したとき、返事を AI が断ったときに、念のため添える）。
 /// </summary>
 public sealed record SupportNotice(string Kind, string Text, string LinkUrl, string LinkLabel, IReadOnlyList<string>? Actions)
 {
     public static SupportNotice Distress { get; } =
         new("distress", DiscoverText.DistressText, DiscoverText.SupportLinkUrl, DiscoverText.SupportLinkLabel, DiscoverText.DistressActions);
 
-    public static SupportNotice ReadFailure { get; } =
-        new("support", DiscoverText.ReadFailureSupportNote, DiscoverText.SupportLinkUrl, DiscoverText.SupportLinkLabel, null);
+    public static SupportNotice Precaution { get; } =
+        new("support", DiscoverText.PrecautionSupportNote, DiscoverText.SupportLinkUrl, DiscoverText.SupportLinkLabel, null);
 }
 
 /// <summary>答えを送る API の本文。<c>kind</c> は "free"（自由に書いた）か "choice"（選んだ）。</summary>
 public sealed record MessageRequest(string? Text, string? Kind);
 
 /// <summary>
-/// 1 往復の流れ。読み取り → 次の一手 → 返事 → 保存 を順に行い、画面へ SSE のイベントで少しずつ送る。
+/// 1 往復の流れ。読み取り → 次の一手 → 返事（<see cref="TalkRound"/>）→ 保存 を順に行い、画面へ SSE のイベントで少しずつ送る。
 /// イベント: delta（本文のかけら）、choices（選択肢）、notice（相談窓口）、done（終わりの知らせ）、error（失敗・拒否）。
 /// 利用者の答えと返事は、返事を最後まで受け取れたときだけ保存する。
 /// ログには話した内容も AI の返事も書かない。書くのは、エラーの種類だけ。
@@ -71,120 +72,69 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
     {
         var answer = new Turn { Role = TurnRoles.User, Text = text, AnswerKind = kind, At = time.GetUtcNow() };
         IReadOnlyList<Turn> turns = [.. episode.Turns, answer];
-        var userTurnNumber = episode.UserTurnCount + 1;
+        var move = MoveKind.AskWhatYouDid;
 
-        // 1. 読み取り。失敗したら、つらい状態のサインを見落としているかもしれないので、窓口を添える
-        TurnReading? reading = null;
-        string? readError = null;
-        try
+        // 読み取り → 次の一手 → 返事 は TalkRound（評価と同じ処理）。ここでは、起きたことを SSE に変え、保存する
+        await foreach (var step in TalkRound.RunAsync(ai, turns, episode.UserTurnCount + 1, time, ct))
         {
-            reading = await ai.ReadAsync(turns, ct);
-        }
-        catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
-        {
-            readError = KindOf(e);
-        }
-
-        if (reading is null)
-        {
-            yield return Event(NoticeEvent, SupportNotice.ReadFailure);
-            yield return Error(readError!);
-            yield break;
-        }
-
-        // 2. 次の一手
-        var move = NextMovePolicy.Decide(reading, userTurnNumber);
-
-        // つらい状態のサインには AI の返事を使わず、決まった言葉と窓口で応える
-        if (move == MoveKind.Distress)
-        {
-            var distressTurn = new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.DistressText, Move = MoveName(move), At = time.GetUtcNow() };
-            var saved = await SaveAsync(episode, answer, distressTurn, finish: false, excluded: true, ct);
-            if (saved is null)
+            switch (step)
             {
-                yield return Error(ConversationAiException.Failure);
-                yield break;
-            }
+                case RoundStep.Decided decided:
+                    move = decided.Move;
+                    break;
 
-            yield return Event(NoticeEvent, SupportNotice.Distress);
-            yield return Done(saved, move);
-            yield break;
-        }
+                case RoundStep.Text piece:
+                    yield return Delta(piece.Piece);
+                    break;
 
-        // 3. 返事。本文だけを流し、選択肢は最後にまとめて送る
-        var splitter = new ReplyStreamSplitter();
-        var reply = ai.StreamReplyAsync(turns, move, ct).GetAsyncEnumerator(ct);
-        string? replyError = null;
-        await using (reply)
-        {
-            while (true)
-            {
-                string chunk;
-                try
+                case RoundStep.Failed failed:
                 {
-                    if (!await reply.MoveNextAsync())
+                    if (failed.UnexpectedError is { } errorType)
                     {
-                        break;
+                        logger.LogWarning("Conversation AI threw {ErrorType}.", errorType);
                     }
 
-                    chunk = reply.Current;
-                }
-                catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
-                {
-                    replyError = KindOf(e);
-                    break;
+                    if (failed.EmptyBody)
+                    {
+                        logger.LogWarning("Reply had no body for move {Move}.", move);
+                    }
+
+                    if (failed.AddSupport)
+                    {
+                        yield return Event(NoticeEvent, SupportNotice.Precaution);
+                    }
+
+                    yield return Error(failed.Kind);
+                    yield break;
                 }
 
-                foreach (var piece in splitter.Push(chunk))
+                case RoundStep.Replied replied:
                 {
-                    yield return Delta(piece);
+                    // 返事を最後まで受け取れたときだけ、答えと返事の 2 ターンを足す。
+                    // つらい状態のサインが出た場面には、力の確かめに使わない印を付ける
+                    var distress = move == MoveKind.Distress;
+                    var close = move == MoveKind.Close;
+                    var saved = await SaveAsync(episode, answer, replied.Reply, finish: close, excluded: distress, ct);
+                    if (saved is null)
+                    {
+                        yield return Error(ConversationAiException.Failure);
+                        yield break;
+                    }
+
+                    if (distress)
+                    {
+                        yield return Event(NoticeEvent, SupportNotice.Distress);
+                    }
+                    else if (!close)
+                    {
+                        yield return Event(ChoicesEvent, new { choices = replied.Reply.Choices });
+                    }
+
+                    yield return Done(saved, move);
+                    yield break;
                 }
             }
         }
-
-        if (replyError is not null)
-        {
-            yield return Error(replyError);
-            yield break;
-        }
-
-        var close = move == MoveKind.Close;
-        var parts = splitter.Complete(expectChoices: !close);
-        if (parts.Tail.Length > 0)
-        {
-            yield return Delta(parts.Tail);
-        }
-
-        // 本文のない返事は保存しない（受け止めの言葉がないまま場面が進まないように。Claude の判断）
-        if (parts.Body.Length == 0)
-        {
-            logger.LogWarning("Reply had no body for move {Move}.", move);
-            yield return Error(ConversationAiException.Failure);
-            yield break;
-        }
-
-        // 4. 保存。返事を最後まで受け取れたときだけ、答えと返事の 2 ターンを足す
-        var replyTurn = new Turn
-        {
-            Role = TurnRoles.Assistant,
-            Text = parts.Body,
-            Choices = close ? null : parts.Choices,
-            Move = MoveName(move),
-            At = time.GetUtcNow(),
-        };
-        var result = await SaveAsync(episode, answer, replyTurn, finish: close, excluded: false, ct);
-        if (result is null)
-        {
-            yield return Error(ConversationAiException.Failure);
-            yield break;
-        }
-
-        if (!close)
-        {
-            yield return Event(ChoicesEvent, new { choices = parts.Choices });
-        }
-
-        yield return Done(result, move);
     }
 
     /// <summary>
@@ -219,18 +169,6 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
             logger.LogWarning("Saving the episode failed: {ErrorType}.", e.GetType().Name);
             return null;
         }
-    }
-
-    /// <summary>AI の呼び出しの失敗を、画面に知らせる種類にする。思いがけない例外は不調として扱う。</summary>
-    private string KindOf(Exception e)
-    {
-        if (e is ConversationAiException ai)
-        {
-            return ai.Kind;
-        }
-
-        logger.LogWarning("Conversation AI threw {ErrorType}.", e.GetType().Name);
-        return ConversationAiException.Failure;
     }
 
     private static SseItem<string> Delta(string text) => Event(DeltaEvent, new { text });

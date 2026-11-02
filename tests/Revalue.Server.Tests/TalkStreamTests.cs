@@ -195,6 +195,25 @@ public sealed class TalkStreamTests
         Assert.Equal(1, await TurnCount(client, id));
     }
 
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 返事を AI が断ったときも、窓口を添える")]
+    public async Task ReplyRefusalAddsSupportNotice()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        ai.FailNextReply = (2, ConversationAiException.Refusal);
+
+        var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
+
+        Assert.Equal(["notice", "error"], events.Select(e => e.Event).TakeLast(2));
+        Assert.Equal("support", events[^2].Data.GetProperty("kind").GetString());
+        Assert.Equal(DiscoverText.PrecautionSupportNote, events[^2].Data.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.SupportLinkUrl, events[^2].Data.GetProperty("linkUrl").GetString());
+        Assert.Equal("refusal", events[^1].Data.GetProperty("kind").GetString());
+        Assert.Equal(1, await TurnCount(client, id));
+    }
+
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: サインには AI の返事を使わず、決まった言葉と窓口を出し、印を付ける")]
     public async Task DistressUsesFixedTextAndMarksEpisode()
     {
@@ -265,7 +284,7 @@ public sealed class TalkStreamTests
 
         Assert.Equal(["notice", "error"], events.Select(e => e.Event));
         Assert.Equal("support", events[0].Data.GetProperty("kind").GetString());
-        Assert.Equal(DiscoverText.ReadFailureSupportNote, events[0].Data.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.PrecautionSupportNote, events[0].Data.GetProperty("text").GetString());
         Assert.Equal(DiscoverText.SupportLinkUrl, events[0].Data.GetProperty("linkUrl").GetString());
         Assert.Equal("failure", events[1].Data.GetProperty("kind").GetString());
         Assert.Empty(ai.Moves);
@@ -495,5 +514,44 @@ public sealed class TalkStreamTests
 
         Assert.Equal("done", events[^1].Event);
         Assert.Equal(3, await TurnCount(client, id));
+    }
+
+    [Fact(DisplayName = "評価: 評価の流し方は、答えを送る API と同じ一手、返事、選択肢になる")]
+    public async Task EvalRunnerMatchesTalkStream()
+    {
+        string[] answers =
+        [
+            "昨日は子どもと買い物に行きました。",
+            "分からないです。",
+            "いつも朝は忙しいです。",
+            "母が入院していて、病院に通いました。",
+            "最近ずっと眠れなくて、つらいです。",
+        ];
+        var ai = new ScriptedConversationAi();
+        await using var factory = new RevalueFactory().WithTestServices(services => services.AddSingleton<IConversationAi>(ai));
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        var product = new List<string>();
+        foreach (var answer in answers)
+        {
+            var events = await SendAndRead(client, id, answer);
+            var done = events.Single(e => e.Event == "done").Data;
+            var move = done.GetProperty("move").GetString();
+            var body = move == "distress"
+                ? events.Single(e => e.Event == "notice").Data.GetProperty("text").GetString()
+                : Deltas(events).TrimEnd();
+            var choices = events.SingleOrDefault(e => e.Event == "choices")?.Data.GetProperty("choices").EnumerateArray().Select(c => c.GetString()) ?? [];
+            product.Add($"{move} | {body} | {string.Join(" / ", choices)}");
+        }
+
+        var script = new Revalue.Evals.EpisodeScript("e99", "試しの例", "discover", "distress", answers.Select(a => new Revalue.Evals.ScriptedAnswer(a, false)).ToList());
+        var forbidden = Revalue.Evals.ForbiddenWords.Load(Path.Combine(AppContext.BaseDirectory, "forbidden-words.json"));
+        var run = await new Revalue.Evals.EvalRunner(ai, new Revalue.Evals.DryRunJudge(), forbidden).RunAsync(script, Ct);
+        var evaluated = run.Replies.Select(r => $"{TalkStream.MoveName(r.Move)} | {r.Body} | {string.Join(" / ", r.Choices)}").ToList();
+
+        Assert.Equal(["askWhatYouDid", "askEasierScene", "askConcreteEvent", "returnFromIllness", "distress"], product.Select(p => p.Split(" | ")[0]));
+        Assert.Equal(product, evaluated);
+        Assert.True(run.SupportShown);
     }
 }

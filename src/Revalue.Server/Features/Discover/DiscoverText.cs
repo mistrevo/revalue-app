@@ -54,6 +54,9 @@ public static class DiscoverText
         "この話は消して、別の話にする",
     ];
 
-    /// <summary>読み取りに失敗したとき（サインを見落としているかもしれない）に、小さく添える言葉。</summary>
-    public const string ReadFailureSupportNote = "つらいときは、こちらの相談先も使えます。";
+    /// <summary>
+    /// 読み取りに失敗したときと、返事を AI が断ったとき（どちらも、つらい状態のサインを見落としているかもしれない）に、
+    /// 念のため小さく添える言葉。
+    /// </summary>
+    public const string PrecautionSupportNote = "つらいときは、こちらの相談先も使えます。";
 }
