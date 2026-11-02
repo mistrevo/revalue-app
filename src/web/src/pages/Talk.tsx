@@ -145,6 +145,7 @@ function TalkScreen({ id }: { id: string }) {
         onError: (kind) => {
           setErrorKind(kind)
           restore()
+          if (kind === 'closed') reloadEpisode()
         },
       })
     } catch (e) {
@@ -152,18 +153,22 @@ function TalkScreen({ id }: { id: string }) {
       if (isDailyLimit(e)) {
         setLimitResetAt(e.resetAt ?? '')
       } else {
-        setErrorKind('failure')
-        // ほかの画面で区切られていたら、いまの状態を読み直す
-        if (e instanceof ApiError && e.status === 409) {
-          getEpisode(id)
-            .then(setEpisode)
-            .catch(() => {})
-        }
+        // ほかの画面で飛ばされた（404）・区切られた（409）場面には、送り直しても届かない
+        const closed = e instanceof ApiError && (e.status === 404 || e.status === 409)
+        setErrorKind(closed ? 'closed' : 'failure')
+        if (closed) reloadEpisode()
       }
     } finally {
       setPending(null)
       setStreamText('')
     }
+  }
+
+  // いまの状態を読み直す。もうなければ、やりとりはそのまま残す
+  function reloadEpisode() {
+    getEpisode(id)
+      .then(setEpisode)
+      .catch(() => {})
   }
 
   async function finish() {
@@ -221,6 +226,15 @@ function TalkScreen({ id }: { id: string }) {
         </p>
       )}
 
+      {/* 失敗の言葉を先に出し、相談先は、そのあとに添える */}
+      {errorKind !== null && (
+        <p role="alert" className="mt-4 text-sm leading-relaxed">
+          {errorKind === 'refusal' ? copy.talk.refusal : errorKind === 'closed' ? copy.talk.closed : copy.talk.failure}
+        </p>
+      )}
+      {/* 話し終えた場面は、下にホームへの道が出るので、ここには出さない */}
+      {errorKind === 'closed' && talking && <BackHome />}
+
       {notice !== null && pending === null && (
         <div className="mt-4 rounded-xl border bg-muted/40 px-4 py-3 text-sm leading-relaxed">
           {notice.kind === 'support' && <p>{notice.text}</p>}
@@ -251,11 +265,6 @@ function TalkScreen({ id }: { id: string }) {
         </div>
       )}
 
-      {errorKind !== null && (
-        <p role="alert" className="mt-4 text-sm leading-relaxed">
-          {errorKind === 'refusal' ? copy.talk.refusal : copy.talk.failure}
-        </p>
-      )}
       {limitResetAt !== null && (
         <div className="mt-4">
           <DailyLimitNotice resetAt={limitResetAt} />

@@ -316,6 +316,46 @@ describe('Talk', () => {
     ])
   })
 
+  it('discover-7（返答が少しずつ流れる）: ほかの画面で閉じられた場面に送ったら、送り直しを促さず、ホームへの道を出す', async () => {
+    const api = setup()
+    await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    // 開いたあとに、ほかの画面で飛ばされ、この場面はもうない
+    api.state.episodes = []
+
+    await typeAndSend('昨日は公園に行った')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.failure)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+  })
+
+  it('discover-7（返答が少しずつ流れる）: 返事を流しているあいだに閉じられたと知らされたら、送り直しを促さない', async () => {
+    const api = setup()
+    api.state.reply = [{ event: 'error', data: { kind: 'closed' } }]
+
+    await typeAndSend('昨日は公園に行った')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+  })
+
+  it('discover-10（つらい状態のサインに応える）: 失敗の言葉を先に出し、相談先はそのあとに添える', async () => {
+    const api = setup()
+    api.state.reply = [
+      {
+        event: 'notice',
+        data: { kind: 'support', text: 'つらいときは、こちらの相談先も使えます。', linkUrl: FAKE_SUPPORT_URL, linkLabel: FAKE_SUPPORT_LABEL },
+      },
+      { event: 'error', data: { kind: 'failure' } },
+    ]
+
+    await typeAndSend('昨日のこと')
+
+    const failure = await screen.findByText(copy.talk.failure)
+    const support = screen.getByText('つらいときは、こちらの相談先も使えます。')
+    expect(failure.compareDocumentPosition(support) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('discover-7（返答が少しずつ流れる）: AI が断ったときも、穏やかな言葉が出て、書いた答えが残る', async () => {
     const api = setup()
     api.state.reply = [{ event: 'error', data: { kind: 'refusal' } }]

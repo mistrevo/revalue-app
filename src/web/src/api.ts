@@ -138,7 +138,8 @@ export type EpisodeSummary = {
 }
 
 export type TalkDone = { userTurnCount: number; status: EpisodeStatus; move: string }
-export type TalkErrorKind = 'refusal' | 'failure'
+/** refusal: AI が断った。failure: うまくいかなかった。closed: 場面がほかの画面で飛ばされた・区切られた・消された。 */
+export type TalkErrorKind = 'refusal' | 'failure' | 'closed'
 
 export type TalkHandlers = {
   onDelta: (text: string) => void
@@ -211,7 +212,7 @@ export async function sendAnswer(
           break
         case 'error':
           finished = true
-          handlers.onError(body.kind === 'refusal' ? 'refusal' : 'failure')
+          handlers.onError(body.kind === 'refusal' || body.kind === 'closed' ? body.kind : 'failure')
           break
       }
     }

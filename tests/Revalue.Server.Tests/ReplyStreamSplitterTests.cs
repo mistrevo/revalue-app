@@ -47,6 +47,53 @@ public sealed class ReplyStreamSplitterTests
         Assert.Equal(["子どもを起こした", "お弁当を作った", "洗濯機を回した"], parts.Choices);
     }
 
+    [Theory(DisplayName = "discover-7（返答が少しずつ流れる）: 区切りの行の書き方が少し揺れても、選択肢は本文に混ざらない")]
+    [InlineData("--- 選択肢 ---")]
+    [InlineData("－－－選択肢－－－")]
+    [InlineData("ーーー選択肢ーーー")]
+    [InlineData("—— 選択肢 ——")]
+    [InlineData("選択肢:")]
+    [InlineData("選択肢：")]
+    [InlineData("【選択肢】")]
+    [InlineData("**選択肢**")]
+    [InlineData("  ---選択肢---  ")]
+    public void DelimiterVariantsDoNotLeak(string delimiter)
+    {
+        var reply = $"朝の支度を一人で回したんですね。\nそのとき、最初に何をしましたか？\n{delimiter}\n- 子どもを起こした\n- お弁当を作った\n- 洗濯機を回した";
+        const string body = "朝の支度を一人で回したんですね。\nそのとき、最初に何をしましたか？\n";
+
+        // 1 文字ずつ届いても、まとめて届いても同じになる
+        foreach (var chunks in new[] { reply.Select(c => c.ToString()).ToArray(), [reply] })
+        {
+            var (streamed, parts) = Run(true, chunks);
+
+            Assert.Equal(body, string.Concat(streamed));
+            Assert.Equal(body.TrimEnd(), parts.Body);
+            Assert.Equal(["子どもを起こした", "お弁当を作った", "洗濯機を回した"], parts.Choices);
+            Assert.False(parts.UsedFallback);
+        }
+    }
+
+    [Fact(DisplayName = "discover-7（返答が少しずつ流れる）: 区切りに似た書き出しの本文の行は、そのまま本文として流れる")]
+    public void LinesThatOnlyLookLikeDelimiterStayInBody()
+    {
+        const string reply = "選んでくれてありがとうございます。\n**大切な**一日ですね。\nー\nどうしましたか？\n---選択肢---\n- A\n- B\n- C";
+        var (streamed, parts) = Run(true, reply.Select(c => c.ToString()).ToArray());
+
+        Assert.Equal("選んでくれてありがとうございます。\n**大切な**一日ですね。\nー\nどうしましたか？\n", string.Concat(streamed));
+        Assert.Equal(["A", "B", "C"], parts.Choices);
+    }
+
+    [Fact(DisplayName = "discover-7（返答が少しずつ流れる）: 最後の行が区切りだけなら、本文に入れずに汎用の選択肢で補う")]
+    public void DelimiterAsLastLineIsNotBody()
+    {
+        var (streamed, parts) = Run(true, "本文です。\n", "--- 選択肢 ---");
+
+        Assert.Equal("本文です。\n", string.Concat(streamed));
+        Assert.Equal("本文です。", parts.Body);
+        Assert.True(parts.UsedFallback);
+    }
+
     [Fact(DisplayName = "discover-3（選んでも書いてもよい）: 選択肢の先頭の記号や番号を外し、3 つまで取る")]
     public void ChoiceMarkersAreStripped()
     {

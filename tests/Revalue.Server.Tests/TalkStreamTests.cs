@@ -417,6 +417,7 @@ public sealed class TalkStreamTests
         var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
 
         Assert.Equal("error", events[^1].Event);
+        Assert.Equal(TalkStream.ClosedError, events[^1].Data.GetProperty("kind").GetString());
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/episodes/{id}", Ct)).StatusCode);
         var store = (InMemoryDataStore)factory.Services.GetRequiredService<IDataStore>();
         await foreach (var json in store.DumpRawJsonAsync(Ct))
@@ -444,11 +445,36 @@ public sealed class TalkStreamTests
         var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
 
         Assert.Equal("error", events[^1].Event);
+        Assert.Equal(TalkStream.ClosedError, events[^1].Data.GetProperty("kind").GetString());
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/episodes/{id}", Ct)).StatusCode);
         await foreach (var json in store.DumpRawJsonAsync(Ct))
         {
             Assert.DoesNotContain("昨日は買い物に行きました。", json);
         }
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: サインを読み取った往復は、保存の直前に飛ばされても窓口を添える")]
+    public async Task DistressStillShowsSupportWhenSaveFails()
+    {
+        var (factory, ai) = CreateInterrupting();
+        await using var _f = factory;
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress });
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        store.RunOnceBeforeWriting(id, async () =>
+        {
+            var skip = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
+            Assert.Equal(HttpStatusCode.Created, skip.StatusCode);
+        });
+
+        var events = await SendAndRead(client, id, "もう消えたいと思うことがあります。");
+
+        Assert.Equal(["notice", "error"], events.Select(e => e.Event));
+        Assert.Equal("support", events[0].Data.GetProperty("kind").GetString());
+        Assert.Equal(DiscoverText.SupportLinkUrl, events[0].Data.GetProperty("linkUrl").GetString());
+        Assert.Equal(TalkStream.ClosedError, events[1].Data.GetProperty("kind").GetString());
     }
 
     [Fact(DisplayName = "discover-6（一場面ずつ区切り、続きから話せる）: 返事を保存する直前に区切られたら、区切った場面に答えを足さない")]
@@ -469,6 +495,7 @@ public sealed class TalkStreamTests
         var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
 
         Assert.Equal("error", events[^1].Event);
+        Assert.Equal(TalkStream.ClosedError, events[^1].Data.GetProperty("kind").GetString());
         var episode = await GetEpisode(client, id);
         Assert.Equal("finished", episode.GetProperty("status").GetString());
         Assert.Equal(1, episode.GetProperty("turns").GetArrayLength());
@@ -493,6 +520,8 @@ public sealed class TalkStreamTests
         var events = await SendAndRead(client, id, "昨日は買い物に行きました。");
 
         Assert.Equal("error", events[^1].Event);
+        // 場面はまだ話している途中なので、閉じられたのではなく、うまくいかなかったと知らせる
+        Assert.Equal(ConversationAiException.Failure, events[^1].Data.GetProperty("kind").GetString());
         var turns = (await GetEpisode(client, id)).GetProperty("turns");
         Assert.Equal(3, turns.GetArrayLength());
         Assert.Equal("別の画面からの答えです。", turns[1].GetProperty("text").GetString());

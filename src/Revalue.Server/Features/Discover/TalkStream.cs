@@ -41,6 +41,9 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
     public const string DoneEvent = "done";
     public const string ErrorEvent = "error";
 
+    /// <summary>error イベントの種類。返事を流しているあいだに、場面がほかの画面で飛ばされた・区切られた・消された。</summary>
+    public const string ClosedError = "closed";
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -117,7 +120,13 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
                     var saved = await SaveAsync(episode, answer, replied.Reply, finish: close, excluded: distress, ct);
                     if (saved is null)
                     {
-                        yield return Error(ConversationAiException.Failure);
+                        // サインを読み取った往復は、保存できなくても窓口を添える（discover-10）
+                        if (distress)
+                        {
+                            yield return Event(NoticeEvent, SupportNotice.Precaution);
+                        }
+
+                        yield return Error(await WhyNotSavedAsync(episode, ct));
                         yield break;
                     }
 
@@ -168,6 +177,24 @@ public sealed class TalkStream(IConversationAi ai, IDataStore store, TimeProvide
             // 全部消したあと（了解の記録がない）なども、ここに来る。中身は書かず、種類だけ
             logger.LogWarning("Saving the episode failed: {ErrorType}.", e.GetType().Name);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// 保存できなかった理由を、画面に知らせる種類にする。場面がもうない、または話している途中でなくなっていれば
+    /// <see cref="ClosedError"/>（ほかの画面で閉じられた）、それ以外は <see cref="ConversationAiException.Failure"/>。
+    /// </summary>
+    private async Task<string> WhyNotSavedAsync(EpisodeItem episode, CancellationToken ct)
+    {
+        try
+        {
+            var current = await store.GetAsync<EpisodeItem>(episode.UserKey, episode.Id, ct);
+            return current is null || current.Status != EpisodeStatus.Talking ? ClosedError : ConversationAiException.Failure;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogWarning("Reading the episode after a failed save failed: {ErrorType}.", e.GetType().Name);
+            return ConversationAiException.Failure;
         }
     }
 
