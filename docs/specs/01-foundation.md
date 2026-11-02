@@ -88,8 +88,9 @@
 - `infra/main.bicep` に、[00-tech-stack.md](00-tech-stack.md) の「Azure の構成」のリソースを定義する。組み込み認証（Google）の設定も含める
 - Google 側に登録したアプリのクライアント ID は、Bicep のパラメーター（作るときに外から渡す値）で渡す。対になるクライアントシークレット（鍵）は、Key Vault の `google-client-secret` から読む
 - `Dockerfile` は、画面を作る → 裏側を publish → 実行用の小さいイメージ、の 3 段にする
-- `.github/workflows/ci.yml` は、PR と push のたびに、裏側のビルドとテスト、画面のビルドとテスト、フックのテストを回す
+- `.github/workflows/ci.yml` は、PR と push のたびに、裏側のビルドとテスト、画面のビルドとテスト、フックのテストを回す。あわせてコンテナのイメージを作って起動し、`/api/health` が 200 を返すことを確かめる
 - `.github/workflows/deploy.yml` は、main に push されたときに動く。コンテナのイメージを `ghcr.io` に push し、Container App を新しいイメージに更新する。最後に公開 URL の `/api/health` と `/` が 200 を返すことを確かめる
+- Azure の準備がまだ（リポジトリ変数 `AZURE_CLIENT_ID` がない）ときは、`deploy.yml` はデプロイを飛ばしてそう知らせ、失敗にはしない（Claude の判断）
 - Azure へは OIDC（鍵を保存せずに、その場かぎりの証明でログインする仕組み）でログインし、鍵を GitHub に置かない
 - Azure の場所やリソースの名前は、GitHub のリポジトリ変数（鍵ではない設定）で渡す
 - 次の作業だけは手で行う。[00-tech-stack.md](00-tech-stack.md) の tech-3（作り直せる）にあたる。手順は `infra/README.md` に書く

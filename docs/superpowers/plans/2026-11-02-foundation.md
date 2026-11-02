@@ -337,13 +337,13 @@ infra/README.md                                       最初の 1 回の手順
 - Produces: `infra/main.bicep` のパラメーター: `location`（既定 `resourceGroup().location`）、`appName`（既定 `revalue`）、`googleClientId`、`githubRepo`（既定 `mistrevo/revalue-app`）、`containerImage`（既定は Microsoft の仮イメージ）、`deployApp`（bool。既定 true）、`enableCosmosFreeTier`（既定 true）
 - Produces: Key Vault の secret の名前: `anthropic-api-key`、`user-key-secret`、`google-client-secret`
 
-- [ ] **Step 1: `Dockerfile` を書く**
+- [x] **Step 1: `Dockerfile` を書く**
   3 段: Node 24 で `npm ci` と画面のビルド → .NET 10 SDK で `dotnet publish src/Revalue.Server -c Release` → `mcr.microsoft.com/dotnet/aspnet:10.0` で実行。ポート 8080、root でない利用者で動かす。手元の Docker デーモンは動いていないことがあるので、ビルドの確認は Step 2 の CI のジョブで行う（手元で `docker info` が通るときだけ、`docker build` も流してよい）
 
-- [ ] **Step 2: `ci.yml` を書く**
+- [x] **Step 2: `ci.yml` を書く**
   `pull_request` と `push` で、4 つのジョブ: 裏側（`actions/setup-dotnet` で 10.x、`dotnet build`、`dotnet test`）、画面（`actions/setup-node` で 24、`npm --prefix src/web ci`、`npm --prefix src/web test`、`npm --prefix src/web run build`）、フック（`node --test .claude/hooks/guard.test.mjs`）、コンテナ（`docker build` したあと `docker run` で `Auth__UserKeySecret` に仮の値、`ASPNETCORE_ENVIRONMENT=Development` を渡して起動し、`/api/health` が 200 になることを確かめる。Development なのは Cosmos なしで起動させるため）。`permissions: contents: read`
 
-- [ ] **Step 3: `infra/main.bicep` を書き、`az bicep build --file infra/main.bicep` が通ることを確かめる**
+- [x] **Step 3: `infra/main.bicep` を書き、`az bicep build --file infra/main.bicep` が通ることを確かめる**
   中身は `00-tech-stack.md` の「Azure の構成」と、Spec の「公開 URL に出す仕組み」。要点:
   - Log Analytics、Container Apps の環境（従量課金）、ユーザー割り当てマネージド ID 2 つ（アプリ用、GitHub Actions 用）
   - Key Vault（RBAC。アプリ用 ID と GitHub Actions 用 ID に「Key Vault Secrets User」）
@@ -353,13 +353,13 @@ infra/README.md                                       最初の 1 回の手順
   - 組み込み認証（`Microsoft.App/containerApps/authConfigs` の `current`）: 有効、`unauthenticatedClientAction: AllowAnonymous`、Google（`clientId` は `googleClientId`、シークレットは app の secret `google-client-secret`）
   - 出力: アプリの URL、GitHub Actions 用 ID のクライアント ID、テナント ID
 
-- [ ] **Step 4: `deploy.yml` を書く**
+- [x] **Step 4: `deploy.yml` を書く**
   `push`（main）と `workflow_dispatch`。`permissions: id-token: write, contents: read, packages: write`。リポジトリ変数 `AZURE_CLIENT_ID` が空なら、デプロイを飛ばして「Azure の準備がまだ」と出し、失敗にしない。ある場合は、イメージを `ghcr.io/${{ github.repository }}:${{ github.sha }}` で push → `azure/login`（OIDC）→ `az containerapp update --image` → `APP_URL` の `/api/health` と `/` が 200 になるまで最大 3 分待って確かめる
 
-- [ ] **Step 5: `infra/README.md` に最初の 1 回の手順を書く**
+- [x] **Step 5: `infra/README.md` に最初の 1 回の手順を書く**
   順に: (0) 開発者が Google 側でログイン用のアプリ（OAuth クライアント、種類はウェブアプリ）を作る → (1) `az deployment group create -g <リソースグループ> -f infra/main.bicep -p deployApp=false googleClientId=<…>` → (2) Key Vault に `anthropic-api-key`（開発者）、`user-key-secret`（乱数で作ってよい）、`google-client-secret`（開発者）を入れる → (3) `deployApp=true` でもう一度流す → (4) 出力からリポジトリ変数を `gh variable set` で入れる → (5) Google 側の「承認済みのリダイレクト URI」に `https://<アプリの URL>/.auth/login/google/callback` を足し、OAuth の同意画面を「本番」にする → (6) `ghcr.io` のパッケージを公開にする（Container App が鍵なしで取れるように）→ (7) `deploy.yml` を手動で流し、`/api/health` を確かめる
 
-- [ ] **Step 6: コミットする**
+- [x] **Step 6: コミットする**
   `コンテナ、CI、デプロイ、Azure の定義を作る（foundation-7 公開 URL で動く）`
 
 ---
