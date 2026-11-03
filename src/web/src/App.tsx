@@ -7,6 +7,7 @@ import { Home } from '@/pages/Home'
 import { Landing } from '@/pages/Landing'
 import { Options } from '@/pages/Options'
 import { Profile } from '@/pages/Profile'
+import { Report } from '@/pages/Report'
 import { Settings } from '@/pages/Settings'
 import { Start } from '@/pages/Start'
 import { Talk } from '@/pages/Talk'
@@ -80,6 +81,14 @@ export function AppRoutes() {
         element={
           <RequireUser key="deepen" consent>
             <Deepen />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/report"
+        element={
+          <RequireUser key="report" consent>
+            <Report />
           </RequireUser>
         }
       />

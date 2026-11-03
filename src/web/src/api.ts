@@ -630,3 +630,86 @@ export function putDeepenAnswer(generatedAt: string, questionId: string, answer:
 export function putDeepenSteps(generatedAt: string, steps: { chosen: string[]; own: string[] }): Promise<Deepen> {
   return deepenRequest('/steps', 'PUT', { ...steps, generatedAt })
 }
+
+// ---- 可能性レポート ----
+
+/** レポートの欄。この順が画面の順。 */
+export type ReportSection = 'abilities' | 'notYet' | 'records' | 'choice' | 'thinking' | 'steps'
+
+/** 確かめた力 1 つ。state は画面では copy の言葉にして出す。 */
+export type ReportAbility = { key: AbilityKey; name: string; state: 'confirmed' | 'needsCheck'; quotes: Quote[] }
+
+/** 選んだ案の業務 1 つで、まだ確かめていないこと。abilityName は、まだ確かめていない力の名前（なければ null）。 */
+export type ReportTaskGap = { taskName: string; abilityName: string | null; knowledge: string[] }
+
+/** まだ確かめていないこと。力は名前で来る。hasExcluded は、業務で使う力を本人が外していて、その名前を出していないか。 */
+export type ReportNotYet = { notHeard: string[]; checking: string[]; taskGaps: ReportTaskGap[]; hasExcluded: boolean }
+
+/** 5 つの記録（できることは確かめた力の欄と同じなので来ない）。 */
+export type ReportRecords = {
+  preferences: ProfileEntry[]
+  wants: ProfileEntry[]
+  conditions: ProfileConditions | null
+  agency: string | null
+}
+
+/**
+ * 選んだ案。kind が null ならまだ選んでいない。reason と ability は、いまの記録で使えるときだけ来る（使えなければ problem に理由）。
+ * outsideConditions は、いまの条件に収まらないか。demandNotChecked は「創る」。cardsStale は、05 のカードが古くなっているか。
+ */
+export type ReportChoice = {
+  kind: 'card' | 'own' | 'hold' | null
+  card: CardKind | null
+  title: string | null
+  summary: string | null
+  tasks: string[]
+  reason: string | null
+  ability: ReportAbility | null
+  problem: MissingReason | null
+  outsideConditions: boolean
+  demandNotChecked: boolean
+  cardsStale: boolean
+}
+
+export type ReportThought = { situation: string; answer: string; fromChoice: boolean }
+
+/** 一歩。own は本人が書いた一歩。fits は、選んだ候補がいまの条件に収まるか。 */
+export type ReportStep = { text: string; own: boolean; fits: boolean }
+
+/** いまの中身。thinking と steps は、いまの選んだ案で深めた中身がなければ null。 */
+export type ReportContent = {
+  abilities: ReportAbility[]
+  notYet: ReportNotYet
+  records: ReportRecords
+  choice: ReportChoice
+  thinking: ReportThought[] | null
+  steps: ReportStep[] | null
+}
+
+/**
+ * 版の中の、まだ確かめていないこと。力の状態を表す行（まだ聞けていない力、確かめ中の力、業務で使う力のうち確かめていない力）は来ず、
+ * 業務に要る知識や道具だけが来る。
+ */
+export type ReportSnapshotNotYet = { taskGaps: { taskName: string; knowledge: string[] }[]; hasExcluded: boolean }
+
+/** 版に残した中身。根拠の言葉、選んだ案の理由、力の状態は持たない。 */
+export type ReportSnapshot = {
+  abilities: { key: AbilityKey; name: string }[]
+  notYet: ReportSnapshotNotYet
+  records: ReportRecords
+  choice: Omit<ReportChoice, 'reason' | 'ability' | 'problem'>
+  thinking: ReportThought[] | null
+  steps: ReportStep[] | null
+}
+
+/** 版 1 つ。changed は前の版から変わった欄（第 1 版は空）。 */
+export type ReportVersion = { number: number; at: string; changed: ReportSection[]; snapshot: ReportSnapshot }
+
+/** レポートの API が返すもの。開けないときは ready が false で、ほかは空。previous は新しいものから。 */
+export type Report = { ready: boolean; content: ReportContent | null; current: ReportVersion | null; previous: ReportVersion[] }
+
+/** レポートを開く。中身が変わっていれば、裏側が版を増やす。 */
+export async function getReport(): Promise<Report> {
+  const response = await request('/api/report')
+  return (await response.json()) as Report
+}

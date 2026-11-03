@@ -57,8 +57,13 @@ public static class OptionsInputsReader
         var profile = await store.GetAsync<ProfileItem>(userKey, ProfileItem.ItemId, ct);
         var episodes = await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct);
         var book = await store.GetAsync<AbilityBookItem>(userKey, AbilityBookItem.ItemId, ct);
+        return From(profile, episodes, AbilityBook.View(episodes, book), book);
+    }
 
-        var views = AbilityBook.View(episodes, book);
+    /// <summary>読んだ記録から作る。<paramref name="views"/> は <see cref="AbilityBook.View"/> の結果（07 report が同じ読み取りから使うため）。</summary>
+    public static OptionsInputs From(
+        ProfileItem? profile, IReadOnlyList<EpisodeItem> episodes, IReadOnlyList<AbilityView> views, AbilityBookItem? book)
+    {
         static bool Usable(AbilityView v) => v.State is AbilityState.Confirmed or AbilityState.NeedsCheck && v.Shown.Count > 0;
         var abilities = views
             .Where(v => !v.Excluded && Usable(v))

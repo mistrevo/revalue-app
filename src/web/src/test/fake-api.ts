@@ -15,6 +15,9 @@ import type {
   Profile,
   ProfileConditions,
   ProfileEntry,
+  Report,
+  ReportContent,
+  ReportSnapshot,
   Turn,
 } from '@/api'
 
@@ -343,6 +346,97 @@ export function fakeDeepen(overrides: Partial<Deepen> = {}): Deepen {
   }
 }
 
+/** 架空のレポートの中身。fakeProfile・fakeOptionCards・fakeDeepenContent と同じ記録で、「選ぶ」のオンライン秘書を選んで深めたもの。 */
+export function fakeReportContent(overrides: Partial<ReportContent> = {}): ReportContent {
+  const coordinating = { key: 'coordinating' as const, name: '調整する力', state: 'confirmed' as const, quotes: FAKE_COORDINATING_QUOTES }
+  return {
+    abilities: [
+      coordinating,
+      {
+        key: 'prioritizing',
+        name: '優先順位をつける力',
+        state: 'needsCheck',
+        quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
+      },
+    ],
+    notYet: {
+      notHeard: ['見立てる力'],
+      checking: ['優先順位をつける力'],
+      taskGaps: [
+        { taskName: '日程の調整', abilityName: null, knowledge: ['表計算'] },
+        { taskName: '出張や会食の手配', abilityName: '見立てる力', knowledge: [] },
+      ],
+      hasExcluded: false,
+    },
+    records: {
+      preferences: [{ text: '自分のペースで進められる', source: 'chosen' }],
+      wants: [],
+      conditions: { timeSlots: ['daytime'], hoursPerWeek: 10, place: 'homeOnly', monthlyIncome: 5 },
+      agency: '家族の予定を先に決めてから動きたい',
+    },
+    choice: {
+      kind: 'card',
+      card: 'choose',
+      title: 'オンライン秘書',
+      summary: '連絡や予定の段取りを、オンラインで手伝う仕事',
+      tasks: ['日程の調整', '出張や会食の手配'],
+      reason: '班の家族の都合を聞いて集合を決めた動きは、日程の調整に生かせそうです。',
+      ability: coordinating,
+      problem: null,
+      outsideConditions: false,
+      demandNotChecked: false,
+      cardsStale: false,
+    },
+    thinking: [
+      { situation: '3 人の会議の日程を決めてほしいと頼まれましたが、1 人から返事が来ません。', answer: FAKE_DEEPEN_CHOICES[0], fromChoice: true },
+    ],
+    steps: [
+      { text: 'オンライン秘書の体験談を 2 つ読む', own: false, fits: true },
+      { text: '近所の図書館で本を借りる', own: true, fits: true },
+    ],
+    ...overrides,
+  }
+}
+
+/** 版の写し（裏側の ReportSnapshotDto と同じく、根拠の言葉、選んだ案の理由、力の状態を表すものを除く）。 */
+export function fakeReportSnapshot(content: ReportContent): ReportSnapshot {
+  const c = content.choice
+  return {
+    abilities: content.abilities.map((a) => ({ key: a.key, name: a.name })),
+    notYet: {
+      taskGaps: content.notYet.taskGaps
+        .filter((g) => g.knowledge.length > 0)
+        .map((g) => ({ taskName: g.taskName, knowledge: g.knowledge })),
+      hasExcluded: content.notYet.hasExcluded,
+    },
+    records: content.records,
+    choice: {
+      kind: c.kind,
+      card: c.card,
+      title: c.title,
+      summary: c.summary,
+      tasks: c.tasks,
+      outsideConditions: c.outsideConditions,
+      demandNotChecked: c.demandNotChecked,
+      cardsStale: c.cardsStale,
+    },
+    thinking: content.thinking,
+    steps: content.steps,
+  }
+}
+
+/** 架空の可能性レポート。開ける状態で、第 1 版だけがある。 */
+export function fakeReport(overrides: Partial<Report> = {}): Report {
+  const content = fakeReportContent()
+  return {
+    ready: true,
+    content,
+    current: { number: 1, at: '2026-11-03T09:00:00Z', changed: [], snapshot: fakeReportSnapshot(content) },
+    previous: [],
+    ...overrides,
+  }
+}
+
 /** 見立ての業務（「創る」と本人が書いた仕事のとき）。使える力は、fakeProfile の見えた力（調整する力）だけ。 */
 export function fakeDraftedTask(id: string, task: DeepenTaskRequest): DeepenTask {
   return {
@@ -399,6 +493,7 @@ export function installFakeApi(initial: {
   profile?: Profile
   options?: Options
   deepen?: Deepen
+  report?: Report
 }) {
   const state = {
     loggedIn: initial.loggedIn,
@@ -441,6 +536,8 @@ export function installFakeApi(initial: {
     deepenGate: null as Promise<void> | null,
     /** true なら、深めた中身の書き換え（/api/deepen/ の下の API）を 500 で断る。 */
     deepenSaveFails: false,
+    /** 可能性レポート。保留と一歩の保存は、裏側と同じく、次に開いたときの中身に映す（版は増やさない）。 */
+    report: initial.report ?? fakeReport({ ready: false, content: null, current: null }),
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -509,7 +606,12 @@ export function installFakeApi(initial: {
       state.profile = fakeProfile()
       state.options = fakeOptions()
       state.deepen = fakeDeepen({ readiness: 'noChoice', target: null })
+      state.report = fakeReport({ ready: false, content: null, current: null })
       return new Response(null, { status: 204 })
+    }
+
+    if (url === '/api/report' && method === 'GET') {
+      return json(200, state.report)
     }
 
     if (url === '/api/deepen' && method === 'GET') {
@@ -579,6 +681,12 @@ export function installFakeApi(initial: {
             ownSteps: request.own,
           },
         }
+        const report = state.report.content
+        if (report) {
+          const chosen = content.steps.filter((s) => request.chosen.includes(s.id)).map((s) => ({ text: s.text, own: false, fits: s.fits }))
+          const own = request.own.map((text) => ({ text, own: true, fits: true }))
+          state.report = { ...state.report, content: { ...report, steps: [...chosen, ...own] } }
+        }
         return json(200, state.deepen)
       }
     }
@@ -630,6 +738,19 @@ export function installFakeApi(initial: {
         state.options = { ...state.options, choice: { kind: 'own', at, card: null, ownJob: own } }
       } else {
         state.options = { ...state.options, choice: { kind: 'hold', at, card: null, ownJob: null } }
+        const report = state.report.content
+        if (report) {
+          state.report = {
+            ...state.report,
+            content: {
+              ...report,
+              choice: { ...report.choice, kind: 'hold', card: null, title: null, summary: null, tasks: [], reason: null, ability: null, problem: null, outsideConditions: false, demandNotChecked: false },
+              notYet: { ...report.notYet, taskGaps: [] },
+              thinking: null,
+              steps: null,
+            },
+          }
+        }
       }
       return json(200, state.options)
     }

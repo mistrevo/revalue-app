@@ -8,7 +8,7 @@ import { copy } from '@/copy'
 type State = { kind: 'loading' } | { kind: 'ready'; talkingId: string | null } | { kind: 'error' }
 
 /**
- * ホーム。「話す」の入口、話したことの一覧、見えた力、5 つの記録、仕事の選択肢、設定。
+ * ホーム。「話す」の入口、話したことの一覧、見えた力、5 つの記録、仕事の選択肢、選んだ案を深める、可能性レポート、設定。
  * 話している途中の場面があれば「続きから話す」でその場面へ。なければ新しい場面を作る。
  */
 export function Home() {
@@ -79,6 +79,9 @@ export function Home() {
         </Button>
         <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
           <Link to="/deepen">{copy.home.deepen}</Link>
+        </Button>
+        <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+          <Link to="/report">{copy.home.report}</Link>
         </Button>
         <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
           <Link to="/settings">{copy.home.settingsLink}</Link>

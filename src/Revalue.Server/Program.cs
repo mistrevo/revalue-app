@@ -9,6 +9,7 @@ using Revalue.Server.Features.Foundation.Counting;
 using Revalue.Server.Features.Foundation.Limits;
 using Revalue.Server.Features.Options;
 using Revalue.Server.Features.Profile;
+using Revalue.Server.Features.Report;
 using Revalue.Server.Features.Validate;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +47,7 @@ ValidateEndpoints.Map(api);
 ProfileEndpoints.Map(api);
 OptionsEndpoints.Map(api);
 DeepenEndpoints.Map(api);
+ReportEndpoints.Map(api);
 api.MapGet("/stats", async (ICounter counter, CancellationToken ct) => TypedResults.Ok(await counter.GetAsync(ct))).RequireConsent();
 
 // テストの環境（Testing）だけ、送信回数の上限を確かめるための API を足す。本番の経路には足さない
