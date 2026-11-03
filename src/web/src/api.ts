@@ -449,10 +449,14 @@ export type CreateCard = {
   ability: CardAbility | null
 }
 
-/** いまの記録で見せられるカード。stale は、作ったあとに元の記録が変わったか。 */
+/**
+ * いまの記録で見せられるカード。stale は、作ったあとに元の記録が変わったか。retryPaused は、いまの記録で作り直そうとして
+ * AI が失敗したか断ったか（開いたときに自動で作り直さず、「もう一度作る」を出す）。
+ */
 export type OptionCards = {
   generatedAt: string
   stale: boolean
+  retryPaused: boolean
   choose: ChooseCard | null
   combine: CombineCard | null
   create: CreateCard | null
@@ -464,6 +468,7 @@ export type OwnJob = { id: string; title: string; note: string | null }
 /**
  * 選んだ案。カードは選んだときの中身の写し。abilityExcluded は、カードの力を本人があとで外したか。
  * abilityChanged は、外してはいないが、力の状態か根拠の言葉がいまの記録と合わなくなったか。どちらかなら、理由と力は来ない。
+ * outsideConditions は、選んだあとで条件が変わり、いまの条件に収まらなくなったか（中身は選んだときのまま）。
  */
 export type OptionChoice = {
   kind: 'card' | 'own' | 'hold'
@@ -475,6 +480,7 @@ export type OptionChoice = {
     create: CreateCard | null
     abilityExcluded: boolean
     abilityChanged: boolean
+    outsideConditions: boolean
   } | null
   ownJob: OwnJob | null
 }

@@ -220,6 +220,148 @@ public sealed class OptionsValidatorTests
         Assert.DoesNotContain(rejections, r => r.Kind == CardKind.Choose);
     }
 
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由で「」のほかの括弧（『』や “” など）と、閉じていない「」を使ったカードは出さない")]
+    public void OtherBracketKindsInReasonAreRejected()
+    {
+        // 括弧の種類を変えると、カードの力の根拠に限る照らし合わせを抜けて、ほかの力の言葉を引けてしまうため
+        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        foreach (var reason in new[]
+        {
+            "話してくれた『予定を見比べました』ときの動き方を、生かせるかもしれません。",
+            "話してくれた“予定を見比べました”ときの動き方を、生かせるかもしれません。",
+            $"話してくれた「{Q1}ときの動き方を、生かせるかもしれません。",
+            $"話してくれた{Q1}」ときの動き方を、生かせるかもしれません。",
+        })
+        {
+            AssertRejected(CardKind.Choose, "bracketKind", Draft(choose: GoodChoose() with { Reason = reason }), both);
+        }
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 根拠の言葉を「」なしで写したカードは出さない。理由の「」の外で、カードに添える根拠の言葉を言い換えるのはよい")]
+    public void CopiedEvidenceIsRejected()
+    {
+        // 役割の名前と「創る」の文は、選んだあとで力を外したり場面を飛ばしたりしても案の中身として残るので、どの力の根拠も写させない
+        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        AssertRejected(CardKind.Create, "evidenceCopied", Draft(create: GoodCreate() with { Who = $"{Q1}困っている家庭の" }), both);
+        AssertRejected(CardKind.Create, "evidenceCopied", Draft(create: GoodCreate() with { Trouble = "予定を見比べましたが決まらないこと" }), both);
+        AssertRejected(CardKind.Create, "evidenceCopied", Draft(create: GoodCreate() with { Summary = $"{Q2}、という段取りを手伝う事業のアイデア" }), both);
+        AssertRejected(CardKind.Combine, "evidenceCopied", Draft(combine: GoodCombine() with { RoleName = "班の2家族に連絡しました人" }), both);
+        // 理由の「」の外でも、カードに添えない言葉（ほかの力の根拠、「創る」で引かなかった言葉）は写させない
+        AssertRejected(CardKind.Choose, "evidenceCopied", Draft(choose: GoodChoose() with { Reason = "予定を見比べましたという動き方を、生かせるかもしれません。" }), both);
+        AssertRejected(CardKind.Create, "evidenceCopied", Draft(create: GoodCreate() with { Reason = $"話してくれた「{Q1}」ときと、{Q2}ときの動き方が、生かせるかもしれません。" }), both);
+
+        // カードに添える根拠の言葉なら、理由の「」の外で写してもよい（力が変われば、理由ごと出さなくなる）
+        var (cards, rejections) = Build(Draft(choose: GoodChoose() with { Reason = $"{Q1}、そのあと連絡した動き方を、日程の調整に生かせるかもしれません。" }), both);
+        Assert.NotNull(cards.Choose);
+        Assert.DoesNotContain(rejections, r => r.Kind == CardKind.Choose);
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: 円を付けない書き方のお金の額も、カードに書かせない")]
+    public void MoneyWithoutYenIsRejected()
+    {
+        foreach (var summary in new[]
+        {
+            "送迎の予定を取りまとめる事業のアイデアで、月に5万ほどです",
+            "送迎の予定を取りまとめる事業のアイデアで、時給1500くらいです",
+            "送迎の予定を取りまとめる事業のアイデアで、1回3000えんです",
+            "送迎の予定を取りまとめる事業のアイデアで、月3万程度です",
+            "送迎の予定を取りまとめる事業のアイデアで、数万になります",
+        })
+        {
+            AssertRejected(CardKind.Create, "moneyAmount", Draft(create: GoodCreate() with { Summary = summary }));
+        }
+
+        // 時間の数は額ではない
+        var (cards, rejections) = Build(Draft(create: GoodCreate() with { Summary = "週 5 時間で、送迎の予定を取りまとめる事業のアイデア" }));
+        Assert.NotNull(cards.Create);
+        Assert.DoesNotContain(rejections, r => r.Kind == CardKind.Create);
+    }
+
+    [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 言い切り、順位、褒め言葉の表記ゆれも、カードに書かせない")]
+    public void AssertiveAndPraiseVariantsAreRejected()
+    {
+        foreach (var reason in new[] { "日程の調整にオススメです。", "日程の調整に向いてる経験です。", "日程の調整の適任です。", "ベストな案です。", "イチオシの案です。" })
+        {
+            AssertRejected(CardKind.Choose, "assertiveWord", Draft(choose: GoodChoose() with { Reason = reason }));
+        }
+
+        foreach (var reason in new[] { "素晴らしく段取りができる経験です。", "プロフェッショナルな段取りです。", "見事な段取りです。", "抜群の段取りです。" })
+        {
+            AssertRejected(CardKind.Choose, "praiseWord", Draft(choose: GoodChoose() with { Reason = reason }));
+        }
+    }
+
+    [Fact(DisplayName = "common-1（使わない言葉を出さない）: 「優先順位」の「順位」は、力の名前の外でも、使わない言葉として数えない")]
+    public void PriorityWordIsNotForbidden()
+    {
+        const string own = "優先順位を決めて、書類を先にしました";
+        var inputs = Inputs() with
+        {
+            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, own)])],
+        };
+        var (cards, rejections) = Build(
+            Draft(choose: GoodChoose() with { Reason = $"話してくれた「{own}」ときの、優先順位の決め方を、日程の調整に生かせるかもしれません。" }), inputs);
+        Assert.NotNull(cards.Choose);
+        Assert.DoesNotContain(rejections, r => r.Kind == CardKind.Choose);
+        Assert.Equal("順位", Forbidden.FirstIn("カードに順位を付けます"));
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: 選んだ案が、いまの条件に収まるかを確かめられる")]
+    public void ChosenCardFitsCurrentConditions()
+    {
+        var inputs = Inputs();
+        var (cards, _) = Build(Draft(), inputs);
+        var create = new OptionChoice(ChoiceKind.Card, Now, CardKind.Create, null, null, cards.Create, null);
+        var choose = new OptionChoice(ChoiceKind.Card, Now, CardKind.Choose, cards.Choose, null, null, null);
+        Assert.True(OptionsValidator.ChosenFits(create, inputs.Conditions!, Catalog));
+        Assert.True(OptionsValidator.ChosenFits(choose, inputs.Conditions!, Catalog));
+
+        // 「創る」は週 5 時間、日中。週 3 時間、夜だけにすると収まらない
+        var narrowed = Inputs(hours: 3, slots: [TimeSlot.Night]).Conditions!;
+        Assert.False(OptionsValidator.ChosenFits(create, narrowed, Catalog));
+        Assert.False(OptionsValidator.ChosenFits(choose, narrowed, Catalog));
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 飛ばして消えた本人の言葉を持つカードは捨て、選んだ案からは理由と根拠の言葉を消す")]
+    public void ScrubRemovesSkippedWords()
+    {
+        var inputs = Inputs();
+        var (cards, _) = Build(Draft(), inputs);
+        var item = new OptionsItem
+        {
+            Id = OptionsItem.ItemId,
+            UserKey = "u",
+            Type = OptionsItem.ItemType,
+            Cards = cards,
+            Choice = new OptionChoice(ChoiceKind.Card, Now, CardKind.Create, null, null, cards.Create, null),
+        };
+
+        // 根拠の言葉がどれも残っていれば、何も変えない
+        Assert.Same(item, OptionsScrub.Scrub(item, [$"{Q1}いたので、{Q2}。"]));
+
+        // Q2 を話した場面を飛ばした。Q2 を根拠に持つ選ぶと組み合わせるは捨てる。「創る」は Q1 だけを引いていたので残す
+        var scrubbed = OptionsScrub.Scrub(item, [$"{Q1}いました。"]);
+        Assert.Null(scrubbed.Cards!.Choose);
+        Assert.Null(scrubbed.Cards.Combine);
+        Assert.NotNull(scrubbed.Cards.Create);
+        Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.Changed), scrubbed.Cards.Missing);
+        Assert.False(scrubbed.Choice!.SourceRemoved);
+
+        // Q1 も消えた。選んだ「創る」は中身を残し、理由と根拠の言葉を消す
+        var gone = OptionsScrub.Scrub(item, []);
+        Assert.Null(gone.Cards!.Create);
+        Assert.True(gone.Choice!.SourceRemoved);
+        Assert.Equal("", gone.Choice.Create!.Reason);
+        Assert.Empty(gone.Choice.Create.Ability.Quotes);
+        Assert.Equal(cards.Create!.Title, gone.Choice.Create.Title);
+        Assert.Equal(MissingReason.Changed, gone.Choice.AbilityProblem(inputs));
+        var raw = new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+        Assert.Contains(Q1, JsonSerializer.Serialize(item, raw));
+        var serialized = JsonSerializer.Serialize(gone, raw);
+        Assert.DoesNotContain(Q1, serialized);
+        Assert.DoesNotContain(Q2, serialized);
+    }
+
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: カードの理由に使えない力を外したり戻したりしても、元の記録の指紋は変わらず、作り直さない")]
     public void ExcludingUnusableAbilityKeepsBasis()
     {

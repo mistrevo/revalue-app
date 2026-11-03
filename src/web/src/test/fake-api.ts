@@ -204,6 +204,7 @@ export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCar
   return {
     generatedAt: '2026-11-03T06:00:00Z',
     stale: false,
+    retryPaused: false,
     choose: {
       occupationName: 'オンライン秘書',
       summary: '連絡や予定の段取りを、オンラインで手伝う仕事',
@@ -441,6 +442,7 @@ export function installFakeApi(initial: {
               create: choice.card === 'create' ? cards.create : null,
               abilityExcluded: false,
               abilityChanged: false,
+              outsideConditions: false,
             },
             ownJob: null,
           },

@@ -37,19 +37,35 @@ public sealed record CreateCardDto(
     string? Reason,
     CardAbilityDto? Ability);
 
-/// <summary>いまの記録で見せられるカード。<paramref name="Stale"/> は、作ったあとに元の記録が変わったか。</summary>
+/// <summary>
+/// いまの記録で見せられるカード。<paramref name="Stale"/> は、作ったあとに元の記録が変わったか。<paramref name="RetryPaused"/> は、
+/// いまの記録で作り直そうとして AI が失敗したか断ったか（画面は開いたときに自動で作り直さず、「もう一度作る」を出す）。
+/// </summary>
 public sealed record OptionCardsDto(
-    DateTimeOffset GeneratedAt, bool Stale, ChooseCardDto? Choose, CombineCardDto? Combine, CreateCardDto? Create, IReadOnlyList<MissingCard> Missing);
+    DateTimeOffset GeneratedAt,
+    bool Stale,
+    bool RetryPaused,
+    ChooseCardDto? Choose,
+    CombineCardDto? Combine,
+    CreateCardDto? Create,
+    IReadOnlyList<MissingCard> Missing);
 
 public sealed record OwnJobDto(string Id, string Title, string? Note);
 
 /// <summary>
 /// 選んだカード。選んだときの中身の写し。<paramref name="AbilityExcluded"/> は、カードの力を本人があとで外したか。
 /// <paramref name="AbilityChanged"/> は、外してはいないが、力の状態か根拠の言葉がいまの記録と合わなくなったか。
-/// どちらかなら、理由と、もとにした力と根拠の言葉は返さない。
+/// どちらかなら、理由と、もとにした力と根拠の言葉は返さない。<paramref name="OutsideConditions"/> は、選んだあとで条件が変わり、
+/// 選んだ案がいまの条件に収まらなくなったか（中身は選んだときのまま）。
 /// </summary>
 public sealed record ChosenCardDto(
-    CardKind Kind, ChooseCardDto? Choose, CombineCardDto? Combine, CreateCardDto? Create, bool AbilityExcluded, bool AbilityChanged);
+    CardKind Kind,
+    ChooseCardDto? Choose,
+    CombineCardDto? Combine,
+    CreateCardDto? Create,
+    bool AbilityExcluded,
+    bool AbilityChanged,
+    bool OutsideConditions);
 
 public sealed record OptionChoiceDto(ChoiceKind Kind, DateTimeOffset At, ChosenCardDto? Card, OwnJobDto? OwnJob);
 
@@ -113,6 +129,9 @@ public static class OptionsEndpoints
             catch (ConversationAiException e)
             {
                 logger.LogWarning("Drafting the options ended with {Kind} after {ElapsedMs} ms.", e.Kind, watch.ElapsedMilliseconds);
+                // 同じ記録のあいだは、開いたときに自動で作り直さないよう、失敗した記録の指紋だけを残す。カードと選んだ案は変えない
+                var failed = OptionsInputsReader.Basis(inputs);
+                await OptionsStore.UpdateAsync(store, userKey, item => item with { FailedBasis = failed }, time, ct);
                 return Problems.Create(
                     StatusCodes.Status503ServiceUnavailable,
                     Problems.AiUnavailable,
@@ -131,11 +150,21 @@ public static class OptionsEndpoints
                 new object?[] { cards.Choose, cards.Combine, cards.Create }.Count(c => c is not null),
                 rejected.Length == 0 ? "none" : rejected);
 
-            // 作っているあいだに、ほかの要求（別のタブ）が同じ元の記録でカードを作って保存していたら、そちらを残す。
-            // 同じ記録のまま案を入れ替えない（05-options.md の「やらないこと」）
+            // AI を待つあいだに、ほかの画面で記録が変わっているかもしれない。答えは、読み直したいまの記録で見せられるものだけにする
+            var current = await OptionsInputsReader.ReadAsync(store, userKey, ct);
+            var currentBasis = OptionsInputsReader.Basis(current);
+
+            // 作っているあいだに、ほかの要求（別のタブ）が同じ元の記録か、いまの記録でカードを作って保存していたら、そちらを残す。
+            // 同じ記録のまま案を入れ替えず、遅れて終わった古い記録のカードで新しいカードを上書きしない（05-options.md の「作り直す」）
             var saved = await OptionsStore.UpdateAsync(
-                store, userKey, item => item.Cards?.Basis == cards.Basis ? item : item with { Cards = cards }, time, ct);
-            return TypedResults.Ok(Dto(saved, inputs, catalog));
+                store,
+                userKey,
+                item => item.Cards is { } stored && (stored.Basis == cards.Basis || stored.Basis == currentBasis)
+                    ? item with { FailedBasis = null }
+                    : item with { Cards = cards, FailedBasis = null },
+                time,
+                ct);
+            return TypedResults.Ok(Dto(saved, current, catalog));
         })
             // 送信回数を数える前に見る。作ったカードがあり、元の記録が変わっていなければ、AI を呼ばず、送信回数にも数えずに、いまのカードを返す
             .AddEndpointFilter(async (context, next) =>
@@ -179,7 +208,8 @@ public static class OptionsEndpoints
                 await counter.CountOnceAsync(userKey, CountMetric.ChoseOption, ct);
             }
 
-            return TypedResults.Ok(Dto(saved, inputs, catalog));
+            // 選ぶまでのあいだに、ほかの画面で力を外したかもしれない。答えは、読み直したいまの記録で作る（外した力の言葉を出さない）
+            return TypedResults.Ok(Dto(saved, await OptionsInputsReader.ReadAsync(store, userKey, ct), catalog));
         });
 
         options.MapDelete("/choice", async (HttpContext http, IDataStore store, JobCatalog catalog, TimeProvider time, CancellationToken ct) =>
@@ -370,9 +400,12 @@ public static class OptionsEndpoints
         if (item?.Cards is { } stored)
         {
             var shown = OptionsValidator.ForDisplay(stored, inputs, catalog);
+            var basis = OptionsInputsReader.Basis(inputs);
+            var stale = shown.Basis != basis;
             cards = new OptionCardsDto(
                 shown.GeneratedAt,
-                shown.Basis != OptionsInputsReader.Basis(inputs),
+                stale,
+                stale && item.FailedBasis == basis,
                 shown.Choose is { } choose ? ChooseDto(choose) : null,
                 shown.Combine is { } combine ? CombineDto(combine) : null,
                 shown.Create is { } create ? CreateDto(create) : null,
@@ -384,7 +417,9 @@ public static class OptionsEndpoints
             ? new OptionChoiceDto(
                 c.Kind,
                 c.At,
-                c is { Kind: ChoiceKind.Card, Card: { } kind } ? ChosenDto(c, kind, c.AbilityProblem(inputs)) : null,
+                c is { Kind: ChoiceKind.Card, Card: { } kind }
+                    ? ChosenDto(c, kind, c.AbilityProblem(inputs), inputs.Conditions is { } conditions && !OptionsValidator.ChosenFits(c, conditions, catalog))
+                    : null,
                 ownJobs.FirstOrDefault(j => c.Kind == ChoiceKind.Own && j.Id == c.OwnJobId) is { } own ? OwnDto(own) : null)
             : null;
 
@@ -403,7 +438,7 @@ public static class OptionsEndpoints
     /// 選んだカードの写し。カードの力を本人があとで外していたか（validate-12（本人が見立てを外せる））、力の状態か根拠の言葉が
     /// いまの記録と合わなくなっていたら（<paramref name="problem"/>）、理由と力と根拠の言葉を外す。
     /// </summary>
-    private static ChosenCardDto ChosenDto(OptionChoice choice, CardKind kind, MissingReason? problem)
+    private static ChosenCardDto ChosenDto(OptionChoice choice, CardKind kind, MissingReason? problem, bool outsideConditions)
     {
         var withReason = problem is null;
         return new ChosenCardDto(
@@ -412,7 +447,8 @@ public static class OptionsEndpoints
             choice.Combine is { } co ? CombineDto(co, withReason) : null,
             choice.Create is { } cr ? CreateDto(cr, withReason) : null,
             problem == MissingReason.Excluded,
-            problem == MissingReason.Changed);
+            problem == MissingReason.Changed,
+            outsideConditions);
     }
 
     private static CardAbilityDto AbilityDto(CardAbility ability) =>

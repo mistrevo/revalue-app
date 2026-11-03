@@ -115,7 +115,12 @@ export function Options() {
         setState({ kind: 'ready', data })
         if (data.readiness === 'ready' && data.cards?.stale && !autoRegenerated.current) {
           autoRegenerated.current = true
-          void generate('regenerating')
+          if (data.cards.retryPaused) {
+            // いまの記録で一度失敗している。開くたびに送信回数を使わないよう、自動では作り直さず「もう一度作る」を出す
+            setGenerateError({ kind: 'failed' })
+          } else {
+            void generate('regenerating')
+          }
         }
       })
       .catch(() => active && setState({ kind: 'error' }))
@@ -344,6 +349,7 @@ function ChoiceArea({
             {!chosen.abilityExcluded && chosen.abilityChanged && (
               <p className="text-sm leading-relaxed text-muted-foreground">{copy.options.chosenChanged}</p>
             )}
+            {chosen.outsideConditions && <p className="text-sm leading-relaxed text-muted-foreground">{copy.options.chosenOutside}</p>}
           </>
         )}
         {own && (
@@ -405,7 +411,7 @@ function OptionCard({
           </Button>
         </>
       ) : (
-        <Missing reason={cards.missing.find((m) => m.kind === kind)?.reason ?? 'rejected'} />
+        <Missing kind={kind} reason={cards.missing.find((m) => m.kind === kind)?.reason ?? 'rejected'} />
       )}
     </Section>
   )
@@ -415,7 +421,12 @@ function OptionCard({
  * 出せないカードの理由と、次にできること。同じ記録のまま作り直す道は置かない（05-options.md の「やらないこと」）。
  * 外した見立てのカードと、力の状態か根拠の言葉が変わったカードは、記録が変わっているので、開いたときに作り直す。
  */
-function Missing({ reason }: { reason: MissingReason }) {
+function Missing({ kind, reason }: { kind: CardKind; reason: MissingReason }) {
+  // 「創る」は登録の業務から作らないので、条件に合わなくなったときは、登録の業務の言葉ではなく、作り直すことを伝える
+  if (kind === 'create' && reason === 'noFit') {
+    return <p className="text-sm leading-relaxed">{copy.options.missing.createNoFit}</p>
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm leading-relaxed">{copy.options.missing[reason]}</p>

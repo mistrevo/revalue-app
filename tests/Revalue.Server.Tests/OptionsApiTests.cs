@@ -524,6 +524,106 @@ public sealed class OptionsApiTests
         Assert.NotEqual(JsonValueKind.Null, generated.GetProperty("cards").GetProperty("combine").ValueKind);
     }
 
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 場面を飛ばすと、その場面の言葉を、保存したカードにも選んだ案にも残さない")]
+    public async Task SkippedSceneWordsAreNotKept()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Consenting(factory, "o-25");
+        // 根拠のない場面を話し終え、調整する力の 3 つの行動を話している途中の場面から、カードを作って「創る」を選ぶ
+        var quiet = await Start(client);
+        ai.Reading = _ => ReadingWith();
+        await Send(client, quiet, "昨日は家で洗濯をして、夕方に買い物に行きました。");
+        await Finish(client, quiet);
+        var talking = await Start(client);
+        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        await Send(client, talking, CoordinatingAnswer);
+        await PutConditions(client, TenHours);
+        var generated = await Generate(client);
+        Assert.NotEqual(JsonValueKind.Null, generated.GetProperty("cards").GetProperty("create").ValueKind);
+        await ChooseCard(client, "create", generated);
+
+        var skipped = await client.PostAsync($"/api/episodes/{talking}/skip", null, Ct);
+        Assert.True(skipped.IsSuccessStatusCode);
+
+        // 保存の中身にも、飛ばした場面の言葉を残さない。選んだ案は中身（事業のアイデア）を残し、理由と根拠の言葉を消す
+        var item = await factory.Services.GetRequiredService<IDataStore>().GetAsync<OptionsItem>(TestUsers.Key("o-25"), OptionsItem.ItemId, Ct);
+        var stored = JsonSerializer.Serialize(item, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        {
+            Assert.DoesNotContain(quote, stored);
+        }
+
+        var dto = await Get(client);
+        var chosen = dto.GetProperty("choice").GetProperty("card");
+        Assert.True(chosen.GetProperty("abilityChanged").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, chosen.GetProperty("create").GetProperty("reason").ValueKind);
+        Assert.False(string.IsNullOrEmpty(chosen.GetProperty("create").GetProperty("title").GetString()));
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: AI を待つあいだに力を外すと、作った答えにも、そのあと選んだ答えにも、外した力の言葉を出さない")]
+    public async Task ExcludingWhileGeneratingIsNotShown()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Ready(factory, ai, "o-26");
+        options.Change = d =>
+        {
+            // AI を待つあいだに、ほかの画面で調整する力を外した
+            Assert.Equal(HttpStatusCode.OK, client.PostAsync("/api/abilities/coordinating/exclude", null, Ct).GetAwaiter().GetResult().StatusCode);
+            return d;
+        };
+
+        var generated = await Generate(client);
+
+        Assert.Equal("onlyExcluded", generated.GetProperty("readiness").GetString());
+        Assert.Equal([("choose", "excluded"), ("combine", "excluded"), ("create", "excluded")], Missing(generated));
+        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        {
+            Assert.DoesNotContain(quote, generated.GetRawText());
+        }
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: AI が失敗した記録のあいだは、開いたときに自動で作り直さない印を返す")]
+    public async Task RetryPausesAfterFailureUntilRecordsChange()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Ready(factory, ai, "o-27");
+        await Generate(client);
+        await ChangeRecords(client, 8);
+        Assert.False((await Get(client)).GetProperty("cards").GetProperty("retryPaused").GetBoolean());
+
+        options.Fail = ConversationAiException.Failure;
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/api/options", null, Ct)).StatusCode);
+        var paused = (await Get(client)).GetProperty("cards");
+        Assert.True(paused.GetProperty("stale").GetBoolean());
+        Assert.True(paused.GetProperty("retryPaused").GetBoolean());
+
+        // 記録が変われば、また開いたときに作り直す
+        await ChangeRecords(client, 10);
+        Assert.False((await Get(client)).GetProperty("cards").GetProperty("retryPaused").GetBoolean());
+
+        // 「もう一度作る」で作れたら、印を外す
+        options.Fail = null;
+        var regenerated = (await Generate(client)).GetProperty("cards");
+        Assert.False(regenerated.GetProperty("stale").GetBoolean());
+        Assert.False(regenerated.GetProperty("retryPaused").GetBoolean());
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: 選んだあとで条件を狭め、選んだ案が収まらなくなったら、そうと分かる印を返す")]
+    public async Task ChosenCardOutsideConditionsIsMarked()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Ready(factory, ai, "o-28");
+        var generated = await Generate(client);
+        var chosen = await ChooseCard(client, "create", generated);
+        Assert.False(chosen.GetProperty("choice").GetProperty("card").GetProperty("outsideConditions").GetBoolean());
+
+        await PutConditions(client, Conditions(3, ["night"]));
+        var card = (await Get(client)).GetProperty("choice").GetProperty("card");
+        Assert.True(card.GetProperty("outsideConditions").GetBoolean());
+        // 中身は選んだときのまま
+        Assert.Equal(10, card.GetProperty("create").GetProperty("hoursPerWeek").GetInt32());
+    }
+
     [Fact(DisplayName = "options-5（条件の範囲だけ）: 条件を狭めると、収まらなくなったカードは出さない")]
     public async Task NarrowedConditionsHideCardsOutOfRange()
     {
@@ -572,7 +672,10 @@ public sealed class OptionsApiTests
             Assert.Equal(kind, problem.GetProperty("kind").GetString());
         }
 
-        Assert.Equal(before.GetRawText(), (await Get(client)).GetRawText());
+        // カードと選んだ案は変えない。変わるのは、同じ記録のあいだ自動で作り直さない印だけ
+        var after = await Get(client);
+        Assert.True(after.GetProperty("cards").GetProperty("retryPaused").GetBoolean());
+        Assert.Equal(before.GetRawText(), after.GetRawText().Replace("\"retryPaused\":true", "\"retryPaused\":false", StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "options-7（1 場面で進める）: 作るときだけ 1 日の送信回数を 1 回数える")]

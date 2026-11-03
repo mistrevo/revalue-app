@@ -9,7 +9,11 @@ namespace Revalue.Server.Features.Foundation;
 /// </summary>
 public sealed class ForbiddenWordList
 {
-    private readonly string[] _abilityNames = Enum.GetValues<Ability>().Select(AbilityText.Name).ToArray();
+    /// <summary>
+    /// 照らし合わせる前に除く言葉。力の名前と、「優先順位」（「優先順位を決めた」のように、本人がしたことを映し返すときに使う。
+    /// 一覧の「順位」は、カードや人に順番を付けることを止めるためのもの。00-common.md の「言葉」）。
+    /// </summary>
+    public static readonly IReadOnlyList<string> Allowed = [.. Enum.GetValues<Ability>().Select(AbilityText.Name), "優先順位"];
 
     private ForbiddenWordList(IReadOnlyList<string> words) => Words = words;
 
@@ -22,10 +26,10 @@ public sealed class ForbiddenWordList
         return new ForbiddenWordList(JsonSerializer.Deserialize<string[]>(stream) ?? throw new InvalidOperationException("forbidden-words.json is empty."));
     }
 
-    /// <summary>最初に見つかった使わない言葉。なければ null。力の名前（「優先順位をつける力」の「順位」など）は先に除く。</summary>
+    /// <summary>最初に見つかった使わない言葉。なければ null。力の名前と「優先順位」（<see cref="Allowed"/>）は先に除く。</summary>
     public string? FirstIn(string text)
     {
-        var cleaned = _abilityNames.Aggregate(text, (current, name) => current.Replace(name, "", StringComparison.Ordinal));
+        var cleaned = Allowed.Aggregate(text, (current, name) => current.Replace(name, "", StringComparison.Ordinal));
         return Words.FirstOrDefault(word => cleaned.Contains(word, StringComparison.Ordinal));
     }
 }

@@ -252,11 +252,11 @@ public sealed partial class OptionsEval(
             }
         }
 
-        // 力の名前（「優先順位をつける力」の「順位」）は使わない言葉として数えない
+        // 力の名前と「優先順位」（「順位」を含む）は使わない言葉として数えない（照らし合わせと同じ）
         var written = string.Join("\n", parts.Sentences);
-        foreach (var ability in Enum.GetValues<Ability>())
+        foreach (var allowed in ForbiddenWordList.Allowed)
         {
-            written = written.Replace(AbilityText.Name(ability), "", StringComparison.Ordinal);
+            written = written.Replace(allowed, "", StringComparison.Ordinal);
         }
 
         var outside = parts.Sentences.Select(s => BracketPattern().Replace(s, "")).ToList();

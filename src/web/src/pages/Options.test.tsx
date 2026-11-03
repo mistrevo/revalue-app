@@ -220,6 +220,7 @@ describe('Options', () => {
             create: { ...base.create!, reason: null, ability: null },
             abilityExcluded: true,
             abilityChanged: false,
+            outsideConditions: false,
           },
           ownJob: null,
         },
@@ -253,6 +254,7 @@ describe('Options', () => {
             create: null,
             abilityExcluded: false,
             abilityChanged: true,
+            outsideConditions: false,
           },
           ownJob: null,
         },
@@ -399,6 +401,75 @@ describe('Options', () => {
     await userEvent.click(screen.getByRole('button', { name: copy.options.retry }))
     expect(await screen.findByText('経理事務')).toBeInTheDocument()
     expect(posts(api.calls)).toHaveLength(2)
+  })
+
+  it('options-5（条件の範囲だけ）: いまの記録で一度失敗していたら、開いたときに自動で作り直さず、「もう一度作る」を出す', async () => {
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({ cards: fakeOptionCards({ stale: true, retryPaused: true }) }),
+    })
+    renderApp('/options')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(copy.options.generateFailed)
+    expect(card(LABELS[0])).toHaveTextContent('オンライン秘書')
+    expect(posts(api.calls)).toHaveLength(0)
+
+    api.state.generate = fakeOptionCards({ choose: { ...fakeOptionCards().choose!, occupationName: '経理事務' } })
+    await userEvent.click(screen.getByRole('button', { name: copy.options.retry }))
+    expect(await screen.findByText('経理事務')).toBeInTheDocument()
+    expect(posts(api.calls)).toHaveLength(1)
+  })
+
+  it('options-5（条件の範囲だけ）: 選んだあとで条件が変わり、選んだ案が収まらなくなったら、そのことだけを添える', async () => {
+    const base = fakeOptionCards()
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({
+        choice: {
+          kind: 'card',
+          at: '2026-11-03T07:00:00Z',
+          card: {
+            kind: 'create',
+            choose: null,
+            combine: null,
+            create: base.create,
+            abilityExcluded: false,
+            abilityChanged: false,
+            outsideConditions: true,
+          },
+          ownJob: null,
+        },
+      }),
+    })
+    renderApp('/options')
+
+    const chosen = await screen.findByRole('region', { name: copy.options.chosenTitle })
+    expect(chosen).toHaveTextContent(copy.options.chosenOutside)
+    // 中身と理由は選んだときのまま出し、選び直すよう迫らない
+    expect(chosen).toHaveTextContent(copy.options.reasonTitle)
+    expect(within(chosen).getByRole('button', { name: copy.options.rechoose })).toBeInTheDocument()
+  })
+
+  it('options-1（3 枚を同じ重さで示す）: 「創る」が条件に合わなくなったときは、登録の業務の言葉ではなく、作り直すことを伝える', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({
+        cards: fakeOptionCards({
+          stale: true,
+          retryPaused: true,
+          create: null,
+          missing: [{ kind: 'create', reason: 'noFit' }],
+        }),
+      }),
+    })
+    renderApp('/options')
+
+    const create = await waitFor(() => card(LABELS[2]))
+    expect(create).toHaveTextContent(copy.options.missing.createNoFit)
+    expect(create).not.toHaveTextContent(copy.options.missing.noFit)
   })
 
   it('options-7（1 場面で進める）: 足りないものに合わせて、一つだけ道を出す', async () => {

@@ -43,6 +43,12 @@ public sealed record OptionChoice(
     CreateCard? Create,
     string? OwnJobId)
 {
+    /// <summary>
+    /// 選んだカードの元になった場面を本人が飛ばして、理由と根拠の言葉を写しから消したか（<see cref="OptionsScrub"/>）。
+    /// 飛ばした場面の中身は残さないので、戻ることはない（discover-5（つらい話は飛ばせる））。
+    /// </summary>
+    public bool SourceRemoved { get; init; }
+
     /// <summary>選んだカードの理由に使った力。カードを選んでいなければ null。</summary>
     public CardAbility? ChosenAbility() => Choose?.Ability ?? Combine?.Ability ?? Create?.Ability;
 
@@ -50,10 +56,12 @@ public sealed record OptionChoice(
     /// 選んだカードの理由と、もとにした力と根拠の言葉を、いまの記録では使えないときの理由。使えるなら null（カードを選んでいなければ null）。
     /// 本人があとで力を外したら <see cref="MissingReason.Excluded"/>、力の状態か根拠の言葉がいまの記録と合わなくなったら
     /// <see cref="MissingReason.Changed"/>（<see cref="CardAbility.ProblemIn"/>）。どちらのときも、選んだ案の中身（職種や業務、時間、場所、
-    /// 事業のアイデア）は残し、理由と、もとにした力と根拠の言葉は使わない。06 deepen と 07 report も同じ
+    /// 事業のアイデア）は残し、理由と、もとにした力と根拠の言葉は使わない。元の場面を飛ばしたとき（<see cref="SourceRemoved"/>）も
+    /// <see cref="MissingReason.Changed"/>。06 deepen と 07 report も同じ
     /// （05-options.md の「本人が選ぶ」。戻ればまた使う）。
     /// </summary>
-    public MissingReason? AbilityProblem(OptionsInputs inputs) => ChosenAbility()?.ProblemIn(inputs);
+    public MissingReason? AbilityProblem(OptionsInputs inputs) =>
+        ChosenAbility() is not { } ability ? null : SourceRemoved ? MissingReason.Changed : ability.ProblemIn(inputs);
 }
 
 /// <summary>利用者ごとに 1 件（id は固定）の、仕事のカード、本人が書いた仕事、選んだ案。</summary>
@@ -67,6 +75,12 @@ public sealed record OptionsItem : Item
     public IReadOnlyList<OwnJob> OwnJobs { get; init; } = [];
 
     public OptionChoice? Choice { get; init; }
+
+    /// <summary>
+    /// 最後に AI が失敗したか断ったときの、元の記録の指紋。同じ記録のあいだは、画面を開いたときに自動で作り直さない
+    /// （05-options.md の「作り直す」。開くたびに送信回数を使わないため）。作れたら null に戻す。
+    /// </summary>
+    public string? FailedBasis { get; init; }
 
     public DateTimeOffset UpdatedAt { get; init; }
 }
