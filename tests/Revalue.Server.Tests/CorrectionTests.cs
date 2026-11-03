@@ -114,6 +114,9 @@ public sealed class CorrectionTests
         Assert.Equal(["coordinating.2"], Array(Array(episode, "turns")[^1], "withdrawn").Select(w => w.GetString()));
         var more = Assert.Single(Array(episode.GetProperty("insights"), "moreToHear"));
         Assert.Equal([AbilityText.Hint(new ActionRef(Ability.Coordinating, 3))], Array(more, "hints").Select(h => h.GetString()));
+        // 区切る前の最後の問いに答えていないと、その行動は続きの最初の問いで聞かない。聞ける形にするため、聞いた記録を外す
+        await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
+            TestUsers.Key("g-1"), id, e => e with { Turns = [.. e.Turns.Select(t => t with { Target = null })] }, Ct);
         var question = Array(await Json(await Resume(client, id)), "turns")[^1];
         Assert.Equal("coordinating.3", question.GetProperty("target").GetString());
     }

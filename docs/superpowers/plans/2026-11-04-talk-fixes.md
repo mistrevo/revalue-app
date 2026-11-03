@@ -49,20 +49,20 @@
 - Changes: `ResumeTarget(EpisodeItem episode)` — いまの選び方に加えて、`UnansweredQuestion(episode)?.Target` を `ActionRef.Parse` した行動を選ばない。聞いた回数の数え方は変えない
 - Changes: `Reopen(EpisodeItem episode, DateTimeOffset now)` — `episode.Turns[^1]` が聞き手のターンで、`Move == ResumeMove`（続きの問い）なら、問いを足さずに話している途中に戻す（`Turns` はそのまま。`Status`、`FinishedAt`、`TurnLimit`、`BeforeResume` はいまと同じに変える）。それ以外は、いまと同じく続きの問いを足す
 
-- [ ] **Step 1: 失敗するテストを書く**（`ResumeTests.cs`。既存の `FinishedEpisode` などの道具を使う）
+- [x] **Step 1: 失敗するテストを書く**（`ResumeTests.cs`。既存の `FinishedEpisode` などの道具を使う）
   - `[Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いと同じ行動は、続きの最初の問いで聞かない")]`: 話し終えた場面の最後のターンが、足りない行動 X（例 `coordinating.3`）を聞いた答えていない問い。続きを開くと、最後の問いの `target` は X ではない。ほかに聞ける行動がなければ `target` は null で、文は `AbilityText.ResumeOpening(null, …)` の形（手がかりを添えない問い）
   - `[Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いのあとに訂正があっても、その問いの行動は続きの最初の問いで聞かない")]`: 最後の問い（X）のあとに、X を打ち消さない訂正のターンを保存先に直接足す。続きの問いの `target` は X ではない
   - `[Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに答えずにまた区切ってから続きを開くと、問いを足さず、その問いから続ける")]`: 続きを開く → 答えずに区切る → 続きを開く。2 回目のあとの `turns` の数は 1 回目のあとと同じで、最後のターンは 1 回目の続きの問い（文、`target`、`choices` が同じ）。状態は話している途中、往復の上限は答えの数 + 4
   - `[Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 問いを足さずに続きを開いた場面を飛ばすと、前に話し終えていた姿に戻る")]`: 上の 2 回目のあとに飛ばす（`/skip`）。場面は話し終えた状態で、`turns` は 2 回目に開く前と同じ
-- [ ] **Step 2: 実行して失敗を確かめる**: `dotnet test --filter "FullyQualifiedName~ResumeTests"`。新しいテストが失敗する
-- [ ] **Step 3: 実装する**（上の Interfaces のとおり）
-- [ ] **Step 4: いまのテストを直す**: いまの `ResumeTests` には、最後のターンが答えていない問い（`coordinating.3`）のまま続きを開き、続きの問いが同じ行動を聞くことを確かめているものがある（例 `ResumeReopensWithHintQuestion`）。ほかのテストと同じく、保存先で最後の問いの `Target` を外してから続きを開く形に直し、確かめている中身（文、選択肢、一手の名前、`target`）は弱めない。新しい振る舞いのせいで期待が変わるテストは、何を確かめるテストかを読んでから直す
-- [ ] **Step 5: 実行して通ることを確かめる**: `dotnet test`
-- [ ] **Step 6: Spec を直す**（`03-validate.md`）
+- [x] **Step 2: 実行して失敗を確かめる**: `dotnet test --filter "FullyQualifiedName~ResumeTests"`。新しいテストが失敗する
+- [x] **Step 3: 実装する**（上の Interfaces のとおり）
+- [x] **Step 4: いまのテストを直す**: いまの `ResumeTests` には、最後のターンが答えていない問い（`coordinating.3`）のまま続きを開き、続きの問いが同じ行動を聞くことを確かめているものがある（例 `ResumeReopensWithHintQuestion`）。ほかのテストと同じく、保存先で最後の問いの `Target` を外してから続きを開く形に直し、確かめている中身（文、選択肢、一手の名前、`target`）は弱めない。新しい振る舞いのせいで期待が変わるテストは、何を確かめるテストかを読んでから直す
+- [x] **Step 5: 実行して通ることを確かめる**: `dotnet test`
+- [x] **Step 6: Spec を直す**（`03-validate.md`）
   - 「続きを話す」に足す（Claude の判断）: 区切る前の最後の問いに答えていないときは、同じことを聞く問いを続けて出さない。最後の問いが足りない行動を聞いていたら、続きの問いではその行動を選ばず、次の行動を選ぶ（なければ手がかりを添えない問い）。答えずに区切ったのは答えにくかったからかもしれないので、すぐには聞き直さない。その行動も、続きの中でいつもの決まり（同じ行動は 2 回まで）で聞くことがある。最後の問いが続きの問い（続きを開いて、答えずにまた区切った）なら、問いを足さず、その問いから続ける。最後の問いを見るとき、訂正のターンは数えない
   - validate-11（要確認の場面に戻れる）に足す: 区切る前の最後の問いに答えていなければ、同じことを聞く問いを続けて出さない
   - API の表の `POST /api/episodes/{id}/resume` の「続きの問いを足して返す」に、問いを足さないときがあることを書く
-- [ ] **Step 7: コミット**: `git commit -m "答えずに区切った問いと同じことを、続きの最初の問いで聞かない（validate-11（要確認の場面に戻れる））"`
+- [x] **Step 7: コミット**: `git commit -m "答えずに区切った問いと同じことを、続きの最初の問いで聞かない（validate-11（要確認の場面に戻れる））"`
 
 ### Task 2: 2 つ目からの場面は、前とは別の一日を尋ねる（G3）
 
