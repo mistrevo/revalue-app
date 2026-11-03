@@ -90,4 +90,13 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: copy.profile.title })).toBeInTheDocument()
   })
+
+  it('options-7（1 場面で進める）: ホームから仕事の選択肢へ行ける', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/home')
+
+    await userEvent.click(await screen.findByRole('link', { name: copy.home.options }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.options.title })).toBeInTheDocument()
+  })
 })

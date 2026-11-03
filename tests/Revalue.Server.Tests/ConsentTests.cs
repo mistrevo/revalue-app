@@ -29,7 +29,7 @@ public sealed class ConsentTests
         var me = await GetMe(factory.CreateUserClient("g-1"));
 
         Assert.False(me.GetProperty("consented").GetBoolean());
-        Assert.Equal("2026-11-02", me.GetProperty("currentVersion").GetString());
+        Assert.Equal("2026-11-03", me.GetProperty("currentVersion").GetString());
         Assert.Equal(JsonValueKind.Null, me.GetProperty("consentVersion").ValueKind);
     }
 
@@ -45,7 +45,7 @@ public sealed class ConsentTests
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.Equal("/problems/consent-required", problem.GetProperty("type").GetString());
 
-        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, "2026-11-02")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, ConsentInfo.CurrentVersion)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/stats", Ct)).StatusCode);
     }
 
@@ -55,15 +55,15 @@ public sealed class ConsentTests
         await using var factory = new RevalueFactory();
         var client = factory.CreateUserClient("g-1");
 
-        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, "2026-11-02")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, ConsentInfo.CurrentVersion)).StatusCode);
 
         var me = await GetMe(client);
         Assert.True(me.GetProperty("consented").GetBoolean());
-        Assert.Equal("2026-11-02", me.GetProperty("consentVersion").GetString());
+        Assert.Equal("2026-11-03", me.GetProperty("consentVersion").GetString());
         var store = factory.Services.GetRequiredService<IDataStore>();
         var item = await store.GetAsync<ConsentItem>(TestUsers.Key("g-1"), ConsentItem.ItemId, Ct);
         Assert.Equal(factory.Clock.GetUtcNow(), item!.At);
-        Assert.Equal("2026-11-02", item.Version);
+        Assert.Equal("2026-11-03", item.Version);
     }
 
     [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: 古い版の了解は了解していない扱い")]
@@ -99,7 +99,7 @@ public sealed class ConsentTests
         await Consent(client, "2026-10-01");
         Assert.Equal(0, await store.CountAllAsync(key, Ct));
 
-        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, "2026-11-02")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, ConsentInfo.CurrentVersion)).StatusCode);
         await GetMe(client);
         Assert.NotNull(await store.GetAsync<ActivityItem>(key, ActivityItem.ItemId, Ct));
     }

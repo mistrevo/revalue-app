@@ -58,6 +58,7 @@ Dockerfile                        画面を作る → 裏側を publish → 実�
 src/Revalue.Server/               ASP.NET Core
   Program.cs
   Features/<まとまり>/            機能のまとまりごとのフォルダ。PRD のまとまりの名前にそろえる（Foundation、Discover、Validate、Profile、Options、Deepen、Report）
+  Features/Options/jobs.json      登録した職種と業務のデータ。job tag（厚生労働省の職業情報提供サイト）のダウンロードデータを加工したもの。出典つき
   Ai/                             Claude の呼び出し
   Ai/Prompts/*.md                 プロンプト（日本語）。評価からも同じファイルを読む
   Data/                           Cosmos DB と、テスト用のインメモリの保存先
@@ -68,6 +69,7 @@ src/web/                          React と TypeScript の画面（Vite）
 tests/Revalue.Server.Tests/       裏側のテスト
 evals/
   episodes/                       架空エピソード（e01-*.md から）
+  profiles/                       架空の 5 つの記録（p01-*.json から。仕事の選択肢の評価に使う）
   judges/                         AI の判定役の指示（まとまりごと）
   criteria.md                     測り方（合格の数字は PRD の 6-quality.md）
   results/                        評価の結果（日付つき）
@@ -89,7 +91,7 @@ Windows と Linux のどちらでも同じように動く形で書く。`cd` で
 | 画面のテスト | `npm --prefix src/web test` |
 | 手元で動かす（裏側） | `dotnet run --project src/Revalue.Server` |
 | 手元で動かす（画面） | `npm --prefix src/web run dev`（`/api` を裏側へ転送する） |
-| 評価を回す | `dotnet run --project evals/Revalue.Evals -- --unit discover`（`--unit validate` で 03 validate（確かめる）の例。`--dry-run` で、Claude を呼ばずに仕組みだけを確かめる） |
+| 評価を回す | `dotnet run --project evals/Revalue.Evals -- --unit discover`（`--unit` で回すまとまりを選ぶ。`discover` は 02 discover（話す）、`validate` は 03 validate（確かめる）、`options` は 05 options（仕事の選択肢）。`--dry-run` で、Claude を呼ばずに仕組みだけを確かめる） |
 | フックのテスト | `node --test .claude/hooks/guard.test.mjs` |
 
 雛形を作るときは、公式の作り方に従う。
@@ -139,7 +141,7 @@ SDK の書き方は推測しない。claude-api スキルを読んでから書�
 
 - **コードが決めて、AI が言葉にする**（Claude の判断）。1 往復ごとに、まず読み取り（答えの種類と、核となる行動の確認）を構造化出力で受け取る。次にすること（根拠ありにする、足りない行動を聞く、別の場面を聞く）はコードが決める。聞き手の AI には、決まった次の一手だけを渡して言葉にさせる。こうすると、製品の芯 1（根拠のない力は出さない）と芯 2（突き放さない）をコードで守れ、単体テストで確かめられる
 - **引用はコードで照らし合わせる**。候補の根拠の引用が本人の発言に一字一句含まれるかを確かめ、含まれなければ候補にしない
-- **生活の条件と登録した職種はコードで守る**。仕事のカードの構造化出力に週あたりの時間と場所を持たせ、入力の範囲を超える案はコードで落とす。「選ぶ」「組み合わせる」は、登録した職種と業務の ID で受け取り、登録にないものはコードで落とす。時間帯も構造化出力に持たせるが、こちらは評価で確かめる
+- **生活の条件と登録した職種はコードで守る**。仕事のカードの構造化出力に週あたりの時間と場所を持たせ、本人が入れた条件の範囲を超える案はコードで落とす。「選ぶ」「組み合わせる」は、登録した職種と業務の ID で受け取り、登録にないものはコードで落とす。時間帯も構造化出力に持たせ、コードで確かめる（Claude の判断）
 - 拒否（AI が応答を断ること）への備え: Opus 5.5 では server-side fallback を既定で有効にする（`fallbacks: "default"`、beta `server-side-fallback-2026-07-01`）。断られたときだけ、Anthropic が断りの種類に応じて選ぶ別のモデルが代わりに答える。`stop_reason` が `refusal` のままなら、画面に穏やかな言葉を出す
 - プロンプトキャッシュ（同じ前置きを使い回して費用と待ち時間を減らす仕組み）: システムプロンプトは固定し、`cache_control` を付ける。日時など毎回変わるものはシステムプロンプトに入れない
 - テストでは Claude を呼ばない。呼び出しはインターフェースの裏に置き、テストでは偽物に差し替える。本物を呼ぶのは評価だけ

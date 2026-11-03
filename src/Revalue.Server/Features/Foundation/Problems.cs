@@ -18,6 +18,15 @@ public static class Problems
     /// <summary>力の確かめに使わない印のある場面なので、訂正も続きもできない。</summary>
     public const string EpisodeExcluded = "/problems/episode-excluded";
 
+    /// <summary>仕事の選択肢を出す条件がそろっていない。拡張の <c>readiness</c> に、最初に足りないものを入れる。</summary>
+    public const string OptionsNotReady = "/problems/options-not-ready";
+
+    /// <summary>見ていたカードが作り直されたか、いまは見せられない。</summary>
+    public const string OptionsChanged = "/problems/options-changed";
+
+    /// <summary>選んだ案や本人が書いた仕事の形が合わない。</summary>
+    public const string InvalidOption = "/problems/invalid-option";
+
     /// <summary>AI の呼び出しが失敗したか、AI が断った。拡張の <c>kind</c> に "failure" か "refusal" を入れる。</summary>
     public const string AiUnavailable = "/problems/ai-unavailable";
 

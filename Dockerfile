@@ -16,6 +16,8 @@ WORKDIR /repo
 COPY src/Revalue.Server/Revalue.Server.csproj src/Revalue.Server/
 RUN dotnet restore src/Revalue.Server/Revalue.Server.csproj
 COPY src/Revalue.Server src/Revalue.Server
+# 使わない言葉の一覧（src/shared/forbidden-words.json）を、裏側も埋め込みのリソースとして読む
+COPY src/shared src/shared
 COPY --from=web /repo/src/Revalue.Server/wwwroot src/Revalue.Server/wwwroot
 RUN dotnet publish src/Revalue.Server/Revalue.Server.csproj -c Release -o /app --no-restore
 

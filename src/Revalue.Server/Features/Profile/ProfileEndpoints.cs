@@ -221,7 +221,7 @@ public static class ProfileEndpoints
     /// 見た目の文字数（絵文字などの合成された文字は 1 文字）と、中身の長さ（UTF-16）の両方が上限に収まるか。
     /// 結合文字を重ねた 1 文字は、見た目の文字数では数えきれないので、中身の長さでも区切る。
     /// </summary>
-    private static bool FitsIn(string text, int maxLength, int maxUtf16Length) =>
+    internal static bool FitsIn(string text, int maxLength, int maxUtf16Length) =>
         text.Length <= maxUtf16Length && new StringInfo(text).LengthInTextElements <= maxLength;
 
     /// <summary>
@@ -234,7 +234,7 @@ public static class ProfileEndpoints
     /// 見える文字（文字、数字、句読点、記号）を 1 つ以上含むか。空白、幅のない空白（U+200B）などの書式文字、制御文字、
     /// 結合文字だけの言葉は、画面で空の項目に見えるので、含まないものとして扱う。
     /// </summary>
-    private static bool HasVisibleText(string text)
+    internal static bool HasVisibleText(string text)
     {
         foreach (var rune in text.EnumerateRunes())
         {

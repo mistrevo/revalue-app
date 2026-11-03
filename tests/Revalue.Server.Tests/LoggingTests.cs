@@ -1,3 +1,4 @@
+using Revalue.Server.Features.Foundation.Consent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -34,14 +35,14 @@ public sealed class LoggingTests
         var principal = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{{\"name\":\"{Name}\",\"email\":\"{Email}\"}}"));
         client.DefaultRequestHeaders.Add("X-MS-CLIENT-PRINCIPAL", principal);
 
-        await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02", memo = Content }, Ct);
+        await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion, memo = Content }, Ct);
         await client.PostAsJsonAsync("/api/consent", new { version = Content }, Ct);
         await client.GetAsync($"/api/me?q={Uri.EscapeDataString(Content)}", Ct);
         await client.GetAsync($"/api/nope/{Uri.EscapeDataString(Content)}", Ct);
         await client.PostAsync("/api/consent", new StringContent("{" + Content, new MediaTypeHeaderValue("application/json")), Ct);
 
         // 話した内容がいちばん多く通る、答えを送る API（discover）
-        await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+        await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
         var started = await client.PostAsync("/api/episodes", null, Ct);
         var id = (await started.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetString();
         var messages = $"/api/episodes/{id}/messages";

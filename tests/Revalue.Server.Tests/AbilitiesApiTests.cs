@@ -1,3 +1,4 @@
+using Revalue.Server.Features.Foundation.Consent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -23,7 +24,7 @@ public sealed class AbilitiesApiTests
     private static async Task<HttpClient> Consenting(RevalueFactory factory, string id)
     {
         var client = factory.CreateUserClient(id);
-        var consent = await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+        var consent = await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
         Assert.Equal(HttpStatusCode.NoContent, consent.StatusCode);
         return client;
     }

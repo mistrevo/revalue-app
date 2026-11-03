@@ -1,3 +1,4 @@
+using Revalue.Server.Features.Foundation.Consent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -21,7 +22,7 @@ public sealed class AutoDeleteTests
 
     /// <summary>使った記録を書くのは、いまの版で了解した人だけなので、先に了解しておく。</summary>
     private static async Task Consent(HttpClient client) =>
-        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct)).StatusCode);
 
     [Fact(DisplayName = "foundation-4（使わなければ自動で消える）: 30 日たつと消える")]
     public async Task UserDataDisappearsAfter30Days()

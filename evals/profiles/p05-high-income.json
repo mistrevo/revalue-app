@@ -1,0 +1,41 @@
+{
+  "id": "p05-high-income",
+  "title": "収入の目安が月 20 万円。週 5 時間",
+  "expect": "highIncome",
+  "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e09。",
+  "abilities": [
+    {
+      "ability": "coordinating",
+      "state": "confirmed",
+      "quotes": [
+        {
+          "action": 1,
+          "quote": "一方は日曜に仕事があって、もう一方は土曜に子どもの試合があると分かりました"
+        },
+        {
+          "action": 2,
+          "quote": "私から、両方の家に順番に声をかけて"
+        },
+        {
+          "action": 3,
+          "quote": "土曜の朝に試合の前の 1 時間だけ出てもらい、残りは日曜の午後に私と仕事のない家で済ませる、という入れ替えの案を出しました"
+        }
+      ]
+    }
+  ],
+  "excluded": [],
+  "conditions": {
+    "timeSlots": [
+      "daytime",
+      "evening"
+    ],
+    "hoursPerWeek": 5,
+    "place": "homeOnly",
+    "monthlyIncome": 20
+  },
+  "preferences": [],
+  "wants": [
+    "これまでの経験を活かしたい"
+  ],
+  "agency": "収入を増やしたいが、使える時間は少ない"
+}

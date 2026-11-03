@@ -4,19 +4,21 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Revalue.Server.Ai;
 using Revalue.Server.Features.Foundation;
+using Revalue.Server.Features.Options;
 
 namespace Revalue.Evals;
 
 /// <summary>
 /// 評価を回す。
-/// <c>dotnet run --project evals/Revalue.Evals -- --unit discover|validate [--dry-run] [--out &lt;フォルダ&gt;]</c>
+/// <c>dotnet run --project evals/Revalue.Evals -- --unit discover|validate|options [--dry-run] [--out &lt;フォルダ&gt;]</c>
 /// 終了コード: 0 合格、1 不合格、2 回せなかった（引数や鍵の不足など）。
 /// dry-run は仕組みが動くかだけを確かめるので、途中で終えた例がなければ 0、あれば 1 を返す（偽物の AI の数字では合否を決めない。Claude の判断）。
 /// validate では、同じやりとりを汎用の AI にも渡して比べる（<see cref="GenericComparison"/>）。
+/// options は、架空の 5 つの記録（evals/profiles/）から仕事の選択肢を作り、照らし合わせの前とあとを数える（<see cref="OptionsEval"/>）。
 /// </summary>
 public static class EvalProgram
 {
-    private static readonly string[] Units = ["discover", "validate"];
+    private static readonly string[] Units = ["discover", "validate", "options"];
 
     /// <summary>返事の判定役の指示。どのまとまりでも、返事は 02 discover（話す）の決まりで見る。</summary>
     private const string ReplyJudgePrompt = "discover.md";
@@ -41,7 +43,7 @@ public static class EvalProgram
                     break;
                 default:
                     Console.Error.WriteLine($"知らない引数です: {args[i]}");
-                    Console.Error.WriteLine("使い方: dotnet run --project evals/Revalue.Evals -- --unit discover|validate [--dry-run] [--out <フォルダ>]");
+                    Console.Error.WriteLine("使い方: dotnet run --project evals/Revalue.Evals -- --unit discover|validate|options [--dry-run] [--out <フォルダ>]");
                     return 2;
             }
         }
@@ -60,6 +62,11 @@ public static class EvalProgram
         };
 
         var baseDir = AppContext.BaseDirectory;
+        if (unit == "options")
+        {
+            return await RunOptionsAsync(baseDir, dryRun, outDir, cancel.Token);
+        }
+
         var scripts = EpisodeScript.LoadAll(Path.Combine(baseDir, "episodes"), unit);
         if (scripts.Count == 0)
         {
@@ -140,6 +147,81 @@ public static class EvalProgram
         }
 
         return summary.Passed ? 0 : 1;
+    }
+
+    /// <summary>
+    /// 仕事の選択肢の評価を回す。本物の AI では、製品と同じ <see cref="ClaudeOptionsAi"/>、判定役（judges/options.md）、
+    /// 汎用の AI と、その答えを読む判定役（judges/generic-options.md）を使う。
+    /// </summary>
+    private static async Task<int> RunOptionsAsync(string baseDir, bool dryRun, string? outDir, CancellationToken ct)
+    {
+        var cases = ProfileCase.LoadAll(Path.Combine(baseDir, "profiles"));
+        if (cases.Count == 0)
+        {
+            Console.Error.WriteLine("架空の 5 つの記録（profiles）がありません。");
+            return 2;
+        }
+
+        var forbidden = ForbiddenWords.Load(Path.Combine(baseDir, "forbidden-words.json"));
+        var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
+        var claude = new ClaudeOptions();
+        config.GetSection("Claude").Bind(claude);
+        var usage = new UsageMeter();
+        using var loggers = LoggerFactory.Create(b => b.AddSimpleConsole(o => o.SingleLine = true));
+
+        OptionsEval eval;
+        if (dryRun)
+        {
+            eval = new OptionsEval(
+                new ScriptedOptionsAi(), new DryRunOptionsJudge(), new DryRunGenericAssistant(), new DryRunGenericOptionsReader(), JobCatalog.Load(), forbidden);
+        }
+        else
+        {
+            var apiKey = config[AiSetup.ApiKeySetting];
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                Console.Error.WriteLine($"本物の AI で回すには {AiSetup.ApiKeySetting} が要ります。仕組みだけを確かめるなら --dry-run を付けてください。");
+                return 2;
+            }
+
+            var client = new AnthropicClient { ApiKey = apiKey };
+            string Judge(string name) => File.ReadAllText(Path.Combine(baseDir, "judges", name)).Trim();
+            eval = new OptionsEval(
+                new ClaudeOptionsAi(client, Options.Create(claude), loggers.CreateLogger<ClaudeOptionsAi>(), usage),
+                new ClaudeOptionsJudge(client, claude.Model, Judge("options.md"), usage),
+                new ClaudeGenericAssistant(client, claude.Model, usage),
+                new ClaudeGenericOptionsReader(client, claude.Model, Judge("generic-options.md"), usage),
+                JobCatalog.Load(),
+                forbidden);
+        }
+
+        var runs = new List<OptionsRun>();
+        foreach (var profile in cases)
+        {
+            Console.WriteLine($"{profile.Id} {profile.Title} を流しています");
+            runs.Add(await eval.RunAsync(profile, ct));
+        }
+
+        var summary = OptionsSummary.From(runs);
+        var at = DateTimeOffset.UtcNow.ToOffset(Jst.Offset);
+        var report = OptionsReport.Write(new ReportContext("options", claude.Model, dryRun, at), runs, summary, usage);
+        var directory = outDir ?? (dryRun ? Path.Combine(Path.GetTempPath(), "revalue-evals") : ResultsDirectory());
+        Directory.CreateDirectory(directory);
+        var path = UniquePath(directory, $"{at:yyyy-MM-dd}-options");
+        await File.WriteAllTextAsync(path, report.ReplaceLineEndings("\n"), ct);
+
+        foreach (var item in summary.Gated)
+        {
+            Console.WriteLine($"{(item.Passed == true ? "合格" : "不合格")}: {item.Name}（{item.Count} / {item.Total}、合格の線 {item.Line}）");
+        }
+
+        if (summary.Errors > 0)
+        {
+            Console.WriteLine($"途中で終えた記録: {summary.Errors} 件");
+        }
+
+        Console.WriteLine($"結果を書きました: {path}");
+        return dryRun ? (summary.Errors == 0 ? 0 : 1) : (summary.Passed ? 0 : 1);
     }
 
     /// <summary>リポジトリの evals/results。今いるフォルダから上へ Revalue.slnx を探す。</summary>

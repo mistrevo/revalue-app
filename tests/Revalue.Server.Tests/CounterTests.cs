@@ -1,3 +1,4 @@
+using Revalue.Server.Features.Foundation.Consent;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +16,7 @@ public sealed class CounterTests
     {
         foreach (var id in principalIds)
         {
-            var response = await factory.CreateUserClient(id).PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+            var response = await factory.CreateUserClient(id).PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
             Assert.Equal(System.Net.HttpStatusCode.NoContent, response.StatusCode);
         }
     }
@@ -92,7 +93,7 @@ public sealed class CounterTests
         var b = factory.CreateUserClient("b");
         foreach (var client in new[] { a, b })
         {
-            await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+            await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
         }
 
         await counter.CountOnceAsync(TestUsers.Key("a"), CountMetric.ReachedReport, Ct);

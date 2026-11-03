@@ -4,6 +4,7 @@ using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
 using Revalue.Server.Features.Foundation.Limits;
+using Revalue.Server.Features.Options;
 using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
@@ -176,6 +177,9 @@ public static class DiscoverEndpoints
             {
                 await AbilityBook.TryRecomputeAsync(store, userKey, ChangeReason.Skip, id, time, abilityLogger, ct);
             }
+
+            // 仕事の選択肢のカードと選んだ案は、根拠の言葉を写して持つ。飛ばした場面の言葉を、そこにも残さない（05-options.md の「作り直す」）
+            await OptionsScrub.TryAfterRemovingAsync(store, userKey, time, loggers.CreateLogger(typeof(OptionsScrub)), ct);
 
             // 消したあと、ほかの画面で新しい場面が始まっていたら、2 つ目は作らずに 409 でその場面を知らせる
             var outcome = await EpisodeStarter.StartAsync(

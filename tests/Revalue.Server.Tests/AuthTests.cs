@@ -1,3 +1,4 @@
+using Revalue.Server.Features.Foundation.Consent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -81,7 +82,7 @@ public sealed class AuthTests
         using var request = new HttpRequestMessage(new HttpMethod(method), path);
         if (method == "POST")
         {
-            request.Content = JsonContent.Create(new { version = "2026-11-02" });
+            request.Content = JsonContent.Create(new { version = ConsentInfo.CurrentVersion });
         }
 
         var response = await client.SendAsync(request, Ct);

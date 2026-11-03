@@ -1,0 +1,42 @@
+{
+  "id": "p04-can-go-out",
+  "title": "外にも出られる。週 20 時間、日中。優先順位をつける力が見えた力",
+  "expect": "canGoOut",
+  "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e10。",
+  "abilities": [
+    {
+      "ability": "prioritizing",
+      "state": "confirmed",
+      "quotes": [
+        {
+          "action": 1,
+          "quote": "下の子の保育園の持ち物の準備と、ごみ出しと、9 時までに出す役所の書類が重なっていました"
+        },
+        {
+          "action": 2,
+          "quote": "まず書類を先に仕上げて、ごみ出しは次の回に回して"
+        },
+        {
+          "action": 3,
+          "quote": "書類は締め切りに間に合わないと出し直しになるけれど、持ち物は足りなくても保育園で借りられると知っていたので、そう決めました"
+        }
+      ]
+    }
+  ],
+  "excluded": [],
+  "conditions": {
+    "timeSlots": [
+      "daytime"
+    ],
+    "hoursPerWeek": 20,
+    "place": "canGoOut",
+    "monthlyIncome": 8
+  },
+  "preferences": [
+    "人とやりとりしながら進められる"
+  ],
+  "wants": [
+    "新しいことを覚えたい"
+  ],
+  "agency": null
+}

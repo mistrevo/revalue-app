@@ -1,3 +1,4 @@
+using Revalue.Server.Features.Foundation.Consent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -21,7 +22,7 @@ public sealed class DeleteAllTests
         var keyB = TestUsers.Key("b");
         foreach (var client in new[] { a, b })
         {
-            await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+            await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
         }
 
         await store.UpsertAsync(new NoteItem { Id = "n1", UserKey = keyA, Type = "note", Text = "話した内容" }, Ct);
@@ -50,7 +51,7 @@ public sealed class DeleteAllTests
         var leftovers = 0;
         for (var trial = 0; trial < 200; trial++)
         {
-            Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct)).StatusCode);
+            Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct)).StatusCode);
             await client.GetAsync("/api/me", Ct);
             // 次の要求が、日本時間でその日に初めての要求になる（使った記録と TTL を書き直す）
             factory.Clock.Advance(TimeSpan.FromDays(1));
@@ -77,7 +78,7 @@ public sealed class DeleteAllTests
         var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
         var client = factory.CreateUserClient("a");
         var key = TestUsers.Key("a");
-        await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+        await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
         await client.GetAsync("/api/me", Ct);
         factory.Clock.Advance(TimeSpan.FromDays(1));
 
@@ -96,7 +97,7 @@ public sealed class DeleteAllTests
         var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
         var client = factory.CreateUserClient("a");
         var key = TestUsers.Key("a");
-        await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+        await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
         await client.GetAsync("/api/me", Ct);
 
         // 了解を確かめたあと、送信回数を増やす直前に、全部消すが割り込む
@@ -118,7 +119,7 @@ public sealed class DeleteAllTests
         var client = factory.CreateUserClient("a");
         var store = factory.Services.GetRequiredService<IDataStore>();
         var key = TestUsers.Key("a");
-        await client.PostAsJsonAsync("/api/consent", new { version = "2026-11-02" }, Ct);
+        await client.PostAsJsonAsync("/api/consent", new { version = ConsentInfo.CurrentVersion }, Ct);
         await client.GetAsync("/api/me", Ct);
         Assert.True(await store.CountAllAsync(key, Ct) > 0);
 
