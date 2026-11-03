@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import {
   getProfile,
   putAgency,
@@ -15,6 +15,7 @@ import {
   type TimeSlot,
 } from '@/api'
 import { QuoteList } from '@/components/Insights'
+import { NextStepLink } from '@/components/NextStepLink'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
@@ -55,9 +56,10 @@ const WRAP_BUTTON = 'h-auto w-full justify-start py-2 text-left whitespace-norma
 
 /**
  * 「いま聞きたいこと」に出す問い（04-profile.md の「聞く順番」）。好み、やりたいこと、条件、主体性の順で、まだ済んでいない最初の一つ。
- * どれも済んでいれば null。
+ * 条件を入れる入口（`?ask=conditions`）から来たときは、条件が入っていなければ条件を先に聞く。どれも済んでいれば null。
  */
-function nextQuestion(profile: ProfileData): RecordKey | null {
+function nextQuestion(profile: ProfileData, conditionsFirst = false): RecordKey | null {
+  if (conditionsFirst && profile.conditions === null) return 'conditions'
   if (!profile.asked.preferences) return 'preferences'
   if (!profile.asked.wants) return 'wants'
   if (profile.conditions === null) return 'conditions'
@@ -75,6 +77,8 @@ export function Profile() {
   const [failure, setFailure] = useState<Failure | null>(null)
   const [editing, setEditing] = useState<RecordKey | null>(null)
   const [ack, setAck] = useState<string | null>(null)
+  const [searchParams] = useSearchParams()
+  const conditionsFirst = searchParams.get('ask') === 'conditions'
 
   useEffect(() => {
     let active = true
@@ -121,7 +125,7 @@ export function Profile() {
   }
 
   // 「いま聞きたいこと」に出している記録。その欄には入れる入口を出さず、同じ入力欄を 2 つ並べない（Claude の判断）
-  const asking = state.kind === 'ready' ? nextQuestion(state.data) : null
+  const asking = state.kind === 'ready' ? nextQuestion(state.data, conditionsFirst) : null
 
   return (
     <Page>
@@ -136,7 +140,14 @@ export function Profile() {
       )}
       {state.kind === 'ready' && (
         <div className="mt-6 flex flex-col gap-4">
-          <NextQuestion profile={state.data} ack={ack} busy={busy} failed={failedAt('next')} save={save} />
+          <NextQuestion
+            profile={state.data}
+            conditionsFirst={conditionsFirst}
+            ack={ack}
+            busy={busy}
+            failed={failedAt('next')}
+            save={save}
+          />
           <CanDoSection canDo={state.data.canDo} />
           {(['preferences', 'wants'] as const).map((record) => (
             <EntriesSection
@@ -177,6 +188,7 @@ export function Profile() {
           />
         </div>
       )}
+      {state.kind === 'ready' && <NextStepLink refreshKey={state.data} />}
 
       <div className="mt-6">
         <Button asChild variant="outline" className="w-full sm:w-auto">
@@ -215,18 +227,20 @@ function SaveFailed({ from }: { from: SavedFrom | null }) {
  */
 function NextQuestion({
   profile,
+  conditionsFirst,
   ack,
   busy,
   failed,
   save,
 }: {
   profile: ProfileData
+  conditionsFirst: boolean
   ack: string | null
   busy: boolean
   failed: SavedFrom | null
   save: Save
 }) {
-  const next = nextQuestion(profile)
+  const next = nextQuestion(profile, conditionsFirst)
   const ackLine = ack && (
     <p role="status" className="text-sm leading-relaxed break-words">
       {ack}

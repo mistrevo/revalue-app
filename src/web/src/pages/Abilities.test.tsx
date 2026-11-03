@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import forbiddenWords from '../../../shared/forbidden-words.json'
@@ -132,5 +132,25 @@ describe('Abilities', () => {
 
     const noticing = await screen.findByRole('region', { name: '見立てる力' })
     expect(within(noticing).getByText(copy.insights.notYetNote)).toBeInTheDocument()
+  })
+
+  it('common-3（次にできることを一つ示す）: 見えた力の画面の下に、次にできることへの道が一つ出る', async () => {
+    installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'options', episodeId: null } })
+    renderApp('/abilities')
+
+    const next = await screen.findByRole('region', { name: copy.home.next.title })
+    expect(within(next).getByRole('link', { name: copy.home.next.options })).toHaveAttribute('href', '/options')
+  })
+
+  it('common-3（次にできることを一つ示す）: 外す・戻すと、次にできることを読み直す', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'options', episodeId: null } })
+    renderApp('/abilities')
+    await screen.findByRole('link', { name: copy.home.next.options })
+
+    api.state.nextStep = { step: 'abilities', episodeId: null }
+    const coordinating = screen.getByRole('region', { name: '調整する力' })
+    await userEvent.click(within(coordinating).getByRole('button', { name: copy.abilities.exclude }))
+
+    await waitFor(() => expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument())
   })
 })

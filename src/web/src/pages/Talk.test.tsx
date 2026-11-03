@@ -608,4 +608,15 @@ describe('Talk', () => {
 
     expect(await screen.findByText('ほかの場面の問いです。')).toBeInTheDocument()
   })
+
+  it('discover-6（一場面ずつ区切り、続きから話せる）: 話し終えた画面の下に、次にできることへの道が一つ出る（common-3（次にできることを一つ示す））', async () => {
+    setup()
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    const next = await screen.findByRole('region', { name: copy.home.next.title })
+    expect(within(next).getByRole('link', { name: copy.home.next.conditions })).toHaveAttribute('href', '/profile?ask=conditions')
+    expect(within(next).getAllByRole('link')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+  })
 })

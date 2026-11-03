@@ -476,4 +476,35 @@ describe('Report', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('report-1（一つにまとめて示す）: 見立てを外していて、できることが空のときは、外した見立てはここに出していないと伝える', async () => {
+    const content = fakeReportContent({ abilities: [], abilitiesExcluded: true })
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      report: fakeReport({ content, current: { number: 1, at: '2026-11-03T09:00:00Z', changed: [], snapshot: fakeReportSnapshot(content) } }),
+    })
+    renderApp('/report')
+
+    const abilities = await screen.findByRole('region', { name: copy.report.sections.abilities })
+    expect(abilities).toHaveTextContent(copy.profile.excludedNote)
+    expect(abilities).not.toHaveTextContent(copy.report.noAbilities)
+  })
+
+  it('report-1（一つにまとめて示す）: 読み込めなかったときも、ホームへの道を出す', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    api.state.reportFails = true
+    renderApp('/report')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(copy.errors.generic)
+    expect(screen.getByRole('link', { name: copy.report.backHome })).toHaveAttribute('href', '/home')
+  })
+
+  it('report-2（直す、保留する、次の一歩を選ぶ）: 考え方の欄の道は、画面の名前どおり「選んだ案を深める画面で直す」と書く', async () => {
+    installFakeApi({ loggedIn: true, consented: true, report: fakeReport() })
+    renderApp('/report')
+
+    const thinking = await screen.findByRole('region', { name: copy.report.sections.thinking })
+    expect(within(thinking).getByRole('link', { name: '選んだ案を深める画面で直す' })).toHaveAttribute('href', '/deepen')
+  })
 })

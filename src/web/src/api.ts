@@ -679,6 +679,8 @@ export type ReportStep = { text: string; own: boolean; fits: boolean }
 /** いまの中身。thinking と steps は、いまの選んだ案で深めた中身がなければ null。 */
 export type ReportContent = {
   abilities: ReportAbility[]
+  /** 本人が外した力があるか（外した力そのものは来ない）。できることの欄が空のときに、外した見立てを出していないと伝えるため。 */
+  abilitiesExcluded: boolean
   notYet: ReportNotYet
   records: ReportRecords
   choice: ReportChoice

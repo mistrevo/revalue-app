@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router'
 import { excludeAbility, getAbilities, restoreAbility, type Abilities as AbilitiesData, type AbilityChange, type AbilityView } from '@/api'
 import { Hints, QuoteList } from '@/components/Insights'
+import { NextStepLink } from '@/components/NextStepLink'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
@@ -65,6 +66,7 @@ export function Abilities() {
             </p>
           )}
           <History history={state.data.history} />
+          <NextStepLink refreshKey={state.data} />
         </>
       )}
 

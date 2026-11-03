@@ -504,7 +504,7 @@ describe('Options', () => {
 
   it('options-7（1 場面で進める）: 足りないものに合わせて、一つだけ道を出す', async () => {
     const cases = [
-      { readiness: 'needsConditions', text: copy.options.needsConditions, link: copy.options.toProfile, href: '/profile' },
+      { readiness: 'needsConditions', text: copy.options.needsConditions, link: copy.options.toProfile, href: '/profile?ask=conditions' },
       { readiness: 'needsFinishedEpisode', text: copy.options.needsFinishedEpisode, link: copy.options.toTalk, href: '/home' },
       { readiness: 'needsAbility', text: copy.options.needsAbility, link: copy.options.toTalk, href: '/home' },
       // 見えた力をすべて外したときは、話が足りないとは言わず、外した見立てを戻せる見えた力の画面への道を出す
@@ -635,5 +635,42 @@ describe('Options', () => {
       expect(page).not.toContain(word)
     }
     expect(page).not.toMatch(/[0-9０-９]+\s*(点|位)/)
+  })
+
+  it('options-6（本人が選ぶ、保留する、自分で書く）: 「この案を選ぶ」を押すと、「選んだ案」の見出しにフォーカスが移り、選んだカードのボタンは「選んでいます」と出て押せない', async () => {
+    installFakeApi({ loggedIn: true, consented: true, options: withCards() })
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    renderApp('/options')
+
+    const choose = await screen.findByRole('region', { name: LABELS[0] })
+    await userEvent.click(within(choose).getByRole('button', { name: copy.options.chooseThis }))
+
+    const heading = await screen.findByRole('heading', { name: copy.options.chosenTitle })
+    await waitFor(() => expect(heading).toHaveFocus())
+    expect(scrolled).toHaveBeenCalled()
+    expect(within(card(LABELS[0])).getByRole('button', { name: copy.options.chosenThis })).toBeDisabled()
+    expect(within(card(LABELS[0])).queryByRole('button', { name: copy.options.chooseThis })).not.toBeInTheDocument()
+    // ほかのカードは選び直せる
+    expect(within(card(LABELS[1])).getByRole('button', { name: copy.options.chooseThis })).toBeEnabled()
+  })
+
+  it('profile-4（本人が直せる）: 条件がないときの「5 つの記録で条件を入れる」は、条件から聞く入口へ行く', async () => {
+    installFakeApi({ loggedIn: true, consented: true, options: fakeOptions({ readiness: 'needsConditions' }) })
+    renderApp('/options')
+
+    expect(await screen.findByRole('link', { name: copy.options.toProfile })).toHaveAttribute('href', '/profile?ask=conditions')
+  })
+
+  it('foundation-6（使いすぎを穏やかに止める）: 仕事の選択肢の画面で上限に当たったときは、話す画面向けの「また続きを話せます」と言わない', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    api.state.generate = { status: 429, body: { type: '/problems/daily-limit', status: 429, resetAt: '2026-11-03T15:00:00Z' } }
+    renderApp('/options')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.options.generate }))
+
+    const notice = (await screen.findByText(copy.limit.title)).parentElement!
+    expect(notice).not.toHaveTextContent('また続きを話せます')
+    expect(notice).toHaveTextContent('11 月 4 日の 0 時（日本時間）')
   })
 })

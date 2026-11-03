@@ -369,6 +369,7 @@ export function fakeReportContent(overrides: Partial<ReportContent> = {}): Repor
       ],
       hasExcluded: false,
     },
+    abilitiesExcluded: false,
     records: {
       preferences: [{ text: '自分のペースで進められる', source: 'chosen' }],
       wants: [],
@@ -540,6 +541,8 @@ export function installFakeApi(initial: {
     deepenSaveFails: false,
     /** 可能性レポート。保留と一歩の保存は、裏側と同じく、次に開いたときの中身に映す（版は増やさない）。 */
     report: initial.report ?? fakeReport({ ready: false, content: null, current: null }),
+    /** true なら、可能性レポート（GET /api/report）を 500 で断る。 */
+    reportFails: false,
     /**
      * 次にできること（GET /api/next-step）。null なら、裏側と同じ順で、いまの場面と記録から決める。
      * 入れると、その値を返すか、断る応答を返す。
@@ -623,6 +626,7 @@ export function installFakeApi(initial: {
       return json(200, state.nextStep)
     }
     if (url === '/api/report' && method === 'GET') {
+      if (state.reportFails) return json(500, { status: 500 })
       return json(200, state.report)
     }
 

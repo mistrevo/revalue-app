@@ -304,6 +304,8 @@ export const copy = {
     abilityTitle: 'もとにした力と、あなたの言葉',
     abilityStates: { confirmed: 'あなたの話から見えた力', needsCheck: '確かめ中' },
     chooseThis: 'この案を選ぶ',
+    // 選んだカードのボタン。押せない（Claude の判断）
+    chosenThis: '選んでいます',
     chosenTitle: '選んだ案',
     // 選んだあとにカードの力を外したとき。選んだ案は残し、理由と力だけを出さない（Claude の判断）
     chosenExcluded: '外した見立てを使っていた案なので、理由と、もとにした力は出していません。',
@@ -375,6 +377,8 @@ export const copy = {
     taskAbilityLabel: 'この業務で使う力',
     taskAbilityPlaceholder: '力を選ぶ',
     taskKnowledgeLabel: '要る知識や道具（なくてもかまいません）',
+    // まだ確かめていないことの、知識や道具の行。可能性レポート（report.taskKnowledge）と同じ言い方にする（Claude の判断）
+    knowledgeLine: '要る知識や道具（{items}）',
     taskNeedName: '業務の名前と、この業務で使う力を選ぶと、保存できます。',
     edit: '直す',
     remove: '消す',
@@ -411,7 +415,8 @@ export const copy = {
     // 「力がない」のような語は、打ち消す形でも出さない（本人が思ってもいない言葉を先に見せないため。Claude の判断）
     notWorking:
       'うまくいかなかったときは、この案がいまの暮らしに合うかを確かめられた、ということです。一歩を小さくする、別の一歩を試す、仕事の選択肢に戻ってほかの案を選ぶ、のどれもできます。',
-    notWorkingLink: '仕事の選択肢に戻る',
+    // 選んだ案の欄の道（backToOptions）と同じ言葉にそろえる（Claude の判断）
+    notWorkingLink: '仕事の選択肢へ戻る',
     changed: '選んだ案が変わっていました。新しい案で深め直せます。',
     // 同じ案が、ほかの画面で深め直されていたとき。見ていた中身への書き換えは入れていない（Claude の判断）
     regenerated: 'ほかの画面で、この案が深め直されていました。いまの中身を読み直しました。',
@@ -445,7 +450,7 @@ export const copy = {
       notYet: '見えた力の画面で見る',
       records: '5 つの記録の画面で直す',
       choice: '仕事の選択肢の画面で直す',
-      thinking: '深める画面で直す',
+      thinking: '選んだ案を深める画面で直す',
     },
     // できることの欄の中の分け方。5 つの記録の画面（profile.seenTitle、profile.checkingTitle）と同じ言葉にする（Claude の判断）
     seenTitle: 'あなたの話から見えた力',
@@ -525,6 +530,8 @@ export const copy = {
   limit: {
     title: '今日はここで一区切りにしましょう',
     body: '{time}から、また続きを話せます。ここまでの話は、そのまま残っています。',
+    // 仕事の選択肢と選んだ案を深める画面で、AI に作ってもらうときの上限（Claude の判断）
+    bodyMake: '{time}から、また作れます。ここまでの記録は、そのまま残っています。',
     time: '{month} 月 {day} 日の {hour} 時（日本時間）',
     timeFallback: '日本時間の 0 時',
   },

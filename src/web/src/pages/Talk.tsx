@@ -16,6 +16,7 @@ import {
   type Turn,
 } from '@/api'
 import { DailyLimitNotice } from '@/components/DailyLimitNotice'
+import { NextStepLink } from '@/components/NextStepLink'
 import { Insights } from '@/components/Insights'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
@@ -500,6 +501,8 @@ function TalkScreen({ id }: { id: string }) {
               </div>
             </div>
           )}
+          {/* つらい状態のサインに応えた直後は、先へ進む道を勧めない（Claude の判断） */}
+          {notice?.kind !== 'distress' && <NextStepLink refreshKey={episode?.insights} />}
           <BackHome />
         </>
       )}

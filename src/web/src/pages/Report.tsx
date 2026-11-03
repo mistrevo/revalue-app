@@ -139,7 +139,7 @@ export function Report() {
           )}
 
           <div className="mt-6 flex flex-col gap-4">
-            <AbilitiesSection abilities={data.content.abilities} />
+            <AbilitiesSection abilities={data.content.abilities} excluded={data.content.abilitiesExcluded} />
             <NotYetSection notYet={data.content.notYet} />
             <RecordsSection records={data.content.records} />
             <ChoiceSection choice={data.content.choice} busy={busy} failed={holdFailed} onHold={hold} />
@@ -162,7 +162,7 @@ export function Report() {
         </>
       )}
 
-      {data?.ready && (
+      {(data?.ready || state.kind === 'error') && (
         <div className="mt-6">
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link to="/home">{copy.report.backHome}</Link>
@@ -235,12 +235,15 @@ function AbilityGroup({ title, abilities }: { title: string; abilities: ReportAb
  * できること。確かめ中の力も並ぶので、欄の見出しは根拠ありの呼び名にせず、5 つの記録の画面と同じく
  * 「あなたの話から見えた力」と「確かめ中」のまとまりに分ける（芯 1）。
  */
-function AbilitiesSection({ abilities }: { abilities: ReportAbility[] }) {
+function AbilitiesSection({ abilities, excluded }: { abilities: ReportAbility[]; excluded: boolean }) {
   const seen = abilities.filter((a) => a.state === 'confirmed')
   const checking = abilities.filter((a) => a.state === 'needsCheck')
   return (
     <Section title={copy.report.sections.abilities}>
-      {abilities.length === 0 && <p className="text-sm leading-relaxed">{copy.report.noAbilities}</p>}
+      {/* 本人が見立てを外して空になったときは、何も並ばない理由を、5 つの記録の画面と同じ言葉で伝える */}
+      {abilities.length === 0 && (
+        <p className="text-sm leading-relaxed">{excluded ? copy.profile.excludedNote : copy.report.noAbilities}</p>
+      )}
       {seen.length > 0 && <AbilityGroup title={copy.report.seenTitle} abilities={seen} />}
       {checking.length > 0 && <AbilityGroup title={copy.report.checkingTitle} abilities={checking} />}
       <EditLink to="/abilities" label={copy.report.edit.abilities} />

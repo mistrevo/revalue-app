@@ -37,9 +37,14 @@ public sealed record ReportChoiceDto(
     bool DemandNotChecked,
     bool CardsStale);
 
-/// <summary>いまの中身。<paramref name="Thinking"/> と <paramref name="Steps"/> は、いまの選んだ案で深めた中身がなければ null。</summary>
+/// <summary>
+/// いまの中身。<paramref name="Thinking"/> と <paramref name="Steps"/> は、いまの選んだ案で深めた中身がなければ null。
+/// <paramref name="AbilitiesExcluded"/> は、本人が外した力があるか（外した力そのものは出さない。できることの欄が空のときに、
+/// 外した見立てはここに出していないと伝えるため）。版には残さない。
+/// </summary>
 public sealed record ReportContentDto(
     IReadOnlyList<ReportAbilityDto> Abilities,
+    bool AbilitiesExcluded,
     ReportNotYetDto NotYet,
     ReportRecordsDto Records,
     ReportChoiceDto Choice,
@@ -105,13 +110,14 @@ public static class ReportEndpoints
                 saved.Versions.Count,
                 saved.Versions.Count > 0 ? saved.Versions[0].Number : 0);
 
-            return TypedResults.Ok(new ReportDto(true, ContentDto(content), versions.FirstOrDefault(), versions.Skip(1).ToList()));
+            return TypedResults.Ok(new ReportDto(true, ContentDto(content, excluded.Count > 0), versions.FirstOrDefault(), versions.Skip(1).ToList()));
         });
     }
 
-    private static ReportContentDto ContentDto(ReportContent content) =>
+    private static ReportContentDto ContentDto(ReportContent content, bool abilitiesExcluded) =>
         new(
             content.Abilities.Select(AbilityDto).ToList(),
+            abilitiesExcluded,
             NotYetDto(content.NotYet),
             RecordsDto(content.Records),
             new ReportChoiceDto(

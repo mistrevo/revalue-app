@@ -86,11 +86,11 @@ describe('Deepen', () => {
       vi.unstubAllGlobals()
     }
 
-    // 条件が入っていないときは、5 つの記録への道
+    // 条件が入っていないときは、5 つの記録の条件から聞く入口への道
     installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ readiness: 'needsConditions', target: null }) })
     renderApp('/deepen')
     expect(await screen.findByText(copy.deepen.needsConditions)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.deepen.toProfile })).toHaveAttribute('href', '/profile')
+    expect(screen.getByRole('link', { name: copy.deepen.toProfile })).toHaveAttribute('href', '/profile?ask=conditions')
   })
 
   it('deepen-1（選んだ 1 案だけ深める）: まだ深めていなければ「この案を深める」で作り、待っているあいだはそのことを伝える', async () => {
@@ -567,5 +567,35 @@ describe('Deepen', () => {
       expect(page).not.toContain(word)
     }
     expect(page).not.toMatch(/[0-9０-９]+\s*(点|位)/)
+  })
+
+  it('deepen-2（業務ごとに照らす）: まだ確かめていないことの知識や道具は、「要る知識や道具（…）」と添えて一行で出す', async () => {
+    installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent() }) })
+    renderApp('/deepen')
+
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    const schedule = within(tasks).getByRole('article', { name: '日程の調整' })
+    expect(within(schedule).getByText('要る知識や道具（表計算）')).toBeInTheDocument()
+  })
+
+  it('deepen-5（うまくいかなくても次へ）: 仕事の選択肢へ戻る道の言葉を、画面の中で一つにそろえる', async () => {
+    installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent() }) })
+    renderApp('/deepen')
+
+    await screen.findByRole('region', { name: copy.deepen.notWorkingTitle })
+    const links = screen.getAllByRole('link').filter((l) => l.getAttribute('href') === '/options')
+    expect(links.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(links.map((l) => l.textContent))).toEqual(new Set(['仕事の選択肢へ戻る']))
+  })
+
+  it('foundation-6（使いすぎを穏やかに止める）: 深める画面で上限に当たったときは、話す画面向けの「また続きを話せます」と言わない', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: null }) })
+    api.state.deepenGenerate = { status: 429, body: { type: '/problems/daily-limit', status: 429, resetAt: '2026-11-03T15:00:00Z' } }
+    renderApp('/deepen')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.deepen.generate }))
+
+    const notice = (await screen.findByText(copy.limit.title)).parentElement!
+    expect(notice).not.toHaveTextContent('また続きを話せます')
   })
 })

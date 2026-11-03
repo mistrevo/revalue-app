@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react'
 import { Link } from 'react-router'
 import {
   addOwnJob,
@@ -53,6 +53,25 @@ const FIELD_CLASS =
 /** 3 枚のカードと出せないカードの枠。どれも同じ部品と見た目にする（options-1（3 枚を同じ重さで示す））。 */
 const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4'
 
+/**
+ * いま選んでいる案が、見えているこのカードか。選んだ案はカードの写しなので、種類と、名前と業務が同じかで見る
+ * （作り直して中身が変わったカードは、選んでいる案とは別のものとして「この案を選ぶ」を出す）。
+ */
+function isChosenCard(choice: OptionChoice | null, cards: NonNullable<OptionsData['cards']>, kind: CardKind): boolean {
+  if (choice?.kind !== 'card' || choice.card?.kind !== kind) return false
+  const key = (card: { title: string; tasks: string[] } | null) => (card ? JSON.stringify(card) : null)
+  const of = (source: { choose: ChooseCard | null; combine: CombineCard | null; create: CreateCard | null }) =>
+    kind === 'choose' && source.choose
+      ? { title: source.choose.occupationName, tasks: source.choose.tasks.map((t) => t.id) }
+      : kind === 'combine' && source.combine
+        ? { title: source.combine.roleName, tasks: source.combine.tasks.map((t) => t.id) }
+        : kind === 'create' && source.create
+          ? { title: source.create.title, tasks: [] }
+          : null
+  const current = key(of(cards))
+  return current !== null && current === key(of(choice.card))
+}
+
 /** 円を万円にし、小数 1 けたまで出す。末尾の .0 は書かない。 */
 function man(yen: number): string {
   return String(Number((yen / 10000).toFixed(1)))
@@ -79,6 +98,8 @@ export function Options() {
   const [generateError, setGenerateError] = useState<GenerateError>(null)
   const [notice, setNotice] = useState<Notice>(null)
   const [busy, setBusy] = useState(false)
+  // 選べたら「選んだ案」の見出しへフォーカスを移す合図。選ぶたびに 1 つ増やす
+  const [chosenFocus, setChosenFocus] = useState(0)
   // 開いたときの作り直しを 1 回だけにする印。StrictMode で画面を開く処理が 2 回走っても POST は 1 回
   const autoRegenerated = useRef(false)
 
@@ -154,6 +175,13 @@ export function Options() {
     }
   }
 
+  /** 案を選ぶ。選べたら、選んだ案へフォーカスを移す（選べたことが分かるように）。 */
+  async function choose(run: () => Promise<OptionsData>): Promise<boolean> {
+    const ok = await change('choice', run)
+    if (ok) setChosenFocus((n) => n + 1)
+    return ok
+  }
+
   const data = state.kind === 'ready' ? state.data : null
   const ready = data?.readiness === 'ready'
 
@@ -178,6 +206,7 @@ export function Options() {
             canHold={ready}
             busy={busy}
             notice={notice?.where === 'choice' ? notice.text : null}
+            focusKey={chosenFocus}
             onHold={() => change('choice', () => putOptionChoice({ kind: 'hold' }))}
             onClear={() => change('choice', deleteOptionChoice)}
           />
@@ -205,7 +234,7 @@ export function Options() {
                   )}
                 </div>
               )}
-              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} />}
+              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} for="make" />}
 
               {data.cards === null && generateError?.kind !== 'limit' && (
                 <Button
@@ -227,11 +256,10 @@ export function Options() {
                       kind={kind}
                       cards={data.cards!}
                       monthlyIncome={data.monthlyIncome}
+                      chosen={isChosenCard(data.choice, data.cards!, kind)}
                       busy={busy || generating !== 'idle'}
                       onChoose={() =>
-                        change('choice', () =>
-                          putOptionChoice({ kind: 'card', card: kind, generatedAt: data.cards!.generatedAt }),
-                        )
+                        choose(() => putOptionChoice({ kind: 'card', card: kind, generatedAt: data.cards!.generatedAt }))
                       }
                     />
                   ))}
@@ -248,7 +276,7 @@ export function Options() {
               onAdd={(job) => change('own', () => addOwnJob(job))}
               onUpdate={(id, job) => change('own', () => updateOwnJob(id, job))}
               onRemove={(id) => change('own', () => deleteOwnJob(id))}
-              onChoose={(id) => change('choice', () => putOptionChoice({ kind: 'own', ownJobId: id }))}
+              onChoose={(id) => choose(() => putOptionChoice({ kind: 'own', ownJobId: id }))}
             />
           )}
 
@@ -265,11 +293,22 @@ export function Options() {
   )
 }
 
-function Section({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
+function Section({
+  title,
+  children,
+  className,
+  headingRef,
+}: {
+  title: string
+  children: ReactNode
+  className?: string
+  /** 渡すと、見出しにフォーカスを移せるようにする（tabIndex -1）。 */
+  headingRef?: Ref<HTMLHeadingElement>
+}) {
   const id = useId()
   return (
     <section aria-labelledby={id} className={className ?? CARD_CLASS}>
-      <h2 id={id} className="text-base font-bold">
+      <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="text-base font-bold outline-none">
         {title}
       </h2>
       {children}
@@ -281,7 +320,7 @@ function Section({ title, children, className }: { title: string; children: Reac
 function NotReady({ readiness }: { readiness: OptionsData['readiness'] }) {
   const { text, to, link } =
     readiness === 'needsConditions'
-      ? { text: copy.options.needsConditions, to: '/profile', link: copy.options.toProfile }
+      ? { text: copy.options.needsConditions, to: '/profile?ask=conditions', link: copy.options.toProfile }
       : readiness === 'needsFinishedEpisode'
         ? { text: copy.options.needsFinishedEpisode, to: '/home', link: copy.options.toTalk }
         : readiness === 'onlyExcluded'
@@ -306,6 +345,7 @@ function ChoiceArea({
   canHold,
   busy,
   notice,
+  focusKey,
   onHold,
   onClear,
 }: {
@@ -313,9 +353,20 @@ function ChoiceArea({
   canHold: boolean
   busy: boolean
   notice: string | null
+  /** 増えたら、「選んだ案」の見出しにフォーカスを移し、見える範囲に入れる。 */
+  focusKey: number
   onHold: () => void
   onClear: () => void
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (focusKey === 0) return
+    const heading = headingRef.current
+    if (!heading) return
+    heading.focus()
+    heading.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+  }, [focusKey])
+
   const alert = notice && (
     <p role="alert" className="text-sm leading-relaxed">
       {notice}
@@ -338,7 +389,7 @@ function ChoiceArea({
   const own = choice?.kind === 'own' ? choice.ownJob : null
   if (chosen || own) {
     return (
-      <Section title={copy.options.chosenTitle} className={`${CARD_CLASS} border-primary/40 bg-primary/5`}>
+      <Section title={copy.options.chosenTitle} className={`${CARD_CLASS} border-primary/40 bg-primary/5`} headingRef={headingRef}>
         {chosen && (
           <>
             <p className="text-sm text-muted-foreground">{copy.options.kinds[chosen.kind].label}</p>
@@ -390,12 +441,15 @@ function OptionCard({
   kind,
   cards,
   monthlyIncome,
+  chosen,
   busy,
   onChoose,
 }: {
   kind: CardKind
   cards: NonNullable<OptionsData['cards']>
   monthlyIncome: number | null
+  /** いま選んでいる案がこのカードか。そうなら「選んでいます」と出し、押せなくする。 */
+  chosen: boolean
   busy: boolean
   onChoose: () => void
 }) {
@@ -411,8 +465,8 @@ function OptionCard({
       {body ? (
         <>
           {body}
-          <Button className="w-full sm:w-auto sm:self-start" disabled={busy} onClick={onChoose}>
-            {copy.options.chooseThis}
+          <Button className="w-full sm:w-auto sm:self-start" disabled={busy || chosen} onClick={onChoose}>
+            {chosen ? copy.options.chosenThis : copy.options.chooseThis}
           </Button>
         </>
       ) : (
