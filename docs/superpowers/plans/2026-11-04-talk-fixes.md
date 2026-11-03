@@ -75,18 +75,18 @@
 - Produces: `DiscoverText.OpeningAnotherDay = "前に話してくれた日とは別の、最近のある一日のことを、聞かせてください。その日の朝起きてから夜までに、どんなことがありましたか？"`（Claude の判断）。選択肢は `OpeningChoices` のまま。一手の名前は "opening" のまま
 - Changes: `POST /api/episodes` — その人の場面に、本人の答え（`Role == User` で `AnswerKind != Correction`）が 1 つ以上ある話し終えた場面があれば `OpeningAnotherDay`、なければ `Opening` で始める。場面の一覧は `EpisodeStarter.StartAsync` を呼ぶ前に読む（`create` の中で読まない）
 
-- [ ] **Step 1: 失敗するテストを書く**（`EpisodeTests.cs`）
+- [x] **Step 1: 失敗するテストを書く**（`EpisodeTests.cs`）
   - `[Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 話し終えた場面があれば、新しい場面は、前とは別の一日を尋ねる問いで始まる")]`: 1 つ目の場面で答えを 1 つ保存して区切る → 2 つ目を始めると、最初のターンの文は `DiscoverText.OpeningAnotherDay`、選択肢は `OpeningChoices`
   - `[Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 答えずに区切った場面しかなければ、新しい場面は、いつもの最初の問いで始まる")]`: 答えずに区切る → 2 つ目は `DiscoverText.Opening`
   - いまの `NewEpisodeStartsWithConcreteDayQuestion` はそのまま通ること（場面がない人は `Opening`）
-- [ ] **Step 2: 実行して失敗を確かめる**: `dotnet test --filter "FullyQualifiedName~EpisodeTests"`
-- [ ] **Step 3: 実装する**
-- [ ] **Step 4: 実行して通ることを確かめる**: `dotnet test`
-- [ ] **Step 5: Spec を直す**（`02-discover.md`）
+- [x] **Step 2: 実行して失敗を確かめる**: `dotnet test --filter "FullyQualifiedName~EpisodeTests"`
+- [x] **Step 3: 実装する**
+- [x] **Step 4: 実行して通ることを確かめる**: `dotnet test`
+- [x] **Step 5: Spec を直す**（`02-discover.md`）
   - 「場面の始まりと終わり」の最初の問いの行に足す（Claude の判断）: 本人が答えた話し終えた場面がすでにあれば、「前に話してくれた日とは別の、最近のある一日のことを、聞かせてください。その日の朝起きてから夜までに、どんなことがありましたか？」で始める。前に話した日を同じ言葉で聞いて、前の話を覚えていないように見せないため。選択肢は同じ 3 つ
   - discover-1（具体的な一日を一つ聞く）に足す: 本人が答えた話し終えた場面があれば、前とは別の一日を尋ねる
   - API の表の `POST /api/episodes` に、最初の問いが 2 通りあることを書く
-- [ ] **Step 6: コミット**: `git commit -m "2 つ目からの場面は、前に話した日とは別の一日を尋ねる問いで始める（discover-1（具体的な一日を一つ聞く））"`
+- [x] **Step 6: コミット**: `git commit -m "2 つ目からの場面は、前に話した日とは別の一日を尋ねる問いで始める（discover-1（具体的な一日を一つ聞く））"`
 
 ### Task 3: 訂正を、ふつうの答えと分けて出す（G2）
 
