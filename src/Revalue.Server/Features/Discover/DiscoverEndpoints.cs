@@ -62,7 +62,7 @@ public static class DiscoverEndpoints
         episodes.MapPost("/", async (HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
         {
             var userKey = http.User.GetUserKey()!;
-            // 本人が答えた話し終えた場面があれば、前とは別の一日を尋ねる（訂正は答えに数えない）
+            // 本人が答えた話し終えた場面があれば、「また」と添えた最初の問いで尋ねる（訂正は答えに数えない）
             var answered = (await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct))
                 .Any(e => e.Status == EpisodeStatus.Finished
                     && e.Turns.Any(t => t.Role == TurnRoles.User && t.AnswerKind != AnswerKind.Correction));

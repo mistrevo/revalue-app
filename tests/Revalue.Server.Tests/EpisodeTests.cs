@@ -62,7 +62,7 @@ public sealed class EpisodeTests
         Assert.Equal(3, DiscoverText.OpeningChoices.Count);
     }
 
-    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 話し終えた場面があれば、新しい場面は、前とは別の一日を尋ねる問いで始まる")]
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 本人が答えた話し終えた場面があれば、新しい場面は、「また」と添えた、いつもと違う最初の問いで始まる")]
     public async Task SecondEpisodeAsksAnotherDay()
     {
         await using var factory = new RevalueFactory();
@@ -77,6 +77,9 @@ public sealed class EpisodeTests
         Assert.NotEqual(DiscoverText.Opening, turn.GetProperty("text").GetString());
         Assert.Equal(DiscoverText.OpeningChoices, turn.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
         Assert.Equal("opening", turn.GetProperty("move").GetString());
+        // 前に話した日を指さず、「別の日」も求めない（前の場面が一般論だけの人や、つらい話で区切った人もいるため）
+        Assert.DoesNotContain("別の", DiscoverText.OpeningAnotherDay, StringComparison.Ordinal);
+        Assert.DoesNotContain("前に話", DiscoverText.OpeningAnotherDay, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 答えずに区切った場面しかなければ、新しい場面は、いつもの最初の問いで始まる")]

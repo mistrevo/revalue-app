@@ -197,7 +197,7 @@ public sealed class ReportApiTests
         var id = await FinishedEpisode(client, kit.Ai, Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"));
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(1, Number(await Get(client)));
-        var first =(await Stored(kit, "r-skip-resume-again"))!.Versions.Single();
+        var first = (await Stored(kit, "r-skip-resume-again"))!.Versions.Single();
 
         // 続きを開く → 答えずに区切る → また続きを開く（問いは足さない） → 飛ばす
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));

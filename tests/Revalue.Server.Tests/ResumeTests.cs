@@ -158,6 +158,67 @@ public sealed class ResumeTests
         Assert.False(after.ExcludedFromValidation);
     }
 
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いの行動を避けて、ほかの要確認の力の足りない行動を聞く。避けた行動も、続きの中でまた聞ける")]
+    public async Task ResumeAsksNextActionAndAvoidedActionStaysAskable()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        // 調整する力は 2 つ、優先順位をつける力は 1 つ。区切る前の最後の問いは、調整する力 3 を聞いていた（答えていない）
+        var id = await FinishedEpisode(client, ai,
+            CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして"));
+        Assert.Equal("coordinating.3", (await Saved(factory, "g-1", id)).Turns[^1].Target);
+
+        var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+
+        // 調整する力 3 は避け、次の要確認の力（優先順位をつける力）の足りない行動を聞く
+        Assert.Equal("prioritizing.1", question.GetProperty("target").GetString());
+        Assert.Equal(
+            AbilityText.ResumeOpening(new ActionRef(Ability.Prioritizing, 1), "迎えの時間をずらして"),
+            question.GetProperty("text").GetString());
+
+        // 聞いた回数の数え方は変えないので、調整する力 3 はまだ 1 回。続きの答えのあと、いつもの決まりでもう一度聞ける
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+        await Send(client, id, "少し覚えています");
+
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 3)), ai.NextMoves[^1]);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 問いを足さずに続きを開くとき、印を書き換える直前にほかの画面で印が変わったら、話し終えた状態に戻す")]
+    public async Task ResumeWithoutNewQuestionRevertsWhenMarkChanged()
+    {
+        var (factory, ai) = Create(interrupting: true);
+        await using var _f = factory;
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        await Finish(client, id);
+        var before = await Saved(factory, "g-1", id);
+        var key = TestUsers.Key("g-1");
+
+        // 印を書き換える直前に、ほかの要求が新しい場面と印を書いた（中の保存先に直接書く）
+        var otherId = EpisodeItem.NewId();
+        store.RunOnceBeforeWriting(TalkingMarkItem.ItemId, async inner =>
+        {
+            await inner.UpsertAsync(EpisodeItem.Start(key, factory.Clock.GetUtcNow(), DiscoverText.Opening, DiscoverText.OpeningChoices, "opening") with { Id = otherId }, Ct);
+            await inner.UpsertAsync(new TalkingMarkItem { Id = TalkingMarkItem.ItemId, UserKey = key, Type = TalkingMarkItem.ItemType, EpisodeId = otherId }, Ct);
+        });
+
+        var response = await Resume(client, id);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(otherId, (await Json(response)).GetProperty("episodeId").GetString());
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Equal(EpisodeStatus.Finished, saved.Status);
+        Assert.Equal(before.FinishedAt, saved.FinishedAt);
+        Assert.Equal(before.TurnLimit, saved.TurnLimit);
+        Assert.Equal(before.Turns.Select(t => (t.Role, t.Text, t.Move)), saved.Turns.Select(t => (t.Role, t.Text, t.Move)));
+        Assert.Equal(
+            (before.BeforeResume?.TurnCount, before.BeforeResume?.FinishedAt, before.BeforeResume?.TurnLimit, before.BeforeResume?.ResumedAt),
+            (saved.BeforeResume?.TurnCount, saved.BeforeResume?.FinishedAt, saved.BeforeResume?.TurnLimit, saved.BeforeResume?.ResumedAt));
+    }
+
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きを話すと、往復の上限が 4 増える")]
     public async Task ResumeExtendsTurnLimit()
     {

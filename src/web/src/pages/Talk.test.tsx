@@ -537,7 +537,7 @@ describe('Talk', () => {
     expect(confirmSpy).not.toHaveBeenCalled()
   })
 
-  it('validate-8（訂正したら確かめ直す）: やりとりの中の訂正は、ふつうの答えと分けて「あなたが読み取りを直した言葉」として出る', async () => {
+  it('validate-8（訂正したら確かめ直す）: やりとりの中の訂正は、ふつうの答えと分けて「AI の読み取りを、あなたが直した言葉」として出る', async () => {
     setup(finishedWithInsights())
 
     await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
@@ -550,6 +550,8 @@ describe('Talk', () => {
     expect(within(box).getByText('声をかけたのは私ではなく、夫でした')).toBeInTheDocument()
     // 見出しだけで、本人が直した言葉だと分かる（読み上げでも、読み返しでも）
     expect(copy.talk.correctionLabel).toContain(copy.talk.you)
+    // だれの読み取りを直したかも書く（自分の読み違いを直したと読まれないため）
+    expect(copy.talk.correctionLabel).toContain('AI の読み取り')
     // 本人の答えの吹き出し（読み上げに「あなた」を持つもの）には、訂正が入らない
     const asAnswer = within(log)
       .getAllByText(copy.talk.you)
