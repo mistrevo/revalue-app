@@ -204,6 +204,12 @@ public sealed class ReportApiTests
             Assert.False(ability.TryGetProperty("quotes", out _));
             Assert.False(snapshot.GetProperty("choice").TryGetProperty("reason", out _));
             Assert.False(snapshot.GetProperty("choice").TryGetProperty("ability", out _));
+
+            // まだ確かめていないことの欄も、力の状態を表す行（まだ聞けていない力、確かめ中の力、業務で使う力のうち確かめていない力）は出さない
+            var notYet = snapshot.GetProperty("notYet");
+            Assert.False(notYet.TryGetProperty("notHeard", out _));
+            Assert.False(notYet.TryGetProperty("checking", out _));
+            Assert.All(Array(notYet, "taskGaps"), gap => Assert.False(gap.TryGetProperty("abilityName", out _)));
         }
     }
 
@@ -219,12 +225,12 @@ public sealed class ReportApiTests
         var dto = await Get(client);
 
         Assert.Empty(AbilityKeys(dto.GetProperty("content").GetProperty("abilities")));
-        var name = AbilityText.Name(Ability.Prioritizing);
         foreach (var version in Array(dto, "previous"))
         {
             var snapshot = version.GetProperty("snapshot");
             Assert.DoesNotContain("coordinating", AbilityKeys(snapshot.GetProperty("abilities")));
-            Assert.DoesNotContain(name, Array(snapshot.GetProperty("notYet"), "notHeard").Select(n => n.GetString()));
+            // 前の版のまだ確かめていないことには、力の名前の行がない（力の状態を表すので）
+            Assert.False(snapshot.GetProperty("notYet").TryGetProperty("notHeard", out _));
         }
 
         // 戻せば、前の版にもまた出る（前の版は名前を残している）

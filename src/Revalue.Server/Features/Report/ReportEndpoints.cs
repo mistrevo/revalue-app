@@ -46,13 +46,22 @@ public sealed record ReportContentDto(
     IReadOnlyList<ReportThought>? Thinking,
     IReadOnlyList<ReportStep>? Steps);
 
+/// <summary>版の中の業務 1 つ。要る知識や道具だけで、まだ確かめていない力は持たない（力の状態を表すので）。</summary>
+public sealed record ReportSnapshotTaskGapDto(string TaskName, IReadOnlyList<string> Knowledge);
+
+/// <summary>
+/// 版の中の、まだ確かめていないこと。まだ聞けていない力と確かめ中の力は持たない。
+/// 前の版と見比べて、見立てが下がったと読ませないため（07-report.md の「版を残す」）。
+/// </summary>
+public sealed record ReportSnapshotNotYetDto(IReadOnlyList<ReportSnapshotTaskGapDto> TaskGaps, bool HasExcluded);
+
 /// <summary>版の中の力。名前だけで、状態と根拠の言葉は持たない。</summary>
 public sealed record ReportSnapshotAbilityDto(string Key, string Name);
 
 /// <summary>版に残した中身。根拠の言葉と、選んだ案の理由と、力の状態は持たない。</summary>
 public sealed record ReportSnapshotDto(
     IReadOnlyList<ReportSnapshotAbilityDto> Abilities,
-    ReportNotYetDto NotYet,
+    ReportSnapshotNotYetDto NotYet,
     ReportRecordsDto Records,
     ReportChoiceSnapshot Choice,
     IReadOnlyList<ReportThought>? Thinking,
@@ -138,7 +147,12 @@ public static class ReportEndpoints
             version.Changed,
             new ReportSnapshotDto(
                 snapshot.Abilities.Select(a => new ReportSnapshotAbilityDto(ActionRef.Key(a), AbilityText.Name(a))).ToList(),
-                NotYetDto(snapshot.NotYet),
+                new ReportSnapshotNotYetDto(
+                    snapshot.NotYet.TaskGaps
+                        .Where(g => g.Knowledge.Count > 0)
+                        .Select(g => new ReportSnapshotTaskGapDto(g.TaskName, g.Knowledge))
+                        .ToList(),
+                    snapshot.NotYet.HasExcluded),
                 RecordsDto(snapshot.Records),
                 snapshot.Choice,
                 snapshot.Thinking,

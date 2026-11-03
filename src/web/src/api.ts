@@ -686,10 +686,16 @@ export type ReportContent = {
   steps: ReportStep[] | null
 }
 
+/**
+ * 版の中の、まだ確かめていないこと。力の状態を表す行（まだ聞けていない力、確かめ中の力、業務で使う力のうち確かめていない力）は来ず、
+ * 業務に要る知識や道具だけが来る。
+ */
+export type ReportSnapshotNotYet = { taskGaps: { taskName: string; knowledge: string[] }[]; hasExcluded: boolean }
+
 /** 版に残した中身。根拠の言葉、選んだ案の理由、力の状態は持たない。 */
 export type ReportSnapshot = {
   abilities: { key: AbilityKey; name: string }[]
-  notYet: ReportNotYet
+  notYet: ReportSnapshotNotYet
   records: ReportRecords
   choice: Omit<ReportChoice, 'reason' | 'ability'>
   thinking: ReportThought[] | null

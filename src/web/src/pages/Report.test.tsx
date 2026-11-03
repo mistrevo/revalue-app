@@ -306,6 +306,11 @@ describe('Report', () => {
     expect(v1).not.toHaveTextContent('先に書類を仕上げました')
     expect(v1).not.toHaveTextContent('班の家族の都合を聞いて集合を決めた動きは')
     expect(within(v1).queryByText(copy.report.abilityStates.needsCheck)).not.toBeInTheDocument()
+    // まだ確かめていないことも、力の状態を表す行は出さず、業務に要る知識や道具だけを出す
+    expect(v1).not.toHaveTextContent('確かめ中の力')
+    expect(v1).not.toHaveTextContent('まだ聞けていない力')
+    expect(v1).not.toHaveTextContent(copy.report.taskAbility.replace('{task}', '出張や会食の手配').replace('{name}', '見立てる力'))
+    expect(v1).toHaveTextContent(copy.report.taskKnowledge.replace('{task}', '日程の調整').replace('{items}', '表計算'))
     for (const el of within(v1).queryAllByText(copy.report.abilityStates.confirmed)) {
       // 欄の見出しとしてだけ出る
       expect(el.tagName).toBe('H4')

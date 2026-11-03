@@ -398,12 +398,17 @@ export function fakeReportContent(overrides: Partial<ReportContent> = {}): Repor
   }
 }
 
-/** 版に残す写し（裏側の ReportSnapshot と同じく、根拠の言葉、選んだ案の理由、力の状態を除く）。 */
+/** 版の写し（裏側の ReportSnapshotDto と同じく、根拠の言葉、選んだ案の理由、力の状態を表すものを除く）。 */
 export function fakeReportSnapshot(content: ReportContent): ReportSnapshot {
   const c = content.choice
   return {
     abilities: content.abilities.map((a) => ({ key: a.key, name: a.name })),
-    notYet: content.notYet,
+    notYet: {
+      taskGaps: content.notYet.taskGaps
+        .filter((g) => g.knowledge.length > 0)
+        .map((g) => ({ taskName: g.taskName, knowledge: g.knowledge })),
+      hasExcluded: content.notYet.hasExcluded,
+    },
     records: content.records,
     choice: {
       kind: c.kind,

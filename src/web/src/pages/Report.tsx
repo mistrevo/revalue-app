@@ -15,6 +15,7 @@ import {
   type ReportRecords,
   type ReportSection,
   type ReportSnapshot,
+  type ReportSnapshotNotYet,
   type ReportStep,
   type ReportThought,
   type ReportVersion,
@@ -228,7 +229,7 @@ function AbilitiesSection({ abilities }: { abilities: ReportAbility[] }) {
   )
 }
 
-/** まだ確かめていないことの中身（いまの版と前の版で同じ）。 */
+/** まだ確かめていないことの中身（いまの版）。 */
 function NotYetBody({ notYet }: { notYet: ReportNotYet }) {
   const items = [
     ...(notYet.notHeard.length > 0 ? [copy.report.notHeard.replace('{names}', notYet.notHeard.join('、'))] : []),
@@ -253,6 +254,28 @@ function NotYetBody({ notYet }: { notYet: ReportNotYet }) {
       )}
       {notYet.hasExcluded && <Note>{copy.profile.excludedNote}</Note>}
       {(notYet.notHeard.length > 0 || notYet.checking.length > 0) && <Note>{copy.insights.notYetNote}</Note>}
+      <Note>{copy.deepen.workNote}</Note>
+    </>
+  )
+}
+
+/** 前の版のまだ確かめていないこと。力の状態を表す行は来ないので、業務に要る知識や道具だけを出す。 */
+function SnapshotNotYet({ notYet }: { notYet: ReportSnapshotNotYet }) {
+  const items = notYet.taskGaps.map((gap) =>
+    copy.report.taskKnowledge.replace('{task}', gap.taskName).replace('{items}', gap.knowledge.join('、')),
+  )
+  return (
+    <>
+      {items.length > 0 && (
+        <ul className="list-disc pl-5 text-sm leading-relaxed">
+          {items.map((text) => (
+            <li key={text} className="break-words">
+              {text}
+            </li>
+          ))}
+        </ul>
+      )}
+      {notYet.hasExcluded && <Note>{copy.profile.excludedNote}</Note>}
       <Note>{copy.deepen.workNote}</Note>
     </>
   )
@@ -550,7 +573,7 @@ function StepsSection({
   )
 }
 
-/** その時点の中身。力は名前だけで、状態、根拠の言葉、選んだ案の理由は出さない。 */
+/** その時点の中身。力は名前だけで、状態（まだ確かめていないことの力の行も）、根拠の言葉、選んだ案の理由は出さない。 */
 function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
   const head = 'text-sm font-semibold'
   return (
@@ -565,7 +588,7 @@ function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
       </div>
       <div className="flex flex-col gap-2">
         <h4 className={head}>{copy.report.sections.notYet}</h4>
-        <NotYetBody notYet={snapshot.notYet} />
+        <SnapshotNotYet notYet={snapshot.notYet} />
       </div>
       <div>
         <h4 className={head}>{copy.report.sections.records}</h4>
