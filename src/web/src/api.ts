@@ -584,11 +584,14 @@ export type DeepenContent = {
   questions: DeepenQuestion[]
   steps: DeepenStep[]
   stepsFallback: boolean
+  /** いまの条件に収まらず選んでもいない候補を出さずに、コードの候補で補ったか */
+  stepsReplaced: boolean
   ownSteps: string[]
 }
 
 /** 深める API が返すもの。進めないときは target と content が null。まだ深めていなければ content が null。 */
-export type Deepen = { readiness: DeepenReadiness; target: DeepenTarget | null; content: DeepenContent | null }
+/** retryPaused は、いまの選んだ案で AI が失敗したか断ったか。初めて深めるときの失敗も伝えるため、中身の外にも持つ */
+export type Deepen = { readiness: DeepenReadiness; target: DeepenTarget | null; content: DeepenContent | null; retryPaused: boolean }
 
 /** 本人が直した業務。knowledge は要る知識や道具（なくてもよい）。 */
 export type DeepenTaskRequest = { name: string; detail: string; ability: AbilityKey; knowledge: string }

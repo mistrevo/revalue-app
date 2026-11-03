@@ -13,7 +13,7 @@ namespace Revalue.Evals;
 
 /// <summary>深めた中身 1 件への判定役の答え。項目は evals/judges/deepen.md に合わせる。</summary>
 public sealed record DeepenVerdict(
-    bool Decides, bool PushesAway, bool OverPraise, bool StepsSmall, bool QuestionsNeutral, bool QuestionsInScene, string Reason);
+    bool Decides, bool PushesAway, bool OverPraise, bool StepsSmall, bool QuestionsNeutral, bool QuestionsInScene, bool DemandCheckReal, string Reason);
 
 /// <summary>深めた中身を判定する役。答えられなかったときは null を返す（評価では、問題があったと数える）。</summary>
 public interface IDeepenJudge
@@ -222,7 +222,7 @@ public sealed class DeepenEval(IDeepenAi ai, IDeepenJudge judge, JobCatalog cata
 public sealed class DryRunDeepenJudge : IDeepenJudge
 {
     public Task<DeepenVerdict?> JudgeAsync(string record, string content, CancellationToken ct) =>
-        Task.FromResult<DeepenVerdict?>(new DeepenVerdict(false, false, false, true, true, true, ""));
+        Task.FromResult<DeepenVerdict?>(new DeepenVerdict(false, false, false, true, true, true, true, ""));
 }
 
 /// <summary>Claude の、深めた中身の判定役（evals/judges/deepen.md）。構造化出力（effort high）。</summary>
@@ -230,7 +230,7 @@ public sealed class ClaudeDeepenJudge(AnthropicClient client, string model, stri
 {
     private const int MaxTokens = 16000;
 
-    private static readonly string[] BooleanFields = ["decides", "pushesAway", "overPraise", "stepsSmall", "questionsNeutral", "questionsInScene"];
+    private static readonly string[] BooleanFields = ["decides", "pushesAway", "overPraise", "stepsSmall", "questionsNeutral", "questionsInScene", "demandCheckReal"];
 
     public async Task<DeepenVerdict?> JudgeAsync(string record, string content, CancellationToken ct)
     {
@@ -246,7 +246,7 @@ public sealed class ClaudeDeepenJudge(AnthropicClient client, string model, stri
             var root = document.RootElement;
             bool Get(string name) => root.GetProperty(name).GetBoolean();
             return new DeepenVerdict(
-                Get("decides"), Get("pushesAway"), Get("overPraise"), Get("stepsSmall"), Get("questionsNeutral"), Get("questionsInScene"),
+                Get("decides"), Get("pushesAway"), Get("overPraise"), Get("stepsSmall"), Get("questionsNeutral"), Get("questionsInScene"), Get("demandCheckReal"),
                 root.GetProperty("reason").GetString() ?? "");
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)

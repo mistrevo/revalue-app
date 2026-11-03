@@ -508,6 +508,26 @@ public sealed class DeepenApiTests
         Assert.Equal("needsCheck", usable.GetProperty("state").GetString());
     }
 
+    [Fact(DisplayName = "deepen-1（選んだ 1 案だけ深める）: 初めて深めるときに AI が失敗したら、開き直しても失敗したことを返す")]
+    public async Task FirstFailureIsReturnedOnReload()
+    {
+        var kit = Setup();
+        var client = await Ready(kit, "d-21");
+        await ChooseCard(client, "choose");
+        var first = await Get(client);
+        Assert.False(first.GetProperty("retryPaused").GetBoolean());
+
+        kit.Deepen.Fail = ConversationAiException.Failure;
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/api/deepen", null, Ct)).StatusCode);
+        var reloaded = await Get(client);
+        Assert.Equal(JsonValueKind.Null, reloaded.GetProperty("content").ValueKind);
+        Assert.True(reloaded.GetProperty("retryPaused").GetBoolean());
+
+        // 別の案を選べば、その案ではまだ失敗していない
+        await ChooseCard(client, "combine");
+        Assert.False((await Get(client)).GetProperty("retryPaused").GetBoolean());
+    }
+
     [Fact(DisplayName = "deepen-1（選んだ 1 案だけ深める）: AI が失敗したら何も書き換えず、同じ案のあいだは自動で作り直さない印を残す")]
     public async Task AiFailureKeepsContentAndPausesRetry()
     {

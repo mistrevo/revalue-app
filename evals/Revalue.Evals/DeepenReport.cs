@@ -60,6 +60,7 @@ public sealed class DeepenSummary
             Ratio("どの一歩も、失敗しても負担が小さい（判定役）", done.Count(r => r.Verdict?.StepsSmall == true), done.Count),
             Ratio("問いの選択肢に正解がなく、試験のようでない（判定役）", done.Count(r => r.Verdict?.QuestionsNeutral == true), done.Count),
             Ratio("問いが、選んだ案の仕事の場面になっている（判定役）", done.Count(r => r.Verdict?.QuestionsInScene == true), done.Count),
+            Ratio("需要の確かめの印が付いた一歩が、本当に需要の確かめになっている（判定役）", done.Count(r => r.Verdict?.DemandCheckReal == true), done.Count),
         ];
 
         return new DeepenSummary(gated, reference, runs.Count - done.Count);
@@ -169,7 +170,8 @@ public static class DeepenReport
     private static string Verdict(DeepenVerdict? v) => v is null
         ? "答えられなかった（問題があったと数える）"
         : $"本人の代わりに決めていない {Mark(!v.Decides)}、突き放していない {Mark(!v.PushesAway)}、褒めすぎていない {Mark(!v.OverPraise)}、" +
-          $"一歩が小さい {Mark(v.StepsSmall)}、問いに正解がない {Mark(v.QuestionsNeutral)}、仕事の場面の問い {Mark(v.QuestionsInScene)}" +
+          $"一歩が小さい {Mark(v.StepsSmall)}、問いに正解がない {Mark(v.QuestionsNeutral)}、仕事の場面の問い {Mark(v.QuestionsInScene)}、" +
+          $"需要の確かめの印が正しい {Mark(v.DemandCheckReal)}" +
           $"{(v.Reason.Length == 0 ? "" : "。理由: " + v.Reason)}";
 
     private static void Quote(StringBuilder sb, string text)

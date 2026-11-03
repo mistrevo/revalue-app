@@ -228,6 +228,11 @@ public static class DeepenValidator
         return q.Choices.Select(c => c.Trim()).Distinct().Count() == ChoiceCount ? null : "choiceDuplicate";
     }
 
+    /// <summary>
+    /// 一歩の候補に書かせない言葉。応募、契約、お金を払うことを最初の一歩にせず、勧める言い方にしないため（06-deepen.md の「最初の一歩」。Claude の判断）。
+    /// </summary>
+    public static readonly IReadOnlyList<string> PushyStepWords = ["応募", "契約", "申し込", "申込", "購入", "ましょう", "すべき"];
+
     private static string? StepsProblem(
         IReadOnlyList<StepDraft> drafts, DeepenTarget target, ProfileConditions conditions, ForbiddenWordList forbidden, out IReadOnlyList<StepCandidate> built)
     {
@@ -243,6 +248,11 @@ public static class DeepenValidator
             if (TextProblem(d.Text, MaxStepText, forbidden) is { } problem)
             {
                 return problem;
+            }
+
+            if (PushyStepWords.Any(w => d.Text.Contains(w, StringComparison.Ordinal)))
+            {
+                return "pushyStep";
             }
 
             var place = d.Place switch

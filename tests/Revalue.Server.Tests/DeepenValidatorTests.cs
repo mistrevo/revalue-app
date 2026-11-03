@@ -67,6 +67,29 @@ public sealed class DeepenValidatorTests
         }
     }
 
+    [Fact(DisplayName = "deepen-3（最初の一歩は小さく）: 応募、契約、お金を払うこと、勧める言い方の一歩があれば、3 つともコードの候補に置き換える")]
+    public void PushyStepsFallBack()
+    {
+        foreach (var text in new[]
+        {
+            "この仕事の募集に応募してみる",
+            "オンライン秘書の会社と契約してみる",
+            "説明会に申し込んでみる",
+            "表計算の教材を購入してみる",
+            "まずは体験談を読みましょう",
+            "毎日 1 時間は練習すべき",
+        })
+        {
+            var (content, rejections) = Build(Draft(steps: [Step(), Step(), Step(text)]));
+            Assert.True(content.StepsFallback, $"{text}: {string.Join(",", rejections)}");
+            Assert.Contains(new DeepenRejection("steps", "pushyStep"), rejections);
+        }
+
+        // 「募集を読む」は応募ではない
+        var (ok, _) = Build(Draft(steps: [Step(), Step(), Step("この仕事の募集を 2 件読んで、業務を書き出してみる")]));
+        Assert.False(ok.StepsFallback);
+    }
+
     [Fact(DisplayName = "deepen-4（創るの一歩には需要の確かめを入れる）: 「創る」で需要の確かめのない候補は、需要の確かめを含むコードの候補に置き換える")]
     public void CreateNeedsDemandCheck()
     {

@@ -176,6 +176,37 @@ describe('Deepen', () => {
     expect(posts(api.calls)).toHaveLength(1)
   })
 
+  it('deepen-1（選んだ 1 案だけ深める）: 初めて深めるときに失敗していたら、開き直しても失敗を伝え、「もう一度作る」を出す', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ retryPaused: true }) })
+    renderApp('/deepen')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(copy.deepen.generateFailed)
+    expect(screen.queryByRole('button', { name: copy.deepen.generate })).not.toBeInTheDocument()
+    expect(posts(api.calls)).toHaveLength(0)
+
+    await userEvent.click(screen.getByRole('button', { name: copy.deepen.retry }))
+    expect(await screen.findByText('日程の調整')).toBeInTheDocument()
+    expect(posts(api.calls)).toHaveLength(1)
+  })
+
+  it('deepen-3（最初の一歩は小さく）: コードの候補と中身の候補が並んでいても、裏側が入れ替えたと言わなければ、入れ替えたとは添えない', async () => {
+    const base = fakeDeepenContent().steps
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      deepen: fakeDeepen({
+        content: fakeDeepenContent({
+          steps: [base[0], base[1], base[2], { id: 'f1', text: 'この仕事について知りたいことを書き出す', hours: 1, place: 'home', demandCheck: false, fits: true, chosen: true }],
+          stepsReplaced: false,
+        }),
+      }),
+    })
+    renderApp('/deepen')
+
+    const steps = await screen.findByRole('region', { name: copy.deepen.stepsTitle })
+    expect(steps).not.toHaveTextContent(copy.deepen.stepsReplaced)
+  })
+
   it('deepen-1（選んだ 1 案だけ深める）: 作るのに失敗したら穏やかな言葉と「もう一度作る」を出し、上限なら上限の言葉だけを出す', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen() })
     api.state.deepenGenerate = { status: 503, body: { type: '/problems/ai-unavailable', status: 503, kind: 'failure' } }
@@ -409,6 +440,7 @@ describe('Deepen', () => {
             { ...base[1], fits: false, chosen: true },
             { id: 'f1', text: 'この仕事について知りたいことを書き出す', hours: 1, place: 'home', demandCheck: false, fits: true, chosen: false },
           ],
+          stepsReplaced: true,
         }),
       }),
     })
@@ -459,7 +491,7 @@ describe('Deepen', () => {
 
     const notWorking = await screen.findByRole('region', { name: copy.deepen.notWorkingTitle })
     expect(notWorking).toHaveTextContent(
-      'うまくいかなかったときも、それは、この案がいまの暮らしに合うかを確かめられたということです。一歩を小さくする、別の一歩を試す、仕事の選択肢に戻ってほかの案を選ぶ、のどれもできます。',
+      'うまくいかなかったときは、この案がいまの暮らしに合うかを確かめられた、ということです。一歩を小さくする、別の一歩を試す、仕事の選択肢に戻ってほかの案を選ぶ、のどれもできます。',
     )
     // 本人の力の話にしない。「力がない」の語は、打ち消す形でも出さない
     expect(notWorking).not.toHaveTextContent('力がない')

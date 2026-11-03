@@ -32,6 +32,7 @@ public sealed record StepDto(string Id, string Text, int Hours, TaskPlace Place,
 /// <summary>
 /// 深めた中身。<paramref name="Stale"/> は、選んだ案が変わって中身が古くなったか。古いときは、前の案の中身（業務、問い、一歩、書いた一歩）を返さない。
 /// <paramref name="RetryPaused"/> は、いまの選んだ案で AI が失敗したか断ったか（画面は開いたときに自動で作り直さず、「もう一度作る」を出す）。
+/// <paramref name="StepsReplaced"/> は、いまの条件に収まらず、選んでもいない中身の候補を出さずに、コードの候補で補ったか（画面が入れ替えたと添える）。
 /// </summary>
 public sealed record DeepenContentDto(
     DateTimeOffset GeneratedAt,
@@ -42,10 +43,14 @@ public sealed record DeepenContentDto(
     IReadOnlyList<QuestionDto> Questions,
     IReadOnlyList<StepDto> Steps,
     bool StepsFallback,
+    bool StepsReplaced,
     IReadOnlyList<string> OwnSteps);
 
-/// <summary>深める API が返すもの。進めないときは <paramref name="Target"/> と <paramref name="Content"/> が null。まだ深めていなければ <paramref name="Content"/> が null。</summary>
-public sealed record DeepenDto(DeepenReadiness Readiness, DeepenTargetDto? Target, DeepenContentDto? Content);
+/// <summary>
+/// 深める API が返すもの。進めないときは <paramref name="Target"/> と <paramref name="Content"/> が null。まだ深めていなければ <paramref name="Content"/> が null。
+/// <paramref name="RetryPaused"/> は、いまの選んだ案で AI が失敗したか断ったか。初めて深めるときの失敗も伝えるため、中身の外にも持つ。
+/// </summary>
+public sealed record DeepenDto(DeepenReadiness Readiness, DeepenTargetDto? Target, DeepenContentDto? Content, bool RetryPaused);
 
 public sealed record TaskRequest(string? Name, string? Detail, string? Ability, string? Knowledge);
 
@@ -406,7 +411,7 @@ public static class DeepenEndpoints
     {
         if (state.Target is not { } target)
         {
-            return new DeepenDto(state.Readiness, null, null);
+            return new DeepenDto(state.Readiness, null, null, false);
         }
 
         var conditions = state.Inputs.Conditions!;
@@ -417,7 +422,8 @@ public static class DeepenEndpoints
 
         if (state.Item is not { Content: { } content } item)
         {
-            return new DeepenDto(state.Readiness, targetDto, null);
+            // 初めて深めるときに失敗していたら、画面が「もう一度作る」を出せるように伝える
+            return new DeepenDto(state.Readiness, targetDto, null, state.Item?.FailedBasis == target.Basis);
         }
 
         var stale = content.Basis != target.Basis;
@@ -427,7 +433,8 @@ public static class DeepenEndpoints
             return new DeepenDto(
                 state.Readiness,
                 targetDto,
-                new DeepenContentDto(content.GeneratedAt, true, item.FailedBasis == target.Basis, [], false, [], [], false, []));
+                new DeepenContentDto(content.GeneratedAt, true, item.FailedBasis == target.Basis, [], false, [], [], false, false, []),
+                item.FailedBasis == target.Basis);
         }
 
         var tasks = DeepenLighting.Light(target, content, state.Inputs)
@@ -456,6 +463,17 @@ public static class DeepenEndpoints
         return new DeepenDto(
             state.Readiness,
             targetDto,
-            new DeepenContentDto(content.GeneratedAt, false, false, tasks, content.TasksRejected, questions, steps, content.StepsFallback, item.OwnSteps));
+            new DeepenContentDto(
+                content.GeneratedAt,
+                false,
+                false,
+                tasks,
+                content.TasksRejected,
+                questions,
+                steps,
+                content.StepsFallback,
+                content.Steps.Any(s => !StepFit.Fits(s, conditions) && !item.ChosenStepIds.Contains(s.Id)),
+                item.OwnSteps),
+            false);
     }
 }

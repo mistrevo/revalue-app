@@ -113,6 +113,10 @@ export function Deepen() {
       .then((data) => {
         if (!active) return
         setState({ kind: 'ready', data })
+        if (data.readiness === 'ready' && data.content === null && data.retryPaused) {
+          // 初めて深めるときに失敗していた。失敗したことを伝え、「もう一度作る」を出す（自動では作らない）
+          setGenerateError({ kind: 'failed' })
+        }
         if (data.readiness === 'ready' && data.content?.stale && !autoRegenerated.current) {
           autoRegenerated.current = true
           if (data.content.retryPaused) {
@@ -717,8 +721,8 @@ function StepsSection({
   // 書いた欄の次に、空の欄を 1 つだけ出す（3 つまで）
   const lastWritten = own.reduce((last, text, i) => (text.trim() !== '' ? i : last), -1)
   const visibleOwn = Math.min(MAX_OWN_STEPS, Math.max(1, lastWritten + 2))
-  // コードの候補（f）と、中身の候補（s）が並んでいたら、条件が変わって入れ替えた
-  const replaced = steps.some((s) => s.id.startsWith('f')) && steps.some((s) => s.id.startsWith('s'))
+  // 条件が変わって、収まらない候補をコードの候補で入れ替えたかは、裏側が返す
+  const replaced = content.stepsReplaced
 
   function toggle(step: DeepenStep, checked: boolean) {
     setSaved(false)

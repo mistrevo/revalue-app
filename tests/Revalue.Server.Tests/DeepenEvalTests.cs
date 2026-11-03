@@ -138,7 +138,7 @@ public sealed class DeepenEvalTests
     public async Task JudgeDecidesFailsTheRun()
     {
         var decides = DeepenSummary.From(await RunAll(Eval(new ScriptedDeepenAi(), new FixedJudge(
-            new DeepenVerdict(Decides: true, PushesAway: false, OverPraise: false, StepsSmall: true, QuestionsNeutral: true, QuestionsInScene: true, "言い切っている")))));
+            new DeepenVerdict(Decides: true, PushesAway: false, OverPraise: false, StepsSmall: true, QuestionsNeutral: true, QuestionsInScene: true, DemandCheckReal: true, "言い切っている")))));
         Assert.False(decides.Passed);
         Assert.Equal(7, decides.Gated.Single(i => i.Name.StartsWith("本人の代わりに決める", StringComparison.Ordinal)).Count);
 

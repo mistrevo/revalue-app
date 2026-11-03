@@ -326,6 +326,7 @@ export function fakeDeepenContent(overrides: Partial<DeepenContent> = {}): Deepe
       { id: 's3', text: '募集を 3 つ読み、業務と時間の条件を書き出す', hours: 1, place: 'home', demandCheck: false, fits: true, chosen: false },
     ],
     stepsFallback: false,
+    stepsReplaced: false,
     ownSteps: [],
     ...overrides,
   }
@@ -337,6 +338,7 @@ export function fakeDeepen(overrides: Partial<Deepen> = {}): Deepen {
     readiness: 'ready',
     target: { kind: 'choose', title: 'オンライン秘書', outsideConditions: false },
     content: null,
+    retryPaused: false,
     ...overrides,
   }
 }
