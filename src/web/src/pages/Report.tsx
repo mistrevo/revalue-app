@@ -196,8 +196,11 @@ function Note({ children }: { children: ReactNode }) {
   return <p className="text-sm leading-relaxed text-muted-foreground">{children}</p>
 }
 
-/** 確かめた力 1 つ。名前、状態の言葉（呼び名は出さない）、根拠の本人の言葉。 */
-function AbilityCard({ ability }: { ability: ReportAbility }) {
+/**
+ * 確かめた力 1 つ。名前と根拠の本人の言葉。showState のときは状態の言葉（呼び名は出さない）も添える。
+ * できることの欄では、まとまりの見出しが状態を伝えるので添えない。
+ */
+function AbilityCard({ ability, showState }: { ability: ReportAbility; showState: boolean }) {
   const id = useId()
   return (
     <article aria-labelledby={id} className="min-w-0 rounded-lg bg-muted/40 px-3 py-3 text-sm leading-relaxed">
@@ -205,25 +208,40 @@ function AbilityCard({ ability }: { ability: ReportAbility }) {
         <span id={id} className="font-semibold">
           {ability.name}
         </span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.report.abilityStates[ability.state]}</span>
+        {showState && <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.report.abilityStates[ability.state]}</span>}
       </p>
       <QuoteList quotes={ability.quotes} />
     </article>
   )
 }
 
+/** できることの中の一つのまとまり（見えた力か、確かめ中の力）。 */
+function AbilityGroup({ title, abilities }: { title: string; abilities: ReportAbility[] }) {
+  const id = useId()
+  return (
+    <div role="group" aria-labelledby={id} className="flex min-w-0 flex-col gap-3">
+      <h3 id={id} className="text-sm font-semibold text-muted-foreground">
+        {title}
+      </h3>
+      {abilities.map((ability) => (
+        <AbilityCard key={ability.key} ability={ability} showState={false} />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * できること。確かめ中の力も並ぶので、欄の見出しは根拠ありの呼び名にせず、5 つの記録の画面と同じく
+ * 「あなたの話から見えた力」と「確かめ中」のまとまりに分ける（芯 1）。
+ */
 function AbilitiesSection({ abilities }: { abilities: ReportAbility[] }) {
+  const seen = abilities.filter((a) => a.state === 'confirmed')
+  const checking = abilities.filter((a) => a.state === 'needsCheck')
   return (
     <Section title={copy.report.sections.abilities}>
-      {abilities.length === 0 ? (
-        <p className="text-sm leading-relaxed">{copy.report.noAbilities}</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {abilities.map((ability) => (
-            <AbilityCard key={ability.key} ability={ability} />
-          ))}
-        </div>
-      )}
+      {abilities.length === 0 && <p className="text-sm leading-relaxed">{copy.report.noAbilities}</p>}
+      {seen.length > 0 && <AbilityGroup title={copy.report.seenTitle} abilities={seen} />}
+      {checking.length > 0 && <AbilityGroup title={copy.report.checkingTitle} abilities={checking} />}
       <EditLink to="/abilities" label={copy.report.edit.abilities} />
     </Section>
   )
@@ -304,15 +322,15 @@ function Entries({ entries }: { entries: ProfileEntry[] }) {
   )
 }
 
-/** 5 つの記録の中身（いまの版と前の版で同じ）。できることは、確かめた力の欄を指す。 */
-function RecordsBody({ records, Heading }: { records: ReportRecords; Heading: 'h3' | 'h5' }) {
+/** 5 つの記録の中身（いまの版と前の版で同じ）。できることは、力の欄を指す（canDoNote は版ごとに指す見出しが違う）。 */
+function RecordsBody({ records, Heading, canDoNote }: { records: ReportRecords; Heading: 'h3' | 'h5'; canDoNote: string }) {
   const { conditions } = records
   const head = 'text-sm font-semibold'
   return (
     <div className="flex flex-col gap-3">
       <div>
         <Heading className={head}>{copy.report.canDoTitle}</Heading>
-        <p className="text-sm leading-relaxed">{copy.report.canDoNote}</p>
+        <p className="text-sm leading-relaxed">{canDoNote}</p>
       </div>
       <div>
         <Heading className={head}>{copy.profile.preferencesTitle}</Heading>
@@ -358,7 +376,11 @@ function RecordsBody({ records, Heading }: { records: ReportRecords; Heading: 'h
 function RecordsSection({ records }: { records: ReportRecords }) {
   return (
     <Section title={copy.report.sections.records}>
-      <RecordsBody records={records} Heading="h3" />
+      <RecordsBody
+        records={records}
+        Heading="h3"
+        canDoNote={copy.report.canDoNote.replace('{title}', copy.report.sections.abilities)}
+      />
       <EditLink to="/profile" label={copy.report.edit.records} />
     </Section>
   )
@@ -420,7 +442,7 @@ function ChoiceSection({
           </div>
           <div>
             <p className="text-sm text-muted-foreground">{copy.options.abilityTitle}</p>
-            <AbilityCard ability={choice.ability} />
+            <AbilityCard ability={choice.ability} showState />
           </div>
         </>
       )}
@@ -573,13 +595,16 @@ function StepsSection({
   )
 }
 
-/** その時点の中身。力は名前だけで、状態（まだ確かめていないことの力の行も）、根拠の言葉、選んだ案の理由は出さない。 */
+/**
+ * その時点の中身。力は名前だけで、状態（まだ確かめていないことの力の行も）、根拠の言葉、選んだ案の理由は出さない。
+ * 力は見えた力と確かめ中の力を分けずに並ぶので、見出しは根拠ありの呼び名にせず、両方を含む言い方にする（芯 1）。
+ */
 function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
   const head = 'text-sm font-semibold'
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <h4 className={head}>{copy.report.sections.abilities}</h4>
+        <h4 className={head}>{copy.report.snapshotAbilities}</h4>
         {snapshot.abilities.length === 0 ? (
           <p className="text-sm leading-relaxed">{copy.report.noAbilities}</p>
         ) : (
@@ -592,7 +617,7 @@ function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
       </div>
       <div>
         <h4 className={head}>{copy.report.sections.records}</h4>
-        <RecordsBody records={snapshot.records} Heading="h5" />
+        <RecordsBody records={snapshot.records} Heading="h5" canDoNote={copy.report.snapshotCanDoNote} />
       </div>
       <div className="flex flex-col gap-2">
         <h4 className={head}>{copy.report.sections.choice}</h4>

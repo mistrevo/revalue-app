@@ -81,13 +81,17 @@ describe('Report', () => {
     expect(screen.getByText(copy.report.version.replace('{n}', '1').replace('{at}', '11 月 3 日 18:00'))).toBeInTheDocument()
     expect(screen.queryByText(/前の版から変わったところ/)).not.toBeInTheDocument()
 
-    // 確かめた力: 力の名前、状態の言葉、根拠の本人の言葉
-    const coordinating = within(abilities).getByRole('article', { name: '調整する力' })
-    expect(coordinating).toHaveTextContent(copy.report.abilityStates.confirmed)
+    // 確かめた力: 欄の見出しは根拠ありの呼び名にせず、中を「あなたの話から見えた力」と「確かめ中」に分ける（芯 1。5 つの記録の画面と同じ分け方）
+    expect(copy.report.sections.abilities).not.toBe(copy.report.seenTitle)
+    expect(copy.report.sections.abilities).not.toContain('見えた力')
+    const seen = within(abilities).getByRole('group', { name: copy.report.seenTitle })
+    const checking = within(abilities).getByRole('group', { name: copy.report.checkingTitle })
+    const coordinating = within(seen).getByRole('article', { name: '調整する力' })
     expect(coordinating).toHaveTextContent('「班の 2 家族の都合を聞きました」')
     expect(coordinating).toHaveTextContent(`「私から声をかけた」${copy.insights.chosen}「前の晩に、グループのメッセージで声をかけました」`)
-    const prioritizing = within(abilities).getByRole('article', { name: '優先順位をつける力' })
-    expect(prioritizing).toHaveTextContent(copy.report.abilityStates.needsCheck)
+    expect(within(seen).queryByRole('article', { name: '優先順位をつける力' })).not.toBeInTheDocument()
+    expect(within(checking).getByRole('article', { name: '優先順位をつける力' })).toBeInTheDocument()
+    expect(within(checking).queryByRole('article', { name: '調整する力' })).not.toBeInTheDocument()
 
     // まだ確かめていないこと
     const notYet = screen.getByRole('region', { name: copy.report.sections.notYet })
@@ -101,7 +105,8 @@ describe('Report', () => {
 
     // 5 つの記録
     const records = screen.getByRole('region', { name: copy.report.sections.records })
-    expect(records).toHaveTextContent(copy.report.canDoNote)
+    // できることは、確かめた力の欄を見出しの名前で指す
+    expect(records).toHaveTextContent(copy.report.canDoNote.replace('{title}', copy.report.sections.abilities))
     expect(records).toHaveTextContent(`自分のペースで進められる${copy.profile.chosen}`)
     expect(within(records).getByRole('heading', { name: copy.profile.wantsTitle }).nextElementSibling).toHaveTextContent(
       copy.profile.notDecided,
@@ -220,6 +225,8 @@ describe('Report', () => {
       const region = await screen.findByRole('region', { name: section })
       expect(within(region).getByRole('link', { name: label })).toHaveAttribute('href', href)
     }
+    // まだ確かめていないことは、本人の誤りや欠けではないので、「直す」とは書かない（芯 2）
+    expect(copy.report.edit.notYet).not.toContain('直す')
 
     // 一歩を選び直す・書く
     const steps = screen.getByRole('region', { name: copy.report.sections.steps })
@@ -307,14 +314,22 @@ describe('Report', () => {
     expect(v1).not.toHaveTextContent('班の家族の都合を聞いて集合を決めた動きは')
     expect(within(v1).queryByText(copy.report.abilityStates.needsCheck)).not.toBeInTheDocument()
     // まだ確かめていないことも、力の状態を表す行は出さず、業務に要る知識や道具だけを出す
-    expect(v1).not.toHaveTextContent('確かめ中の力')
+    expect(v1).not.toHaveTextContent(copy.report.checking.replace('{names}', '優先順位をつける力'))
     expect(v1).not.toHaveTextContent('まだ聞けていない力')
     expect(v1).not.toHaveTextContent(copy.report.taskAbility.replace('{task}', '出張や会食の手配').replace('{name}', '見立てる力'))
     expect(v1).toHaveTextContent(copy.report.taskKnowledge.replace('{task}', '日程の調整').replace('{items}', '表計算'))
-    for (const el of within(v1).queryAllByText(copy.report.abilityStates.confirmed)) {
-      // 欄の見出しとしてだけ出る
-      expect(el.tagName).toBe('H4')
-    }
+    // 前の版の力は状態なしで名前だけ並ぶので、見出しは根拠ありの呼び名にせず、見えた力と確かめ中の力の両方を含む言い方にする（芯 1）
+    const names = within(v1).getByRole('heading', { name: copy.report.snapshotAbilities })
+    expect(names.nextElementSibling).toHaveTextContent('調整する力、優先順位をつける力')
+    expect(copy.report.snapshotAbilities).toContain('確かめ中')
+    expect(v1).not.toHaveTextContent(copy.report.seenTitle)
+    expect(within(v1).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
+      copy.report.snapshotAbilities,
+      ...SECTION_TITLES.slice(1),
+    ])
+    // 5 つの記録のできることは、前の版の力の見出しを指す
+    expect(v1).toHaveTextContent(copy.report.snapshotCanDoNote)
+    expect(v1).not.toHaveTextContent(copy.report.canDoNote.replace('{title}', copy.report.sections.abilities))
   })
 
   it('report-4（決めつけない）: 選んだ案を「あなたが選んだ案」として書き、レポートの文言に使わない言葉と言い切りがない', async () => {
@@ -378,6 +393,8 @@ describe('Report', () => {
 
       const choice = await screen.findByRole('region', { name: copy.report.sections.choice })
       expect(choice).toHaveTextContent(text)
+      // まだ選んでいないときは、選ばずにおいても保留にしてもよいことを添える（芯 5）
+      if (kind === null) expect(text).toContain('かまいません')
       expect(within(choice).getByRole('link', { name: copy.report.toOptions })).toHaveAttribute('href', '/options')
       expect(within(choice).queryByRole('button', { name: copy.options.hold })).not.toBeInTheDocument()
       expect(screen.getByRole('region', { name: copy.report.sections.thinking })).toHaveTextContent(copy.report.thinkingNotDeepened)

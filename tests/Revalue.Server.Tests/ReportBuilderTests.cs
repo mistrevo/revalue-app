@@ -1,7 +1,10 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Time.Testing;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Deepen;
 using Revalue.Server.Features.Discover;
+using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Consent;
 using Revalue.Server.Features.Options;
 using Revalue.Server.Features.Profile;
@@ -362,6 +365,83 @@ public sealed class ReportBuilderTests
         await SaveEpisode(kit, [.. CoordinatingAll, NoticingOne with { Quote = "連絡帳の字がいつもより小さくて" }], id: episode);
         var quotes = ReportBuilder.SectionHashes(await Build(kit));
         Assert.Contains(ReportSection.Abilities, Changed(steps, quotes));
+    }
+
+    [Fact(DisplayName = "report-4（決めつけない）: コードが組み立てる文は記録の言葉を読点と句点でつなぐだけで、使わない言葉と言い切りの言葉を足さない")]
+    public async Task CodeBuiltTextAddsNoJudgingWords()
+    {
+        var kit = await Recorded();
+        var forbidden = ForbiddenWordList.Load();
+        OptionChoice?[] choices =
+        [
+            null,
+            new OptionChoice(ChoiceKind.Hold, Now, null, null, null, null, null),
+            ChooseConfirmed(),
+            CombineChoice(),
+            CreateChoice(),
+            new OptionChoice(ChoiceKind.Own, Now, null, null, null, null, "own1"),
+        ];
+
+        foreach (var choice in choices)
+        {
+            await SetChoice(kit, choice, Own());
+            if (choice is { Kind: ChoiceKind.Card })
+            {
+                await Deepen(kit, choice);
+            }
+
+            var content = await Build(kit);
+            Assert.Equal(choice?.Kind, content.Choice.Kind);
+            foreach (var text in Texts(content))
+            {
+                Assert.True(forbidden.FirstIn(text) is null, $"{choice?.Kind} {choice?.Card}: {text}");
+                Assert.True(OptionsValidator.AssertiveIn(text) is null, $"{choice?.Kind} {choice?.Card}: {text}");
+            }
+        }
+
+        // コードが文を組み立てるのは「創る」の中身だけ。誰の、困りごと、中身を、言葉を足さずに読点と句点でつなぐ
+        await SetChoice(kit, CreateChoice());
+        var card = Card();
+        Assert.Equal($"{card.Who}、{card.Trouble}。{card.Summary}", (await Build(kit)).Choice.Summary);
+    }
+
+    /// <summary>レポートの中身に入る文字列すべて（画面に出す力の名前を含む）。</summary>
+    private static List<string> Texts(ReportContent content)
+    {
+        var texts = new List<string>();
+        Collect(JsonSerializer.SerializeToNode(content, DataConstants.Json), texts);
+        var abilities = content.Abilities.Select(a => a.Ability)
+            .Concat(content.NotYet.NotHeard)
+            .Concat(content.NotYet.Checking)
+            .Concat(content.NotYet.TaskGaps.Where(g => g.Ability is not null).Select(g => g.Ability!.Value))
+            .Concat(content.Choice.Ability is { } a ? [a.Ability] : []);
+        texts.AddRange(abilities.Select(AbilityText.Name));
+        Assert.NotEmpty(texts);
+        return texts;
+    }
+
+    private static void Collect(JsonNode? node, List<string> texts)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                foreach (var (_, child) in obj)
+                {
+                    Collect(child, texts);
+                }
+
+                break;
+            case JsonArray array:
+                foreach (var child in array)
+                {
+                    Collect(child, texts);
+                }
+
+                break;
+            case JsonValue value when value.TryGetValue<string>(out var text):
+                texts.Add(text);
+                break;
+        }
     }
 
     private static List<ReportSection> Changed(IReadOnlyDictionary<ReportSection, string> before, IReadOnlyDictionary<ReportSection, string> after) =>
