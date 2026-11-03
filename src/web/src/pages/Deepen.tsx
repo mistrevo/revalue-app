@@ -58,6 +58,14 @@ function toRequest(task: DeepenTask): DeepenTaskRequest {
 }
 
 /**
+ * 業務を AI の見立てで持ち、本人が直せる案か（「創る」と本人が書いた仕事。裏側の DeepenTarget.Drafts と同じ）。
+ * 業務の中身では決めない。見立ての業務をすべて消しても、足せるようにするため。
+ */
+function draftsTasks(target: DeepenTarget): boolean {
+  return target.kind === 'create' || target.kind === 'own'
+}
+
+/**
  * 選んだ案を深める（06-deepen.md）。選んだ 1 案だけを、業務ごとに照らし、仮の場面の問いと最初の一歩の候補を示す。
  * 選んだ案が変わっていたら、開いたときに 1 回だけ作り直す。作り直すあいだ、前の案の中身は出さない。
  * 状態の呼び名、点数、順位は出さない。
@@ -129,12 +137,17 @@ export function Deepen() {
     }
   }, [generate])
 
-  /** 書き換えを送る。失敗したら、その場所に穏やかな言葉を出す。できたら true。 */
-  async function change(where: Where, run: () => Promise<DeepenData>): Promise<boolean> {
+  /**
+   * 書き換えを送る。見ていた中身の作った日時を添えるので、裏側は、選んだ案が変わったか、同じ案でも作り直された中身には書かない。
+   * 失敗したら、その場所に穏やかな言葉を出す。できたら true。
+   */
+  async function change(where: Where, run: (generatedAt: string) => Promise<DeepenData>): Promise<boolean> {
+    if (content === null) return false
+    const seen = content.generatedAt
     setBusy(true)
     setNotice(null)
     try {
-      setState({ kind: 'ready', data: await run() })
+      setState({ kind: 'ready', data: await run(seen) })
       return true
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -147,8 +160,11 @@ export function Deepen() {
         } catch {
           // 読み直せなくても、言葉は出す
         }
-        const sameTarget = fresh?.readiness === 'ready' && fresh.content !== null && !fresh.content.stale
-        if (sameTarget && where === 'steps') {
+        const current = fresh?.readiness === 'ready' && fresh.content !== null && !fresh.content.stale ? fresh.content : null
+        if (current !== null && current.generatedAt !== seen) {
+          // 同じ案が、ほかの画面で深め直されていた
+          setNotice({ where: 'top', text: copy.deepen.regenerated })
+        } else if (current !== null && where === 'steps') {
           // 選んだ案は同じで、条件が変わって選べない候補があった
           setNotice({ where, text: copy.deepen.stepsChanged })
         } else {
@@ -216,17 +232,18 @@ export function Deepen() {
                 <>
                   <TasksSection
                     content={content}
+                    editable={draftsTasks(data.target)}
                     abilityNames={abilityNames}
                     busy={busy}
                     notice={noticeAt('tasks')}
-                    onSave={(tasks) => change('tasks', () => putDeepenTasks(tasks))}
+                    onSave={(tasks) => change('tasks', (seen) => putDeepenTasks(seen, tasks))}
                   />
                   <QuestionsSection
                     questions={content.questions}
                     busy={busy}
                     noticeFor={(id) => noticeAt(`question:${id}`)}
                     onAnswer={(id, text, fromChoice) =>
-                      change(`question:${id}`, () => putDeepenAnswer(id, { text, fromChoice }))
+                      change(`question:${id}`, (seen) => putDeepenAnswer(seen, id, { text, fromChoice }))
                     }
                   />
                   <StepsSection
@@ -234,7 +251,7 @@ export function Deepen() {
                     content={content}
                     busy={busy}
                     notice={noticeAt('steps')}
-                    onSave={(steps) => change('steps', () => putDeepenSteps(steps))}
+                    onSave={(steps) => change('steps', (seen) => putDeepenSteps(seen, steps))}
                   />
                   <NotWorking />
                 </>
@@ -292,7 +309,10 @@ function NotReady({ readiness }: { readiness: DeepenData['readiness'] }) {
   )
 }
 
-/** 選んだ案の種類と名前、仕事の選択肢へ戻る道。いまの条件に収まらなくなっていたら、仕事の選択肢の画面と同じ一言を添える。 */
+/**
+ * 選んだ案の種類と名前、仕事の選択肢へ戻る道。「創る」なら、需要はまだ確かめていないと添える（4-rules.md の「仕事のカードの決まり」）。
+ * いまの条件に収まらなくなっていたら、仕事の選択肢の画面と同じ一言を添える。
+ */
 function TargetSection({ target }: { target: DeepenTarget }) {
   const id = useId()
   const kind = target.kind === 'own' ? copy.deepen.ownKind : copy.options.kinds[target.kind].label
@@ -305,6 +325,7 @@ function TargetSection({ target }: { target: DeepenTarget }) {
         <p className="text-sm text-muted-foreground">{kind}</p>
         <p className="text-lg font-bold break-words">{target.title}</p>
       </div>
+      {target.kind === 'create' && <p className="text-sm leading-relaxed font-medium">{copy.options.createNotice}</p>}
       {target.outsideConditions && <p className="text-sm leading-relaxed text-muted-foreground">{copy.options.chosenOutside}</p>}
       <Button asChild variant="outline" className="w-full sm:w-auto sm:self-start">
         <Link to="/options">{copy.deepen.backToOptions}</Link>
@@ -314,17 +335,19 @@ function TargetSection({ target }: { target: DeepenTarget }) {
 }
 
 /**
- * 業務ごとに照らした結果（deepen-2（業務ごとに照らす））。見立ての業務（「創る」と本人が書いた仕事）は、
+ * 業務ごとに照らした結果（deepen-2（業務ごとに照らす））。見立ての業務（「創る」と本人が書いた仕事。editable が true）は、
  * 「AI の見立て（直せます）」と示し、直す・消す・足すができる。一覧を丸ごと置き換えて送る。
  */
 function TasksSection({
   content,
+  editable,
   abilityNames,
   busy,
   notice,
   onSave,
 }: {
   content: DeepenContent
+  editable: boolean
   abilityNames: Partial<Record<AbilityKey, string>>
   busy: boolean
   notice: string | null
@@ -333,7 +356,6 @@ function TasksSection({
   // 'new' は書き足している、数字はその並びの業務を直している
   const [editing, setEditing] = useState<number | 'new' | null>(null)
   const { tasks, tasksRejected } = content
-  const editable = tasksRejected || tasks.some((t) => t.drafted)
   // 業務に付いている名前を先に、見えた力の API の名前で足す
   const names: Partial<Record<AbilityKey, string>> = {
     ...abilityNames,

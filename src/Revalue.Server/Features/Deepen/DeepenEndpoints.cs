@@ -49,11 +49,12 @@ public sealed record DeepenDto(DeepenReadiness Readiness, DeepenTargetDto? Targe
 
 public sealed record TaskRequest(string? Name, string? Detail, string? Ability, string? Knowledge);
 
-public sealed record TasksRequest(IReadOnlyList<TaskRequest>? Tasks);
+/// <summary>書き換えの本文は、どれも見ていた中身の作った日時（<c>GeneratedAt</c>）を持つ。いまの中身と違えば 409。</summary>
+public sealed record TasksRequest(IReadOnlyList<TaskRequest>? Tasks, DateTimeOffset? GeneratedAt);
 
-public sealed record AnswerRequest(string? Text, bool? FromChoice);
+public sealed record AnswerRequest(string? Text, bool? FromChoice, DateTimeOffset? GeneratedAt);
 
-public sealed record StepsRequest(IReadOnlyList<string>? Chosen, IReadOnlyList<string>? Own);
+public sealed record StepsRequest(IReadOnlyList<string>? Chosen, IReadOnlyList<string>? Own, DateTimeOffset? GeneratedAt);
 
 /// <summary>/api/deepen の API（06-deepen.md）。AI を呼ぶのは POST /api/deepen だけ。</summary>
 public static class DeepenEndpoints
@@ -157,12 +158,13 @@ public static class DeepenEndpoints
 
         deepen.MapPut("/tasks", async (HttpContext http, IDataStore store, JobCatalog catalog, TimeProvider time, CancellationToken ct) =>
         {
-            if (await ReadBodyAsync<TasksRequest>(http, ct) is not { Tasks: { } requested } || CheckTasks(requested) is not { } tasks)
+            if (await ReadBodyAsync<TasksRequest>(http, ct) is not { Tasks: { } requested, GeneratedAt: { } seen }
+                || CheckTasks(requested) is not { } tasks)
             {
                 return Invalid();
             }
 
-            return await ChangeAsync(http, store, catalog, time, (item, state, content) =>
+            return await ChangeAsync(http, store, catalog, time, seen, (item, state, content) =>
             {
                 if (!state.Target!.Drafts)
                 {
@@ -175,7 +177,7 @@ public static class DeepenEndpoints
 
         deepen.MapPut("/answers/{questionId}", async (string questionId, HttpContext http, IDataStore store, JobCatalog catalog, TimeProvider time, CancellationToken ct) =>
         {
-            if (await ReadBodyAsync<AnswerRequest>(http, ct) is not { } request
+            if (await ReadBodyAsync<AnswerRequest>(http, ct) is not { GeneratedAt: { } seen } request
                 || request.Text?.Trim() is not { } text
                 || !ProfileEndpoints.HasVisibleText(text)
                 || !ProfileEndpoints.FitsIn(text, MaxAnswer, MaxAnswer * 4))
@@ -184,7 +186,7 @@ public static class DeepenEndpoints
             }
 
             var fromChoice = request.FromChoice ?? false;
-            return await ChangeAsync(http, store, catalog, time, (item, _, content) =>
+            return await ChangeAsync(http, store, catalog, time, seen, (item, _, content) =>
             {
                 var question = content.Questions.FirstOrDefault(q => q.Id == questionId) ?? throw new DeepenRequestException(NotFound());
                 if (fromChoice && !question.Choices.Contains(text))
@@ -201,13 +203,13 @@ public static class DeepenEndpoints
 
         deepen.MapPut("/steps", async (HttpContext http, IDataStore store, JobCatalog catalog, TimeProvider time, CancellationToken ct) =>
         {
-            if (await ReadBodyAsync<StepsRequest>(http, ct) is not { } request || CheckSteps(request) is not { } parsed)
+            if (await ReadBodyAsync<StepsRequest>(http, ct) is not { GeneratedAt: { } seen } request || CheckSteps(request) is not { } parsed)
             {
                 return Invalid();
             }
 
             var (chosen, own) = parsed;
-            return await ChangeAsync(http, store, catalog, time, (item, state, content) =>
+            return await ChangeAsync(http, store, catalog, time, seen, (item, state, content) =>
             {
                 var kind = state.Target!.Kind;
                 var visible = DeepenSteps.Visible(content, item.ChosenStepIds, kind, state.Inputs.Conditions!);
@@ -260,7 +262,8 @@ public static class DeepenEndpoints
     }
 
     /// <summary>
-    /// 深めた中身を書き換える。いまの対象があり、保存してある中身がいまの選んだ案のものなときだけ、<paramref name="apply"/> を呼ぶ。
+    /// 深めた中身を書き換える。いまの対象があり、保存してある中身がいまの選んだ案のもので、本人が見ていた中身（作った日時が
+    /// <paramref name="seen"/>）のままのときだけ、<paramref name="apply"/> を呼ぶ。同じ案を選び直して作り直した中身も、見ていた中身とは見なさない。
     /// 書き換えは読んだときから変わっていないときだけ書く（<see cref="DeepenStore.UpdateAsync"/>）。
     /// </summary>
     private static async Task<IResult> ChangeAsync(
@@ -268,6 +271,7 @@ public static class DeepenEndpoints
         IDataStore store,
         JobCatalog catalog,
         TimeProvider time,
+        DateTimeOffset seen,
         Func<DeepenItem, DeepenState, DeepenContent, DeepenItem> apply,
         CancellationToken ct)
     {
@@ -278,7 +282,10 @@ public static class DeepenEndpoints
         {
             saved = await DeepenStore.UpdateAsync(store, userKey, item =>
             {
-                if (state.Target is not { } target || item.Content is not { } content || content.Basis != target.Basis)
+                if (state.Target is not { } target
+                    || item.Content is not { } content
+                    || content.Basis != target.Basis
+                    || content.GeneratedAt != seen)
                 {
                     throw new DeepenRequestException(Changed());
                 }

@@ -610,17 +610,20 @@ export function generateDeepen(): Promise<Deepen> {
   return deepenRequest('', 'POST')
 }
 
-/** 業務の見立てを、送った並びに置き換える。見ていた中身が古くなっていたら 409 の ApiError。 */
-export function putDeepenTasks(tasks: DeepenTaskRequest[]): Promise<Deepen> {
-  return deepenRequest('/tasks', 'PUT', { tasks })
+// 深めた中身の書き換えは、どれも見ていた中身の作った日時（generatedAt）と一緒に送る。
+// 選んだ案が変わっていたか、同じ案でも作り直されていたら 409 の ApiError（仕事の選択肢の PUT /api/options/choice と同じやり方）。
+
+/** 業務の見立てを、送った並びに置き換える。 */
+export function putDeepenTasks(generatedAt: string, tasks: DeepenTaskRequest[]): Promise<Deepen> {
+  return deepenRequest('/tasks', 'PUT', { tasks, generatedAt })
 }
 
 /** 問いの答えを置き換える。 */
-export function putDeepenAnswer(questionId: string, answer: DeepenAnswer): Promise<Deepen> {
-  return deepenRequest(`/answers/${encodeURIComponent(questionId)}`, 'PUT', answer)
+export function putDeepenAnswer(generatedAt: string, questionId: string, answer: DeepenAnswer): Promise<Deepen> {
+  return deepenRequest(`/answers/${encodeURIComponent(questionId)}`, 'PUT', { ...answer, generatedAt })
 }
 
 /** 選んだ候補と、書いた一歩を置き換える（どちらも空でよい）。 */
-export function putDeepenSteps(steps: { chosen: string[]; own: string[] }): Promise<Deepen> {
-  return deepenRequest('/steps', 'PUT', steps)
+export function putDeepenSteps(generatedAt: string, steps: { chosen: string[]; own: string[] }): Promise<Deepen> {
+  return deepenRequest('/steps', 'PUT', { ...steps, generatedAt })
 }

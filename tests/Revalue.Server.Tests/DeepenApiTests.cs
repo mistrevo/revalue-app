@@ -109,14 +109,30 @@ public sealed class DeepenApiTests
         return await Json(response);
     }
 
-    private static Task<HttpResponseMessage> PutAnswer(HttpClient client, string id, string? text, bool? fromChoice) =>
-        client.PutAsJsonAsync($"/api/deepen/answers/{id}", new { text, fromChoice }, Ct);
+    /// <summary>見ていた中身の作った日時。<paramref name="seen"/> を渡さなければ、いまの中身のものを読む（読めなければ null）。</summary>
+    private static async Task<string?> Seen(HttpClient client, string? seen)
+    {
+        if (seen is not null)
+        {
+            return seen;
+        }
 
-    private static Task<HttpResponseMessage> PutSteps(HttpClient client, string[]? chosen, string[]? own) =>
-        client.PutAsJsonAsync("/api/deepen/steps", new { chosen, own }, Ct);
+        var response = await client.GetAsync("/api/deepen", Ct);
+        return response.StatusCode == HttpStatusCode.OK && Content(await Json(response)) is { ValueKind: JsonValueKind.Object } content
+            ? content.GetProperty("generatedAt").GetString()
+            : null;
+    }
 
-    private static Task<HttpResponseMessage> PutTasks(HttpClient client, object[] tasks) =>
-        client.PutAsJsonAsync("/api/deepen/tasks", new { tasks }, Ct);
+    private static async Task<HttpResponseMessage> PutAnswer(HttpClient client, string id, string? text, bool? fromChoice, string? seen = null) =>
+        await client.PutAsJsonAsync($"/api/deepen/answers/{id}", new { text, fromChoice, generatedAt = await Seen(client, seen) }, Ct);
+
+    private static async Task<HttpResponseMessage> PutSteps(HttpClient client, string[]? chosen, string[]? own, string? seen = null) =>
+        await client.PutAsJsonAsync("/api/deepen/steps", new { chosen, own, generatedAt = await Seen(client, seen) }, Ct);
+
+    private static async Task<HttpResponseMessage> PutTasks(HttpClient client, object[] tasks, string? seen = null) =>
+        await client.PutAsJsonAsync("/api/deepen/tasks", new { tasks, generatedAt = await Seen(client, seen) }, Ct);
+
+    private static string GeneratedAt(JsonElement dto) => Content(dto).GetProperty("generatedAt").GetString()!;
 
     private static async Task AssertProblem(HttpResponseMessage response, HttpStatusCode status, string type)
     {
@@ -236,6 +252,50 @@ public sealed class DeepenApiTests
         Assert.Equal(2, kit.Deepen.Calls);
     }
 
+    [Fact(DisplayName = "deepen-1（選んだ 1 案だけ深める）: 同じ案を選び直して作り直した中身には、前の中身を見ていた書き換えを入れない")]
+    public async Task WritesForEarlierContentOfSameTargetAreRefused()
+    {
+        var kit = Setup();
+        var client = await Ready(kit, "d-15");
+        // 「創る」（業務の見立てを持つ）を深めて、その中身（A1）を見ている
+        await ChooseCard(client, "create");
+        var first = await Generate(client);
+        var seen = GeneratedAt(first);
+        var choice = Array(Array(Content(first), "questions")[0], "choices")[0].GetString();
+        var task = new { name = "架空の業務", detail = "", ability = "noticing", knowledge = "" };
+
+        // ほかのタブで「選ぶ」を選んで深め、また「創る」を選んで深め直した（A2）
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        await ChooseCard(client, "choose");
+        await Generate(client);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        await ChooseCard(client, "create");
+        var again = await Generate(client);
+        Assert.NotEqual(seen, GeneratedAt(again));
+        Assert.Equal(3, kit.Deepen.Calls);
+
+        // A1 を見ていた書き換えは、A2 には入れない
+        await AssertProblem(await PutAnswer(client, "q1", choice, true, seen), HttpStatusCode.Conflict, "/problems/deepen-changed");
+        await AssertProblem(await PutSteps(client, ["s1"], ["架空の一歩"], seen), HttpStatusCode.Conflict, "/problems/deepen-changed");
+        await AssertProblem(await PutTasks(client, [task], seen), HttpStatusCode.Conflict, "/problems/deepen-changed");
+        var stored = await Stored(kit.Factory, "d-15");
+        Assert.Empty(stored!.Answers);
+        Assert.Empty(stored.ChosenStepIds);
+        Assert.Empty(stored.OwnSteps);
+        Assert.Equal(["t1", "t2"], stored.Content!.Tasks.Select(t => t.Id));
+
+        // 作った日時を送らない書き換えは断る
+        await AssertProblem(
+            await client.PutAsJsonAsync("/api/deepen/steps", new { chosen = new[] { "s1" }, own = System.Array.Empty<string>() }, Ct),
+            HttpStatusCode.BadRequest,
+            "/problems/invalid-deepen");
+
+        // A2 を見ていれば書ける
+        Assert.Equal(HttpStatusCode.OK, (await PutAnswer(client, "q1", choice, true, GeneratedAt(again))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PutSteps(client, ["s1"], [], GeneratedAt(again))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PutTasks(client, [task], GeneratedAt(again))).StatusCode);
+    }
+
     [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 業務ごとに、使える力と根拠の言葉か、まだ確かめていない力を返す")]
     public async Task TasksAreLitWithUsableAbilities()
     {
@@ -297,6 +357,14 @@ public sealed class DeepenApiTests
         await AssertProblem(await PutTasks(client, [new { name = "架空", detail = new string('あ', 81), ability = "noticing", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
         await AssertProblem(await PutTasks(client, [new { name = "架空", detail = "", ability = "noticing", knowledge = new string('あ', 61) }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
         Assert.Equal(3, Array(Content(await Get(client)), "tasks").Length);
+
+        // 見立ての業務をすべて消しても、あとから足せる
+        Assert.Equal(HttpStatusCode.OK, (await PutTasks(client, [])).StatusCode);
+        var emptied = Content(await Get(client));
+        Assert.Empty(Array(emptied, "tasks"));
+        Assert.False(emptied.GetProperty("tasksRejected").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, (await PutTasks(client, [task])).StatusCode);
+        Assert.Equal(["u1"], Array(Content(await Get(client)), "tasks").Select(t => t.GetProperty("id").GetString()));
 
         // 「選ぶ」の中身の業務は直せない
         await ChooseCard(client, "choose");

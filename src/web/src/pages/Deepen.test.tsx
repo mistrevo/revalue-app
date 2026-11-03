@@ -103,6 +103,8 @@ describe('Deepen', () => {
     expect(target).toHaveTextContent('オンライン秘書')
     expect(target).toHaveTextContent(copy.options.kinds.choose.label)
     expect(within(target).getByRole('link', { name: copy.deepen.backToOptions })).toHaveAttribute('href', '/options')
+    // 需要の一言は「創る」だけ
+    expect(target).not.toHaveTextContent(copy.options.createNotice)
     expect(screen.getByText(copy.deepen.lead)).toBeInTheDocument()
     // 開いただけでは作らない（初めての作成は本人が押す）
     expect(posts(api.calls)).toHaveLength(0)
@@ -221,6 +223,29 @@ describe('Deepen', () => {
     expect(screen.getByRole('button', { name: copy.deepen.generate })).toBeInTheDocument()
   })
 
+  it('deepen-1（選んだ 1 案だけ深める）: 同じ案がほかの画面で深め直されていたら、書き換えを入れずに読み直し、そのことを伝える', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent() }) })
+    renderApp('/deepen')
+    const questions = await screen.findByRole('region', { name: copy.deepen.questionsTitle })
+    // ほかのタブで別の案を選んで深め、また同じ案を選んで深め直した（作った日時が違う）
+    api.state.deepen = fakeDeepen({
+      content: fakeDeepenContent({
+        generatedAt: '2026-11-03T10:00:00Z',
+        questions: [{ ...fakeDeepenContent().questions[0], situation: '架空の場面: 依頼した人から、急ぎの予定の変更を頼まれました。' }],
+      }),
+    })
+
+    await userEvent.click(within(questions).getByRole('button', { name: FAKE_DEEPEN_CHOICES[1] }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(copy.deepen.regenerated)
+    expect(await screen.findByText('架空の場面: 依頼した人から、急ぎの予定の変更を頼まれました。')).toBeInTheDocument()
+    expect(screen.queryByText(copy.deepen.yourAnswer.replace('{text}', FAKE_DEEPEN_CHOICES[1]))).not.toBeInTheDocument()
+    expect(api.state.deepen.content?.questions[0].answer).toBeNull()
+    expect(puts(api.calls, '/api/deepen/answers/q1')).toEqual([
+      { text: FAKE_DEEPEN_CHOICES[1], fromChoice: true, generatedAt: fakeDeepenContent().generatedAt },
+    ])
+  })
+
   it('deepen-2（業務ごとに照らす）: 業務ごとに、使える力と根拠の言葉か、まだ確かめていない力と知識や道具を出す', async () => {
     installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent() }) })
     renderApp('/deepen')
@@ -281,21 +306,48 @@ describe('Deepen', () => {
     // 直した業務も、同じように照らす
     expect(added).toHaveTextContent(copy.deepen.abilityStates.confirmed)
 
+    const generatedAt = fakeDeepenContent().generatedAt
     expect(puts(api.calls, '/api/deepen/tasks')).toEqual([
       {
         tasks: [
           { name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' },
           { name: '依頼した人との連絡', detail: '締め切りと量を確かめる', ability: 'coordinating', knowledge: '' },
         ],
+        generatedAt,
       },
-      { tasks: [{ name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' }] },
+      { tasks: [{ name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' }], generatedAt },
       {
         tasks: [
           { name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' },
           { name: '入力したものを見直す', detail: '', ability: 'coordinating', knowledge: '' },
         ],
+        generatedAt,
       },
     ])
+  })
+
+  it('deepen-2（業務ごとに照らす）: 見立ての業務をすべて消しても、「業務を足す」で書ける', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, deepen: ownWithDrafts() })
+    renderApp('/deepen')
+
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    for (const name of ['入力の手順を決める', '依頼した人との連絡']) {
+      await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.removeLabel.replace('{text}', name) }))
+      await waitFor(() => expect(within(tasks).queryByRole('article', { name })).not.toBeInTheDocument())
+    }
+    expect(within(tasks).queryAllByRole('article')).toHaveLength(0)
+    // 消したあとも、見立てを直せることと、足す道を出す
+    expect(within(tasks).getByText(copy.deepen.draftedTitle)).toBeInTheDocument()
+
+    await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.taskAdd }))
+    await userEvent.type(within(tasks).getByLabelText(copy.deepen.taskNameLabel), '入力したものを見直す')
+    await userEvent.selectOptions(within(tasks).getByLabelText(copy.deepen.taskAbilityLabel), '調整する力')
+    await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.save }))
+    expect(await within(tasks).findByRole('article', { name: '入力したものを見直す' })).toBeInTheDocument()
+    expect(puts(api.calls, '/api/deepen/tasks').at(-1)).toEqual({
+      tasks: [{ name: '入力したものを見直す', detail: '', ability: 'coordinating', knowledge: '' }],
+      generatedAt: fakeDeepenContent().generatedAt,
+    })
   })
 
   it('deepen-2（業務ごとに照らす）: 業務の見立てを作れなかったときは、そのことと、業務を自分で書けることを伝える', async () => {
@@ -332,7 +384,8 @@ describe('Deepen', () => {
     await userEvent.click(within(steps).getByRole('button', { name: copy.deepen.stepsSave }))
 
     expect(await within(steps).findByText(copy.deepen.stepsSaved)).toBeInTheDocument()
-    expect(puts(api.calls, '/api/deepen/steps')).toEqual([{ chosen: ['s1', 's3'], own: ['近所の図書館で本を借りる'] }])
+    const generatedAt = fakeDeepenContent().generatedAt
+    expect(puts(api.calls, '/api/deepen/steps')).toEqual([{ chosen: ['s1', 's3'], own: ['近所の図書館で本を借りる'], generatedAt }])
     expect(within(steps).getByLabelText(copy.deepen.ownStepLabel.replace('{n}', '1'))).toHaveValue('近所の図書館で本を借りる')
 
     // 決めずにおいてもよい（両方空で保存できる）
@@ -341,7 +394,7 @@ describe('Deepen', () => {
     await userEvent.clear(within(steps).getByLabelText(copy.deepen.ownStepLabel.replace('{n}', '1')))
     await userEvent.click(within(steps).getByRole('button', { name: copy.deepen.stepsSave }))
     await waitFor(() => expect(puts(api.calls, '/api/deepen/steps')).toHaveLength(2))
-    expect(puts(api.calls, '/api/deepen/steps')[1]).toEqual({ chosen: [], own: [] })
+    expect(puts(api.calls, '/api/deepen/steps')[1]).toEqual({ chosen: [], own: [], generatedAt })
   })
 
   it('deepen-3（最初の一歩は小さく）: 条件が変わって選んでいた候補が収まらなくなったら、そうと添えて残し、入れ替えたことを伝える', async () => {
@@ -390,6 +443,10 @@ describe('Deepen', () => {
     })
     renderApp('/deepen')
 
+    // 選んだ案の欄に、需要はまだ確かめていないと添える（仕事の選択肢の画面と同じ一言）
+    const target = await screen.findByRole('region', { name: copy.deepen.targetTitle })
+    expect(target).toHaveTextContent(copy.options.createNotice)
+
     const steps = await screen.findByRole('region', { name: copy.deepen.stepsTitle })
     const demand = within(steps).getByRole('checkbox', { name: /知り合いの 3 家族に/ }).closest('li')!
     expect(demand).toHaveTextContent(copy.deepen.demandCheck)
@@ -402,8 +459,10 @@ describe('Deepen', () => {
 
     const notWorking = await screen.findByRole('region', { name: copy.deepen.notWorkingTitle })
     expect(notWorking).toHaveTextContent(
-      'うまくいかなくても、力がないということではありません。この案が、いまの暮らしに合うかを確かめた結果です。一歩を小さくする、別の一歩を試す、仕事の選択肢に戻ってほかの案を選ぶ、のどれもできます。',
+      'うまくいかなかったときも、それは、この案がいまの暮らしに合うかを確かめられたということです。一歩を小さくする、別の一歩を試す、仕事の選択肢に戻ってほかの案を選ぶ、のどれもできます。',
     )
+    // 本人の力の話にしない。「力がない」の語は、打ち消す形でも出さない
+    expect(notWorking).not.toHaveTextContent('力がない')
     expect(within(notWorking).getByRole('link', { name: copy.deepen.notWorkingLink })).toHaveAttribute('href', '/options')
     const names = regionNames()
     expect(names.indexOf(copy.deepen.stepsTitle)).toBe(names.indexOf(copy.deepen.notWorkingTitle) - 1)
@@ -434,9 +493,10 @@ describe('Deepen', () => {
       await within(questions).findByText(copy.deepen.yourAnswer.replace('{text}', 'まず返事のない人に、別の連絡の手段で聞いてみる')),
     ).toBeInTheDocument()
 
+    const generatedAt = fakeDeepenContent().generatedAt
     expect(puts(api.calls, '/api/deepen/answers/q1')).toEqual([
-      { text: FAKE_DEEPEN_CHOICES[1], fromChoice: true },
-      { text: 'まず返事のない人に、別の連絡の手段で聞いてみる', fromChoice: false },
+      { text: FAKE_DEEPEN_CHOICES[1], fromChoice: true, generatedAt },
+      { text: 'まず返事のない人に、別の連絡の手段で聞いてみる', fromChoice: false, generatedAt },
     ])
   })
 

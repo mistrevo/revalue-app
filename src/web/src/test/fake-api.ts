@@ -527,11 +527,15 @@ export function installFakeApi(initial: {
     if (url.startsWith('/api/deepen/')) {
       if (state.deepenSaveFails) return json(500, { status: 500 })
       const content = state.deepen.content
-      if (state.deepen.readiness !== 'ready' || !content || content.stale) {
+      // 裏側と同じく、見ていた中身（作った日時）がいまの中身でなければ断る
+      const seen = (body as { generatedAt?: string } | undefined)?.generatedAt
+      if (!seen) return json(400, { type: '/problems/invalid-deepen', status: 400 })
+      if (state.deepen.readiness !== 'ready' || !content || content.stale || content.generatedAt !== seen) {
         return json(409, { type: '/problems/deepen-changed', status: 409 })
       }
       if (url === '/api/deepen/tasks' && method === 'PUT') {
-        if (!content.tasksRejected && !content.tasks.some((t) => t.drafted)) {
+        // 業務を直せるのは、「創る」と本人が書いた仕事のときだけ（業務が空でも直せる）
+        if (state.deepen.target?.kind !== 'create' && state.deepen.target?.kind !== 'own') {
           return json(409, { type: '/problems/deepen-changed', status: 409 })
         }
         const tasks = (body as { tasks: DeepenTaskRequest[] }).tasks
