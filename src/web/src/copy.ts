@@ -69,6 +69,7 @@ export const copy = {
     profile: '5 つの記録',
     options: '仕事の選択肢',
     deepen: '選んだ案を深める',
+    report: '可能性レポート',
     settingsLink: '設定',
   },
   talk: {
@@ -400,6 +401,65 @@ export const copy = {
     // 同じ案が、ほかの画面で深め直されていたとき。見ていた中身への書き換えは入れていない（Claude の判断）
     regenerated: 'ほかの画面で、この案が深め直されていました。いまの中身を読み直しました。',
     saveFailed: 'うまく保存できませんでした。少し待ってから、もう一度お試しください。',
+    toReport: '可能性レポートを見る',
+    backHome: 'ホームへ戻る',
+  },
+  report: {
+    title: '可能性レポート',
+    // 本人の言葉と、本人が選び書いたことのまとめであることと、どれも直せることを先に伝える（07-report.md の「画面」。Claude の判断）
+    lead: 'あなたが話した言葉と、あなたが選び、書いたことをまとめました。どれも、あとから直せます。',
+    notReady: '一つの場面を話し終えると、可能性レポートを開けます。',
+    toTalk: 'ホームから話す',
+    version: '第 {n} 版（{at}）',
+    changed: '前の版から変わったところ: {sections}',
+    // 欄の見出し。選んだ案は「あなたが選んだ案」と書く（report-4（決めつけない）。Claude の判断）
+    sections: {
+      abilities: 'あなたの話から見えた力',
+      notYet: 'まだ確かめていないこと',
+      records: '5 つの記録',
+      choice: 'あなたが選んだ案',
+      thinking: '仕事の場面での考え方',
+      steps: '最初の一歩',
+    },
+    // 欄ごとの「直す」の道。同じ「直す」が並ばないよう、行き先の画面の名前を入れる（Claude の判断）
+    edit: {
+      abilities: '見えた力の画面で直す',
+      notYet: '見えた力の画面で直す',
+      records: '5 つの記録の画面で直す',
+      choice: '仕事の選択肢の画面で直す',
+      thinking: '深める画面で直す',
+    },
+    abilityStates: { confirmed: 'あなたの話から見えた力', needsCheck: '確かめ中' },
+    // 「ない」を本人の力に向けない。何が入るかと、次にできることだけを伝える（Claude の判断）
+    noAbilities: '話した出来事から見えた力を、ここに並べます。別の一日のことも、ホームから話せます。',
+    notHeard: 'まだ聞けていない力: {names}',
+    checking: '確かめ中の力: {names}（もう少し聞かせてほしいことがあります）',
+    taskAbility: '{task}: {name}は、まだ確かめていません',
+    taskKnowledge: '{task}: 要る知識や道具（{items}）',
+    canDoTitle: 'できること',
+    canDoNote: '上の「あなたの話から見えた力」のとおりです。',
+    ownKind: '自分で考えた仕事',
+    holding: '案は保留にしています。いつでも選べます。',
+    noChoice: 'まだ案を選んでいません。',
+    toOptions: '仕事の選択肢へ',
+    // カードは仕事の選択肢の画面を開いたときに作り直すので、そこで作り直せることだけを伝える（07-report.md の「版を残す」）
+    cardsStale: '話した内容や記録が変わったので、仕事の選択肢の画面で案を作り直せます。',
+    holdFailed: 'うまく保留にできませんでした。少し待ってから、もう一度お試しください。',
+    thinkingNote: '答えは考え方として残したもので、力の見立てには使っていません。',
+    thinkingNotDeepened: '選んだ案を深めると、仕事の場面での考え方を残せます。',
+    noThoughts: 'まだ答えた問いはありません。',
+    stepsNotDeepened: '選んだ案を深めると、最初の一歩を選んだり書いたりできます。',
+    // 一歩は決めずにおいてもよい（06-deepen.md の「最初の一歩」。Claude の判断）
+    noSteps: 'まだ一歩は決めていません。決めずにおいてもかまいません。',
+    ownStep: '（あなたが書いた一歩）',
+    toDeepen: '選んだ案を深める',
+    editSteps: '一歩を選び直す・書く',
+    closeSteps: '閉じる',
+    // 一歩を保存するあいだに、ほかの画面で選んだ案か深めた中身か条件が変わっていたとき（Claude の判断）
+    stepsChanged: '選んだ案か、深めた中身が変わっていたので、読み直しました。',
+    previousTitle: '前の版',
+    previousShow: '前の版を見る',
+    previousHide: '前の版を閉じる',
     backHome: 'ホームへ戻る',
   },
   episodes: {

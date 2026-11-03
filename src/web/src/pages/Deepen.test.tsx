@@ -541,6 +541,16 @@ describe('Deepen', () => {
     expect(within(questions).queryByRole('button')).not.toBeInTheDocument()
   })
 
+  it('report-1（一つにまとめて示す）: 深める画面から可能性レポートへ行ける', async () => {
+    installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent() }) })
+    renderApp('/deepen')
+
+    const link = await screen.findByRole('link', { name: copy.deepen.toReport })
+    expect(link).toHaveAttribute('href', '/report')
+    await userEvent.click(link)
+    expect(await screen.findByRole('heading', { level: 1, name: copy.report.title })).toBeInTheDocument()
+  })
+
   it('common-1（使わない言葉を出さない）: 深める画面の文言に、使わない言葉がない', async () => {
     const texts = flatten(copy.deepen)
     const found = ['根拠あり', '要確認', '未確認', ...forbiddenWords].flatMap((word) =>

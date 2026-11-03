@@ -108,4 +108,13 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: copy.deepen.title })).toBeInTheDocument()
   })
+
+  it('report-1（一つにまとめて示す）: ホームから可能性レポートへ行ける', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/home')
+
+    await userEvent.click(await screen.findByRole('link', { name: copy.home.report }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.report.title })).toBeInTheDocument()
+  })
 })
