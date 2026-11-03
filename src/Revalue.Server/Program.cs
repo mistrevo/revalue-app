@@ -1,5 +1,6 @@
 using Revalue.Server.Ai;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Deepen;
 using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Foundation;
 using Revalue.Server.Features.Foundation.Auth;
@@ -44,6 +45,7 @@ DiscoverEndpoints.Map(api);
 ValidateEndpoints.Map(api);
 ProfileEndpoints.Map(api);
 OptionsEndpoints.Map(api);
+DeepenEndpoints.Map(api);
 api.MapGet("/stats", async (ICounter counter, CancellationToken ct) => TypedResults.Ok(await counter.GetAsync(ct))).RequireConsent();
 
 // テストの環境（Testing）だけ、送信回数の上限を確かめるための API を足す。本番の経路には足さない

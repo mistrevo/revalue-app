@@ -27,6 +27,15 @@ public static class Problems
     /// <summary>選んだ案や本人が書いた仕事の形が合わない。</summary>
     public const string InvalidOption = "/problems/invalid-option";
 
+    /// <summary>選んだ案を深める条件がそろっていない。拡張の <c>readiness</c> に、足りないもの（noChoice、hold、needsConditions）を入れる。</summary>
+    public const string DeepenNotReady = "/problems/deepen-not-ready";
+
+    /// <summary>見ていた深めた中身が、選び直しなどで古くなったか、いまの条件ではその候補を出していない。</summary>
+    public const string DeepenChanged = "/problems/deepen-changed";
+
+    /// <summary>深める画面からの書き換え（業務、答え、一歩）の形が合わない。</summary>
+    public const string InvalidDeepen = "/problems/invalid-deepen";
+
     /// <summary>AI の呼び出しが失敗したか、AI が断った。拡張の <c>kind</c> に "failure" か "refusal" を入れる。</summary>
     public const string AiUnavailable = "/problems/ai-unavailable";
 
