@@ -1,5 +1,17 @@
 import { vi } from 'vitest'
-import type { Abilities, Episode, EpisodeInsights, EpisodeSummary, Profile, ProfileConditions, ProfileEntry, Turn } from '@/api'
+import type {
+  Abilities,
+  ChoiceRequest,
+  Episode,
+  EpisodeInsights,
+  EpisodeSummary,
+  OptionCards,
+  Options,
+  Profile,
+  ProfileConditions,
+  ProfileEntry,
+  Turn,
+} from '@/api'
 
 export type FakeCall = { method: string; url: string; body?: unknown }
 export type FakeEvent = { event: string; data: unknown }
@@ -163,6 +175,90 @@ export function fakeProfile(overrides: Partial<Profile> = {}): Profile {
   }
 }
 
+/** 架空の出典（本物は jobs.json の source）。 */
+export const FAKE_SOURCE = {
+  text: '架空の出典の文（テスト用）',
+  url: 'https://shigoto.mhlw.go.jp/User/download',
+}
+
+/** 架空の 3 枚のカード。中身はすべて架空。力と根拠の言葉は fakeProfile と同じ。 */
+export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCards {
+  const coordinating = {
+    key: 'coordinating' as const,
+    name: '調整する力',
+    state: 'confirmed' as const,
+    quotes: [
+      { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
+      { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
+    ],
+  }
+  const schedule = {
+    id: 'online-secretary-schedule',
+    occupationName: 'オンライン秘書',
+    name: '日程の調整',
+    detail: '関わる人と連絡を取り合って、会う日時を決める',
+    ability: 'coordinating' as const,
+    timeSlots: ['daytime' as const],
+    place: 'home' as const,
+  }
+  return {
+    generatedAt: '2026-11-03T06:00:00Z',
+    stale: false,
+    choose: {
+      occupationName: 'オンライン秘書',
+      summary: '連絡や予定の段取りを、オンラインで手伝う仕事',
+      tasks: [schedule],
+      range: { minHours: 3, maxHours: 10, minMonthlyYen: 15000, maxMonthlyYen: 80000 },
+      reason: '班の家族の都合を聞いて集合を決めた動きは、日程の調整に生かせそうです。',
+      ability: coordinating,
+    },
+    combine: {
+      roleName: '小さな事務所の段取り係',
+      tasks: [
+        schedule,
+        {
+          id: 'recruiting-interview-schedule',
+          occupationName: '採用事務',
+          name: '面接の日程の連絡',
+          detail: '応募した人と面接する人の都合を聞いて、日時を伝える',
+          ability: 'coordinating',
+          timeSlots: ['daytime'],
+          place: 'home',
+        },
+      ],
+      range: { minHours: 6, maxHours: 10, minMonthlyYen: 31000, maxMonthlyYen: 76000 },
+      reason: '何人かの都合を聞いて案を出した動きは、二つの連絡の業務に生かせそうです。',
+      ability: coordinating,
+    },
+    create: {
+      title: '習い事の送り迎えの調整の手伝い',
+      who: '共働きで、子どもの習い事の送り迎えに困っている家族',
+      trouble: '家族どうしの送り迎えの当番が決まらない',
+      summary: '近所の家族の都合を聞き、送り迎えの当番表の案を作って伝える',
+      hoursPerWeek: 3,
+      place: 'home',
+      timeSlots: ['daytime'],
+      reason: '班の家族の都合を聞いて案を出した動きを、当番決めに生かせそうです。',
+      ability: coordinating,
+    },
+    missing: [],
+    ...overrides,
+  }
+}
+
+/** 架空の仕事の選択肢。進める条件がそろっていて、カードはまだ作っていない。 */
+export function fakeOptions(overrides: Partial<Options> = {}): Options {
+  return {
+    readiness: 'ready',
+    cards: null,
+    ownJobs: [],
+    choice: null,
+    monthlyIncome: 5,
+    source: FAKE_SOURCE,
+    ...overrides,
+  }
+}
+
 /** ふつうの返事（本文 2 かけら → 選択肢 → 終わり）。 */
 export function replyEvents(body: [string, string], choices: string[], status: 'talking' | 'finished' = 'talking'): FakeEvent[] {
   return [
@@ -198,7 +294,13 @@ function toSse(event: FakeEvent): string {
 export type FakeStream = { send: (event: string, data: unknown) => void; close: () => void }
 
 /** 裏側の API の代わり。ログインと了解の状態とエピソードを持ち、呼ばれた順に記録する。 */
-export function installFakeApi(initial: { loggedIn: boolean; consented: boolean; episodes?: Episode[]; profile?: Profile }) {
+export function installFakeApi(initial: {
+  loggedIn: boolean
+  consented: boolean
+  episodes?: Episode[]
+  profile?: Profile
+  options?: Options
+}) {
   const state = {
     loggedIn: initial.loggedIn,
     consented: initial.consented,
@@ -226,6 +328,13 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
     profile: initial.profile ?? fakeProfile(),
     /** true なら、5 つの記録の保存（PUT）を 500 で断る。 */
     profileSaveFails: false,
+    options: initial.options ?? fakeOptions(),
+    /** カードを作ったとき（POST /api/options）の応答。作るカードか、断る応答。 */
+    generate: fakeOptionCards() as OptionCards | { status: number; body: unknown },
+    /** 入れると、カードを作る応答をこの約束が済むまで待たせる（待っているあいだの表示を見るため）。 */
+    generateGate: null as Promise<void> | null,
+    /** true なら、仕事の選択肢の選ぶ・書く（/api/options/ の下の API）を 500 で断る。 */
+    optionsSaveFails: false,
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -292,7 +401,97 @@ export function installFakeApi(initial: { loggedIn: boolean; consented: boolean;
       state.consented = false
       state.episodes = []
       state.profile = fakeProfile()
+      state.options = fakeOptions()
       return new Response(null, { status: 204 })
+    }
+
+    if (url === '/api/options' && method === 'GET') {
+      return json(200, state.options)
+    }
+    if (url === '/api/options' && method === 'POST') {
+      if (state.generateGate) await state.generateGate
+      if (state.options.readiness !== 'ready') {
+        return json(409, { type: '/problems/options-not-ready', status: 409, readiness: state.options.readiness })
+      }
+      if ('status' in state.generate) return json(state.generate.status, state.generate.body)
+      state.options = { ...state.options, cards: { ...state.generate, stale: false } }
+      return json(200, state.options)
+    }
+    if (url.startsWith('/api/options/') && state.optionsSaveFails) {
+      return json(500, { status: 500 })
+    }
+    if (url === '/api/options/choice' && method === 'PUT') {
+      const choice = body as ChoiceRequest
+      const at = '2026-11-03T07:00:00Z'
+      if (choice.kind === 'card') {
+        const cards = state.options.cards
+        const card = cards?.[choice.card]
+        if (!cards || !card || cards.generatedAt !== choice.generatedAt) {
+          return json(409, { type: '/problems/options-changed', status: 409 })
+        }
+        state.options = {
+          ...state.options,
+          choice: {
+            kind: 'card',
+            at,
+            card: {
+              kind: choice.card,
+              choose: choice.card === 'choose' ? cards.choose : null,
+              combine: choice.card === 'combine' ? cards.combine : null,
+              create: choice.card === 'create' ? cards.create : null,
+            },
+            ownJob: null,
+          },
+        }
+      } else if (choice.kind === 'own') {
+        const own = state.options.ownJobs.find((j) => j.id === choice.ownJobId)
+        if (!own) return json(404, { type: '/problems/not-found', status: 404 })
+        state.options = { ...state.options, choice: { kind: 'own', at, card: null, ownJob: own } }
+      } else {
+        state.options = { ...state.options, choice: { kind: 'hold', at, card: null, ownJob: null } }
+      }
+      return json(200, state.options)
+    }
+    if (url === '/api/options/choice' && method === 'DELETE') {
+      state.options = { ...state.options, choice: null }
+      return json(200, state.options)
+    }
+    if (url === '/api/options/own' && method === 'POST') {
+      const job = body as { title: string; note: string }
+      if (state.options.ownJobs.length >= 3) return json(400, { type: '/problems/invalid-option', status: 400 })
+      const note = job.note.trim()
+      state.options = {
+        ...state.options,
+        ownJobs: [...state.options.ownJobs, { id: `own-${nextId++}`, title: job.title.trim(), note: note === '' ? null : note }],
+      }
+      return json(200, state.options)
+    }
+    const ownMatch = /^\/api\/options\/own\/([^/]+)$/.exec(url)
+    if (ownMatch) {
+      const id = decodeURIComponent(ownMatch[1])
+      const own = state.options.ownJobs.find((j) => j.id === id)
+      if (!own) return json(404, { type: '/problems/not-found', status: 404 })
+      const choice = state.options.choice
+      const chosen = choice?.kind === 'own' && choice.ownJob?.id === id
+      if (method === 'PUT') {
+        const job = body as { title: string; note: string }
+        const note = job.note.trim()
+        const changed = { id, title: job.title.trim(), note: note === '' ? null : note }
+        state.options = {
+          ...state.options,
+          ownJobs: state.options.ownJobs.map((j) => (j.id === id ? changed : j)),
+          choice: chosen && choice ? { ...choice, ownJob: changed } : choice,
+        }
+        return json(200, state.options)
+      }
+      if (method === 'DELETE') {
+        state.options = {
+          ...state.options,
+          ownJobs: state.options.ownJobs.filter((j) => j.id !== id),
+          choice: chosen ? null : choice,
+        }
+        return json(200, state.options)
+      }
     }
 
     if (url === '/api/profile' && method === 'GET') {

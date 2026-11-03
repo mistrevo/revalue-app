@@ -4,6 +4,7 @@ import { Abilities } from '@/pages/Abilities'
 import { Episodes } from '@/pages/Episodes'
 import { Home } from '@/pages/Home'
 import { Landing } from '@/pages/Landing'
+import { Options } from '@/pages/Options'
 import { Profile } from '@/pages/Profile'
 import { Settings } from '@/pages/Settings'
 import { Start } from '@/pages/Start'
@@ -62,6 +63,14 @@ export function AppRoutes() {
         element={
           <RequireUser key="profile" consent>
             <Profile />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/options"
+        element={
+          <RequireUser key="options" consent>
+            <Options />
           </RequireUser>
         }
       />

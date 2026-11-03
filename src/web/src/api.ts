@@ -392,3 +392,127 @@ export function putConditions(conditions: ProfileConditions): Promise<Profile> {
 export function putAgency(text: string): Promise<Profile> {
   return putProfile('agency', { text })
 }
+
+// ---- 仕事の選択肢 ----
+
+/** 仕事の選択肢を出せるか。出せないときは、最初に足りないもの。 */
+export type Readiness = 'ready' | 'needsConditions' | 'needsFinishedEpisode' | 'needsAbility'
+export type CardKind = 'choose' | 'combine' | 'create'
+/** カードを出せない理由。noFit は条件に合う業務がない、rejected は照らし合わせに通らなかった、noEvidence は根拠を引けない、excluded は本人が外した力を使っていた。 */
+export type MissingReason = 'noFit' | 'rejected' | 'noEvidence' | 'excluded'
+export type TaskPlace = 'home' | 'out'
+
+/** カードの業務。ability は使う力の key。timeSlots は本人の時間帯に入るもの。 */
+export type CardTask = {
+  id: string
+  occupationName: string
+  name: string
+  detail: string
+  ability: AbilityKey
+  timeSlots: TimeSlot[]
+  place: TaskPlace
+}
+
+/** 週あたりの時間の幅と、収入の目安（円、1 か月を 4 週として）。 */
+export type WorkRange = { minHours: number; maxHours: number; minMonthlyYen: number; maxMonthlyYen: number }
+
+/** カードの理由に使った力と、その根拠の本人の言葉。state は画面では copy の言葉にして出す。 */
+export type CardAbility = { key: AbilityKey; name: string; state: 'confirmed' | 'needsCheck'; quotes: Quote[] }
+
+export type ChooseCard = {
+  occupationName: string
+  summary: string
+  tasks: CardTask[]
+  range: WorkRange
+  reason: string
+  ability: CardAbility
+}
+
+export type CombineCard = { roleName: string; tasks: CardTask[]; range: WorkRange; reason: string; ability: CardAbility }
+
+export type CreateCard = {
+  title: string
+  who: string
+  trouble: string
+  summary: string
+  hoursPerWeek: number
+  place: TaskPlace
+  timeSlots: TimeSlot[]
+  reason: string
+  ability: CardAbility
+}
+
+/** いまの記録で見せられるカード。stale は、作ったあとに元の記録が変わったか。 */
+export type OptionCards = {
+  generatedAt: string
+  stale: boolean
+  choose: ChooseCard | null
+  combine: CombineCard | null
+  create: CreateCard | null
+  missing: { kind: CardKind; reason: MissingReason }[]
+}
+
+export type OwnJob = { id: string; title: string; note: string | null }
+
+/** 選んだ案。カードは選んだときの中身の写し。 */
+export type OptionChoice = {
+  kind: 'card' | 'own' | 'hold'
+  at: string
+  card: { kind: CardKind; choose: ChooseCard | null; combine: CombineCard | null; create: CreateCard | null } | null
+  ownJob: OwnJob | null
+}
+
+/** 仕事の選択肢の API が返すもの。monthlyIncome は本人の目安（万円）で、null は「まだ決めていない」。 */
+export type Options = {
+  readiness: Readiness
+  cards: OptionCards | null
+  ownJobs: OwnJob[]
+  choice: OptionChoice | null
+  monthlyIncome: number | null
+  source: { text: string; url: string }
+}
+
+/** 選んだ案。カードは、見ていたカードを作った日時と一緒に送る。 */
+export type ChoiceRequest =
+  | { kind: 'card'; card: CardKind; generatedAt: string }
+  | { kind: 'own'; ownJobId: string }
+  | { kind: 'hold' }
+
+async function optionsRequest(path: string, method: string, body?: unknown): Promise<Options> {
+  const response = await request(`/api/options${path}`, {
+    method,
+    ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+  })
+  return (await response.json()) as Options
+}
+
+export function getOptions(): Promise<Options> {
+  return optionsRequest('', 'GET')
+}
+
+/** カードを作る（作り直す）。進めないときは 409、AI が失敗・断ったときは 503（kind 付き）、上限なら 429 の ApiError。 */
+export function generateOptions(): Promise<Options> {
+  return optionsRequest('', 'POST')
+}
+
+/** 選んだ案を置き換える。見ていたカードが作り直されていたら 409 の ApiError。 */
+export function putOptionChoice(choice: ChoiceRequest): Promise<Options> {
+  return optionsRequest('/choice', 'PUT', choice)
+}
+
+/** 選んだ案と保留を外す。 */
+export function deleteOptionChoice(): Promise<Options> {
+  return optionsRequest('/choice', 'DELETE')
+}
+
+export function addOwnJob(job: { title: string; note: string }): Promise<Options> {
+  return optionsRequest('/own', 'POST', job)
+}
+
+export function updateOwnJob(id: string, job: { title: string; note: string }): Promise<Options> {
+  return optionsRequest(`/own/${encodeURIComponent(id)}`, 'PUT', job)
+}
+
+export function deleteOwnJob(id: string): Promise<Options> {
+  return optionsRequest(`/own/${encodeURIComponent(id)}`, 'DELETE')
+}
