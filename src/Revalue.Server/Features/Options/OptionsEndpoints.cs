@@ -19,7 +19,8 @@ public sealed record CardTaskDto(
 /// <summary>カードの理由に使った力。<paramref name="State"/> は "confirmed" か "needsCheck"。</summary>
 public sealed record CardAbilityDto(string Key, string Name, AbilityState State, IReadOnlyList<QuoteDto> Quotes);
 
-// カードの Reason と Ability は、選んだ案の力を本人があとで外したときだけ null にする（ChosenCardDto.AbilityExcluded）
+// カードの Reason と Ability は、選んだ案の力を本人があとで外したか、力の状態か根拠の言葉がいまの記録と合わなくなったときだけ null にする
+// （ChosenCardDto.AbilityExcluded と AbilityChanged）
 
 public sealed record ChooseCardDto(string OccupationName, string Summary, IReadOnlyList<CardTaskDto> Tasks, WorkRange Range, string? Reason, CardAbilityDto? Ability);
 
@@ -44,9 +45,11 @@ public sealed record OwnJobDto(string Id, string Title, string? Note);
 
 /// <summary>
 /// 選んだカード。選んだときの中身の写し。<paramref name="AbilityExcluded"/> は、カードの力を本人があとで外したか。
-/// 外していたら、理由と、もとにした力と根拠の言葉は返さない。
+/// <paramref name="AbilityChanged"/> は、外してはいないが、力の状態か根拠の言葉がいまの記録と合わなくなったか。
+/// どちらかなら、理由と、もとにした力と根拠の言葉は返さない。
 /// </summary>
-public sealed record ChosenCardDto(CardKind Kind, ChooseCardDto? Choose, CombineCardDto? Combine, CreateCardDto? Create, bool AbilityExcluded);
+public sealed record ChosenCardDto(
+    CardKind Kind, ChooseCardDto? Choose, CombineCardDto? Combine, CreateCardDto? Create, bool AbilityExcluded, bool AbilityChanged);
 
 public sealed record OptionChoiceDto(ChoiceKind Kind, DateTimeOffset At, ChosenCardDto? Card, OwnJobDto? OwnJob);
 
@@ -128,9 +131,29 @@ public static class OptionsEndpoints
                 new object?[] { cards.Choose, cards.Combine, cards.Create }.Count(c => c is not null),
                 rejected.Length == 0 ? "none" : rejected);
 
-            var saved = await OptionsStore.UpdateAsync(store, userKey, item => item with { Cards = cards }, time, ct);
+            // 作っているあいだに、ほかの要求（別のタブ）が同じ元の記録でカードを作って保存していたら、そちらを残す。
+            // 同じ記録のまま案を入れ替えない（05-options.md の「やらないこと」）
+            var saved = await OptionsStore.UpdateAsync(
+                store, userKey, item => item.Cards?.Basis == cards.Basis ? item : item with { Cards = cards }, time, ct);
             return TypedResults.Ok(Dto(saved, inputs, catalog));
-        }).RequireDailyLimit();
+        })
+            // 送信回数を数える前に見る。作ったカードがあり、元の記録が変わっていなければ、AI を呼ばず、送信回数にも数えずに、いまのカードを返す
+            .AddEndpointFilter(async (context, next) =>
+            {
+                var http = context.HttpContext;
+                var store = http.RequestServices.GetRequiredService<IDataStore>();
+                var userKey = http.User.GetUserKey()!;
+                var inputs = await OptionsInputsReader.ReadAsync(store, userKey, http.RequestAborted);
+                if (OptionsInputsReader.Check(inputs) == Readiness.Ready
+                    && await store.GetAsync<OptionsItem>(userKey, OptionsItem.ItemId, http.RequestAborted) is { Cards: { } cards } item
+                    && cards.Basis == OptionsInputsReader.Basis(inputs))
+                {
+                    return TypedResults.Ok(Dto(item, inputs, http.RequestServices.GetRequiredService<JobCatalog>()));
+                }
+
+                return await next(context);
+            })
+            .RequireDailyLimit();
 
         options.MapPut("/choice", async (HttpContext http, IDataStore store, JobCatalog catalog, ICounter counter, TimeProvider time, CancellationToken ct) =>
         {
@@ -361,7 +384,7 @@ public static class OptionsEndpoints
             ? new OptionChoiceDto(
                 c.Kind,
                 c.At,
-                c is { Kind: ChoiceKind.Card, Card: { } kind } ? ChosenDto(c, kind, c.UsesExcludedAbility(inputs)) : null,
+                c is { Kind: ChoiceKind.Card, Card: { } kind } ? ChosenDto(c, kind, c.AbilityProblem(inputs)) : null,
                 ownJobs.FirstOrDefault(j => c.Kind == ChoiceKind.Own && j.Id == c.OwnJobId) is { } own ? OwnDto(own) : null)
             : null;
 
@@ -376,16 +399,20 @@ public static class OptionsEndpoints
 
     private static OwnJobDto OwnDto(OwnJob job) => new(job.Id, job.Title, job.Note);
 
-    /// <summary>選んだカードの写し。カードの力を本人があとで外していたら、理由と力と根拠の言葉を外す（validate-12（本人が見立てを外せる））。</summary>
-    private static ChosenCardDto ChosenDto(OptionChoice choice, CardKind kind, bool excluded)
+    /// <summary>
+    /// 選んだカードの写し。カードの力を本人があとで外していたか（validate-12（本人が見立てを外せる））、力の状態か根拠の言葉が
+    /// いまの記録と合わなくなっていたら（<paramref name="problem"/>）、理由と力と根拠の言葉を外す。
+    /// </summary>
+    private static ChosenCardDto ChosenDto(OptionChoice choice, CardKind kind, MissingReason? problem)
     {
-        var withReason = !excluded;
+        var withReason = problem is null;
         return new ChosenCardDto(
             kind,
             choice.Choose is { } ch ? ChooseDto(ch, withReason) : null,
             choice.Combine is { } co ? CombineDto(co, withReason) : null,
             choice.Create is { } cr ? CreateDto(cr, withReason) : null,
-            excluded);
+            problem == MissingReason.Excluded,
+            problem == MissingReason.Changed);
     }
 
     private static CardAbilityDto AbilityDto(CardAbility ability) =>

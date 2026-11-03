@@ -339,6 +339,9 @@ function ChoiceArea({
             {chosen.combine && <CombineBody card={chosen.combine} monthlyIncome={null} />}
             {chosen.create && <CreateBody card={chosen.create} />}
             {chosen.abilityExcluded && <p className="text-sm leading-relaxed text-muted-foreground">{copy.options.chosenExcluded}</p>}
+            {!chosen.abilityExcluded && chosen.abilityChanged && (
+              <p className="text-sm leading-relaxed text-muted-foreground">{copy.options.chosenChanged}</p>
+            )}
           </>
         )}
         {own && (
@@ -408,7 +411,7 @@ function OptionCard({
 
 /**
  * 出せないカードの理由と、次にできること。同じ記録のまま作り直す道は置かない（05-options.md の「やらないこと」）。
- * 外した見立てのカードは、記録が変わっているので、開いたときに作り直す。
+ * 外した見立てのカードと、力の状態か根拠の言葉が変わったカードは、記録が変わっているので、開いたときに作り直す。
  */
 function Missing({ reason }: { reason: MissingReason }) {
   return (
@@ -419,7 +422,7 @@ function Missing({ reason }: { reason: MissingReason }) {
           <Link to="/profile">{copy.options.toConditions}</Link>
         </Button>
       )}
-      {(reason === 'noEvidence' || reason === 'noAbilityMatch') && (
+      {reason === 'noAbilityMatch' && (
         <Button asChild variant="outline" className="w-full sm:w-auto sm:self-start">
           <Link to="/home">{copy.options.toTalk}</Link>
         </Button>

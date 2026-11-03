@@ -71,6 +71,12 @@ public sealed class OptionsApiTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    /// <summary>
+    /// 元の記録を変える（月の収入の目安だけを変え、どのカードも条件に収まったままにする）。同じ記録のままでは作り直さないので、
+    /// 作り直すテストは先にこれを呼ぶ。
+    /// </summary>
+    private static Task ChangeRecords(HttpClient client, int income) => PutConditions(client, Conditions(10, ["daytime", "evening"], income: income));
+
     private static async Task<JsonElement> Get(HttpClient client)
     {
         var response = await client.GetAsync("/api/options", Ct);
@@ -190,6 +196,7 @@ public sealed class OptionsApiTests
         Assert.Contains("job tag", all.GetProperty("source").GetProperty("text").GetString() + all.GetProperty("source").GetProperty("url").GetString());
 
         // 候補があるのに作らないと答えたら、条件に合わないとは返さない
+        await ChangeRecords(client, 8);
         options.Change = d => d with { Combine = d.Combine with { Made = false } };
         var dto = await Generate(client);
 
@@ -228,6 +235,7 @@ public sealed class OptionsApiTests
 
         await AddOwn(client, "架空-近所の子どもの見守り");
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        await ChangeRecords(client, 8);
         options.Change = d => d with { Choose = d.Choose with { Reason = "作り直した理由です。" } };
         var regenerated = await Generate(client);
 
@@ -324,6 +332,7 @@ public sealed class OptionsApiTests
         await ChooseCard(client, "choose", old);
 
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        await ChangeRecords(client, 8);
         options.Change = d => d with { Choose = d.Choose with { Reason = "別の画面で作り直した理由です。" } };
         await Generate(client);
 
@@ -408,6 +417,90 @@ public sealed class OptionsApiTests
         Assert.Equal(chosen.GetProperty("choose").GetRawText(), restored.GetProperty("choose").GetRawText());
     }
 
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 訂正で力の状態が下がると、作り直すまでカードを出さず、選んだ案の理由と力と根拠の言葉も返さない")]
+    public async Task CorrectionDowngradeHidesChangedAbility()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Consenting(factory, "o-19");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll);
+        await PutConditions(client, TenHours);
+        var generated = await Generate(client);
+        Assert.Equal("confirmed", generated.GetProperty("cards").GetProperty("choose").GetProperty("ability").GetProperty("state").GetString());
+        await ChooseCard(client, "choose", generated);
+
+        // 訂正で場面を読み直すと、調整する力の行動は 1 と 3 だけになり、確かめ中に下がる
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[2]);
+        Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, "電話をしたのは私ではなく、夫でした。")).StatusCode);
+        var dto = await Get(client);
+
+        var cards = dto.GetProperty("cards");
+        Assert.True(cards.GetProperty("stale").GetBoolean());
+        foreach (var kind in new[] { "choose", "combine", "create" })
+        {
+            Assert.Equal(JsonValueKind.Null, cards.GetProperty(kind).ValueKind);
+        }
+
+        Assert.Equal([("choose", "changed"), ("combine", "changed"), ("create", "changed")], Missing(dto));
+        var chosen = dto.GetProperty("choice").GetProperty("card");
+        Assert.False(chosen.GetProperty("abilityExcluded").GetBoolean());
+        Assert.True(chosen.GetProperty("abilityChanged").GetBoolean());
+        Assert.Equal("オンライン秘書", chosen.GetProperty("choose").GetProperty("occupationName").GetString());
+        Assert.Equal(JsonValueKind.Null, chosen.GetProperty("choose").GetProperty("reason").ValueKind);
+        Assert.Equal(JsonValueKind.Null, chosen.GetProperty("choose").GetProperty("ability").ValueKind);
+        Assert.DoesNotContain("夫と母の予定がぶつかって", chosen.GetRawText());
+        // いまの記録で見せられないカードは選べない
+        await AssertProblem(
+            await PutChoice(client, new { kind = "card", card = "combine", generatedAt = generated.GetProperty("cards").GetProperty("generatedAt").GetString() }),
+            HttpStatusCode.Conflict,
+            "/problems/options-changed");
+
+        // 作り直すと、いまの状態（確かめ中）と、いまの根拠の言葉でカードを出す。選んだ案は写しのまま、理由と力は出さない
+        var regenerated = await Generate(client);
+        var ability = regenerated.GetProperty("cards").GetProperty("choose").GetProperty("ability");
+        Assert.Equal("needsCheck", ability.GetProperty("state").GetString());
+        Assert.Equal(["夫と母の予定がぶつかって", "迎えの時間をずらしてもらいました"], Array(ability, "quotes").Select(q => q.GetProperty("text").GetString()));
+        Assert.True(regenerated.GetProperty("choice").GetProperty("card").GetProperty("abilityChanged").GetBoolean());
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 場面に力の確かめに使わない印が付くと、その場面の言葉を、カードにも選んだ案にも出さない")]
+    public async Task SetAsideSceneWordsAreNotShown()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Consenting(factory, "o-20");
+        // 確かめ中の場面と、あとで印が付く根拠ありの場面
+        await FinishedEpisode(client, ai, Candidate(Ability.Coordinating, 1, "母の予定がぶつかっていた"));
+        var confirmed = await FinishedEpisode(client, ai, CoordinatingAll);
+        await PutConditions(client, TenHours);
+        var generated = await Generate(client);
+        Assert.Equal("confirmed", generated.GetProperty("cards").GetProperty("combine").GetProperty("ability").GetProperty("state").GetString());
+        await ChooseCard(client, "combine", generated);
+
+        // 訂正の中に、つらい状態のサインがあった
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+        Assert.Equal(HttpStatusCode.OK, (await Correct(client, confirmed, "最近ずっと眠れなくて、つらいです。")).StatusCode);
+        var dto = await Get(client);
+
+        Assert.Equal("ready", dto.GetProperty("readiness").GetString());
+        Assert.Equal([("choose", "changed"), ("combine", "changed"), ("create", "changed")], Missing(dto));
+        var chosen = dto.GetProperty("choice").GetProperty("card");
+        Assert.True(chosen.GetProperty("abilityChanged").GetBoolean());
+        Assert.Equal(ScriptedOptionsAi.RoleName, chosen.GetProperty("combine").GetProperty("roleName").GetString());
+        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        {
+            Assert.DoesNotContain(quote, dto.GetRawText());
+        }
+
+        // 作り直すと、印のない場面の言葉で、確かめ中として出す
+        var regenerated = await Generate(client);
+        var ability = regenerated.GetProperty("cards").GetProperty("combine").GetProperty("ability");
+        Assert.Equal("needsCheck", ability.GetProperty("state").GetString());
+        Assert.Equal(["母の予定がぶつかっていた"], Array(ability, "quotes").Select(q => q.GetProperty("text").GetString()));
+        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        {
+            Assert.DoesNotContain(quote, regenerated.GetRawText());
+        }
+    }
+
     [Fact(DisplayName = "options-5（条件の範囲だけ）: 条件を狭めると、収まらなくなったカードは出さない")]
     public async Task NarrowedConditionsHideCardsOutOfRange()
     {
@@ -440,7 +533,10 @@ public sealed class OptionsApiTests
         var client = await Ready(factory, ai, "o-12");
         var generated = await Generate(client);
         await ChooseCard(client, "choose", generated);
+        // 元の記録が変わり、作り直すことになった
+        await ChangeRecords(client, 8);
         var before = await Get(client);
+        Assert.True(before.GetProperty("cards").GetProperty("stale").GetBoolean());
 
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
         foreach (var kind in new[] { ConversationAiException.Failure, ConversationAiException.Refusal })
@@ -474,6 +570,62 @@ public sealed class OptionsApiTests
         await client.PutAsJsonAsync($"/api/options/own/{own}", new { title = "架空の仕事 2" }, Ct);
         await client.DeleteAsync($"/api/options/own/{own}", Ct);
         Assert.Equal(before + 1, await Sends(factory, "o-13"));
+    }
+
+    [Fact(DisplayName = "options-7（1 場面で進める）: 元の記録が変わっていなければ、作るを求めても AI を呼ばず、送信回数にも数えず、いまのカードを返す")]
+    public async Task UnchangedRecordsAreNotRegenerated()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Ready(factory, ai, "o-22");
+        var first = await Generate(client);
+        var sends = await Sends(factory, "o-22");
+
+        // 別のタブや API から、同じ記録のまま、別の案を求めた
+        factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        options.Change = d => d with { Choose = d.Choose with { Reason = "同じ記録のまま作り直した理由です。" } };
+        var again = await Generate(client);
+
+        Assert.Equal(1, options.Calls);
+        Assert.Equal(sends, await Sends(factory, "o-22"));
+        Assert.Equal(first.GetProperty("cards").GetRawText(), again.GetProperty("cards").GetRawText());
+
+        // 記録が変わったら作り直し、送信回数に 1 回数える
+        await ChangeRecords(client, 8);
+        var regenerated = await Generate(client);
+        Assert.Equal(2, options.Calls);
+        Assert.Equal(sends + 1, await Sends(factory, "o-22"));
+        Assert.Equal("同じ記録のまま作り直した理由です。", regenerated.GetProperty("cards").GetProperty("choose").GetProperty("reason").GetString());
+        Assert.False(regenerated.GetProperty("cards").GetProperty("stale").GetBoolean());
+
+        // 進めないときは、これまでどおり 409
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync("/api/options", null, Ct)).StatusCode);
+        Assert.Equal(2, options.Calls);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: どのカードを選んでも、あとで力を外すと、選んだ案に根拠の言葉が残らない")]
+    public async Task ChosenCardsKeepNoEvidenceWordsAfterExclusion()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Ready(factory, ai, "o-23");
+        var generated = await Generate(client);
+
+        foreach (var kind in new[] { "choose", "combine", "create" })
+        {
+            var chosen = await ChooseCard(client, kind, generated);
+            Assert.Contains(CoordinatingAll[0].Quote, chosen.GetProperty("choice").GetRawText());
+
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
+            var choice = (await Get(client)).GetProperty("choice");
+            Assert.True(choice.GetProperty("card").GetProperty("abilityExcluded").GetBoolean());
+            Assert.NotEqual(JsonValueKind.Null, choice.GetProperty("card").GetProperty(kind).ValueKind);
+            foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+            {
+                Assert.DoesNotContain(quote, choice.GetRawText());
+            }
+
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/restore", null, Ct)).StatusCode);
+        }
     }
 
     [Fact(DisplayName = "options-6（本人が選ぶ、保留する、自分で書く）: 案を選んだ人は 1 人 1 回だけ数え、保留では数えない")]
@@ -510,11 +662,13 @@ public sealed class OptionsApiTests
         await ChooseCard(client, "choose", generated);
         await AddOwn(client, "書いた仕事の目印-9a1e", "メモの目印-2b7c");
         await client.PostAsJsonAsync("/api/options/own", new { title = "長すぎる目印-5f0d" + new string('あ', 200) }, Ct);
+        await ChangeRecords(client, 8);
         options.Fail = ConversationAiException.Failure;
-        await client.PostAsync("/api/options", null, Ct);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/api/options", null, Ct)).StatusCode);
 
         var logs = factory.CapturedLogs;
         Assert.Contains(logs, l => l.Contains("Options generated", StringComparison.Ordinal));
+        Assert.Contains(logs, l => l.Contains("Drafting the options ended with", StringComparison.Ordinal));
         foreach (var line in logs)
         {
             Assert.DoesNotContain("目印", line);

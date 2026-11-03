@@ -90,7 +90,7 @@ describe('Options', () => {
           create: null,
           missing: [
             { kind: 'combine', reason: 'noFit' },
-            { kind: 'create', reason: 'noEvidence' },
+            { kind: 'create', reason: 'changed' },
           ],
         }),
       }),
@@ -106,9 +106,11 @@ describe('Options', () => {
     expect(within(combine).getByRole('link', { name: copy.options.toConditions })).toHaveAttribute('href', '/profile')
     expect(within(combine).queryByRole('button', { name: copy.options.chooseThis })).not.toBeInTheDocument()
 
+    // 力の状態か根拠の言葉が変わったカードは、開いたときに作り直すので、ほかの道は置かない
     const create = card(LABELS[2])
-    expect(create).toHaveTextContent(copy.options.missing.noEvidence)
+    expect(create).toHaveTextContent(copy.options.missing.changed)
     expect(within(create).queryByRole('button', { name: copy.options.chooseThis })).not.toBeInTheDocument()
+    expect(within(create).queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('options-1（3 枚を同じ重さで示す）: 条件に収まる業務はあるが話した力を生かせないカードは、条件を直す道ではなく、話す道を出す', async () => {
@@ -217,6 +219,7 @@ describe('Options', () => {
             combine: null,
             create: { ...base.create!, reason: null, ability: null },
             abilityExcluded: true,
+            abilityChanged: false,
           },
           ownJob: null,
         },
@@ -227,9 +230,44 @@ describe('Options', () => {
     const chosen = await screen.findByRole('region', { name: copy.options.chosenTitle })
     expect(chosen).toHaveTextContent('習い事の送り迎えの調整の手伝い')
     expect(chosen).toHaveTextContent(copy.options.chosenExcluded)
+    expect(chosen).not.toHaveTextContent(copy.options.chosenChanged)
     expect(chosen).not.toHaveTextContent(copy.options.reasonTitle)
     expect(chosen).not.toHaveTextContent(copy.options.abilityTitle)
     expect(chosen).not.toHaveTextContent(copy.options.createLabels.ability)
+    expect(within(chosen).getByRole('button', { name: copy.options.rechoose })).toBeInTheDocument()
+  })
+
+  it('options-8（理由は本人の言葉とつなぐ）: 選んだあとで力の状態か根拠の言葉が変わっていたら、選んだ案は残し、理由と力は出さない', async () => {
+    const base = fakeOptionCards()
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({
+        choice: {
+          kind: 'card',
+          at: '2026-11-03T07:00:00Z',
+          card: {
+            kind: 'choose',
+            choose: { ...base.choose!, reason: null, ability: null },
+            combine: null,
+            create: null,
+            abilityExcluded: false,
+            abilityChanged: true,
+          },
+          ownJob: null,
+        },
+      }),
+    })
+    renderApp('/options')
+
+    const chosen = await screen.findByRole('region', { name: copy.options.chosenTitle })
+    expect(chosen).toHaveTextContent('オンライン秘書')
+    expect(chosen).toHaveTextContent('日程の調整')
+    expect(chosen).toHaveTextContent(copy.options.chosenChanged)
+    expect(chosen).not.toHaveTextContent(copy.options.chosenExcluded)
+    expect(chosen).not.toHaveTextContent(copy.options.reasonTitle)
+    expect(chosen).not.toHaveTextContent(copy.options.abilityTitle)
+    expect(chosen).not.toHaveTextContent('班の 2 家族の都合を聞きました')
     expect(within(chosen).getByRole('button', { name: copy.options.rechoose })).toBeInTheDocument()
   })
 
@@ -289,7 +327,7 @@ describe('Options', () => {
     expect(within(own).getByRole('button', { name: copy.options.ownAdd })).toBeInTheDocument()
   })
 
-  it('options-6（本人が選ぶ、保留する、自分で書く）: 作り直されたあとに選ぶと、読み直してもう一度選ぶよう伝える', async () => {
+  it('options-6（本人が選ぶ、保留する、自分で書く）: 作り直されたあとに選ぶと、読み直して、新しい案から選び直すことも保留することもできると伝える', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, options: withCards() })
     renderApp('/options')
     const choose = await screen.findByRole('region', { name: LABELS[0] })
@@ -306,6 +344,8 @@ describe('Options', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(copy.options.changed)
     expect(await screen.findByText('経理事務')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: copy.options.chosenTitle })).not.toBeInTheDocument()
+    // 選ぶことを求めず、保留の道もそのまま出す
+    expect(screen.getByRole('button', { name: copy.options.hold })).toBeInTheDocument()
     expect(api.calls.filter((c) => c.method === 'GET' && c.url === '/api/options')).toHaveLength(2)
   })
 

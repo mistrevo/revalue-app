@@ -163,16 +163,64 @@ public sealed class OptionsValidatorTests
         AssertRejected(CardKind.Choose, "abilityNotInTasks", Draft(choose: GoodChoose() with { Ability = "noticing", Reason = "見立ててきた経験が生かせるかもしれません。" }), both);
     }
 
-    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が本人の根拠にないカードは出さない")]
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が本人の根拠にないカードは出さない。根拠の言葉の一部を一字一句そのまま引くのはよい")]
     public void BracketQuoteNotInEvidenceIsRejected()
     {
         AssertRejected(CardKind.Choose, "bracketNotVerbatim", Draft(choose: GoodChoose() with { Reason = "「早めに連絡しました」と話してくれた経験が、生かせるかもしれません。" }));
-        AssertRejected(CardKind.Combine, "bracketNotVerbatim", Draft(combine: GoodCombine() with { RoleName = "「早め」の人" }));
-        AssertRejected(CardKind.Create, "bracketNotVerbatim", Draft(create: GoodCreate() with { Summary = "「早めに連絡しました」の事業のアイデア" }));
+        AssertRejected(CardKind.Combine, "bracketNotVerbatim", Draft(combine: GoodCombine() with { Reason = "「早め」の連絡が、二つの仕事に生かせるかもしれません。" }));
+        AssertRejected(CardKind.Create, "bracketNotVerbatim", Draft(create: GoodCreate() with { Reason = "「早めに連絡しました」の経験が、生かせるかもしれません。" }));
+        AssertRejected(CardKind.Choose, "bracketNotVerbatim", Draft(choose: GoodChoose() with { Reason = "話してくれた「」の経験が、生かせるかもしれません。" }));
 
         var (cards, rejections) = Build(Draft(choose: GoodChoose() with { Reason = "「班の 2 家族」への連絡が、日程の調整に生かせるかもしれません。" }));
         Assert.Empty(rejections);
         Assert.NotNull(cards.Choose);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が、根拠の言葉の一部でも、空白と記号を除いて 4 文字に満たないカードは出さない")]
+    public void TooShortBracketQuoteIsRejected()
+    {
+        // 「家族」「2 家族」は根拠の言葉「班の 2 家族に連絡しました」の一部だが、それだけでは何の話か分からない
+        AssertRejected(CardKind.Choose, "bracketTooShort", Draft(choose: GoodChoose() with { Reason = "話してくれた「家族」のことが、日程の調整に生かせるかもしれません。" }));
+        AssertRejected(CardKind.Combine, "bracketTooShort", Draft(combine: GoodCombine() with { Reason = "話してくれた「2 家族」への連絡が、二つの仕事に生かせるかもしれません。" }));
+
+        // 4 文字（の、2、家、族）なら引ける
+        var (cards, rejections) = Build(Draft(choose: GoodChoose() with { Reason = "話してくれた「の 2 家族」への連絡が、日程の調整に生かせるかもしれません。" }));
+        Assert.NotNull(cards.Choose);
+        Assert.Empty(rejections);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由のほかの文に「」や『』があるカードは、根拠の言葉どおりでも出さない")]
+    public void BracketsOutsideReasonAreRejected()
+    {
+        // 選んだあとで力を外すと理由は出さなくなるが、役割の名前や「創る」の文は案の中身として残るため
+        AssertRejected(CardKind.Combine, "bracketOutsideReason", Draft(combine: GoodCombine() with { RoleName = $"「{Q1}」の人" }));
+        AssertRejected(CardKind.Combine, "bracketOutsideReason", Draft(combine: GoodCombine() with { RoleName = "「早め」の人" }));
+        AssertRejected(CardKind.Create, "bracketOutsideReason", Draft(create: GoodCreate() with { Title = $"「{Q1}」の手伝い" }));
+        AssertRejected(CardKind.Create, "bracketOutsideReason", Draft(create: GoodCreate() with { Who = $"「{Q1}」家庭の" }));
+        AssertRejected(CardKind.Create, "bracketOutsideReason", Draft(create: GoodCreate() with { Trouble = $"『{Q1}』こと" }));
+        AssertRejected(CardKind.Create, "bracketOutsideReason", Draft(create: GoodCreate() with { Summary = $"「{Q1}」ときの予定を取りまとめる事業のアイデア" }));
+    }
+
+    [Fact(DisplayName = "options-5（条件の範囲だけ）: AI が書いた文にお金の額があるカードは出さない。「」で引いた本人の言葉の中と、額でない「円」は数えない")]
+    public void MoneyAmountsAreRejected()
+    {
+        // 「創る」は需要を確かめていないので収入の数字を出さない。「選ぶ」と「組み合わせる」の収入の目安は、コードが登録の業務から計算する
+        AssertRejected(CardKind.Create, "moneyAmount", Draft(create: GoodCreate() with { Summary = "送迎の予定を取りまとめる事業のアイデアで、1 回 3,000 円くらいです" }));
+        AssertRejected(CardKind.Create, "moneyAmount", Draft(create: GoodCreate() with { Trouble = "月に数万円かかる送迎の費用" }));
+        AssertRejected(CardKind.Create, "moneyAmount", Draft(create: GoodCreate() with { Title = "千円でできる予定合わせ" }));
+        AssertRejected(CardKind.Create, "moneyAmount", Draft(create: GoodCreate() with { Reason = $"話してくれた「{Q1}」の場面の段取りで、月 5 万円になるかもしれません。" }));
+        AssertRejected(CardKind.Choose, "moneyAmount", Draft(choose: GoodChoose() with { Reason = "日程の調整で、¥30000 くらいになるかもしれません。" }));
+        AssertRejected(CardKind.Combine, "moneyAmount", Draft(combine: GoodCombine() with { Reason = "予定を合わせた経験で、時給１２００円の仕事に生かせるかもしれません。" }));
+
+        const string own = "会費を 500 円ずつ集めました";
+        var inputs = Inputs() with
+        {
+            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, own)])],
+        };
+        var (cards, rejections) = Build(
+            Draft(choose: GoodChoose() with { Reason = $"話してくれた「{own}」の動きを、日程の調整を円滑に進めるのに生かせるかもしれません。" }), inputs);
+        Assert.NotNull(cards.Choose);
+        Assert.DoesNotContain(rejections, r => r.Kind == CardKind.Choose);
     }
 
     [Fact(DisplayName = "common-1（使わない言葉を出さない）: 使わない言葉を含む文のカードは出さない。力の名前の「順位」は数えない")]
@@ -257,13 +305,14 @@ public sealed class OptionsValidatorTests
         Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoFit), morning.Cards.Missing);
     }
 
-    [Fact(DisplayName = "options-4（創るは根拠を引けるときだけ）: 創らないと答えたら、根拠を引けなかったとして返す")]
-    public void NotMadeCreateIsNoEvidence()
+    [Fact(DisplayName = "options-4（創るは根拠を引けるときだけ）: 創らないと答えたら出さず、本人の話が足りないとは返さず、うまく作れなかったとして返す")]
+    public void NotMadeCreateIsRejected()
     {
-        var (cards, _) = Build(Draft(create: new CreateDraft(false, "", "", "", "", "coordinating", [], 0, "home", [], "")));
+        var (cards, rejections) = Build(Draft(create: new CreateDraft(false, "", "", "", "", "coordinating", [], 0, "home", [], "")));
 
         Assert.Null(cards.Create);
-        Assert.Contains(new MissingCard(CardKind.Create, MissingReason.NoEvidence), cards.Missing);
+        Assert.Equal([new MissingCard(CardKind.Create, MissingReason.Rejected)], cards.Missing);
+        Assert.Equal([new CardRejection(CardKind.Create, "notMade")], rejections);
     }
 
     [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 候補があるのに作らないと答えた選ぶと組み合わせるは、条件に合わないとは返さず、うまく作れなかったとして返す")]
@@ -351,14 +400,72 @@ public sealed class OptionsValidatorTests
         Assert.Null(noConditions.Create);
     }
 
-    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 使えなくなった力のカードは出さない")]
+    /// <summary>3 枚とも出さず、どれも記録が変わったとして返す。</summary>
+    private static void AssertAllChanged(OptionCards shown)
+    {
+        Assert.Null(shown.Choose);
+        Assert.Null(shown.Combine);
+        Assert.Null(shown.Create);
+        Assert.Equal(Enum.GetValues<CardKind>().Select(k => new MissingCard(k, MissingReason.Changed)), shown.Missing);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 使えなくなった力のカードは出さず、記録が変わったとして返す")]
     public void ForDisplayHidesCardsOfAbilityNoLongerUsable()
     {
         var (cards, _) = Build(Draft());
 
-        var shown = OptionsValidator.ForDisplay(cards, Inputs(usable: [Ability.Noticing]), Catalog);
+        // 場面に力の確かめに使わない印が付き、調整する力がまだ聞けていない力に戻った
+        AssertAllChanged(OptionsValidator.ForDisplay(cards, Inputs(usable: [Ability.Noticing]), Catalog));
+    }
 
-        Assert.Null(shown.Choose);
-        Assert.All(Enum.GetValues<CardKind>(), k => Assert.Contains(new MissingCard(k, MissingReason.Rejected), shown.Missing));
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 力の状態か根拠の言葉が、いまの記録と合わなくなったカードは出さない")]
+    public void ForDisplayHidesCardsWhoseAbilityChanged()
+    {
+        // 確かめ中、根拠の言葉は Q1 と Q2。創るは Q1 だけを引いた
+        var (cards, _) = Build(Draft());
+        OptionsInputs With(AbilityState state, params Evidence[] quotes) =>
+            Inputs() with { Abilities = [new UsableAbility(Ability.Coordinating, state, quotes)] };
+
+        // 状態が変わった（訂正で場面を読み直したときなど）
+        AssertAllChanged(OptionsValidator.ForDisplay(
+            cards, With(AbilityState.Confirmed, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました")]), Catalog));
+        // 状態は同じだが、根拠の言葉が別の場面のものに替わった（もとの場面に、確かめに使わない印が付いたときなど）
+        AssertAllChanged(OptionsValidator.ForDisplay(cards, With(AbilityState.NeedsCheck, E(Ability.Coordinating, 1, "予定を見比べました")), Catalog));
+        // 同じ言葉でも、選んだ答えの言葉になった
+        AssertAllChanged(OptionsValidator.ForDisplay(
+            cards,
+            With(AbilityState.NeedsCheck, CoordinatingQuotes[0] with { FromChoice = true, LinkedQuote = "母に電話しました" }, CoordinatingQuotes[1]),
+            Catalog));
+
+        // 創るが引いた言葉（Q1）がいまもあれば、創るは出す。選ぶと組み合わせるの根拠の言葉（Q1 と Q2）はもうそろっていない
+        var partly = OptionsValidator.ForDisplay(cards, With(AbilityState.NeedsCheck, CoordinatingQuotes[0], E(Ability.Coordinating, 2, "予定を見比べました")), Catalog);
+        Assert.Null(partly.Choose);
+        Assert.Null(partly.Combine);
+        Assert.Equal(cards.Create, partly.Create);
+        Assert.Equal([new MissingCard(CardKind.Choose, MissingReason.Changed), new MissingCard(CardKind.Combine, MissingReason.Changed)], partly.Missing);
+
+        // 外したら、記録が変わったより先に、外したとして返す
+        var excluded = OptionsValidator.ForDisplay(cards, Inputs(excluded: [Ability.Coordinating], usable: []), Catalog);
+        Assert.All(Enum.GetValues<CardKind>(), k => Assert.Contains(new MissingCard(k, MissingReason.Excluded), excluded.Missing));
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 記録が変わって見せられないカードは、いつも元の記録の指紋も変わっていて、作り直す対象になる")]
+    public void ChangedAbilityAlwaysMeansStale()
+    {
+        var inputs = Inputs();
+        var (cards, _) = Build(Draft(), inputs);
+        Assert.Equal(OptionsInputsReader.Basis(inputs), cards.Basis);
+
+        foreach (var now in new[]
+        {
+            inputs with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.Confirmed, CoordinatingQuotes)] },
+            inputs with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [E(Ability.Coordinating, 1, "予定を見比べました")])] },
+            inputs with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [CoordinatingQuotes[0] with { LinkedQuote = "母に電話しました", FromChoice = true }])] },
+            Inputs(usable: [Ability.Noticing]),
+        })
+        {
+            Assert.Contains(OptionsValidator.ForDisplay(cards, now, Catalog).Missing, m => m.Reason == MissingReason.Changed);
+            Assert.NotEqual(cards.Basis, OptionsInputsReader.Basis(now));
+        }
     }
 }

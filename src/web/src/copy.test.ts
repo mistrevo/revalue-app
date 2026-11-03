@@ -62,6 +62,27 @@ describe('copy', () => {
     expect(missing.noFit).toContain('登録している業務はまだ少ない')
     expect(missing.noFit).not.toContain('条件を直')
     expect(missing.noAbilityMatch).toContain('登録している業務はまだ少ない')
+    // 記録が変わって出していないカードも、話や記録が足りなかったようには読ませず、見立てが下がったとも書かない
+    for (const text of [missing.changed, copy.options.chosenChanged]) {
+      expect(text).not.toMatch(/話を足|記録を直|下が|足りな/)
+    }
+  })
+
+  it('options-5（条件の範囲だけ）: 条件に合う業務がないとき、条件を広げるよう促さず、暮らしの条件が変わったときに直せることだけを伝える', () => {
+    // 条件は家庭の事情で決めたもの。もっと広げるべきだったと受け取らせない
+    expect(copy.options.missing.noFit).toContain('暮らしの条件が変わったときは')
+    expect(copy.options.missing.noFit).not.toContain('見直')
+    expect(copy.options.toConditions).not.toContain('見直')
+  })
+
+  it('options-7（1 場面で進める）: 理由にできる力がまだないとき、本人の話が足りなかったとは言わず、次にできることだけを書く', () => {
+    expect(copy.options.needsAbility).not.toMatch(/まだ出てきていません|足りな|ありません/)
+    expect(copy.options.needsAbility).toContain('別の一日')
+  })
+
+  it('options-6（本人が選ぶ、保留する、自分で書く）: 案が作り直されていたときも、選ぶことを求めず、保留もできると伝える', () => {
+    expect(copy.options.changed).toContain('保留')
+    expect(copy.options.changed).not.toContain('選んでください')
   })
 
   it('validate-12（本人が見立てを外せる）: 見えた力の前置きは、読み取りを直せることを、外す・戻すより先に伝える', () => {

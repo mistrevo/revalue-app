@@ -47,10 +47,13 @@ public sealed record OptionChoice(
     public CardAbility? ChosenAbility() => Choose?.Ability ?? Combine?.Ability ?? Create?.Ability;
 
     /// <summary>
-    /// 選んだカードの力を、本人があとで外したか。外していたら、選んだ案の中身（職種や業務、時間、場所）は残し、
-    /// 理由と、もとにした力と根拠の言葉は使わない（05-options.md の「本人が選ぶ」。戻せばまた使う）。
+    /// 選んだカードの理由と、もとにした力と根拠の言葉を、いまの記録では使えないときの理由。使えるなら null（カードを選んでいなければ null）。
+    /// 本人があとで力を外したら <see cref="MissingReason.Excluded"/>、力の状態か根拠の言葉がいまの記録と合わなくなったら
+    /// <see cref="MissingReason.Changed"/>（<see cref="CardAbility.ProblemIn"/>）。どちらのときも、選んだ案の中身（職種や業務、時間、場所、
+    /// 事業のアイデア）は残し、理由と、もとにした力と根拠の言葉は使わない。06 deepen と 07 report も同じ
+    /// （05-options.md の「本人が選ぶ」。戻ればまた使う）。
     /// </summary>
-    public bool UsesExcludedAbility(OptionsInputs inputs) => ChosenAbility() is { } ability && inputs.Excluded.Contains(ability.Ability);
+    public MissingReason? AbilityProblem(OptionsInputs inputs) => ChosenAbility()?.ProblemIn(inputs);
 }
 
 /// <summary>利用者ごとに 1 件（id は固定）の、仕事のカード、本人が書いた仕事、選んだ案。</summary>

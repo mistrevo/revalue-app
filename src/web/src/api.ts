@@ -400,9 +400,10 @@ export type Readiness = 'ready' | 'needsConditions' | 'needsFinishedEpisode' | '
 export type CardKind = 'choose' | 'combine' | 'create'
 /**
  * カードを出せない理由。noFit は条件に収まる登録の業務がない、noAbilityMatch は条件に収まる業務はあるが使える力を使う業務がない、
- * rejected は AI が作らなかったか照らし合わせに通らなかった、noEvidence は根拠を引けない、excluded は本人が外した力を使っていた。
+ * rejected は AI が作らなかったか照らし合わせに通らなかった、excluded は本人が外した力を使っていた、
+ * changed は力の状態か根拠の言葉が、いまの記録と合わなくなった（訂正で場面を読み直したときなど）。
  */
-export type MissingReason = 'noFit' | 'noAbilityMatch' | 'rejected' | 'noEvidence' | 'excluded'
+export type MissingReason = 'noFit' | 'noAbilityMatch' | 'rejected' | 'excluded' | 'changed'
 export type TaskPlace = 'home' | 'out'
 
 /** カードの業務。ability は使う力の key。timeSlots は本人の時間帯に入るもの。 */
@@ -422,7 +423,8 @@ export type WorkRange = { minHours: number; maxHours: number; minMonthlyYen: num
 /** カードの理由に使った力と、その根拠の本人の言葉。state は画面では copy の言葉にして出す。 */
 export type CardAbility = { key: AbilityKey; name: string; state: 'confirmed' | 'needsCheck'; quotes: Quote[] }
 
-// カードの reason と ability は、選んだ案の力を本人があとで外したときだけ null になる（OptionChoice の abilityExcluded）
+// カードの reason と ability は、選んだ案の力を本人があとで外したか、力の状態か根拠の言葉がいまの記録と合わなくなったときだけ null になる
+// （OptionChoice の abilityExcluded と abilityChanged）
 
 export type ChooseCard = {
   occupationName: string
@@ -459,7 +461,10 @@ export type OptionCards = {
 
 export type OwnJob = { id: string; title: string; note: string | null }
 
-/** 選んだ案。カードは選んだときの中身の写し。abilityExcluded は、カードの力を本人があとで外したか（外していたら、理由と力は来ない）。 */
+/**
+ * 選んだ案。カードは選んだときの中身の写し。abilityExcluded は、カードの力を本人があとで外したか。
+ * abilityChanged は、外してはいないが、力の状態か根拠の言葉がいまの記録と合わなくなったか。どちらかなら、理由と力は来ない。
+ */
 export type OptionChoice = {
   kind: 'card' | 'own' | 'hold'
   at: string
@@ -469,6 +474,7 @@ export type OptionChoice = {
     combine: CombineCard | null
     create: CreateCard | null
     abilityExcluded: boolean
+    abilityChanged: boolean
   } | null
   ownJob: OwnJob | null
 }

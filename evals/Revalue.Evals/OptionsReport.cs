@@ -273,8 +273,8 @@ public static class OptionsReport
         MissingReason.NoFit => "条件に合う業務がない",
         MissingReason.NoAbilityMatch => "条件に合う業務はあるが、使える力を使う業務がない",
         MissingReason.Rejected => "作らないと答えた、または照らし合わせで落とした",
-        MissingReason.NoEvidence => "根拠の言葉から組み立てられなかった",
-        _ => "外した力を使っていた",
+        MissingReason.Excluded => "外した力を使っていた",
+        _ => "力の状態か根拠の言葉が、いまの記録と合わなくなった",
     };
 
     private static string Mark(bool ok) => ok ? "○" : "×";

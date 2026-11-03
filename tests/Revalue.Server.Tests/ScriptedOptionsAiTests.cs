@@ -52,6 +52,21 @@ public sealed class ScriptedOptionsAiTests
         Assert.Contains("「架空-夫と母の予定がぶつかって」", cards.Choose.Reason);
     }
 
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 偽物は、選んだ答えの言葉を本人が話した言葉として引かず、結びついた本人の言葉を引く")]
+    public async Task ScriptedReasonQuotesLinkedWordsForChosenAnswers()
+    {
+        var chosen = new Evidence(Ability.Coordinating, 1, "架空-人に頼んだ", 1, 1, false, true, "架空-姉に電話して頼みました");
+        var inputs = Inputs() with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [chosen])] };
+        var candidates = OptionCandidates.From(Catalog, inputs);
+
+        var draft = await new ScriptedOptionsAi().DraftAsync(inputs, candidates, Ct);
+        var (cards, rejections) = OptionsValidator.Build(draft, candidates, inputs, Catalog, Forbidden, Now);
+
+        Assert.Empty(rejections);
+        Assert.Contains("「架空-姉に電話して頼みました」", cards.Choose!.Reason);
+        Assert.DoesNotContain("「架空-人に頼んだ」", cards.Choose.Reason);
+    }
+
     [Fact(DisplayName = "options-4（創るは根拠を引けるときだけ）: 偽物は、候補で作れないカードを作らないと答え、創るは本人の条件の中で作る")]
     public async Task ScriptedDraftRespectsCandidates()
     {

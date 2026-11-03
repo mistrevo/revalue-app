@@ -85,8 +85,13 @@ public sealed class ScriptedOptionsAi : IOptionsAi
     private static UsableAbility? UsableOf(OptionsInputs inputs, Ability ability) =>
         inputs.Abilities.FirstOrDefault(a => a.Ability == ability && a.Quotes.Count > 0);
 
-    private static string Reason(UsableAbility ability, string target) =>
-        $"話してくれた「{ability.Quotes[0].Quote.Trim()}」の段取りを、{target}に生かせるかもしれません。";
+    /// <summary>理由。選んだ答えの言葉は、本人が話した言葉として引かず、結びついた本人の言葉を引く（Prompts/options.md の「理由」）。</summary>
+    private static string Reason(UsableAbility ability, string target)
+    {
+        var quote = ability.Quotes[0];
+        var words = quote.FromChoice && !string.IsNullOrEmpty(quote.LinkedQuote) ? quote.LinkedQuote : quote.Quote;
+        return $"話してくれた「{words.Trim()}」の段取りを、{target}に生かせるかもしれません。";
+    }
 
     private static string Occupation(OptionCandidates candidates, JobTask task) =>
         candidates.Occupations.First(o => o.Tasks.Any(t => t.Id == task.Id)).Id;

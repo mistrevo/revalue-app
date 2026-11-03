@@ -120,6 +120,15 @@ public sealed class ClaudeOptionsAiTests
         return brief[start..end];
     }
 
+    /// <summary>指示の文の、見出し <paramref name="from"/> から次の見出し <paramref name="to"/> の手前まで。</summary>
+    private static string Between(string prompt, string from, string to)
+    {
+        var start = prompt.IndexOf(from, StringComparison.Ordinal);
+        var end = prompt.IndexOf(to, start + from.Length, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start, $"{from} から {to} までがない");
+        return prompt[start..end];
+    }
+
     [Fact(DisplayName = "options-2（選ぶは登録した職種から）: リクエストは構造化出力、effort high、server-side fallback で、システムプロンプトにキャッシュの印がある")]
     public async Task RequestShape()
     {
@@ -369,6 +378,20 @@ public sealed class ClaudeOptionsAiTests
         Assert.Contains("家族の病気", prompt);
         Assert.Contains("人柄や向き不向きを推し量らない", prompt);
         Assert.Contains("求人", prompt);
+
+        // 3 枚に共通すること: 採用や収入を約束しない、どの文も褒め言葉で埋めない、お金の額を書かない、「」は理由の中だけ
+        var common = Between(prompt, "## 3 枚に共通すること", "## 選ぶ");
+        Assert.Contains("採用される、すぐ働ける、収入が得られる、と約束しない", common);
+        Assert.Contains("褒め言葉", common);
+        Assert.Contains("達人", common);
+        Assert.Contains("お金の額", common);
+        Assert.Contains("「」は、理由（`reason`）の中だけ", common);
+        // 創るは、値段、収入、件数の数字を書かない
+        Assert.Contains("値段、収入、件数の数字を書かない", Between(prompt, "## 創る", "## 理由"));
+        // 理由: 根拠の言葉の一部を引くときの下限と、選んだ答えの言葉の引き方
+        var reason = Between(prompt, "## 理由", "## 本人の記録の扱い");
+        Assert.Contains("4 文字以上", reason);
+        Assert.Contains("（選んだ答え）の言葉を理由で引くときは、話してくれた、と書かない", reason);
 
         // 使わない言葉は、一覧をそのまま載せて書かないよう伝える
         foreach (var word in ForbiddenWordList.Load().Words)
