@@ -1,7 +1,12 @@
 import { vi } from 'vitest'
 import type {
   Abilities,
+  AbilityKey,
   ChoiceRequest,
+  Deepen,
+  DeepenContent,
+  DeepenTask,
+  DeepenTaskRequest,
   Episode,
   EpisodeInsights,
   EpisodeSummary,
@@ -260,6 +265,96 @@ export function fakeOptions(overrides: Partial<Options> = {}): Options {
   }
 }
 
+/** 架空の根拠の言葉（fakeProfile の見えた力と同じ）。 */
+const FAKE_COORDINATING_QUOTES = [
+  { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
+  { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
+  { text: '片方の家族には、集合を 30 分遅らせる案を出しました', fromChoice: false, linkedText: null },
+]
+
+/** 力の名前（本物は AbilityText.cs）。 */
+const FAKE_ABILITY_NAMES: Record<AbilityKey, string> = {
+  noticing: '見立てる力',
+  coordinating: '調整する力',
+  prioritizing: '優先順位をつける力',
+}
+
+/** 架空の問いの選択肢。どれもありうる考え方にする。 */
+export const FAKE_DEEPEN_CHOICES = ['先に全員の都合を聞いてから決める', '決まっている予定を軸に、案を一つ出す', '依頼した人に、どれを優先するか確かめる']
+
+/** 架空の深めた中身。「選ぶ」のオンライン秘書を深めたもの。中身はすべて架空。 */
+export function fakeDeepenContent(overrides: Partial<DeepenContent> = {}): DeepenContent {
+  return {
+    generatedAt: '2026-11-03T08:00:00Z',
+    stale: false,
+    retryPaused: false,
+    tasks: [
+      {
+        id: 'online-secretary-schedule',
+        name: '日程の調整',
+        detail: '関わる人と連絡を取り合って、会う日時を決める',
+        ability: 'coordinating',
+        abilityName: '調整する力',
+        usable: { state: 'confirmed', quotes: FAKE_COORDINATING_QUOTES },
+        knowledge: ['表計算'],
+        drafted: false,
+      },
+      {
+        id: 'online-secretary-travel',
+        name: '出張や会食の手配',
+        detail: '行き先と予算を聞いて、移動と店の候補をまとめる',
+        ability: 'noticing',
+        abilityName: '見立てる力',
+        usable: null,
+        knowledge: [],
+        drafted: false,
+      },
+    ],
+    tasksRejected: false,
+    questions: [
+      {
+        id: 'q1',
+        situation: '3 人の会議の日程を決めてほしいと頼まれましたが、1 人から返事が来ません。',
+        abilityName: '調整する力',
+        choices: FAKE_DEEPEN_CHOICES,
+        answer: null,
+      },
+    ],
+    steps: [
+      { id: 's1', text: 'オンライン秘書の体験談を 2 つ読む', hours: 1, place: 'home', demandCheck: false, fits: true, chosen: false },
+      { id: 's2', text: '自分の予定表を 1 週間分、色分けして整える', hours: 2, place: 'home', demandCheck: false, fits: true, chosen: false },
+      { id: 's3', text: '募集を 3 つ読み、業務と時間の条件を書き出す', hours: 1, place: 'home', demandCheck: false, fits: true, chosen: false },
+    ],
+    stepsFallback: false,
+    ownSteps: [],
+    ...overrides,
+  }
+}
+
+/** 架空の「選んだ案を深める」。「選ぶ」のオンライン秘書を選んでいて、まだ深めていない。 */
+export function fakeDeepen(overrides: Partial<Deepen> = {}): Deepen {
+  return {
+    readiness: 'ready',
+    target: { kind: 'choose', title: 'オンライン秘書', outsideConditions: false },
+    content: null,
+    ...overrides,
+  }
+}
+
+/** 見立ての業務（「創る」と本人が書いた仕事のとき）。使える力は、fakeProfile の見えた力（調整する力）だけ。 */
+export function fakeDraftedTask(id: string, task: DeepenTaskRequest): DeepenTask {
+  return {
+    id,
+    name: task.name,
+    detail: task.detail,
+    ability: task.ability,
+    abilityName: FAKE_ABILITY_NAMES[task.ability],
+    usable: task.ability === 'coordinating' ? { state: 'confirmed', quotes: FAKE_COORDINATING_QUOTES } : null,
+    knowledge: task.knowledge === '' ? [] : [task.knowledge],
+    drafted: true,
+  }
+}
+
 /** ふつうの返事（本文 2 かけら → 選択肢 → 終わり）。 */
 export function replyEvents(body: [string, string], choices: string[], status: 'talking' | 'finished' = 'talking'): FakeEvent[] {
   return [
@@ -301,6 +396,7 @@ export function installFakeApi(initial: {
   episodes?: Episode[]
   profile?: Profile
   options?: Options
+  deepen?: Deepen
 }) {
   const state = {
     loggedIn: initial.loggedIn,
@@ -336,6 +432,13 @@ export function installFakeApi(initial: {
     generateGate: null as Promise<void> | null,
     /** true なら、仕事の選択肢の選ぶ・書く（/api/options/ の下の API）を 500 で断る。 */
     optionsSaveFails: false,
+    deepen: initial.deepen ?? fakeDeepen({ readiness: 'noChoice', target: null }),
+    /** 深めたとき（POST /api/deepen）の応答。作る中身か、断る応答。 */
+    deepenGenerate: fakeDeepenContent() as DeepenContent | { status: number; body: unknown },
+    /** 入れると、深める応答をこの約束が済むまで待たせる（待っているあいだの表示を見るため）。 */
+    deepenGate: null as Promise<void> | null,
+    /** true なら、深めた中身の書き換え（/api/deepen/ の下の API）を 500 で断る。 */
+    deepenSaveFails: false,
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -403,7 +506,75 @@ export function installFakeApi(initial: {
       state.episodes = []
       state.profile = fakeProfile()
       state.options = fakeOptions()
+      state.deepen = fakeDeepen({ readiness: 'noChoice', target: null })
       return new Response(null, { status: 204 })
+    }
+
+    if (url === '/api/deepen' && method === 'GET') {
+      return json(200, state.deepen)
+    }
+    if (url === '/api/deepen' && method === 'POST') {
+      if (state.deepenGate) await state.deepenGate
+      if (state.deepen.readiness !== 'ready') {
+        return json(409, { type: '/problems/deepen-not-ready', status: 409, readiness: state.deepen.readiness })
+      }
+      const current = state.deepen.content
+      if (current && !current.stale) return json(200, state.deepen)
+      if ('status' in state.deepenGenerate) return json(state.deepenGenerate.status, state.deepenGenerate.body)
+      state.deepen = { ...state.deepen, content: { ...state.deepenGenerate, stale: false, retryPaused: false } }
+      return json(200, state.deepen)
+    }
+    if (url.startsWith('/api/deepen/')) {
+      if (state.deepenSaveFails) return json(500, { status: 500 })
+      const content = state.deepen.content
+      if (state.deepen.readiness !== 'ready' || !content || content.stale) {
+        return json(409, { type: '/problems/deepen-changed', status: 409 })
+      }
+      if (url === '/api/deepen/tasks' && method === 'PUT') {
+        if (!content.tasksRejected && !content.tasks.some((t) => t.drafted)) {
+          return json(409, { type: '/problems/deepen-changed', status: 409 })
+        }
+        const tasks = (body as { tasks: DeepenTaskRequest[] }).tasks
+        if (tasks.length > 5) return json(400, { type: '/problems/invalid-deepen', status: 400 })
+        state.deepen = {
+          ...state.deepen,
+          content: { ...content, tasks: tasks.map((t, i) => fakeDraftedTask(`u${i + 1}`, t)), tasksRejected: false },
+        }
+        return json(200, state.deepen)
+      }
+      const answerMatch = /^\/api\/deepen\/answers\/([^/]+)$/.exec(url)
+      if (answerMatch && method === 'PUT') {
+        const id = decodeURIComponent(answerMatch[1])
+        const question = content.questions.find((q) => q.id === id)
+        if (!question) return json(404, { type: '/problems/not-found', status: 404 })
+        const answer = body as { text: string; fromChoice: boolean }
+        if (answer.fromChoice && !question.choices.includes(answer.text)) {
+          return json(400, { type: '/problems/invalid-deepen', status: 400 })
+        }
+        state.deepen = {
+          ...state.deepen,
+          content: {
+            ...content,
+            questions: content.questions.map((q) => (q.id === id ? { ...q, answer: { text: answer.text.trim(), fromChoice: answer.fromChoice } } : q)),
+          },
+        }
+        return json(200, state.deepen)
+      }
+      if (url === '/api/deepen/steps' && method === 'PUT') {
+        const request = body as { chosen: string[]; own: string[] }
+        if (request.chosen.some((id) => !content.steps.some((s) => s.id === id)) || request.own.length > 3) {
+          return json(400, { type: '/problems/invalid-deepen', status: 400 })
+        }
+        state.deepen = {
+          ...state.deepen,
+          content: {
+            ...content,
+            steps: content.steps.map((s) => ({ ...s, chosen: request.chosen.includes(s.id) })),
+            ownSteps: request.own,
+          },
+        }
+        return json(200, state.deepen)
+      }
     }
 
     if (url === '/api/options' && method === 'GET') {

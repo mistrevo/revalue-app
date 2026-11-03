@@ -359,9 +359,14 @@ function ChoiceArea({
             {own.note && <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{own.note}</p>}
           </>
         )}
-        <Button variant="outline" className="w-full sm:w-auto sm:self-start" disabled={busy} onClick={onClear}>
-          {copy.options.rechoose}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button asChild className="w-full sm:w-auto">
+            <Link to="/deepen">{copy.options.deepen}</Link>
+          </Button>
+          <Button variant="outline" className="w-full sm:w-auto" disabled={busy} onClick={onClear}>
+            {copy.options.rechoose}
+          </Button>
+        </div>
         {alert}
       </Section>
     )

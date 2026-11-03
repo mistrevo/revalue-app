@@ -329,6 +329,36 @@ describe('Options', () => {
     expect(within(own).getByRole('button', { name: copy.options.ownAdd })).toBeInTheDocument()
   })
 
+  it('deepen-1（選んだ 1 案だけ深める）: 選んだ案に、深める画面への道を出す。保留しているときは出さない', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({ ownJobs: [{ id: 'own-1', title: '近所の見守り', note: null }] }),
+    })
+    renderApp('/options')
+
+    expect(await screen.findByRole('region', { name: LABELS[0] })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: copy.options.deepen })).not.toBeInTheDocument()
+
+    // カードを選ぶ
+    await userEvent.click(within(card(LABELS[0])).getByRole('button', { name: copy.options.chooseThis }))
+    const chosen = await screen.findByRole('region', { name: copy.options.chosenTitle })
+    expect(within(chosen).getByRole('link', { name: copy.options.deepen })).toHaveAttribute('href', '/deepen')
+
+    // 本人が書いた仕事を選ぶ
+    await userEvent.click(screen.getByRole('button', { name: copy.options.chooseOwnLabel.replace('{text}', '近所の見守り') }))
+    await waitFor(() => expect(screen.getByRole('region', { name: copy.options.chosenTitle })).toHaveTextContent('近所の見守り'))
+    expect(
+      within(screen.getByRole('region', { name: copy.options.chosenTitle })).getByRole('link', { name: copy.options.deepen }),
+    ).toHaveAttribute('href', '/deepen')
+
+    // 保留しているときは出さない
+    await userEvent.click(screen.getByRole('button', { name: copy.options.rechoose }))
+    await userEvent.click(await screen.findByRole('button', { name: copy.options.hold }))
+    expect(await screen.findByText(copy.options.holding)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: copy.options.deepen })).not.toBeInTheDocument()
+  })
+
   it('options-6（本人が選ぶ、保留する、自分で書く）: 作り直されたあとに選ぶと、読み直して、新しい案から選び直すことも保留することもできると伝える', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, options: withCards() })
     renderApp('/options')
