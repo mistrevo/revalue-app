@@ -416,7 +416,6 @@ export function fakeReportSnapshot(content: ReportContent): ReportSnapshot {
       title: c.title,
       summary: c.summary,
       tasks: c.tasks,
-      problem: c.problem,
       outsideConditions: c.outsideConditions,
       demandNotChecked: c.demandNotChecked,
       cardsStale: c.cardsStale,

@@ -252,8 +252,8 @@ describe('Report', () => {
     expect(puts(api.calls, '/api/options/choice')).toEqual([{ kind: 'hold' }])
     expect(gets(api.calls)).toHaveLength(3)
     expect(within(choice).queryByRole('button', { name: copy.options.hold })).not.toBeInTheDocument()
-    // 保留中は、前に選んでいた案の考え方と一歩を出さない
-    expect(screen.getByRole('region', { name: copy.report.sections.steps })).toHaveTextContent(copy.report.stepsNotDeepened)
+    // 保留中は、前に選んでいた案の考え方と一歩を出さず、仕事の選択肢へ案内する
+    expect(screen.getByRole('region', { name: copy.report.sections.steps })).toHaveTextContent(copy.report.stepsNotChosen)
   })
 
   it('report-2（直す、保留する、次の一歩を選ぶ）: 深めた中身が古いときは、一歩を選び直す道を出さない', async () => {
@@ -269,6 +269,71 @@ describe('Report', () => {
     expect(steps).toHaveTextContent('オンライン秘書の体験談を 2 つ読む')
     // getDeepen を待ってからも出ない
     await waitFor(() => expect(within(steps).queryByRole('button', { name: copy.report.editSteps })).not.toBeInTheDocument())
+  })
+
+  it('report-2（直す、保留する、次の一歩を選ぶ）: 深めた中身を読めないときも、最初の一歩の欄に深める画面への道を出し、答えていない問いは答えずにおいてよいと書く', async () => {
+    // 深める画面の API が、いまの案で深めた中身を返さない（一歩を選び直す欄は開けない）
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      report: fakeReport({ content: fakeReportContent({ thinking: [] }) }),
+      deepen: fakeDeepen({ readiness: 'noChoice', target: null }),
+    })
+    renderApp('/report')
+
+    const steps = await screen.findByRole('region', { name: copy.report.sections.steps })
+    expect(steps).toHaveTextContent('オンライン秘書の体験談を 2 つ読む')
+    expect(within(steps).getByRole('link', { name: copy.report.toDeepen })).toHaveAttribute('href', '/deepen')
+    expect(within(steps).queryByRole('button', { name: copy.report.editSteps })).not.toBeInTheDocument()
+    const thinking = screen.getByRole('region', { name: copy.report.sections.thinking })
+    expect(thinking).toHaveTextContent(copy.report.noThoughts)
+    expect(copy.report.noThoughts).toContain('かまいません')
+  })
+
+  it('report-3（版を残す）: 前の版では、条件の外と深めていないことを、その版の時点のこととして書き、いまの操作を勧めない', async () => {
+    const content = fakeReportContent()
+    const past = fakeReportContent({
+      abilities: [],
+      choice: { ...content.choice, outsideConditions: true },
+      thinking: null,
+      steps: [{ text: '近所の図書館で本を借りる', own: false, fits: false }],
+    })
+    const pastNotDeepened = fakeReportContent({ thinking: null, steps: null })
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      report: fakeReport({
+        content,
+        current: { number: 3, at: '2026-11-03T11:00:00Z', changed: ['choice'], snapshot: fakeReportSnapshot(content) },
+        previous: [
+          { number: 2, at: '2026-11-03T10:00:00Z', changed: ['steps'], snapshot: fakeReportSnapshot(past) },
+          { number: 1, at: '2026-11-03T09:00:00Z', changed: [], snapshot: fakeReportSnapshot(pastNotDeepened) },
+        ],
+      }),
+    })
+    renderApp('/report')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.report.previousShow }))
+    const previous = screen.getByRole('region', { name: copy.report.previousTitle })
+    const v2 = within(previous).getByRole('article', { name: copy.report.version.replace('{n}', '2').replace('{at}', '11 月 3 日 19:00') })
+    expect(v2).toHaveTextContent(copy.report.snapshotNoAbilities)
+    expect(v2).toHaveTextContent(copy.report.snapshotOutside)
+    expect(v2).toHaveTextContent(copy.report.snapshotStepOutside)
+    expect(v2).toHaveTextContent(copy.report.snapshotNotDeepened)
+    expect(v2).not.toHaveTextContent(copy.report.noAbilities)
+    expect(v2).not.toHaveTextContent(copy.options.chosenOutside)
+    expect(v2).not.toHaveTextContent(copy.deepen.stepOutside)
+    expect(v2).not.toHaveTextContent(copy.report.thinkingNotDeepened)
+    const v1 = within(previous).getByRole('article', { name: copy.report.version.replace('{n}', '1').replace('{at}', '11 月 3 日 18:00') })
+    expect(within(v1).getAllByText(copy.report.snapshotNotDeepened)).toHaveLength(2)
+    expect(v1).not.toHaveTextContent(copy.report.stepsNotDeepened)
+    // 前の版の写しの文は、いまの操作を勧めず、「いま」とも書かない
+    for (const text of [copy.report.snapshotNoAbilities, copy.report.snapshotNotDeepened, copy.report.snapshotOutside, copy.report.snapshotStepOutside]) {
+      expect(text).not.toMatch(/いまの|いまは/)
+      expect(text).not.toMatch(/できます|話せます|残せます/)
+    }
+    // 前の版には、いまの版の道（直す、深める）を出さない
+    expect(within(previous).queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('report-3（版を残す）: 版の番号と変わった欄を出し、前の版は根拠の言葉なしで見られる', async () => {
@@ -397,7 +462,16 @@ describe('Report', () => {
       if (kind === null) expect(text).toContain('かまいません')
       expect(within(choice).getByRole('link', { name: copy.report.toOptions })).toHaveAttribute('href', '/options')
       expect(within(choice).queryByRole('button', { name: copy.options.hold })).not.toBeInTheDocument()
-      expect(screen.getByRole('region', { name: copy.report.sections.thinking })).toHaveTextContent(copy.report.thinkingNotDeepened)
+      // 案を選んでいないので、考え方と一歩の欄は深める画面ではなく仕事の選択肢へ案内する
+      for (const [section, notChosen] of [
+        [copy.report.sections.thinking, copy.report.thinkingNotChosen],
+        [copy.report.sections.steps, copy.report.stepsNotChosen],
+      ] as const) {
+        const region = screen.getByRole('region', { name: section })
+        expect(region).toHaveTextContent(notChosen)
+        expect(within(region).getByRole('link', { name: copy.report.toOptions })).toHaveAttribute('href', '/options')
+        expect(within(region).queryByRole('link', { name: copy.report.toDeepen })).not.toBeInTheDocument()
+      }
       unmount()
       vi.unstubAllGlobals()
     }

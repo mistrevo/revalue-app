@@ -4,17 +4,28 @@ using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Report;
 
-/// <summary>版に残す選んだ案。理由と、もとにした力と根拠の言葉は持たない（理由は根拠の言葉を引いているため）。</summary>
+/// <summary>
+/// 版に残す選んだ案。理由と、もとにした力と根拠の言葉は持たない（理由は根拠の言葉を引いているため）。
+/// 理由と力を出せなかったわけ（外した、記録と合わない）も持たない。「合わない」は力の状態が変わったことを表すため。
+/// </summary>
 public sealed record ReportChoiceSnapshot(
     ChoiceKind? Kind,
     CardKind? Card,
     string? Title,
     string? Summary,
     IReadOnlyList<string> Tasks,
-    MissingReason? Problem,
     bool OutsideConditions,
     bool DemandNotChecked,
     bool CardsStale);
+
+/// <summary>版に残す、選んだ案の業務 1 つで要る知識や道具。まだ確かめていない力は持たない（力の状態を表すので）。</summary>
+public sealed record ReportSnapshotTaskGap(string TaskName, IReadOnlyList<string> Knowledge);
+
+/// <summary>
+/// 版に残す、まだ確かめていないこと。業務に要る知識や道具だけで、まだ聞けていない力と確かめ中の力は持たない。
+/// 前の版と見比べて、見立てが下がったと読ませないため。出さないものは保存もしない（07-report.md の「版を残す」）。
+/// </summary>
+public sealed record ReportSnapshotNotYet(IReadOnlyList<ReportSnapshotTaskGap> TaskGaps, bool HasExcluded);
 
 /// <summary>
 /// 版に残す、その時点の中身。根拠の本人の言葉を写さない（07-report.md の「版を残す」）。本人が場面を飛ばしたときに、その言葉を前の版に残さないため。
@@ -22,7 +33,7 @@ public sealed record ReportChoiceSnapshot(
 /// </summary>
 public sealed record ReportSnapshot(
     IReadOnlyList<Ability> Abilities,
-    ReportNotYet NotYet,
+    ReportSnapshotNotYet NotYet,
     ReportRecords Records,
     ReportChoiceSnapshot Choice,
     IReadOnlyList<ReportThought>? Thinking,
@@ -33,49 +44,18 @@ public sealed record ReportSnapshot(
         var c = content.Choice;
         return new ReportSnapshot(
             content.Abilities.Select(a => a.Ability).ToList(),
-            content.NotYet,
+            new ReportSnapshotNotYet(
+                content.NotYet.TaskGaps.Where(g => g.Knowledge.Count > 0).Select(g => new ReportSnapshotTaskGap(g.TaskName, g.Knowledge)).ToList(),
+                content.NotYet.HasExcluded),
             content.Records,
-            new ReportChoiceSnapshot(c.Kind, c.Card, c.Title, c.Summary, c.Tasks, c.Problem, c.OutsideConditions, c.DemandNotChecked, c.CardsStale),
+            new ReportChoiceSnapshot(c.Kind, c.Card, c.Title, c.Summary, c.Tasks, c.OutsideConditions, c.DemandNotChecked, c.CardsStale),
             content.Thinking,
             content.Steps);
     }
 
-    /// <summary>いま本人が外している力を、どの欄からも除く（前の版を見るときも、いま外している力は出さない）。</summary>
-    public ReportSnapshot Without(IReadOnlyCollection<Ability> excluded)
-    {
-        if (excluded.Count == 0)
-        {
-            return this;
-        }
-
-        var hasExcluded = NotYet.HasExcluded;
-        var gaps = new List<ReportTaskGap>();
-        foreach (var gap in NotYet.TaskGaps)
-        {
-            if (gap.Ability is { } ability && excluded.Contains(ability))
-            {
-                hasExcluded = true;
-                if (gap.Knowledge.Count > 0)
-                {
-                    gaps.Add(gap with { Ability = null });
-                }
-
-                continue;
-            }
-
-            gaps.Add(gap);
-        }
-
-        return this with
-        {
-            Abilities = Abilities.Where(a => !excluded.Contains(a)).ToList(),
-            NotYet = new ReportNotYet(
-                NotYet.NotHeard.Where(a => !excluded.Contains(a)).ToList(),
-                NotYet.Checking.Where(a => !excluded.Contains(a)).ToList(),
-                gaps,
-                hasExcluded),
-        };
-    }
+    /// <summary>いま本人が外している力を除く（前の版を見るときも、いま外している力は出さない）。力の名前を持つのは力の欄だけ。</summary>
+    public ReportSnapshot Without(IReadOnlyCollection<Ability> excluded) =>
+        excluded.Count == 0 ? this : this with { Abilities = Abilities.Where(a => !excluded.Contains(a)).ToList() };
 }
 
 /// <summary>
@@ -112,7 +92,9 @@ public sealed record ReportItem : Item
         var sections = ReportBuilder.SectionHashes(content);
         var hash = ReportBuilder.Hash(sections);
         var latest = Versions.Count > 0 ? Versions[0] : null;
-        if (latest?.Hash == hash)
+
+        // 同じ中身なら書かない。ほかの要求が、これより新しい時点の中身で先に版を書いていたら、古い中身を上に積まない
+        if (latest is not null && (latest.Hash == hash || latest.At > at))
         {
             return this;
         }
@@ -122,6 +104,16 @@ public sealed record ReportItem : Item
             : Enum.GetValues<ReportSection>().Where(s => latest.Sections.GetValueOrDefault(s) != sections[s]).ToList();
         var version = new ReportVersion((latest?.Number ?? 0) + 1, at, hash, sections, changed, ReportSnapshot.From(content));
         return this with { Versions = [version, .. Versions.Take(MaxVersions - 1)] };
+    }
+
+    /// <summary>
+    /// <paramref name="since"/> より後に作った版を捨てる。本人が場面を飛ばしたときに、飛ばしたやりとりのあいだに作った版を残さないため
+    /// （07-report.md の「版を残す」）。捨てる版がなければ、このアイテムをそのまま返す（書かない）。次の版の番号は、残った版の続きになる。
+    /// </summary>
+    public ReportItem WithoutVersionsAfter(DateTimeOffset since)
+    {
+        var kept = Versions.Where(v => v.At <= since).ToList();
+        return kept.Count == Versions.Count ? this : this with { Versions = kept };
     }
 }
 

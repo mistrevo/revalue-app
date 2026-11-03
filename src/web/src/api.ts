@@ -697,7 +697,7 @@ export type ReportSnapshot = {
   abilities: { key: AbilityKey; name: string }[]
   notYet: ReportSnapshotNotYet
   records: ReportRecords
-  choice: Omit<ReportChoice, 'reason' | 'ability'>
+  choice: Omit<ReportChoice, 'reason' | 'ability' | 'problem'>
   thinking: ReportThought[] | null
   steps: ReportStep[] | null
 }

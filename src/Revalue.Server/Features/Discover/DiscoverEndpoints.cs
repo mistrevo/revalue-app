@@ -5,6 +5,7 @@ using Revalue.Server.Features.Foundation.Auth;
 using Revalue.Server.Features.Foundation.Consent;
 using Revalue.Server.Features.Foundation.Limits;
 using Revalue.Server.Features.Options;
+using Revalue.Server.Features.Report;
 using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Discover;
@@ -136,6 +137,7 @@ public static class DiscoverEndpoints
             // 話し終えた姿に戻す。前に話し終えていた分は、飛ばす前の確かめ「このやりとりは残さずに」の外にあるため（Claude の判断）
             var removed = false;
             var deleted = false;
+            EpisodeItem? skipped = null;
             for (var attempt = 0; attempt < DataStoreExtensions.MaxUpdateAttempts && !removed; attempt++)
             {
                 var read = await FindVersionedAsync(store, userKey, id, ct);
@@ -150,6 +152,7 @@ public static class DiscoverEndpoints
                     return AlreadyFinished();
                 }
 
+                skipped = read.Item;
                 if (EpisodeInsights.Rewind(read.Item, time.GetUtcNow()) is { } rewound)
                 {
                     removed = await store.TryReplaceAsync(rewound, read.ETag, ct);
@@ -180,6 +183,9 @@ public static class DiscoverEndpoints
 
             // 仕事の選択肢のカードと選んだ案は、根拠の言葉を写して持つ。飛ばした場面の言葉を、そこにも残さない（05-options.md の「作り直す」）
             await OptionsScrub.TryAfterRemovingAsync(store, userKey, time, loggers.CreateLogger(typeof(OptionsScrub)), ct);
+
+            // レポートの版は根拠の言葉を写さないが、力の名前は残す。飛ばしたやりとりのあいだに作った版を残さない（07-report.md の「版を残す」）
+            await ReportScrub.TryAfterSkipAsync(store, userKey, skipped!, time, loggers.CreateLogger(typeof(ReportScrub)), ct);
 
             // 消したあと、ほかの画面で新しい場面が始まっていたら、2 つ目は作らずに 409 でその場面を知らせる
             var outcome = await EpisodeStarter.StartAsync(

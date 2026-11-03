@@ -143,9 +143,10 @@ export function Report() {
             <NotYetSection notYet={data.content.notYet} />
             <RecordsSection records={data.content.records} />
             <ChoiceSection choice={data.content.choice} busy={busy} failed={holdFailed} onHold={hold} />
-            <ThinkingSection thinking={data.content.thinking} />
+            <ThinkingSection thinking={data.content.thinking} hasChoice={chosen(data.content.choice)} />
             <StepsSection
               steps={data.content.steps}
+              hasChoice={chosen(data.content.choice)}
               deepen={deepen}
               onSaved={async (fresh) => {
                 setDeepen(currentDeepen(fresh))
@@ -390,8 +391,17 @@ function chosen(choice: Pick<ReportChoice, 'kind'>) {
   return choice.kind === 'card' || choice.kind === 'own'
 }
 
-/** 選んだ案の中身（いまの版と前の版で同じ）。理由と力は、いまの版だけが ChoiceSection で足す。 */
-function ChoiceBody({ choice }: { choice: Omit<ReportChoice, 'reason' | 'ability'> }) {
+/**
+ * 選んだ案の中身（いまの版と前の版で同じ）。理由と力は、いまの版だけが ChoiceSection で足す。
+ * 前の版（past）では、条件に収まらない一言を「いま」ではなく、その版の時点のこととして書く。
+ */
+function ChoiceBody({
+  choice,
+  past = false,
+}: {
+  choice: Pick<ReportChoice, 'kind' | 'card' | 'title' | 'summary' | 'tasks' | 'outsideConditions' | 'demandNotChecked'>
+  past?: boolean
+}) {
   if (choice.kind === null) return <p className="text-sm leading-relaxed">{copy.report.noChoice}</p>
   if (choice.kind === 'hold') return <p className="text-sm leading-relaxed">{copy.report.holding}</p>
   const kind = choice.kind === 'own' || choice.card === null ? copy.report.ownKind : copy.options.kinds[choice.card].label
@@ -415,7 +425,7 @@ function ChoiceBody({ choice }: { choice: Omit<ReportChoice, 'reason' | 'ability
         </div>
       )}
       {choice.demandNotChecked && <p className="text-sm leading-relaxed font-medium">{copy.options.createNotice}</p>}
-      {choice.outsideConditions && <Note>{copy.options.chosenOutside}</Note>}
+      {choice.outsideConditions && <Note>{past ? copy.report.snapshotOutside : copy.options.chosenOutside}</Note>}
     </>
   )
 }
@@ -485,14 +495,30 @@ function Thoughts({ thinking }: { thinking: ReportThought[] }) {
   )
 }
 
-function ThinkingSection({ thinking }: { thinking: ReportThought[] | null }) {
+/** 深めた中身がないときの文と道。案を選んでいなければ（保留中も）、深める画面ではなく仕事の選択肢へ案内する。 */
+function NotDeepened({ hasChoice, chosenText, notChosenText }: { hasChoice: boolean; chosenText: string; notChosenText: string }) {
+  return hasChoice ? (
+    <>
+      <p className="text-sm leading-relaxed">{chosenText}</p>
+      <EditLink to="/deepen" label={copy.report.toDeepen} />
+    </>
+  ) : (
+    <>
+      <p className="text-sm leading-relaxed">{notChosenText}</p>
+      <EditLink to="/options" label={copy.report.toOptions} />
+    </>
+  )
+}
+
+function ThinkingSection({ thinking, hasChoice }: { thinking: ReportThought[] | null; hasChoice: boolean }) {
   return (
     <Section title={copy.report.sections.thinking}>
       {thinking === null ? (
-        <>
-          <p className="text-sm leading-relaxed">{copy.report.thinkingNotDeepened}</p>
-          <EditLink to="/deepen" label={copy.report.toDeepen} />
-        </>
+        <NotDeepened
+          hasChoice={hasChoice}
+          chosenText={copy.report.thinkingNotDeepened}
+          notChosenText={copy.report.thinkingNotChosen}
+        />
       ) : (
         <>
           <Thoughts thinking={thinking} />
@@ -504,7 +530,7 @@ function ThinkingSection({ thinking }: { thinking: ReportThought[] | null }) {
   )
 }
 
-function Steps({ steps }: { steps: ReportStep[] }) {
+function Steps({ steps, past = false }: { steps: ReportStep[]; past?: boolean }) {
   if (steps.length === 0) return <p className="text-sm leading-relaxed">{copy.report.noSteps}</p>
   return (
     <ul className="flex flex-col gap-2">
@@ -512,7 +538,11 @@ function Steps({ steps }: { steps: ReportStep[] }) {
         <li key={`${step.own}-${i}`} className="rounded-lg bg-muted/40 px-3 py-2 text-sm leading-relaxed break-words">
           {step.text}
           {step.own && <span className="text-muted-foreground">{copy.report.ownStep}</span>}
-          {!step.fits && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">{copy.deepen.stepOutside}</span>}
+          {!step.fits && (
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
+              {past ? copy.report.snapshotStepOutside : copy.deepen.stepOutside}
+            </span>
+          )}
         </li>
       ))}
     </ul>
@@ -525,11 +555,13 @@ function Steps({ steps }: { steps: ReportStep[] }) {
  */
 function StepsSection({
   steps,
+  hasChoice,
   deepen,
   onSaved,
   onChanged,
 }: {
   steps: ReportStep[] | null
+  hasChoice: boolean
   deepen: DeepenContent | null
   onSaved: (fresh: DeepenContent | null) => Promise<void>
   onChanged: () => Promise<void>
@@ -541,8 +573,7 @@ function StepsSection({
   if (steps === null) {
     return (
       <Section title={copy.report.sections.steps}>
-        <p className="text-sm leading-relaxed">{copy.report.stepsNotDeepened}</p>
-        <EditLink to="/deepen" label={copy.report.toDeepen} />
+        <NotDeepened hasChoice={hasChoice} chosenText={copy.report.stepsNotDeepened} notChosenText={copy.report.stepsNotChosen} />
       </Section>
     )
   }
@@ -573,6 +604,8 @@ function StepsSection({
   return (
     <Section title={copy.report.sections.steps}>
       <Steps steps={steps} />
+      {/* 深めた中身を読めなかったときも、一歩を直せる道を残す */}
+      {deepen === null && <EditLink to="/deepen" label={copy.report.toDeepen} />}
       {deepen !== null &&
         (open ? (
           <>
@@ -606,7 +639,7 @@ function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
       <div>
         <h4 className={head}>{copy.report.snapshotAbilities}</h4>
         {snapshot.abilities.length === 0 ? (
-          <p className="text-sm leading-relaxed">{copy.report.noAbilities}</p>
+          <p className="text-sm leading-relaxed">{copy.report.snapshotNoAbilities}</p>
         ) : (
           <p className="text-sm leading-relaxed">{snapshot.abilities.map((a) => a.name).join('、')}</p>
         )}
@@ -621,12 +654,12 @@ function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
       </div>
       <div className="flex flex-col gap-2">
         <h4 className={head}>{copy.report.sections.choice}</h4>
-        <ChoiceBody choice={snapshot.choice} />
+        <ChoiceBody choice={snapshot.choice} past />
       </div>
       <div>
         <h4 className={head}>{copy.report.sections.thinking}</h4>
         {snapshot.thinking === null ? (
-          <p className="text-sm leading-relaxed">{copy.report.thinkingNotDeepened}</p>
+          <p className="text-sm leading-relaxed">{copy.report.snapshotNotDeepened}</p>
         ) : (
           <Thoughts thinking={snapshot.thinking} />
         )}
@@ -634,9 +667,9 @@ function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
       <div>
         <h4 className={head}>{copy.report.sections.steps}</h4>
         {snapshot.steps === null ? (
-          <p className="text-sm leading-relaxed">{copy.report.stepsNotDeepened}</p>
+          <p className="text-sm leading-relaxed">{copy.report.snapshotNotDeepened}</p>
         ) : (
-          <Steps steps={snapshot.steps} />
+          <Steps steps={snapshot.steps} past />
         )}
       </div>
     </div>

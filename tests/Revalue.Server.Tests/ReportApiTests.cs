@@ -127,6 +127,98 @@ public sealed class ReportApiTests
         Assert.Equal(2, (await Stored(kit, "r-2"))!.Versions.Count);
     }
 
+    [Theory(DisplayName = "report-1（一つにまとめて示す）: カードを選ばずに保留したときと、自分で書いた仕事を選んだときも、開くと「可能性レポートまで進んだ人」を 1 回だけ数える")]
+    [InlineData("hold")]
+    [InlineData("own")]
+    public async Task CountsHoldAndOwnChoice(string kind)
+    {
+        var kit = Setup();
+        var user = $"r-count-{kind}";
+        var client = await Ready(kit, user);
+        await Get(client);
+        Assert.Equal(0, await Reached(client));
+
+        if (kind == "hold")
+        {
+            await PutOk(client, "/api/options/choice", new { kind = "hold" });
+        }
+        else
+        {
+            var added = await Json(await client.PostAsJsonAsync("/api/options/own", new { title = "架空の地域の見守りの仕事", note = (string?)null }, Ct));
+            var ownJobId = Array(added, "ownJobs").Last().GetProperty("id").GetString()!;
+            await PutOk(client, "/api/options/choice", new { kind = "own", ownJobId });
+        }
+
+        var dto = await Get(client);
+        Assert.Equal(kind, dto.GetProperty("content").GetProperty("choice").GetProperty("kind").GetString());
+        Assert.Equal(1, await Reached(client));
+        await Get(client);
+        Assert.Equal(1, await Reached(client));
+    }
+
+    [Fact(DisplayName = "report-3（版を残す）: 続きを話している途中で場面を飛ばすと、続きのあいだに作った版を捨て、飛ばしたやりとりからだけ出た力の名前を前の版に残さない")]
+    public async Task SkippingResumedTalkDropsItsVersions()
+    {
+        var kit = Setup();
+        var client = await Consenting(kit.Factory, "r-skip-resume");
+
+        // 話し終えた場面が 1 つだけだと、続きを話しているあいだはレポートを開けない（07-report.md の「進める条件」）。場面を 2 つにする
+        await FinishedEpisode(client, kit.Ai, CoordinatingAll);
+        var id = await FinishedEpisode(client, kit.Ai, Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"));
+        Assert.Equal(1, Number(await Get(client)));
+
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        kit.Ai.Reading = _ => ReadingWith(Candidate(Ability.Noticing, 1, "夫と母の予定がぶつかっていた"));
+        await Send(client, id, CoordinatingAnswer);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        var during = await Get(client);
+        Assert.Equal(2, Number(during));
+        Assert.Contains("noticing", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
+
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+        var after = await Get(client);
+
+        // 続きを話す前の中身は第 1 版と同じなので、版は増やさない。続きのあいだに作った第 2 版は残さない
+        Assert.Equal(1, Number(after));
+        Assert.Empty(Array(after, "previous"));
+        Assert.DoesNotContain("noticing", AbilityKeys(after.GetProperty("current").GetProperty("snapshot").GetProperty("abilities")));
+        Assert.Equal([1], (await Stored(kit, "r-skip-resume"))!.Versions.Select(v => v.Number));
+    }
+
+    [Fact(DisplayName = "report-3（版を残す）: 話している途中の新しい場面を飛ばすと、その場面を始めたあとに作った版を捨てる。番号は残った版の続きになる")]
+    public async Task SkippingNewTalkDropsItsVersions()
+    {
+        var kit = Setup();
+        var client = await Ready(kit, "r-skip-new");
+        Assert.Equal(1, Number(await Get(client)));
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        await PutPreferences(client, "家でできる");
+        Assert.Equal(2, Number(await Get(client)));
+
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        var id = await Start(client);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        kit.Ai.Reading = _ => ReadingWith(Candidate(Ability.Noticing, 1, "夫と母の予定がぶつかっていた"));
+        await Send(client, id, CoordinatingAnswer);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        var during = await Get(client);
+        Assert.Equal(3, Number(during));
+        Assert.Contains("noticing", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
+
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+        var after = await Get(client);
+
+        Assert.Equal(2, Number(after));
+        Assert.Equal([1], Array(after, "previous").Select(v => v.GetProperty("number").GetInt32()));
+        Assert.All(
+            Array(after, "previous").Append(after.GetProperty("current")),
+            v => Assert.DoesNotContain("noticing", AbilityKeys(v.GetProperty("snapshot").GetProperty("abilities"))));
+    }
+
     [Fact(DisplayName = "report-3（版を残す）: 中身が変わったら版が増え、変わった欄を返す")]
     public async Task ChangeAddsVersion()
     {
@@ -195,6 +287,11 @@ public sealed class ReportApiTests
         Assert.DoesNotContain(quote, stored, StringComparison.Ordinal);
         Assert.DoesNotContain(reason, stored, StringComparison.Ordinal);
 
+        // 前の版に出さない、力の状態を表すもの（まだ聞けていない力、確かめ中の力、理由と力を出せなかったわけ）は保存もしない
+        Assert.DoesNotContain("\"notHeard\"", stored, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"checking\"", stored, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"problem\"", stored, StringComparison.Ordinal);
+
         foreach (var version in Array(dto, "previous").Append(dto.GetProperty("current")))
         {
             var snapshot = version.GetProperty("snapshot");
@@ -204,6 +301,7 @@ public sealed class ReportApiTests
             Assert.False(ability.TryGetProperty("quotes", out _));
             Assert.False(snapshot.GetProperty("choice").TryGetProperty("reason", out _));
             Assert.False(snapshot.GetProperty("choice").TryGetProperty("ability", out _));
+            Assert.False(snapshot.GetProperty("choice").TryGetProperty("problem", out _));
 
             // まだ確かめていないことの欄も、力の状態を表す行（まだ聞けていない力、確かめ中の力、業務で使う力のうち確かめていない力）は出さない
             var notYet = snapshot.GetProperty("notYet");
