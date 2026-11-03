@@ -14,7 +14,7 @@ public static class DiscoverText
     /// 本人が答えた話し終えた場面がすでにある人の、新しい場面の最初の問い（discover-1）。同じ言葉で聞いて、前の話を覚えていないように見せない（Claude の判断）。
     /// </summary>
     public const string OpeningAnotherDay =
-        "前に話してくれた日とは別の、最近のある一日のことを、聞かせてください。その日の朝起きてから夜までに、どんなことがありましたか？";
+        "前に話してくれた日とは別の、この数日のうちの一日のことを、聞かせてください。その日の朝起きてから夜までに、どんなことがありましたか？";
 
     /// <summary>最初の問いの選択肢。特定の力の核となる行動に寄らない、中立な出来事にする（誘導しない）。</summary>
     public static readonly IReadOnlyList<string> OpeningChoices =
