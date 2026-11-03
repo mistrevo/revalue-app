@@ -1,0 +1,11 @@
+{
+  "id": "d02-combine-schedules",
+  "title": "組み合わせる: 出張や会食の手配と、面接の日程調整",
+  "profile": "p05-high-income",
+  "note": "すべて架空。選んだ案は、このハッカソンの期間中に新しく書いた。組にする記録は evals/profiles/ にある。 週 5 時間に収まるよう、始めやすさの合計が 4 時間の業務を組み合わせた。",
+  "choice": {
+    "kind": "combine",
+    "roleName": "予定と人をつなぐ手配の係",
+    "taskIds": ["online-secretary-arrangement", "recruiting-interview-schedule"]
+  }
+}

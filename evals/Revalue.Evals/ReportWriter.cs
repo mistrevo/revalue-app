@@ -140,6 +140,8 @@ public static class ReportWriter
         "options" => "仕事の選択肢",
         "optionsJudge" => "仕事のカードの判定役",
         "genericOptionsJudge" => "汎用の AI の仕事の選択肢を読む判定役",
+        "deepen" => "選んだ案を深める",
+        "deepenJudge" => "深めた中身の判定役",
         _ => call,
     };
 
