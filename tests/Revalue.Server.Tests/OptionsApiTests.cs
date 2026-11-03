@@ -189,11 +189,12 @@ public sealed class OptionsApiTests
         Assert.Equal(5, all.GetProperty("monthlyIncome").GetInt32());
         Assert.Contains("job tag", all.GetProperty("source").GetProperty("text").GetString() + all.GetProperty("source").GetProperty("url").GetString());
 
+        // 候補があるのに作らないと答えたら、条件に合わないとは返さない
         options.Change = d => d with { Combine = d.Combine with { Made = false } };
         var dto = await Generate(client);
 
         Assert.Equal(JsonValueKind.Null, dto.GetProperty("cards").GetProperty("combine").ValueKind);
-        Assert.Equal([("combine", "noFit")], Missing(dto));
+        Assert.Equal([("combine", "rejected")], Missing(dto));
     }
 
     [Fact(DisplayName = "options-2（選ぶは登録した職種から）: AI が登録にない ID を返したら、そのカードは出ない")]
@@ -376,7 +377,35 @@ public sealed class OptionsApiTests
         }
 
         Assert.Equal([("choose", "excluded"), ("combine", "excluded"), ("create", "excluded")], Missing(dto));
-        Assert.Equal("needsAbility", dto.GetProperty("readiness").GetString());
+        // 使える力を全部外したときは、話が足りないとは返さず、外した見立てしかないと返す
+        Assert.Equal("onlyExcluded", dto.GetProperty("readiness").GetString());
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 選んだ案の力をあとで外すと、選んだ案は残し、理由と力と根拠の言葉は返さない。戻すとまた返す")]
+    public async Task ChosenCardHidesExcludedAbility()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Ready(factory, ai, "o-18");
+        var generated = await Generate(client);
+        var chosen = (await ChooseCard(client, "choose", generated)).GetProperty("choice").GetProperty("card");
+        Assert.False(chosen.GetProperty("abilityExcluded").GetBoolean());
+        Assert.Equal("coordinating", chosen.GetProperty("choose").GetProperty("ability").GetProperty("key").GetString());
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
+        var card = (await Get(client)).GetProperty("choice").GetProperty("card");
+
+        Assert.True(card.GetProperty("abilityExcluded").GetBoolean());
+        var choose = card.GetProperty("choose");
+        Assert.Equal("オンライン秘書", choose.GetProperty("occupationName").GetString());
+        Assert.Single(Array(choose, "tasks"));
+        Assert.Equal(JsonValueKind.Null, choose.GetProperty("reason").ValueKind);
+        Assert.Equal(JsonValueKind.Null, choose.GetProperty("ability").ValueKind);
+        Assert.DoesNotContain("夫と母の予定がぶつかって", card.GetRawText());
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/restore", null, Ct)).StatusCode);
+        var restored = (await Get(client)).GetProperty("choice").GetProperty("card");
+        Assert.False(restored.GetProperty("abilityExcluded").GetBoolean());
+        Assert.Equal(chosen.GetProperty("choose").GetRawText(), restored.GetProperty("choose").GetRawText());
     }
 
     [Fact(DisplayName = "options-5（条件の範囲だけ）: 条件を狭めると、収まらなくなったカードは出さない")]
@@ -386,13 +415,16 @@ public sealed class OptionsApiTests
         var client = await Ready(factory, ai, "o-11");
         await Generate(client);
 
-        // 週 10 時間 → 3 時間: 選ぶ（3 時間から）は収まり、組み合わせる（3 + 2 時間から）と創る（10 時間）は収まらない
-        await PutConditions(client, Conditions(3, ["daytime", "evening"]));
+        // 週 10 時間 → 3 時間、日中と夕方 → 日中だけ: 選ぶ（3 時間から、日中と夕方）は収まり、組み合わせる（3 + 2 時間から）と創る（10 時間）は収まらない
+        await PutConditions(client, Conditions(3, ["daytime"]));
         var narrowed = await Get(client);
         var cards = narrowed.GetProperty("cards");
         Assert.True(cards.GetProperty("stale").GetBoolean());
         var range = cards.GetProperty("choose").GetProperty("range");
         Assert.Equal((3, 3), (range.GetProperty("minHours").GetInt32(), range.GetProperty("maxHours").GetInt32()));
+        // 業務の時間帯も、もう使えない夕方は出さない
+        var task = Assert.Single(Array(cards.GetProperty("choose"), "tasks"));
+        Assert.Equal(["daytime"], Array(task, "timeSlots").Select(s => s.GetString()));
         Assert.Equal([("combine", "noFit"), ("create", "noFit")], Missing(narrowed));
 
         // 夜だけ、週 1 時間: 選ぶも収まらない

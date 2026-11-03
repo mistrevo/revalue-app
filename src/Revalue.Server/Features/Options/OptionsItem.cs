@@ -41,7 +41,17 @@ public sealed record OptionChoice(
     ChooseCard? Choose,
     CombineCard? Combine,
     CreateCard? Create,
-    string? OwnJobId);
+    string? OwnJobId)
+{
+    /// <summary>選んだカードの理由に使った力。カードを選んでいなければ null。</summary>
+    public CardAbility? ChosenAbility() => Choose?.Ability ?? Combine?.Ability ?? Create?.Ability;
+
+    /// <summary>
+    /// 選んだカードの力を、本人があとで外したか。外していたら、選んだ案の中身（職種や業務、時間、場所）は残し、
+    /// 理由と、もとにした力と根拠の言葉は使わない（05-options.md の「本人が選ぶ」。戻せばまた使う）。
+    /// </summary>
+    public bool UsesExcludedAbility(OptionsInputs inputs) => ChosenAbility() is { } ability && inputs.Excluded.Contains(ability.Ability);
+}
 
 /// <summary>利用者ごとに 1 件（id は固定）の、仕事のカード、本人が書いた仕事、選んだ案。</summary>
 public sealed record OptionsItem : Item

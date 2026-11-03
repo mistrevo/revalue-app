@@ -12,7 +12,7 @@ using Revalue.Server.Features.Validate;
 namespace Revalue.Evals;
 
 /// <summary>カード 1 枚への判定役の答え。項目は evals/judges/options.md に合わせる。</summary>
-public sealed record CardVerdict(bool Decides, bool OverPraise, bool PushesAway, bool Grounded, string Reason);
+public sealed record CardVerdict(bool Decides, bool OverPraise, bool PushesAway, bool Grounded, string Reason, bool ThirdPerson = false);
 
 /// <summary>仕事のカードを判定する役。答えられなかったときは null を返す（評価では、問題があったと数える）。</summary>
 public interface IOptionsJudge
@@ -55,6 +55,7 @@ public sealed record CardCheck(
     int QuoteCount,
     IReadOnlyList<string> QuoteMismatches,
     IReadOnlyList<string> Forbidden,
+    IReadOnlyList<string> Assertive,
     CardVerdict? Verdict = null);
 
 /// <summary>架空の記録 1 件を流した結果。<see cref="Error"/> があれば、AI が失敗・拒否して途中で終えた。</summary>
@@ -197,7 +198,8 @@ public sealed partial class OptionsEval(
     }
 
     /// <summary>
-    /// 画面に出すカード 1 枚を、照らし合わせとは別に数え直す。登録、条件、「創る」の根拠、引用が本人の言葉と一字一句同じか、使わない言葉。
+    /// 画面に出すカード 1 枚を、照らし合わせとは別に数え直す。登録、条件、「創る」の根拠、引用が本人の言葉と一字一句同じか、使わない言葉、
+    /// 言い切りと順位の言葉（<see cref="OptionsValidator.AssertiveWords"/>。「」で引いた本人の言葉の中は数えない）。
     /// </summary>
     public static CardCheck CheckShown(object card, OptionsInputs inputs, JobCatalog catalog, ForbiddenWords forbidden)
     {
@@ -254,6 +256,9 @@ public sealed partial class OptionsEval(
             written = written.Replace(AbilityText.Name(ability), "", StringComparison.Ordinal);
         }
 
+        var outside = parts.Sentences.Select(s => BracketPattern().Replace(s, "")).ToList();
+        var assertive = OptionsValidator.AssertiveWords.Where(w => outside.Any(s => s.Contains(w, StringComparison.Ordinal))).ToList();
+
         return new CardCheck(
             parts.Kind,
             CardText(card),
@@ -264,7 +269,8 @@ public sealed partial class OptionsEval(
             parts.NoEvidence,
             quoteCount,
             mismatches,
-            forbidden.Find(written));
+            forbidden.Find(written),
+            assertive);
     }
 
     /// <summary>その力の、本人の根拠の言葉（と選んだ答えか・結びついた言葉）と一字一句同じか。</summary>
@@ -398,7 +404,7 @@ public sealed class ClaudeOptionsJudge(AnthropicClient client, string model, str
 {
     private const int MaxTokens = 16000;
 
-    private static readonly string[] BooleanFields = ["decides", "overPraise", "pushesAway", "grounded"];
+    private static readonly string[] BooleanFields = ["decides", "overPraise", "pushesAway", "grounded", "thirdPerson"];
 
     public async Task<CardVerdict?> JudgeAsync(string record, string card, CancellationToken ct)
     {
@@ -413,7 +419,8 @@ public sealed class ClaudeOptionsJudge(AnthropicClient client, string model, str
             using var document = JsonDocument.Parse(text);
             var root = document.RootElement;
             bool Get(string name) => root.GetProperty(name).GetBoolean();
-            return new CardVerdict(Get("decides"), Get("overPraise"), Get("pushesAway"), Get("grounded"), root.GetProperty("reason").GetString() ?? "");
+            return new CardVerdict(
+                Get("decides"), Get("overPraise"), Get("pushesAway"), Get("grounded"), root.GetProperty("reason").GetString() ?? "", Get("thirdPerson"));
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)
         {

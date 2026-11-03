@@ -439,6 +439,7 @@ export function installFakeApi(initial: {
               choose: choice.card === 'choose' ? cards.choose : null,
               combine: choice.card === 'combine' ? cards.combine : null,
               create: choice.card === 'create' ? cards.create : null,
+              abilityExcluded: false,
             },
             ownJob: null,
           },

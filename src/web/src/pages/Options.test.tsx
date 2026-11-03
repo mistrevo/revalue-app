@@ -111,6 +111,20 @@ describe('Options', () => {
     expect(within(create).queryByRole('button', { name: copy.options.chooseThis })).not.toBeInTheDocument()
   })
 
+  it('options-1（3 枚を同じ重さで示す）: 条件に収まる業務はあるが話した力を生かせないカードは、条件を直す道ではなく、話す道を出す', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({ cards: fakeOptionCards({ choose: null, missing: [{ kind: 'choose', reason: 'noAbilityMatch' }] }) }),
+    })
+    renderApp('/options')
+
+    const choose = await screen.findByRole('region', { name: LABELS[0] })
+    expect(choose).toHaveTextContent(copy.options.missing.noAbilityMatch)
+    expect(within(choose).getByRole('link', { name: copy.options.toTalk })).toHaveAttribute('href', '/home')
+    expect(within(choose).queryByRole('link', { name: copy.options.toConditions })).not.toBeInTheDocument()
+  })
+
   it('options-1（3 枚を同じ重さで示す）: 照らし合わせに通らなかったカードには、同じ記録のまま作り直す道を置かない', async () => {
     const api = installFakeApi({
       loggedIn: true,
@@ -186,6 +200,37 @@ describe('Options', () => {
     // 別のカードを選べる
     await userEvent.click(within(card(LABELS[2])).getByRole('button', { name: copy.options.chooseThis }))
     expect(await screen.findByRole('region', { name: copy.options.chosenTitle })).toHaveTextContent('習い事の送り迎えの調整の手伝い')
+  })
+
+  it('options-8（理由は本人の言葉とつなぐ）: 選んだ案の力をあとで外していたら、選んだ案は残し、理由と力は出さない', async () => {
+    const base = fakeOptionCards()
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({
+        choice: {
+          kind: 'card',
+          at: '2026-11-03T07:00:00Z',
+          card: {
+            kind: 'create',
+            choose: null,
+            combine: null,
+            create: { ...base.create!, reason: null, ability: null },
+            abilityExcluded: true,
+          },
+          ownJob: null,
+        },
+      }),
+    })
+    renderApp('/options')
+
+    const chosen = await screen.findByRole('region', { name: copy.options.chosenTitle })
+    expect(chosen).toHaveTextContent('習い事の送り迎えの調整の手伝い')
+    expect(chosen).toHaveTextContent(copy.options.chosenExcluded)
+    expect(chosen).not.toHaveTextContent(copy.options.reasonTitle)
+    expect(chosen).not.toHaveTextContent(copy.options.abilityTitle)
+    expect(chosen).not.toHaveTextContent(copy.options.createLabels.ability)
+    expect(within(chosen).getByRole('button', { name: copy.options.rechoose })).toBeInTheDocument()
   })
 
   it('options-6（本人が選ぶ、保留する、自分で書く）: 保留できる。自分で考えた仕事を書いて選べ、3 つまで書ける', async () => {
@@ -321,6 +366,8 @@ describe('Options', () => {
       { readiness: 'needsConditions', text: copy.options.needsConditions, link: copy.options.toProfile, href: '/profile' },
       { readiness: 'needsFinishedEpisode', text: copy.options.needsFinishedEpisode, link: copy.options.toTalk, href: '/home' },
       { readiness: 'needsAbility', text: copy.options.needsAbility, link: copy.options.toTalk, href: '/home' },
+      // 見えた力をすべて外したときは、話が足りないとは言わず、外した見立てを戻せる見えた力の画面への道を出す
+      { readiness: 'onlyExcluded', text: copy.options.onlyExcluded, link: copy.options.toAbilities, href: '/abilities' },
     ] as const
     for (const c of cases) {
       const api = installFakeApi({ loggedIn: true, consented: true, options: fakeOptions({ readiness: c.readiness }) })

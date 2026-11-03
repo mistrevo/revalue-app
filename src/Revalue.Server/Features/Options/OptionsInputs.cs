@@ -23,7 +23,11 @@ public sealed record OptionsInputs(
     IReadOnlyList<Ability> Excluded,
     IReadOnlyList<string> Preferences,
     IReadOnlyList<string> Wants,
-    string? Agency);
+    string? Agency)
+{
+    /// <summary>外した力の中に、外していなければ使える力（根拠ありか要確認で、根拠のあるもの）があるか。</summary>
+    public bool HasExcludedUsable { get; init; }
+}
 
 /// <summary>仕事の選択肢を出せるか。出せないときは、最初に足りないもの。</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<Readiness>))]
@@ -40,6 +44,10 @@ public enum Readiness
 
     [JsonStringEnumMemberName("needsAbility")]
     NeedsAbility,
+
+    /// <summary>使える力はあるが、どれも本人が外している。</summary>
+    [JsonStringEnumMemberName("onlyExcluded")]
+    OnlyExcluded,
 }
 
 public static class OptionsInputsReader
@@ -50,8 +58,10 @@ public static class OptionsInputsReader
         var episodes = await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct);
         var book = await store.GetAsync<AbilityBookItem>(userKey, AbilityBookItem.ItemId, ct);
 
-        var abilities = AbilityBook.View(episodes, book)
-            .Where(v => !v.Excluded && v.State is AbilityState.Confirmed or AbilityState.NeedsCheck && v.Shown.Count > 0)
+        var views = AbilityBook.View(episodes, book);
+        static bool Usable(AbilityView v) => v.State is AbilityState.Confirmed or AbilityState.NeedsCheck && v.Shown.Count > 0;
+        var abilities = views
+            .Where(v => !v.Excluded && Usable(v))
             .Select(v => new UsableAbility(v.Ability, v.State, v.Shown))
             .ToList();
 
@@ -62,15 +72,22 @@ public static class OptionsInputsReader
             book?.Excluded.Order().ToList() ?? [],
             profile?.Preferences.Select(p => p.Text).ToList() ?? [],
             profile?.Wants.Select(p => p.Text).ToList() ?? [],
-            profile?.Agency);
+            profile?.Agency)
+        {
+            HasExcludedUsable = views.Any(v => v.Excluded && Usable(v)),
+        };
     }
 
-    /// <summary>条件、話し終えた場面、使える力の順に、最初に足りないもの。</summary>
+    /// <summary>
+    /// 条件、話し終えた場面、使える力の順に、最初に足りないもの。使える力がないときは、外した見立てしかないのかを分ける
+    /// （外した見立てを戻す道を示すため）。
+    /// </summary>
     public static Readiness Check(OptionsInputs inputs) =>
         inputs.Conditions is null ? Readiness.NeedsConditions
         : !inputs.HasFinishedEpisode ? Readiness.NeedsFinishedEpisode
-        : inputs.Abilities.Count == 0 ? Readiness.NeedsAbility
-        : Readiness.Ready;
+        : inputs.Abilities.Count > 0 ? Readiness.Ready
+        : inputs.HasExcludedUsable ? Readiness.OnlyExcluded
+        : Readiness.NeedsAbility;
 
     /// <summary>
     /// カードを作ったときの元の記録の指紋。使える力（力、状態、根拠の言葉と選んだ答えか・結びついた言葉）、条件、好み、やりたいこと、主体性、

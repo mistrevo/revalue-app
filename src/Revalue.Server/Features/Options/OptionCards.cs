@@ -21,11 +21,15 @@ public enum CardKind
 [JsonConverter(typeof(JsonStringEnumConverter<MissingReason>))]
 public enum MissingReason
 {
-    /// <summary>条件に合う業務がない、または作らないと答えた。</summary>
+    /// <summary>いまの条件に収まる登録の業務がない。</summary>
     [JsonStringEnumMemberName("noFit")]
     NoFit,
 
-    /// <summary>AI の答えが照らし合わせに通らなかった、または保存したカードをいまは見せられない。</summary>
+    /// <summary>条件に収まる登録の業務はあるが、どれも本人が使える力を使わない。</summary>
+    [JsonStringEnumMemberName("noAbilityMatch")]
+    NoAbilityMatch,
+
+    /// <summary>AI が作らないと答えたか、AI の答えが照らし合わせに通らなかった。または保存したカードをいまは見せられない。</summary>
     [JsonStringEnumMemberName("rejected")]
     Rejected,
 
@@ -38,7 +42,7 @@ public enum MissingReason
     Excluded,
 }
 
-/// <summary>カードの業務。<paramref name="TimeSlots"/> は作ったときの、本人の時間帯に入るもの。保存のときの中身のまま残す。</summary>
+/// <summary>カードの業務。<paramref name="TimeSlots"/> は、業務の時間帯のうち本人の時間帯に入るもの。見せるときは、いまの条件で計算し直す。</summary>
 public sealed record CardTask(
     string TaskId,
     string OccupationId,

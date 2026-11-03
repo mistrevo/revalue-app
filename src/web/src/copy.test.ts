@@ -54,6 +54,16 @@ describe('copy', () => {
     expect(withdrawing).toContain('私ではなく')
   })
 
+  it('options-1（3 枚を同じ重さで示す）: 出せないカードの言葉は、本人の話や条件のせいにせず、登録している業務の少なさやアプリの側に置く', () => {
+    const { missing } = copy.options
+    // 照らし合わせに通らなかったのは AI の書いた中身のため。話や記録が足りなかったように読ませない
+    expect(missing.rejected).not.toMatch(/話を足|記録を直/)
+    // 条件に合わないときも、条件を広げるよう促さず、登録している業務の少なさを先に伝える
+    expect(missing.noFit).toContain('登録している業務はまだ少ない')
+    expect(missing.noFit).not.toContain('条件を直')
+    expect(missing.noAbilityMatch).toContain('登録している業務はまだ少ない')
+  })
+
   it('validate-12（本人が見立てを外せる）: 見えた力の前置きは、読み取りを直せることを、外す・戻すより先に伝える', () => {
     const lead = copy.abilities.lead
     expect(lead).toContain('直せます')

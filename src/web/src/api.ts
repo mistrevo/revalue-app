@@ -395,11 +395,14 @@ export function putAgency(text: string): Promise<Profile> {
 
 // ---- 仕事の選択肢 ----
 
-/** 仕事の選択肢を出せるか。出せないときは、最初に足りないもの。 */
-export type Readiness = 'ready' | 'needsConditions' | 'needsFinishedEpisode' | 'needsAbility'
+/** 仕事の選択肢を出せるか。出せないときは、最初に足りないもの。onlyExcluded は、使える力をどれも本人が外している。 */
+export type Readiness = 'ready' | 'needsConditions' | 'needsFinishedEpisode' | 'needsAbility' | 'onlyExcluded'
 export type CardKind = 'choose' | 'combine' | 'create'
-/** カードを出せない理由。noFit は条件に合う業務がない、rejected は照らし合わせに通らなかった、noEvidence は根拠を引けない、excluded は本人が外した力を使っていた。 */
-export type MissingReason = 'noFit' | 'rejected' | 'noEvidence' | 'excluded'
+/**
+ * カードを出せない理由。noFit は条件に収まる登録の業務がない、noAbilityMatch は条件に収まる業務はあるが使える力を使う業務がない、
+ * rejected は AI が作らなかったか照らし合わせに通らなかった、noEvidence は根拠を引けない、excluded は本人が外した力を使っていた。
+ */
+export type MissingReason = 'noFit' | 'noAbilityMatch' | 'rejected' | 'noEvidence' | 'excluded'
 export type TaskPlace = 'home' | 'out'
 
 /** カードの業務。ability は使う力の key。timeSlots は本人の時間帯に入るもの。 */
@@ -419,16 +422,18 @@ export type WorkRange = { minHours: number; maxHours: number; minMonthlyYen: num
 /** カードの理由に使った力と、その根拠の本人の言葉。state は画面では copy の言葉にして出す。 */
 export type CardAbility = { key: AbilityKey; name: string; state: 'confirmed' | 'needsCheck'; quotes: Quote[] }
 
+// カードの reason と ability は、選んだ案の力を本人があとで外したときだけ null になる（OptionChoice の abilityExcluded）
+
 export type ChooseCard = {
   occupationName: string
   summary: string
   tasks: CardTask[]
   range: WorkRange
-  reason: string
-  ability: CardAbility
+  reason: string | null
+  ability: CardAbility | null
 }
 
-export type CombineCard = { roleName: string; tasks: CardTask[]; range: WorkRange; reason: string; ability: CardAbility }
+export type CombineCard = { roleName: string; tasks: CardTask[]; range: WorkRange; reason: string | null; ability: CardAbility | null }
 
 export type CreateCard = {
   title: string
@@ -438,8 +443,8 @@ export type CreateCard = {
   hoursPerWeek: number
   place: TaskPlace
   timeSlots: TimeSlot[]
-  reason: string
-  ability: CardAbility
+  reason: string | null
+  ability: CardAbility | null
 }
 
 /** いまの記録で見せられるカード。stale は、作ったあとに元の記録が変わったか。 */
@@ -454,11 +459,17 @@ export type OptionCards = {
 
 export type OwnJob = { id: string; title: string; note: string | null }
 
-/** 選んだ案。カードは選んだときの中身の写し。 */
+/** 選んだ案。カードは選んだときの中身の写し。abilityExcluded は、カードの力を本人があとで外したか（外していたら、理由と力は来ない）。 */
 export type OptionChoice = {
   kind: 'card' | 'own' | 'hold'
   at: string
-  card: { kind: CardKind; choose: ChooseCard | null; combine: CombineCard | null; create: CreateCard | null } | null
+  card: {
+    kind: CardKind
+    choose: ChooseCard | null
+    combine: CombineCard | null
+    create: CreateCard | null
+    abilityExcluded: boolean
+  } | null
   ownJob: OwnJob | null
 }
 

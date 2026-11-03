@@ -108,7 +108,9 @@ public sealed class OptionsInputsTests
 
         Assert.Empty(inputs.Abilities);
         Assert.Equal([Ability.Coordinating], inputs.Excluded);
-        Assert.Equal(Readiness.NeedsAbility, OptionsInputsReader.Check(inputs));
+        // 外さなければ使える力があるので、話が足りないとは返さない
+        Assert.True(inputs.HasExcludedUsable);
+        Assert.Equal(Readiness.OnlyExcluded, OptionsInputsReader.Check(inputs));
     }
 
     [Fact(DisplayName = "options-6（本人が選ぶ、保留する、自分で書く）: 元の記録が変わると指紋が変わる")]

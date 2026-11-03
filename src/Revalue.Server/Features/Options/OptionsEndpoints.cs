@@ -19,9 +19,11 @@ public sealed record CardTaskDto(
 /// <summary>カードの理由に使った力。<paramref name="State"/> は "confirmed" か "needsCheck"。</summary>
 public sealed record CardAbilityDto(string Key, string Name, AbilityState State, IReadOnlyList<QuoteDto> Quotes);
 
-public sealed record ChooseCardDto(string OccupationName, string Summary, IReadOnlyList<CardTaskDto> Tasks, WorkRange Range, string Reason, CardAbilityDto Ability);
+// カードの Reason と Ability は、選んだ案の力を本人があとで外したときだけ null にする（ChosenCardDto.AbilityExcluded）
 
-public sealed record CombineCardDto(string RoleName, IReadOnlyList<CardTaskDto> Tasks, WorkRange Range, string Reason, CardAbilityDto Ability);
+public sealed record ChooseCardDto(string OccupationName, string Summary, IReadOnlyList<CardTaskDto> Tasks, WorkRange Range, string? Reason, CardAbilityDto? Ability);
+
+public sealed record CombineCardDto(string RoleName, IReadOnlyList<CardTaskDto> Tasks, WorkRange Range, string? Reason, CardAbilityDto? Ability);
 
 public sealed record CreateCardDto(
     string Title,
@@ -31,8 +33,8 @@ public sealed record CreateCardDto(
     int HoursPerWeek,
     TaskPlace Place,
     IReadOnlyList<TimeSlot> TimeSlots,
-    string Reason,
-    CardAbilityDto Ability);
+    string? Reason,
+    CardAbilityDto? Ability);
 
 /// <summary>いまの記録で見せられるカード。<paramref name="Stale"/> は、作ったあとに元の記録が変わったか。</summary>
 public sealed record OptionCardsDto(
@@ -40,8 +42,11 @@ public sealed record OptionCardsDto(
 
 public sealed record OwnJobDto(string Id, string Title, string? Note);
 
-/// <summary>選んだカード。選んだときの中身の写し。</summary>
-public sealed record ChosenCardDto(CardKind Kind, ChooseCardDto? Choose, CombineCardDto? Combine, CreateCardDto? Create);
+/// <summary>
+/// 選んだカード。選んだときの中身の写し。<paramref name="AbilityExcluded"/> は、カードの力を本人があとで外したか。
+/// 外していたら、理由と、もとにした力と根拠の言葉は返さない。
+/// </summary>
+public sealed record ChosenCardDto(CardKind Kind, ChooseCardDto? Choose, CombineCardDto? Combine, CreateCardDto? Create, bool AbilityExcluded);
 
 public sealed record OptionChoiceDto(ChoiceKind Kind, DateTimeOffset At, ChosenCardDto? Card, OwnJobDto? OwnJob);
 
@@ -356,13 +361,7 @@ public static class OptionsEndpoints
             ? new OptionChoiceDto(
                 c.Kind,
                 c.At,
-                c is { Kind: ChoiceKind.Card, Card: { } kind }
-                    ? new ChosenCardDto(
-                        kind,
-                        c.Choose is { } ch ? ChooseDto(ch) : null,
-                        c.Combine is { } co ? CombineDto(co) : null,
-                        c.Create is { } cr ? CreateDto(cr) : null)
-                    : null,
+                c is { Kind: ChoiceKind.Card, Card: { } kind } ? ChosenDto(c, kind, c.UsesExcludedAbility(inputs)) : null,
                 ownJobs.FirstOrDefault(j => c.Kind == ChoiceKind.Own && j.Id == c.OwnJobId) is { } own ? OwnDto(own) : null)
             : null;
 
@@ -377,18 +376,32 @@ public static class OptionsEndpoints
 
     private static OwnJobDto OwnDto(OwnJob job) => new(job.Id, job.Title, job.Note);
 
+    /// <summary>選んだカードの写し。カードの力を本人があとで外していたら、理由と力と根拠の言葉を外す（validate-12（本人が見立てを外せる））。</summary>
+    private static ChosenCardDto ChosenDto(OptionChoice choice, CardKind kind, bool excluded)
+    {
+        var withReason = !excluded;
+        return new ChosenCardDto(
+            kind,
+            choice.Choose is { } ch ? ChooseDto(ch, withReason) : null,
+            choice.Combine is { } co ? CombineDto(co, withReason) : null,
+            choice.Create is { } cr ? CreateDto(cr, withReason) : null,
+            excluded);
+    }
+
     private static CardAbilityDto AbilityDto(CardAbility ability) =>
         new(ActionRef.Key(ability.Ability), AbilityText.Name(ability.Ability), ability.State, QuoteDto.From(ability.Quotes));
 
     private static CardTaskDto TaskDto(CardTask task) =>
         new(task.TaskId, task.OccupationName, task.Name, task.Detail, ActionRef.Key(task.Ability), task.TimeSlots, task.Place);
 
-    private static ChooseCardDto ChooseDto(ChooseCard card) =>
-        new(card.OccupationName, card.Summary, card.Tasks.Select(TaskDto).ToList(), card.Range, card.Reason, AbilityDto(card.Ability));
+    private static ChooseCardDto ChooseDto(ChooseCard card, bool withReason = true) =>
+        new(card.OccupationName, card.Summary, card.Tasks.Select(TaskDto).ToList(), card.Range,
+            withReason ? card.Reason : null, withReason ? AbilityDto(card.Ability) : null);
 
-    private static CombineCardDto CombineDto(CombineCard card) =>
-        new(card.RoleName, card.Tasks.Select(TaskDto).ToList(), card.Range, card.Reason, AbilityDto(card.Ability));
+    private static CombineCardDto CombineDto(CombineCard card, bool withReason = true) =>
+        new(card.RoleName, card.Tasks.Select(TaskDto).ToList(), card.Range, withReason ? card.Reason : null, withReason ? AbilityDto(card.Ability) : null);
 
-    private static CreateCardDto CreateDto(CreateCard card) =>
-        new(card.Title, card.Who, card.Trouble, card.Summary, card.HoursPerWeek, card.Place, card.TimeSlots, card.Reason, AbilityDto(card.Ability));
+    private static CreateCardDto CreateDto(CreateCard card, bool withReason = true) =>
+        new(card.Title, card.Who, card.Trouble, card.Summary, card.HoursPerWeek, card.Place, card.TimeSlots,
+            withReason ? card.Reason : null, withReason ? AbilityDto(card.Ability) : null);
 }

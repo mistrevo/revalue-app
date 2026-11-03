@@ -272,18 +272,19 @@ function Section({ title, children, className }: { title: string; children: Reac
 
 /** 進めないときは、何をすれば進めるかを一つだけ伝える。「力がない」とは言わない（options-7（1 場面で進める））。 */
 function NotReady({ readiness }: { readiness: OptionsData['readiness'] }) {
-  const conditions = readiness === 'needsConditions'
-  const text =
+  const { text, to, link } =
     readiness === 'needsConditions'
-      ? copy.options.needsConditions
+      ? { text: copy.options.needsConditions, to: '/profile', link: copy.options.toProfile }
       : readiness === 'needsFinishedEpisode'
-        ? copy.options.needsFinishedEpisode
-        : copy.options.needsAbility
+        ? { text: copy.options.needsFinishedEpisode, to: '/home', link: copy.options.toTalk }
+        : readiness === 'onlyExcluded'
+          ? { text: copy.options.onlyExcluded, to: '/abilities', link: copy.options.toAbilities }
+          : { text: copy.options.needsAbility, to: '/home', link: copy.options.toTalk }
   return (
     <div className="flex flex-col gap-3 rounded-xl border px-4 py-4">
       <p className="text-sm leading-relaxed">{text}</p>
       <Button asChild className="w-full sm:w-auto sm:self-start">
-        <Link to={conditions ? '/profile' : '/home'}>{conditions ? copy.options.toProfile : copy.options.toTalk}</Link>
+        <Link to={to}>{link}</Link>
       </Button>
     </div>
   )
@@ -337,6 +338,7 @@ function ChoiceArea({
             {chosen.choose && <ChooseBody card={chosen.choose} monthlyIncome={null} />}
             {chosen.combine && <CombineBody card={chosen.combine} monthlyIncome={null} />}
             {chosen.create && <CreateBody card={chosen.create} />}
+            {chosen.abilityExcluded && <p className="text-sm leading-relaxed text-muted-foreground">{copy.options.chosenExcluded}</p>}
           </>
         )}
         {own && (
@@ -417,7 +419,7 @@ function Missing({ reason }: { reason: MissingReason }) {
           <Link to="/profile">{copy.options.toConditions}</Link>
         </Button>
       )}
-      {reason === 'noEvidence' && (
+      {(reason === 'noEvidence' || reason === 'noAbilityMatch') && (
         <Button asChild variant="outline" className="w-full sm:w-auto sm:self-start">
           <Link to="/home">{copy.options.toTalk}</Link>
         </Button>
@@ -457,7 +459,7 @@ function CreateBody({ card }: { card: CreateCard }) {
   const rows: [string, string][] = [
     [labels.who, card.who],
     [labels.trouble, card.trouble],
-    [labels.ability, card.ability.name],
+    ...(card.ability ? [[labels.ability, card.ability.name] as [string, string]] : []),
     [
       labels.conditions,
       `${hoursText(card.hoursPerWeek, card.hoursPerWeek)}、${slotsText(card.timeSlots)}、${copy.options.placeValues[card.place]}`,
@@ -516,8 +518,12 @@ function Range({ range, monthlyIncome }: { range: WorkRange; monthlyIncome: numb
   )
 }
 
-/** 理由と、使った力、その根拠の本人の言葉（options-8（理由は本人の言葉とつなぐ））。 */
-function Reason({ reason, ability }: { reason: string; ability: CardAbility }) {
+/**
+ * 理由と、使った力、その根拠の本人の言葉（options-8（理由は本人の言葉とつなぐ））。
+ * 選んだ案の力を本人があとで外したときは、どちらも来ないので出さない。
+ */
+function Reason({ reason, ability }: { reason: string | null; ability: CardAbility | null }) {
+  if (reason === null || ability === null) return null
   return (
     <div className="flex flex-col gap-2">
       <div>

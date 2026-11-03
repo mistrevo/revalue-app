@@ -88,6 +88,25 @@ public sealed class OptionsEvalTests
         Assert.NotEmpty(check.QuoteMismatches);
     }
 
+    [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 評価は、画面に出すカードの文の言い切りと順位の言葉を数え直して合格にしない。「」で引いた本人の言葉の中は数えない")]
+    public void RecountsAssertiveWords()
+    {
+        var c = Case("p01-coordinating-seen");
+        var ability = new CardAbility(Ability.Coordinating, AbilityState.Confirmed, c.Inputs.Abilities[0].Quotes);
+        var quote = c.Inputs.Abilities[0].Quotes[0].Quote;
+        var choose = new ChooseCard(
+            "online-secretary", "オンライン秘書", "要約", [], new WorkRange(3, 10, 1, 2), $"話してくれた「{quote}」の動きは、日程の調整にぴったりです。", ability);
+
+        var check = OptionsEval.CheckShown(choose, c.Inputs, Catalog, Forbidden());
+        Assert.Equal(["ぴったり"], check.Assertive);
+        var gated = OptionsSummary.From([new OptionsRun(c, OptionCandidates.From(Catalog, c.Inputs), null, [], null, new DraftCounts(0, 0, 0), [check], null, null)])
+            .Gated.Single(i => i.Name.StartsWith("言い切りと順位の言葉", StringComparison.Ordinal));
+        Assert.Equal((1, false), (gated.Count, gated.Passed));
+
+        var quoted = OptionsEval.CheckShown(choose with { Reason = $"話してくれた「{quote}」の動きを、日程の調整に生かせるかもしれません。" }, c.Inputs, Catalog, Forbidden());
+        Assert.Empty(quoted.Assertive);
+    }
+
     [Fact(DisplayName = "options-7（1 場面で進める）: 架空の 5 つの記録は 8 件読み込め、根拠の言葉はどれも架空エピソードの本人の答えに一字一句含まれる")]
     public void RepositoryProfilesParse()
     {
@@ -219,7 +238,7 @@ public sealed class OptionsEvalTests
     {
         var judges = Path.Combine(AppContext.BaseDirectory, "judges");
         var options = File.ReadAllText(Path.Combine(judges, "options.md"));
-        foreach (var field in new[] { "decides", "overPraise", "pushesAway", "grounded", "reason" })
+        foreach (var field in new[] { "decides", "overPraise", "pushesAway", "grounded", "thirdPerson", "reason" })
         {
             Assert.Contains($"`{field}`", options);
         }

@@ -67,6 +67,7 @@ public sealed class OptionsSummary
             Zero("options-4（創るは根拠を引けるときだけ）: 画面に出す「創る」で、本人の根拠を引けない案", creates.Count(s => s.NoEvidence), creates.Count),
             Zero("options-8（理由は本人の言葉とつなぐ）: 根拠の引用が本人の言葉と一字一句同じでないカード", shown.Count(s => s.QuoteMismatches.Count > 0), shown.Count),
             Zero("common-1（使わない言葉を出さない）: 画面に出すカードの文に、使わない言葉", shown.Count(s => s.Forbidden.Count > 0), shown.Count),
+            Zero("言い切りと順位の言葉: 画面に出すカードの文に、向いています、いちばん などの言葉（コード）", shown.Count(s => s.Assertive.Count > 0), shown.Count),
             Zero("本人の代わりに決める: 適職を言い切った、カードに順位を付けた（判定役。答えられなかったカードも数える）", shown.Count(s => s.Verdict?.Decides != false), shown.Count),
             Zero("突き放し: 否定や評価の言い方で突き放した（判定役。答えられなかったカードも数える）", shown.Count(s => s.Verdict?.PushesAway != false), shown.Count),
             Zero("options-7（1 場面で進める）: 根拠ありの力がまだない人で、カードが出ないか、確かめ中と示さなかった", checkingMissed, checking.Count),
@@ -84,6 +85,7 @@ public sealed class OptionsSummary
             Count("options-8（理由は本人の言葉とつなぐ）: 本人が外した力を理由に使ったカード", usedExcluded),
             Count("大げさに褒めた、確かめ中の力を確かな力のように書いた（判定役）", shown.Count(s => s.Verdict?.OverPraise == true)),
             Ratio("理由が、本人の話した行動とつながっている（判定役）", shown.Count(s => s.Verdict?.Grounded == true), shown.Count),
+            Count("本人を三人称で書いた（「本人は…」など。判定役）", shown.Count(s => s.Verdict?.ThirdPerson == true)),
         ];
 
         var compared = done.Where(r => r.Generic is not null).ToList();
@@ -99,7 +101,7 @@ public sealed class OptionsSummary
                 compared.Count - read.Count,
                 productShown.Count,
                 productShown.Count(s => s.OverConditions),
-                productShown.Count(s => s.Verdict?.Decides != false || s.Forbidden.Count > 0),
+                productShown.Count(s => s.Verdict?.Decides != false || s.Forbidden.Count > 0 || s.Assertive.Count > 0),
                 productShown.Sum(s => s.QuoteCount),
                 productShown.Sum(s => s.QuoteMismatches.Count),
                 options.Count,
@@ -196,7 +198,7 @@ public static class OptionsReport
         sb.AppendLine("|---|---|---|");
         sb.AppendLine($"| 案の数 | {c.ProductCards} | {c.GenericOptions} |");
         sb.AppendLine($"| 条件を超える案 | {c.ProductOverConditions} | {c.GenericOverConditions} |");
-        sb.AppendLine($"| 言い切り（製品は判定役と使わない言葉） | {c.ProductDecides} | {c.GenericDecides} |");
+        sb.AppendLine($"| 言い切り（製品は判定役と、使わない言葉、言い切りと順位の言葉） | {c.ProductDecides} | {c.GenericDecides} |");
         sb.AppendLine($"| 順位やおすすめを付けた案 | 0（3 枚に順番を付けない） | {c.GenericRanked} |");
         sb.AppendLine($"| 本人の言葉にない引用 | {c.ProductQuoteMismatches} / {c.ProductQuotes} | {c.GenericQuoteMismatches} / {c.GenericQuotes} |");
     }
@@ -235,7 +237,8 @@ public static class OptionsReport
                 sb.AppendLine();
                 sb.AppendLine($"- 機械: 登録 {Mark(!card.Unregistered)}、条件の範囲 {Mark(!card.OverConditions)}、" +
                     (card.Kind == CardKind.Create ? $"根拠を引けている {Mark(!card.NoEvidence)}、" : "") +
-                    $"引用が一字一句 {Mark(card.QuoteMismatches.Count == 0)}、使わない言葉 {(card.Forbidden.Count == 0 ? "なし" : string.Join("、", card.Forbidden))}");
+                    $"引用が一字一句 {Mark(card.QuoteMismatches.Count == 0)}、使わない言葉 {(card.Forbidden.Count == 0 ? "なし" : string.Join("、", card.Forbidden))}、" +
+                    $"言い切りと順位の言葉 {(card.Assertive.Count == 0 ? "なし" : string.Join("、", card.Assertive))}");
                 sb.AppendLine($"- 判定役: {Verdict(card.Verdict)}");
             }
 
@@ -267,8 +270,9 @@ public static class OptionsReport
 
     private static string ReasonName(MissingReason reason) => reason switch
     {
-        MissingReason.NoFit => "条件に合う業務がない、または作らないと答えた",
-        MissingReason.Rejected => "照らし合わせで落とした",
+        MissingReason.NoFit => "条件に合う業務がない",
+        MissingReason.NoAbilityMatch => "条件に合う業務はあるが、使える力を使う業務がない",
+        MissingReason.Rejected => "作らないと答えた、または照らし合わせで落とした",
         MissingReason.NoEvidence => "根拠の言葉から組み立てられなかった",
         _ => "外した力を使っていた",
     };
@@ -278,7 +282,7 @@ public static class OptionsReport
     private static string Verdict(CardVerdict? v) => v is null
         ? "答えられなかった（問題があったと数える）"
         : $"本人の代わりに決めていない {Mark(!v.Decides)}、褒めすぎていない {Mark(!v.OverPraise)}、突き放していない {Mark(!v.PushesAway)}、" +
-          $"本人の行動とつながる {Mark(v.Grounded)}{(v.Reason.Length == 0 ? "" : "。理由: " + v.Reason)}";
+          $"本人の行動とつながる {Mark(v.Grounded)}、本人に語りかけている {Mark(!v.ThirdPerson)}{(v.Reason.Length == 0 ? "" : "。理由: " + v.Reason)}";
 
     private static void Quote(StringBuilder sb, string text)
     {
