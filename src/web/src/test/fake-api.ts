@@ -10,6 +10,7 @@ import type {
   Episode,
   EpisodeInsights,
   EpisodeSummary,
+  NextStep,
   OptionCards,
   Options,
   Profile,
@@ -50,7 +51,7 @@ export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {
 }
 
 /** 裏側が決める続きの問いと選択肢の代わり（本物は AbilityText.cs）。 */
-export const FAKE_RESUME_QUESTION = 'また話しに来てくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
+export const FAKE_RESUME_QUESTION = '続きの話を選んでくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
 export const FAKE_RESUME_CHOICES = ['思い当たることがあります', 'とくに思い当たりません', 'その日のほかのことを話したい']
 
 /** 裏側が決める手がかりの言葉の代わり（本物は AbilityText.cs）。 */
@@ -368,6 +369,7 @@ export function fakeReportContent(overrides: Partial<ReportContent> = {}): Repor
       ],
       hasExcluded: false,
     },
+    abilitiesExcluded: false,
     records: {
       preferences: [{ text: '自分のペースで進められる', source: 'chosen' }],
       wants: [],
@@ -494,6 +496,7 @@ export function installFakeApi(initial: {
   options?: Options
   deepen?: Deepen
   report?: Report
+  nextStep?: NextStep | { status: number; body: unknown }
 }) {
   const state = {
     loggedIn: initial.loggedIn,
@@ -538,6 +541,13 @@ export function installFakeApi(initial: {
     deepenSaveFails: false,
     /** 可能性レポート。保留と一歩の保存は、裏側と同じく、次に開いたときの中身に映す（版は増やさない）。 */
     report: initial.report ?? fakeReport({ ready: false, content: null, current: null }),
+    /** true なら、可能性レポート（GET /api/report）を 500 で断る。 */
+    reportFails: false,
+    /**
+     * 次にできること（GET /api/next-step）。null なら、裏側と同じ順で、いまの場面と記録から決める。
+     * 入れると、その値を返すか、断る応答を返す。
+     */
+    nextStep: (initial.nextStep ?? null) as NextStep | { status: number; body: unknown } | null,
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -610,7 +620,13 @@ export function installFakeApi(initial: {
       return new Response(null, { status: 204 })
     }
 
+    if (url === '/api/next-step' && method === 'GET') {
+      if (state.nextStep === null) return json(200, deriveNextStep())
+      if ('status' in state.nextStep) return json(state.nextStep.status, state.nextStep.body)
+      return json(200, state.nextStep)
+    }
     if (url === '/api/report' && method === 'GET') {
+      if (state.reportFails) return json(500, { status: 500 })
       return json(200, state.report)
     }
 
@@ -933,6 +949,26 @@ export function installFakeApi(initial: {
     }
     return json(404, { status: 404 })
   })
+
+  /** 裏側（NextStep.cs）と同じ順で、次にできることを決める。 */
+  function deriveNextStep(): NextStep {
+    const talking = state.episodes.find((e) => e.status === 'talking')
+    if (talking) return { step: 'continue', episodeId: talking.id }
+    const of = (step: NextStep['step']): NextStep => ({ step, episodeId: null })
+    const finished = state.episodes.filter((e) => e.status === 'finished')
+    if (finished.length === 0) return of('talk')
+    // いちばん新しく話し終えた場面が、つらい状態のサインに応えたところで終わっていたら、何も勧めない
+    const last = [...finished].sort((a, b) => (b.finishedAt ?? b.startedAt).localeCompare(a.finishedAt ?? a.startedAt))[0]
+    if (last.notice?.kind === 'distress') return of('none')
+    if (state.profile.conditions === null) return of('conditions')
+    // 使える力が本人の外した力だけのときも、外した見立てに戻すことを勧めず、別の一日を話す
+    if (state.options.readiness === 'needsAbility' || state.options.readiness === 'onlyExcluded') return of('talk')
+    const choice = state.options.choice
+    if (!choice) return of('options')
+    if (choice.kind === 'hold') return of('report')
+    if (!state.deepen.content || state.deepen.content.stale) return of('deepen')
+    return of('report')
+  }
 
   /** 裏側と同じく、返事を最後まで返せた 1 往復を場面に残す（開き直したときや、話し終えて読み直したときに使う）。 */
   function recordRound(episode: Episode, answer: { text: string; kind: 'free' | 'choice' }, events: FakeEvent[]) {

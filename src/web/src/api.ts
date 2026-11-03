@@ -679,6 +679,8 @@ export type ReportStep = { text: string; own: boolean; fits: boolean }
 /** いまの中身。thinking と steps は、いまの選んだ案で深めた中身がなければ null。 */
 export type ReportContent = {
   abilities: ReportAbility[]
+  /** 本人が外した力があるか（外した力そのものは来ない）。できることの欄が空のときに、外した見立てを出していないと伝えるため。 */
+  abilitiesExcluded: boolean
   notYet: ReportNotYet
   records: ReportRecords
   choice: ReportChoice
@@ -712,4 +714,17 @@ export type Report = { ready: boolean; content: ReportContent | null; current: R
 export async function getReport(): Promise<Report> {
   const response = await request('/api/report')
   return (await response.json()) as Report
+}
+
+/** 次にできることの種類（00-common.md の「次にできること」）。 */
+/** none は何も勧めない（いちばん新しく話し終えた場面が、つらい状態のサインに応えたところで終わっているとき）。 */
+export type NextStepKind = 'continue' | 'talk' | 'conditions' | 'options' | 'deepen' | 'report' | 'none'
+
+/** 次にできること一つ。episodeId は continue のときだけ、その場面の id。 */
+export type NextStep = { step: NextStepKind; episodeId: string | null }
+
+/** いまの記録から、裏側が決めた次にできることを一つ読む。 */
+export async function getNextStep(): Promise<NextStep> {
+  const response = await request('/api/next-step')
+  return (await response.json()) as NextStep
 }

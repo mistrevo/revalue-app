@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { postConsent } from '@/api'
+import { LOGOUT_URL, postConsent } from '@/api'
 import { useMe } from '@/components/me-context'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
@@ -71,9 +71,15 @@ export function Start() {
         </p>
       )}
 
-      <Button size="lg" className="mt-6 w-full sm:w-auto sm:px-6" onClick={agree} disabled={sending}>
-        {copy.start.agree}
-      </Button>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <Button size="lg" className="w-full sm:w-auto sm:px-6" onClick={agree} disabled={sending}>
+          {copy.start.agree}
+        </Button>
+        {/* 了解しない人の出口。ログアウトは組み込み認証へページごと移動する */}
+        <Button asChild size="lg" variant="ghost" className="h-auto w-full py-2 whitespace-normal sm:w-auto">
+          <a href={LOGOUT_URL}>{copy.start.decline}</a>
+        </Button>
+      </div>
     </Page>
   )
 }

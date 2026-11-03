@@ -110,7 +110,7 @@ public sealed class ReportBuilderTests
 
     private static async Task<ReportContent> Build(Kit kit)
     {
-        var (ready, content) = await ReportBuilder.BuildAsync(kit.Store, User, Catalog, Ct);
+        var (ready, content, _) = await ReportBuilder.BuildAsync(kit.Store, User, Catalog, Ct);
         Assert.True(ready);
         return content!;
     }
@@ -133,7 +133,7 @@ public sealed class ReportBuilderTests
     public async Task ReadyWithFinishedEpisodeEvenWithoutChoice()
     {
         var kit = await Create();
-        Assert.Equal((false, (ReportContent?)null), await ReportBuilder.BuildAsync(kit.Store, User, Catalog, Ct));
+        Assert.Equal((false, (ReportContent?)null, false), await ReportBuilder.BuildAsync(kit.Store, User, Catalog, Ct));
 
         await SaveEpisode(kit, CoordinatingAll, EpisodeStatus.Talking);
         Assert.False((await ReportBuilder.BuildAsync(kit.Store, User, Catalog, Ct)).Ready);

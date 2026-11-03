@@ -33,7 +33,7 @@ public sealed class ResumeTests
         Assert.Equal("assistant", question.GetProperty("role").GetString());
         // 受け止めの一文、聞く力の根拠のうちいちばん短い本人の言葉の映し返し、足りない行動の問い一つ、の順（4-rules.md の「対話の決まり」）
         Assert.Equal(
-            "また話しに来てくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。その日、みんなの都合を合わせたり、別の案を出したりしたことはありましたか？",
+            AbilityText.ResumeLead + "前に「二人に電話して」と話してくれましたね。その日、みんなの都合を合わせたり、別の案を出したりしたことはありましたか？",
             question.GetProperty("text").GetString());
         Assert.Contains("二人に電話して", CoordinatingAnswer, StringComparison.Ordinal);
         Assert.Equal(AbilityText.ResumeChoices, Array(question, "choices").Select(c => c.GetString()));
@@ -60,6 +60,61 @@ public sealed class ResumeTests
         Assert.Equal(1 + NextMovePolicy.ResumeExtraTurns, saved.TurnLimit);
         Assert.Equal(4, NextMovePolicy.ResumeExtraTurns);
         Assert.Null(saved.FinishedAt);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに「その日のほかのことを話したい」を選ぶと、足りない行動ではなく、同じ日のほかの時間や出来事を聞く")]
+    public async Task ResumeChoiceOtherThingsAsksOtherPartOfDay()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        // 最初の往復で調整する力 3 を聞いた記録を外す（足りない行動をまだ聞ける形にする）
+        await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
+            TestUsers.Key("g-1"), id, e => e with { Turns = [.. e.Turns.Select(t => t with { Target = null })] }, Ct);
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+        await Send(client, id, AbilityText.ResumeChoiceOtherThings, "choice");
+
+        Assert.Equal(new NextMove(MoveKind.AskOtherPartOfDay), ai.NextMoves[^1]);
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いに「とくに思い当たりません」を選ぶと、同じ行動を聞き直さない。書いた答えなら聞き直せる")]
+    public async Task ResumeChoiceNoneDoesNotAskAgain()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+
+        // 話し終えた場面を作り、最初の往復で調整する力 3 を聞いた記録を外す（続きの問いで 1 回目に聞く形にする）
+        async Task<string> ResumedOnce()
+        {
+            var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+            await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
+                TestUsers.Key("g-1"), id, e => e with { Turns = [.. e.Turns.Select(t => t with { Target = null })] }, Ct);
+            var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+            Assert.Equal("coordinating.3", question.GetProperty("target").GetString());
+            ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+            return id;
+        }
+
+        var chosen = await ResumedOnce();
+        await Send(client, chosen, AbilityText.ResumeChoiceNone, "choice");
+
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), ai.NextMoves[^1]);
+
+        // 区切ってもう一度続きを開いても、同じ行動は聞き直さない（ほかに聞ける行動がないので、手がかりを添えない問いで始める）
+        await Finish(client, chosen);
+        var reopened = Array(await Json(await Resume(client, chosen)), "turns")[^1];
+        Assert.True(!reopened.TryGetProperty("target", out var reopenedTarget) || reopenedTarget.ValueKind == JsonValueKind.Null);
+
+        // 同じ言葉を書いた答えでは、いつもどおり 2 回まで聞く
+        await Finish(client, chosen);
+        var written = await ResumedOnce();
+        await Send(client, written, AbilityText.ResumeChoiceNone);
+
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 3)), ai.NextMoves[^1]);
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いは、2 回聞いた行動を避けて、ほかの足りない行動を聞く")]
@@ -127,7 +182,7 @@ public sealed class ResumeTests
         var question = Array(await Json(await Resume(client, id)), "turns")[^1];
 
         Assert.Equal(
-            "また話しに来てくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。特別な日でなくてかまいません。いつものことの中から、いちばん最近の一日のことを、聞かせてもらえますか？",
+            AbilityText.ResumeLead + "前に「二人に電話して」と話してくれましたね。特別な日でなくてかまいません。いつものことの中から、いちばん最近の一日のことを、聞かせてもらえますか？",
             question.GetProperty("text").GetString());
         Assert.DoesNotContain("その日", question.GetProperty("text").GetString(), StringComparison.Ordinal);
         Assert.Equal(AbilityText.ConcreteDayChoices, Array(question, "choices").Select(c => c.GetString()));

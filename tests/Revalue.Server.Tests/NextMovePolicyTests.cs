@@ -296,4 +296,79 @@ public sealed class NextMovePolicyTests
         // 足りないのが打ち消された行動だけなら、足りない行動を聞く一手にしない
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
     }
+
+    /// <summary>話し終えた場面に、続きの問い（調整する力 3 を聞く）と、それへの答えを足したやりとり。</summary>
+    private static IReadOnlyList<Turn> ResumeAnswered(string answer, AnswerKind kind, string questionMove = EpisodeInsights.ResumeMove) =>
+    [
+        new() { Role = TurnRoles.Assistant, Text = "q1", Move = "opening", At = At },
+        new() { Role = TurnRoles.User, Text = "a1", AnswerKind = AnswerKind.Free, At = At },
+        new() { Role = TurnRoles.Assistant, Text = "q2", Move = "close", At = At },
+        new()
+        {
+            Role = TurnRoles.Assistant, Text = "resume", Move = questionMove, Target = "coordinating.3",
+            Choices = AbilityText.ResumeChoices, At = At,
+        },
+        new() { Role = TurnRoles.User, Text = answer, AnswerKind = kind, At = At },
+    ];
+
+    private static readonly IReadOnlyList<Evidence> CoordinatingTwo = [E(Ability.Coordinating, 1), E(Ability.Coordinating, 2)];
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに「その日のほかのことを話したい」を選んだら、足りない行動ではなく、同じ日のほかの時間や出来事を聞く")]
+    public void ResumeChoiceOtherThingsAsksOtherPartOfDay()
+    {
+        var context = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceOtherThings, AnswerKind.Choice), CoordinatingTwo);
+
+        Assert.True(context.WantsOtherThings);
+        Assert.Equal(new NextMove(MoveKind.AskOtherPartOfDay), NextMovePolicy.Decide(Concrete, 2, context));
+        // 「分からない」と読まれても、話したいと選んだので、同じ日のほかのことを聞く
+        Assert.Equal(new NextMove(MoveKind.AskOtherPartOfDay), NextMovePolicy.Decide(Read(AnswerSignal.DontKnow), 2, context));
+        // より先の一手（つらい状態のサイン、締め、家族の病気）はそのまま
+        Assert.Equal(MoveKind.Distress, NextMovePolicy.Decide(Read(AnswerSignal.Distress), 2, context).Kind);
+        Assert.Equal(MoveKind.Close, NextMovePolicy.Decide(Concrete, NextMovePolicy.MaxUserTurns, context).Kind);
+        Assert.Equal(MoveKind.ReturnFromIllness, NextMovePolicy.Decide(Read(AnswerSignal.FamilyIllness), 2, context).Kind);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの決まった選択肢の扱いは、選んだ答えで、直前が続きの問いのときだけ。同じ言葉を書いた答えでは働かない")]
+    public void ResumeChoiceOnlyWhenChosenAfterResume()
+    {
+        var missing = new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 3));
+
+        var written = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceOtherThings, AnswerKind.Free), CoordinatingTwo);
+        Assert.False(written.WantsOtherThings);
+        Assert.Equal(missing, NextMovePolicy.Decide(Concrete, 2, written));
+
+        var afterAsk = ValidationContext.From(
+            ResumeAnswered(AbilityText.ResumeChoiceOtherThings, AnswerKind.Choice, "askMissingAction"), CoordinatingTwo);
+        Assert.False(afterAsk.WantsOtherThings);
+        Assert.Equal(missing, NextMovePolicy.Decide(Concrete, 2, afterAsk));
+
+        var writtenNone = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceNone, AnswerKind.Free), CoordinatingTwo);
+        Assert.Equal(1, writtenNone.AskedCounts[new ActionRef(Ability.Coordinating, 3)]);
+        Assert.Equal(missing, NextMovePolicy.Decide(Concrete, 2, writtenNone));
+
+        var noneAfterAsk = ValidationContext.From(
+            ResumeAnswered(AbilityText.ResumeChoiceNone, AnswerKind.Choice, "askMissingAction"), CoordinatingTwo);
+        Assert.Equal(1, noneAfterAsk.AskedCounts[new ActionRef(Ability.Coordinating, 3)]);
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いに「とくに思い当たりません」を選んだら、その問いの行動を聞いた回数の上限として数え、聞き直さない")]
+    public void ResumeChoiceNoneStopsAskingThatAction()
+    {
+        var target = new ActionRef(Ability.Coordinating, 3);
+        var context = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceNone, AnswerKind.Choice), CoordinatingTwo);
+
+        Assert.Equal(NextMovePolicy.MaxAskPerAction, context.AskedCounts[target]);
+        Assert.False(context.WantsOtherThings);
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
+
+        // そのあとの答えでも、同じ行動は聞き直さない
+        IReadOnlyList<Turn> later =
+        [
+            .. ResumeAnswered(AbilityText.ResumeChoiceNone, AnswerKind.Choice),
+            new() { Role = TurnRoles.Assistant, Text = "q", Move = "askWhatYouDid", At = At },
+            new() { Role = TurnRoles.User, Text = "a", AnswerKind = AnswerKind.Free, At = At },
+        ];
+        Assert.Equal(NextMovePolicy.MaxAskPerAction, ValidationContext.From(later, CoordinatingTwo).AskedCounts[target]);
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 3, ValidationContext.From(later, CoordinatingTwo)));
+    }
 }

@@ -17,12 +17,13 @@ namespace Revalue.Server.Features.Report;
 public static class ReportBuilder
 {
     /// <summary>話し終えた場面がなければ <c>(false, null)</c>。案を選んでいなくても、保留していても組み立てる（report-5（保留しても開ける））。</summary>
-    public static async Task<(bool Ready, ReportContent? Content)> BuildAsync(IDataStore store, string userKey, JobCatalog catalog, CancellationToken ct)
+    public static async Task<(bool Ready, ReportContent? Content, bool AbilitiesExcluded)> BuildAsync(
+        IDataStore store, string userKey, JobCatalog catalog, CancellationToken ct)
     {
         var episodes = await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct);
         if (!episodes.Any(e => e.Status == EpisodeStatus.Finished))
         {
-            return (false, null);
+            return (false, null, false);
         }
 
         var book = await store.GetAsync<AbilityBookItem>(userKey, AbilityBookItem.ItemId, ct);
@@ -37,7 +38,7 @@ public static class ReportBuilder
         var deepened = target is not null && deepen?.Content is { } c && c.Basis == target.Basis ? c : null;
 
         var abilities = views
-            .Where(v => !v.Excluded && v.State is AbilityState.Confirmed or AbilityState.NeedsCheck && v.Shown.Count > 0)
+            .Where(v => !v.Excluded && ShownInAbilities(v))
             .Select(v => new ReportAbility(v.Ability, v.State, v.Shown))
             .ToList();
 
@@ -48,8 +49,13 @@ public static class ReportBuilder
             Choice(options, inputs, catalog),
             deepened is null ? null : Thinking(deepened, deepen!),
             deepened is null ? null : Steps(deepened, deepen!, target!, inputs.Conditions!));
-        return (true, content);
+        // 外していなければ「できること」の欄に出ていた力を、本人が外しているか（欄が空のときに添える一言のため。版には残さない）
+        return (true, content, views.Any(v => v.Excluded && ShownInAbilities(v)));
     }
+
+    /// <summary>「できること」の欄に出る力か（外していなければ）: 根拠ありか確かめ中で、見せる根拠がある。</summary>
+    private static bool ShownInAbilities(AbilityView v) =>
+        v.State is AbilityState.Confirmed or AbilityState.NeedsCheck && v.Shown.Count > 0;
 
     /// <summary>
     /// 欄ごとの指紋。画面に出す中身を決まった順の JSON にして SHA-256 の 16 進にする。根拠の言葉も入れる（根拠の言葉だけが変わったときも、

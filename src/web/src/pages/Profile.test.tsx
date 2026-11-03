@@ -9,6 +9,7 @@ import {
   FAKE_PREFERENCE_QUESTION,
   FAKE_WANT_CHOICES,
   FAKE_WANT_QUESTION,
+  fakeEpisode,
   fakeProfile,
   installFakeApi,
   type FakeCall,
@@ -392,7 +393,8 @@ describe('Profile', () => {
     renderApp('/profile')
 
     await screen.findByRole('region', { name: copy.profile.canDoTitle })
-    expect(regionNames()).toEqual([
+    // 下に出る「次にできること」は、5 つの記録の欄ではないので除いて比べる
+    expect(regionNames().filter((name) => name !== copy.home.next.title)).toEqual([
       copy.profile.canDoTitle,
       copy.profile.preferencesTitle,
       copy.profile.wantsTitle,
@@ -493,5 +495,45 @@ describe('Profile', () => {
     await userEvent.click(within(wants).getByRole('button', { name: copy.profile.save }))
     expect(await within(wants).findByRole('alert')).toHaveTextContent(copy.profile.saveFailed)
     expect(within(wants).getByRole('textbox', { name: copy.profile.writeOwn })).toHaveValue('近所の人と話したい')
+  })
+
+  it('common-3（次にできることを一つ示す）: 5 つの記録で条件を保存したら、次にできることを読み直して、仕事の選択肢への道に変わる', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+      profile: answeredProfile({ conditions: null }),
+    })
+    renderApp('/profile')
+
+    // いまは条件を入れることが次にできることで、この画面がその行き先なので、道は出さない
+    const next = await screen.findByRole('region', { name: copy.profile.nextTitle })
+    expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
+
+    await userEvent.click(within(next).getByRole('checkbox', { name: copy.profile.timeSlotValues.morning }))
+    await userEvent.click(within(next).getByRole('radio', { name: '週 10 時間くらいまで' }))
+    await userEvent.click(within(next).getByRole('radio', { name: copy.profile.placeValues.homeOnly }))
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.save }))
+
+    const step = await screen.findByRole('region', { name: copy.home.next.title })
+    expect(within(step).getByRole('link', { name: copy.home.next.options })).toHaveAttribute('href', '/options')
+  })
+
+  it('profile-4（本人が直せる）: 条件を入れる入口（?ask=conditions）から来たら、好みより先に条件を聞く', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/profile?ask=conditions')
+
+    const next = await screen.findByRole('region', { name: copy.profile.nextTitle })
+    expect(within(next).getByRole('group', { name: copy.profile.timeSlots })).toBeInTheDocument()
+    expect(within(next).queryByText(FAKE_PREFERENCE_QUESTION)).not.toBeInTheDocument()
+
+    // 条件を入れたあとは、いつもの順（好みから）に戻る
+    await userEvent.click(within(next).getByRole('checkbox', { name: copy.profile.timeSlotValues.morning }))
+    await userEvent.click(within(next).getByRole('radio', { name: '週 10 時間くらいまで' }))
+    await userEvent.click(within(next).getByRole('radio', { name: copy.profile.placeValues.homeOnly }))
+    await userEvent.click(within(next).getByRole('button', { name: copy.profile.save }))
+    expect(
+      await within(screen.getByRole('region', { name: copy.profile.nextTitle })).findByText(FAKE_PREFERENCE_QUESTION),
+    ).toBeInTheDocument()
   })
 })

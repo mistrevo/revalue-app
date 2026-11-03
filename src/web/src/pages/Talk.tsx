@@ -16,6 +16,7 @@ import {
   type Turn,
 } from '@/api'
 import { DailyLimitNotice } from '@/components/DailyLimitNotice'
+import { NextStepLink } from '@/components/NextStepLink'
 import { Insights } from '@/components/Insights'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
@@ -269,6 +270,9 @@ function TalkScreen({ id }: { id: string }) {
   // つらい状態のサインのあとの 3 つの続け方。並びは裏側の DiscoverText.DistressActions と同じ
   // （続けて話す、今日はここで区切る、この話は残さずに別の話にする）
   const distressHandlers = [focusInput, finish, () => setConfirmingSkip(true)]
+  // 相談窓口の 3 つの続け方を出しているあいだは、下の「ここで区切る」「この話は飛ばす」を重ねて出さない。
+  // 同じことが窓口の「今日はここで区切る」「この話は残さずに、別の話にする」でできる（Claude の判断）
+  const distressActionsShown = notice?.kind === 'distress' && talking && pending === null && Boolean(notice.actions?.length)
 
   return (
     <Page>
@@ -294,9 +298,6 @@ function TalkScreen({ id }: { id: string }) {
           {errorKind === 'refusal' ? copy.talk.refusal : errorKind === 'closed' ? copy.talk.closed : copy.talk.failure}
         </p>
       )}
-      {/* 話し終えた場面は、下にホームへの道が出るので、ここには出さない */}
-      {errorKind === 'closed' && talking && <BackHome />}
-
       {notice !== null && pending === null && (
         <div className="mt-4 rounded-xl border bg-muted/40 px-4 py-3 text-sm leading-relaxed">
           {notice.kind === 'support' && <p>{notice.text}</p>}
@@ -385,7 +386,7 @@ function TalkScreen({ id }: { id: string }) {
           {confirmingSkip ? (
             <div className="mt-6 rounded-lg bg-muted/50 px-4 py-4">
               <p className="text-sm font-medium">{copy.talk.skipQuestion}</p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {/* どちらを選んでもよいので、片方を目立たせない（Claude の判断） */}
                 <Button variant="outline" onClick={skip} disabled={busy} className="w-full sm:w-auto">
                   {copy.talk.skipYes}
@@ -395,8 +396,8 @@ function TalkScreen({ id }: { id: string }) {
                 </Button>
               </div>
             </div>
-          ) : (
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+          ) : distressActionsShown ? null : (
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Button variant="outline" onClick={finish} disabled={busy || pending !== null} className="w-full sm:w-auto">
                 {copy.talk.finish}
               </Button>
@@ -410,6 +411,9 @@ function TalkScreen({ id }: { id: string }) {
               </Button>
             </div>
           )}
+
+          {/* 話している途中でも、ホームへ戻れる。話は残り、ホームの次にできることは「続きを話す」になる */}
+          <BackHome />
         </>
       ) : (
         <>
@@ -457,7 +461,7 @@ function TalkScreen({ id }: { id: string }) {
                       </a>
                     </p>
                   )}
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <Button type="submit" disabled={busy || correction.trim() === ''} className="w-full sm:w-auto">
                       {copy.insights.correctSend}
                     </Button>
@@ -500,6 +504,8 @@ function TalkScreen({ id }: { id: string }) {
               </div>
             </div>
           )}
+          {/* つらい状態のサインに応えた直後は、先へ進む道を勧めない（Claude の判断） */}
+          {notice?.kind !== 'distress' && <NextStepLink refreshKey={episode?.insights} />}
           <BackHome />
         </>
       )}

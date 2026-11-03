@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { LOGOUT_URL } from '@/api'
 import { copy } from '@/copy'
 import { installFakeApi } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
@@ -37,7 +38,7 @@ describe('Start', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
     const saved = copy.start.items.find((item) => item.title === '保存するもの')!
-    expect(saved.body).toContain('5 つの記録（できること、好み、やりたいこと、条件、大事にしたいこと）')
+    expect(saved.body).toContain('5 つの記録（できること、好み、やりたいこと、条件、動き出すときに大事にしたいこと）')
     expect(saved.body).toMatch(/可能性レポート（[^）]+）/)
     expect(screen.getByText(saved.body)).toBeInTheDocument()
   })
@@ -75,5 +76,26 @@ describe('Start', () => {
 
     expect(await screen.findByText(copy.errors.generic)).toBeInTheDocument()
     expect(screen.queryByText(copy.home.greeting)).not.toBeInTheDocument()
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 了解せずにやめる道（ログアウト）があり、組み込み認証へページごと移動する', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    const decline = await screen.findByRole('link', { name: copy.start.decline })
+    expect(decline.tagName).toBe('A')
+    expect(decline).toHaveAttribute('href', LOGOUT_URL)
+    expect(copy.start.decline).toBe('了解せずにやめる（ログアウト）')
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 使い道に、選んだ案を深めるときも AI に送ることが入る', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    await screen.findByRole('heading', { level: 1, name: copy.start.title })
+    const use = copy.start.items.find((item) => item.title === '使い道')!
+    expect(use.body).toContain('選んだ案を深める')
+    expect(use.body).toContain('選んだ案')
+    expect(use.body).toContain('5 つの記録')
   })
 })

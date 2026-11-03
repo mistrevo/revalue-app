@@ -219,7 +219,7 @@ export function Deepen() {
                   {copy.deepen.generateFailed}
                 </p>
               )}
-              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} />}
+              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} for="deepen" />}
               {canGenerate && (
                 <Button
                   size="lg"
@@ -263,7 +263,7 @@ export function Deepen() {
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link to="/report">{copy.deepen.toReport}</Link>
         </Button>
@@ -300,7 +300,7 @@ function Alert({ text }: { text: string | null }) {
 function NotReady({ readiness }: { readiness: DeepenData['readiness'] }) {
   const { text, to, link } =
     readiness === 'needsConditions'
-      ? { text: copy.deepen.needsConditions, to: '/profile', link: copy.deepen.toProfile }
+      ? { text: copy.deepen.needsConditions, to: '/profile?ask=conditions', link: copy.deepen.toProfile }
       : readiness === 'hold'
         ? { text: copy.deepen.hold, to: '/options', link: copy.deepen.toOptions }
         : { text: copy.deepen.noChoice, to: '/options', link: copy.deepen.toOptions }
@@ -446,7 +446,11 @@ function TasksSection({
 /** 業務 1 つ。使えるところ（力の名前、状態、根拠の本人の言葉）と、まだ確かめていないこと（力、知識や道具）。 */
 function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
   const id = useId()
-  const notYet = [...(task.usable ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]), ...task.knowledge]
+  const knowledge = task.knowledge.filter((k) => k.trim() !== '')
+  const notYet = [
+    ...(task.usable ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]),
+    ...(knowledge.length > 0 ? [copy.deepen.knowledgeLine.replace('{items}', knowledge.join('、'))] : []),
+  ]
   return (
     <article aria-labelledby={id} className="flex min-w-0 flex-col gap-2 rounded-lg bg-muted/40 px-3 py-3 text-sm leading-relaxed">
       <div>

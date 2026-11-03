@@ -453,6 +453,16 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("特別なことは何も", shape);
     }
 
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 返事の指示は、「その日のほかのことを話したい」を選んだ人に、前の出来事を聞き直さず、同じ日のほかのことを一つ聞くと書いている")]
+    public void ListenerAsksOtherPartOfDayWithoutRevisiting()
+    {
+        var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskOtherPartOfDay);
+
+        Assert.Contains("同じ日の、ほかの時間や出来事を一つ聞く", line);
+        Assert.Contains("聞き直したり映し返したりしない", line);
+        Assert.Contains("映し返しは書かず", line);
+    }
+
     [Fact(DisplayName = "discover-9（病気の詳しいことは聞かない）: 返事の指示は、本人がすでにしたことを話していれば、映し返してその流れのまま聞くと書いている")]
     public void ListenerKeepsFlowWhenActionsAreAlreadyTold()
     {

@@ -238,6 +238,21 @@ describe('Talk', () => {
     expect(screen.getByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toBeInTheDocument()
   })
 
+  it('discover-10（つらい状態のサインに応える）: 「今日はここで区切る」で区切った画面には、次にできることへの道を出さない（先へ進むことを勧めない）', async () => {
+    const api = setup()
+    api.state.reply = distressEvents()
+    api.state.finishInsights = null
+    // 裏側が先へ進む道を返す状態でも、話す画面では出さない
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await typeAndSend('最近ずっと眠れなくて、つらい')
+    await userEvent.click(await screen.findByRole('button', { name: FAKE_DISTRESS_ACTIONS[1] }))
+
+    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
+  })
+
   it('discover-10（つらい状態のサインに応える）: 開き直しても、窓口のリンクと 3 つの行動が出る', async () => {
     setup(
       fakeEpisode({
@@ -607,5 +622,57 @@ describe('Talk', () => {
     await userEvent.click(await screen.findByRole('button', { name: copy.insights.resume }))
 
     expect(await screen.findByText('ほかの場面の問いです。')).toBeInTheDocument()
+  })
+
+  it('discover-6（一場面ずつ区切り、続きから話せる）: 話し終えた画面の下に、次にできることへの道が一つ出る（common-3（次にできることを一つ示す））', async () => {
+    setup()
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    const next = await screen.findByRole('region', { name: copy.home.next.title })
+    expect(within(next).getByRole('link', { name: copy.home.next.conditions })).toHaveAttribute('href', '/profile?ask=conditions')
+    expect(within(next).getAllByRole('link')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+  })
+
+  it('discover-6（一場面ずつ区切り、続きから話せる）: 話している途中の画面にもホームへの道がある。話は残る', async () => {
+    const api = setup()
+
+    const back = await screen.findByRole('link', { name: copy.talk.backHome })
+    expect(back).toHaveAttribute('href', '/home')
+    await userEvent.click(back)
+
+    expect(await screen.findByRole('region', { name: copy.home.next.title })).toBeInTheDocument()
+    expect(api.state.episodes[0].status).toBe('talking')
+    expect(await screen.findByRole('link', { name: copy.home.next.continue })).toHaveAttribute('href', '/talk/episode-1')
+  })
+
+  it('discover-10（つらい状態のサインに応える）: 相談窓口を出しているあいだは、下の「ここで区切る」「この話は飛ばす」を出さず、窓口の 3 つの続け方で同じことができる（discover-5（つらい話は飛ばせる））', async () => {
+    const api = setup()
+    api.state.reply = distressEvents()
+
+    await typeAndSend('最近ずっと眠れなくて、つらい')
+
+    expect(await screen.findByText(FAKE_DISTRESS_TEXT)).toBeInTheDocument()
+    for (const action of FAKE_DISTRESS_ACTIONS) {
+      expect(screen.getByRole('button', { name: action })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: copy.talk.finish })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.talk.skip })).not.toBeInTheDocument()
+    // 書く欄とホームへの道は残る
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+
+    // 窓口の「この話は残さずに、別の話にする」で、画面の中の確かめが出る
+    await userEvent.click(screen.getByRole('button', { name: FAKE_DISTRESS_ACTIONS[2] }))
+    expect(screen.getByText(copy.talk.skipQuestion)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: copy.talk.skipYes })).toBeInTheDocument()
+
+    // 続けて話して次の返事が来たら、いつもの「ここで区切る」「この話は飛ばす」に戻る
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.skipNo }))
+    api.state.reply = replyEvents(['受け止めました。', 'そのとき何をしましたか？'], ['段取りを考えた', '人に頼んだ', '手を動かした'])
+    await typeAndSend('少し落ち着きました')
+    expect(await screen.findByRole('button', { name: copy.talk.finish })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: copy.talk.skip })).toBeInTheDocument()
   })
 })

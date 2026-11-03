@@ -29,7 +29,7 @@ public sealed class ConsentTests
         var me = await GetMe(factory.CreateUserClient("g-1"));
 
         Assert.False(me.GetProperty("consented").GetBoolean());
-        Assert.Equal("2026-11-03", me.GetProperty("currentVersion").GetString());
+        Assert.Equal(ConsentInfo.CurrentVersion, me.GetProperty("currentVersion").GetString());
         Assert.Equal(JsonValueKind.Null, me.GetProperty("consentVersion").ValueKind);
     }
 
@@ -59,11 +59,11 @@ public sealed class ConsentTests
 
         var me = await GetMe(client);
         Assert.True(me.GetProperty("consented").GetBoolean());
-        Assert.Equal("2026-11-03", me.GetProperty("consentVersion").GetString());
+        Assert.Equal(ConsentInfo.CurrentVersion, me.GetProperty("consentVersion").GetString());
         var store = factory.Services.GetRequiredService<IDataStore>();
         var item = await store.GetAsync<ConsentItem>(TestUsers.Key("g-1"), ConsentItem.ItemId, Ct);
         Assert.Equal(factory.Clock.GetUtcNow(), item!.At);
-        Assert.Equal("2026-11-03", item.Version);
+        Assert.Equal(ConsentInfo.CurrentVersion, item.Version);
     }
 
     [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: 古い版の了解は了解していない扱い")]
@@ -83,6 +83,26 @@ public sealed class ConsentTests
         Assert.False(me.GetProperty("consented").GetBoolean());
         Assert.Equal("2026-10-01", me.GetProperty("consentVersion").GetString());
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/stats", Ct)).StatusCode);
+    }
+
+    [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: はじめにの中身を変えたので版を上げた。前の版で了解した人は、了解し直すまで了解の要る API を使えない")]
+    public async Task PreviousVersionConsentMustBeRenewed()
+    {
+        Assert.Equal("2026-11-03-2", ConsentInfo.CurrentVersion);
+        await using var factory = new RevalueFactory();
+        var client = factory.CreateUserClient("g-1");
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        await store.UpsertAsync(new ConsentItem
+        {
+            Id = ConsentItem.ItemId, UserKey = TestUsers.Key("g-1"), Type = ConsentItem.ItemType,
+            Version = "2026-11-03", At = factory.Clock.GetUtcNow(),
+        }, Ct);
+
+        Assert.False((await GetMe(client)).GetProperty("consented").GetBoolean());
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/next-step", Ct)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, ConsentInfo.CurrentVersion)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/next-step", Ct)).StatusCode);
     }
 
     [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: 了解する前の要求では、その人のアイテムを作らない")]

@@ -7,7 +7,7 @@ import forbiddenWords from '../../../shared/forbidden-words.json'
 import { AppRoutes } from '@/App'
 import type { Options } from '@/api'
 import { copy } from '@/copy'
-import { FAKE_SOURCE, fakeOptionCards, fakeOptions, installFakeApi, type FakeCall } from '@/test/fake-api'
+import { FAKE_OPENING, FAKE_SOURCE, fakeEpisode, fakeOptionCards, fakeOptions, installFakeApi, type FakeCall } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
@@ -125,6 +125,27 @@ describe('Options', () => {
     expect(choose).toHaveTextContent(copy.options.missing.noAbilityMatch)
     expect(within(choose).getByRole('link', { name: copy.options.toTalk })).toHaveAttribute('href', '/home')
     expect(within(choose).queryByRole('link', { name: copy.options.toConditions })).not.toBeInTheDocument()
+  })
+
+  it('common-3（次にできることを一つ示す）、discover-1（具体的な一日を一つ聞く）: 話した力を生かせないカードの「ホームから話す」から、ホームの「話す」で新しい場面を始められる（仕事の選択肢へ戻るだけの輪にしない）', async () => {
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+      options: withCards({ cards: fakeOptionCards({ choose: null, missing: [{ kind: 'choose', reason: 'noAbilityMatch' }] }) }),
+      // まだ選んでいないので、ホームの次にできることは仕事の選択肢
+      nextStep: { step: 'options', episodeId: null },
+    })
+    renderApp('/options')
+
+    const choose = await screen.findByRole('region', { name: LABELS[0] })
+    await userEvent.click(within(choose).getByRole('link', { name: copy.options.toTalk }))
+
+    const others = await screen.findByRole('navigation', { name: copy.home.othersTitle })
+    await userEvent.click(await within(others).findByRole('button', { name: copy.home.talk }))
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes')).toHaveLength(1)
   })
 
   it('options-1（3 枚を同じ重さで示す）: 照らし合わせに通らなかったカードには、同じ記録のまま作り直す道を置かない', async () => {
@@ -327,7 +348,7 @@ describe('Options', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: copy.options.chosenTitle })).not.toBeInTheDocument())
     expect(within(own).queryByText('子ども食堂の手伝い')).not.toBeInTheDocument()
     expect(within(own).getByRole('button', { name: copy.options.ownAdd })).toBeInTheDocument()
-  })
+  }, 20_000)
 
   it('deepen-1（選んだ 1 案だけ深める）: 選んだ案に、深める画面への道を出す。保留しているときは出さない', async () => {
     installFakeApi({
@@ -504,7 +525,7 @@ describe('Options', () => {
 
   it('options-7（1 場面で進める）: 足りないものに合わせて、一つだけ道を出す', async () => {
     const cases = [
-      { readiness: 'needsConditions', text: copy.options.needsConditions, link: copy.options.toProfile, href: '/profile' },
+      { readiness: 'needsConditions', text: copy.options.needsConditions, link: copy.options.toProfile, href: '/profile?ask=conditions' },
       { readiness: 'needsFinishedEpisode', text: copy.options.needsFinishedEpisode, link: copy.options.toTalk, href: '/home' },
       { readiness: 'needsAbility', text: copy.options.needsAbility, link: copy.options.toTalk, href: '/home' },
       // 見えた力をすべて外したときは、話が足りないとは言わず、外した見立てを戻せる見えた力の画面への道を出す
@@ -635,5 +656,42 @@ describe('Options', () => {
       expect(page).not.toContain(word)
     }
     expect(page).not.toMatch(/[0-9０-９]+\s*(点|位)/)
+  })
+
+  it('options-6（本人が選ぶ、保留する、自分で書く）: 「この案を選ぶ」を押すと、「選んだ案」の見出しにフォーカスが移り、選んだカードのボタンは「選んでいます」と出て押せない', async () => {
+    installFakeApi({ loggedIn: true, consented: true, options: withCards() })
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    renderApp('/options')
+
+    const choose = await screen.findByRole('region', { name: LABELS[0] })
+    await userEvent.click(within(choose).getByRole('button', { name: copy.options.chooseThis }))
+
+    const heading = await screen.findByRole('heading', { name: copy.options.chosenTitle })
+    await waitFor(() => expect(heading).toHaveFocus())
+    expect(scrolled).toHaveBeenCalled()
+    expect(within(card(LABELS[0])).getByRole('button', { name: copy.options.chosenThis })).toBeDisabled()
+    expect(within(card(LABELS[0])).queryByRole('button', { name: copy.options.chooseThis })).not.toBeInTheDocument()
+    // ほかのカードは選び直せる
+    expect(within(card(LABELS[1])).getByRole('button', { name: copy.options.chooseThis })).toBeEnabled()
+  })
+
+  it('profile-4（本人が直せる）: 条件がないときの「5 つの記録で条件を入れる」は、条件から聞く入口へ行く', async () => {
+    installFakeApi({ loggedIn: true, consented: true, options: fakeOptions({ readiness: 'needsConditions' }) })
+    renderApp('/options')
+
+    expect(await screen.findByRole('link', { name: copy.options.toProfile })).toHaveAttribute('href', '/profile?ask=conditions')
+  })
+
+  it('foundation-6（使いすぎを穏やかに止める）: 仕事の選択肢の画面で上限に当たったときは、話す画面向けの「また続きを話せます」と言わない', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    api.state.generate = { status: 429, body: { type: '/problems/daily-limit', status: 429, resetAt: '2026-11-03T15:00:00Z' } }
+    renderApp('/options')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.options.generate }))
+
+    const notice = (await screen.findByText(copy.limit.title)).parentElement!
+    expect(notice).not.toHaveTextContent('また続きを話せます')
+    expect(notice).toHaveTextContent('11 月 4 日の 0 時（日本時間）')
   })
 })

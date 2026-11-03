@@ -133,4 +133,27 @@ describe('Abilities', () => {
     const noticing = await screen.findByRole('region', { name: '見立てる力' })
     expect(within(noticing).getByText(copy.insights.notYetNote)).toBeInTheDocument()
   })
+
+  it('common-3（次にできることを一つ示す）: 見えた力の画面の下に、次にできることへの道が一つ出る', async () => {
+    installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'options', episodeId: null } })
+    renderApp('/abilities')
+
+    const next = await screen.findByRole('region', { name: copy.home.next.title })
+    expect(within(next).getByRole('link', { name: copy.home.next.options })).toHaveAttribute('href', '/options')
+  })
+
+  it('common-3（次にできることを一つ示す）: 外す・戻すと、次にできることを読み直す', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'options', episodeId: null } })
+    renderApp('/abilities')
+    await screen.findByRole('link', { name: copy.home.next.options })
+
+    // 外して、使える力が本人の外した力だけになった。次にできることは、外した見立てに戻すことではなく、別の一日を話すこと
+    api.state.nextStep = { step: 'talk', episodeId: null }
+    const coordinating = screen.getByRole('region', { name: '調整する力' })
+    await userEvent.click(within(coordinating).getByRole('button', { name: copy.abilities.exclude }))
+
+    const next = await screen.findByRole('region', { name: copy.home.next.title })
+    expect(await within(next).findByRole('button', { name: copy.home.next.talk })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: copy.home.next.options })).not.toBeInTheDocument()
+  })
 })
