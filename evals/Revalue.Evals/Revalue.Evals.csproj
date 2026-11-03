@@ -18,8 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 架空エピソード、判定役の指示、使わない言葉の一覧を出力にコピーして読む -->
+    <!-- 架空エピソード、架空の 5 つの記録、判定役の指示、使わない言葉の一覧を出力にコピーして読む -->
     <None Include="..\episodes\*.md" Link="episodes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\profiles\*.json" Link="profiles\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\judges\*.md" Link="judges\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\shared\forbidden-words.json" Link="forbidden-words.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

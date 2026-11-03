@@ -1,0 +1,43 @@
+{
+  "id": "p01-coordinating-seen",
+  "title": "調整する力が見えた力。週 10 時間、日中と夕方、家だけ",
+  "expect": "allCards",
+  "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e09。",
+  "abilities": [
+    {
+      "ability": "coordinating",
+      "state": "confirmed",
+      "quotes": [
+        {
+          "action": 1,
+          "quote": "一方は日曜に仕事があって、もう一方は土曜に子どもの試合があると分かりました"
+        },
+        {
+          "action": 2,
+          "quote": "私から、両方の家に順番に声をかけて"
+        },
+        {
+          "action": 3,
+          "quote": "土曜の朝に試合の前の 1 時間だけ出てもらい、残りは日曜の午後に私と仕事のない家で済ませる、という入れ替えの案を出しました"
+        }
+      ]
+    }
+  ],
+  "excluded": [],
+  "conditions": {
+    "timeSlots": [
+      "daytime",
+      "evening"
+    ],
+    "hoursPerWeek": 10,
+    "place": "homeOnly",
+    "monthlyIncome": 5
+  },
+  "preferences": [
+    "自分のペースで進められる"
+  ],
+  "wants": [
+    "これまでの経験を活かしたい"
+  ],
+  "agency": "子どもが帰る前の時間を使って、少しずつ始めたい"
+}

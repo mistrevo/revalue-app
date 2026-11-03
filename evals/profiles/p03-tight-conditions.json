@@ -1,0 +1,40 @@
+{
+  "id": "p03-tight-conditions",
+  "title": "週 1 時間、夜だけ、家だけ",
+  "expect": "tightConditions",
+  "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e08。",
+  "abilities": [
+    {
+      "ability": "noticing",
+      "state": "confirmed",
+      "quotes": [
+        {
+          "action": 1,
+          "quote": "なんだかいつもと違うなと私が気づきました"
+        },
+        {
+          "action": 2,
+          "quote": "ただいまの声が小さくて、ランドセルを玄関に置いたまま、すぐ自分の部屋に入っていった"
+        },
+        {
+          "action": 3,
+          "quote": "いつもは帰るとすぐ台所に来て、おやつを探しながら学校の話をするので、それと比べて変だなと思いました"
+        }
+      ]
+    }
+  ],
+  "excluded": [],
+  "conditions": {
+    "timeSlots": [
+      "night"
+    ],
+    "hoursPerWeek": 1,
+    "place": "homeOnly",
+    "monthlyIncome": 1
+  },
+  "preferences": [
+    "自分のペースで進められる"
+  ],
+  "wants": [],
+  "agency": "子どもが寝たあとの時間だけ使いたい"
+}

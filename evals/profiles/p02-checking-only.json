@@ -1,0 +1,34 @@
+{
+  "id": "p02-checking-only",
+  "title": "確かめ中の力だけ。週 5 時間、日中、家だけ",
+  "expect": "needsCheck",
+  "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e11。",
+  "abilities": [
+    {
+      "ability": "coordinating",
+      "state": "needsCheck",
+      "quotes": [
+        {
+          "action": 1,
+          "quote": "私の両親は午前しか来られなくて、夫の両親は午後からなら来られる"
+        },
+        {
+          "action": 2,
+          "quote": "私から、両方に電話をかけて、何時ごろに着きそうかを聞きました"
+        }
+      ]
+    }
+  ],
+  "excluded": [],
+  "conditions": {
+    "timeSlots": [
+      "daytime"
+    ],
+    "hoursPerWeek": 5,
+    "place": "homeOnly",
+    "monthlyIncome": null
+  },
+  "preferences": [],
+  "wants": [],
+  "agency": null
+}

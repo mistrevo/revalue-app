@@ -96,7 +96,7 @@ public static class ReportWriter
 
     private static string N(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
-    private static void WriteUsage(StringBuilder sb, ReportContext context, UsageMeter usage)
+    internal static void WriteUsage(StringBuilder sb, ReportContext context, UsageMeter usage)
     {
         sb.AppendLine();
         sb.AppendLine("## トークン数とおおよその費用");
@@ -137,6 +137,9 @@ public static class ReportWriter
         "judge" => "判定役",
         "generic" => "汎用の AI",
         "genericJudge" => "汎用の AI の答えを読む判定役",
+        "options" => "仕事の選択肢",
+        "optionsJudge" => "仕事のカードの判定役",
+        "genericOptionsJudge" => "汎用の AI の仕事の選択肢を読む判定役",
         _ => call,
     };
 

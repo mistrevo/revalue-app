@@ -1,0 +1,45 @@
+{
+  "id": "p08-choice-linked",
+  "title": "根拠に選んだ答え（結びついた言葉つき）を含む",
+  "expect": "choiceLinked",
+  "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e17。",
+  "abilities": [
+    {
+      "ability": "coordinating",
+      "state": "confirmed",
+      "quotes": [
+        {
+          "action": 1,
+          "quote": "1 家族は朝に仕事があって、もう 1 家族は昼から出かける予定がありました"
+        },
+        {
+          "action": 2,
+          "quote": "相手の都合を聞いた",
+          "fromChoice": true,
+          "linkedQuote": "前の日の夜に、私からグループのメッセージで 2 家族に声をかけました"
+        },
+        {
+          "action": 3,
+          "quote": "回る順番を入れ替える案を出した",
+          "fromChoice": true,
+          "linkedQuote": "仕事のある家には昼前の地区だけをお願いして、出かける家には朝いちばんの地区を回ってもらいました"
+        }
+      ]
+    }
+  ],
+  "excluded": [],
+  "conditions": {
+    "timeSlots": [
+      "daytime",
+      "evening"
+    ],
+    "hoursPerWeek": 10,
+    "place": "homeOnly",
+    "monthlyIncome": null
+  },
+  "preferences": [],
+  "wants": [
+    "人の役に立つことをしたい"
+  ],
+  "agency": null
+}

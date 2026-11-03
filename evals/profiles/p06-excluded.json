@@ -1,0 +1,38 @@
+{
+  "id": "p06-excluded",
+  "title": "見えた力を本人が外し、確かめ中の力が 1 つ残る",
+  "expect": "excluded",
+  "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e11。",
+  "abilities": [
+    {
+      "ability": "coordinating",
+      "state": "needsCheck",
+      "quotes": [
+        {
+          "action": 1,
+          "quote": "私の両親は午前しか来られなくて、夫の両親は午後からなら来られる"
+        },
+        {
+          "action": 2,
+          "quote": "私から、両方に電話をかけて、何時ごろに着きそうかを聞きました"
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    "noticing"
+  ],
+  "conditions": {
+    "timeSlots": [
+      "daytime"
+    ],
+    "hoursPerWeek": 10,
+    "place": "homeOnly",
+    "monthlyIncome": 5
+  },
+  "preferences": [
+    "決まった手順がある"
+  ],
+  "wants": [],
+  "agency": null
+}
