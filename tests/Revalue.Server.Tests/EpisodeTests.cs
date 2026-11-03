@@ -62,6 +62,39 @@ public sealed class EpisodeTests
         Assert.Equal(3, DiscoverText.OpeningChoices.Count);
     }
 
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 本人が答えた話し終えた場面があれば、新しい場面は、「また」と添えた、いつもと違う最初の問いで始まる")]
+    public async Task SecondEpisodeAsksAnotherDay()
+    {
+        await using var factory = new RevalueFactory();
+        var client = await Consenting(factory, "g-1");
+        var first = (await Start(client)).GetProperty("id").GetString()!;
+        await AddUserAnswer(factory, "g-1", first, "昨日は子どもを送ってから買い物に行きました");
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/episodes/{first}/finish", null, Ct)).StatusCode);
+
+        var turn = (await Start(client)).GetProperty("turns")[0];
+
+        Assert.Equal(DiscoverText.OpeningAnotherDay, turn.GetProperty("text").GetString());
+        Assert.NotEqual(DiscoverText.Opening, turn.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.OpeningChoices, turn.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
+        Assert.Equal("opening", turn.GetProperty("move").GetString());
+        // 前に話した日を指さず、「別の日」も求めない（前の場面が一般論だけの人や、つらい話で区切った人もいるため）
+        Assert.DoesNotContain("別の", DiscoverText.OpeningAnotherDay, StringComparison.Ordinal);
+        Assert.DoesNotContain("前に話", DiscoverText.OpeningAnotherDay, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 答えずに区切った場面しかなければ、新しい場面は、いつもの最初の問いで始まる")]
+    public async Task SecondEpisodeAfterUnansweredKeepsOpening()
+    {
+        await using var factory = new RevalueFactory();
+        var client = await Consenting(factory, "g-1");
+        var first = (await Start(client)).GetProperty("id").GetString()!;
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/episodes/{first}/finish", null, Ct)).StatusCode);
+
+        var turn = (await Start(client)).GetProperty("turns")[0];
+
+        Assert.Equal(DiscoverText.Opening, turn.GetProperty("text").GetString());
+    }
+
     [Fact(DisplayName = "discover-6（一場面ずつ区切り、続きから話せる）: 途中の場面があると新しく始められない")]
     public async Task CannotStartWhileTalking()
     {

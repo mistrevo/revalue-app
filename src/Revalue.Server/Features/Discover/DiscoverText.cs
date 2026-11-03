@@ -10,6 +10,14 @@ public static class DiscoverText
     public const string Opening =
         "最近のある一日のことを、聞かせてください。たとえば昨日、朝起きてから夜までに、どんなことがありましたか？";
 
+    /// <summary>
+    /// 本人が答えた話し終えた場面がすでにある人の、新しい場面の最初の問い（discover-1）。いつもと同じ問い（<see cref="Opening"/>）で聞くと、
+    /// 前の話を覚えていないように見えるため（Claude の判断）。前に話した日を指さない。前の場面が一般論だけの人や、つらい話で区切った人もいるため。
+    /// 「別の日」を求めず、問いの前に、特別な日でなくてよいと伝える。
+    /// </summary>
+    public const string OpeningAnotherDay =
+        "また、最近のある一日のことを、聞かせてください。特別な日でなくてかまいません。その日の朝起きてから夜までに、どんなことがありましたか？";
+
     /// <summary>最初の問いの選択肢。特定の力の核となる行動に寄らない、中立な出来事にする（誘導しない）。</summary>
     public static readonly IReadOnlyList<string> OpeningChoices =
     [

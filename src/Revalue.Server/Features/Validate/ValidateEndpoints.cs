@@ -115,13 +115,21 @@ public static class EpisodeInsights
     public static ActionRef? ResumeTarget(EpisodeItem episode)
     {
         var asked = ValidationContext.From(episode.Turns, episode.Evidence).AskedCounts;
+        var unanswered = ActionRef.Parse(UnansweredQuestion(episode)?.Target);
         return AbilityStates.Evaluate(episode.Evidence)
             .Where(r => r.State == AbilityState.NeedsCheck && !IsGeneralOnly(r))
             .OrderByDescending(r => r.Shown.Count)
             .ThenBy(r => r.Ability)
             .SelectMany(r => AbilityStates.AskOrder(r.Ability, r.Missing, episode.Evidence))
-            .FirstOrDefault(a => asked.GetValueOrDefault(a) < NextMovePolicy.MaxAskPerAction);
+            .FirstOrDefault(a => asked.GetValueOrDefault(a) < NextMovePolicy.MaxAskPerAction && a != unanswered);
     }
+
+    /// <summary>
+    /// 答えていない最後の問い。訂正のターンを除いた最後のターンが聞き手のターンならそれを、そうでなければ null。
+    /// 答えずに区切ったのは答えにくかったからかもしれないので、続きの最初の問いで同じ行動をすぐには聞き直さない（Claude の判断）。
+    /// </summary>
+    public static Turn? UnansweredQuestion(EpisodeItem episode) =>
+        episode.Turns.LastOrDefault(t => t.AnswerKind != AnswerKind.Correction) is { Role: TurnRoles.Assistant } last ? last : null;
 
     /// <summary>
     /// 続きの最初の問いで映し返す本人の言葉（03-validate.md の「続きを話す」）。聞く力の見せる根拠（聞く行動がなければ、要確認の力すべての見せる根拠）のうち、
@@ -156,6 +164,19 @@ public static class EpisodeInsights
             return null;
         }
 
+        var resumePoint = new ResumePoint(episode.Turns.Count, episode.FinishedAt, episode.TurnLimit, episode.Evidence, now);
+        if (episode.Turns.Count > 0 && episode.Turns[^1] is { Role: TurnRoles.Assistant, Move: ResumeMove })
+        {
+            // 続きの問いに答えずに区切ったあと。問いを足さず、その問いから続ける
+            return episode with
+            {
+                Status = EpisodeStatus.Talking,
+                FinishedAt = null,
+                TurnLimit = episode.UserTurnCount + NextMovePolicy.ResumeExtraTurns,
+                BeforeResume = resumePoint,
+            };
+        }
+
         var target = ResumeTarget(episode);
         var generalOnly = target is null
             && AbilityStates.Evaluate(episode.Evidence).Where(r => r.State == AbilityState.NeedsCheck).All(IsGeneralOnly);
@@ -176,7 +197,7 @@ public static class EpisodeInsights
             FinishedAt = null,
             TurnLimit = episode.UserTurnCount + NextMovePolicy.ResumeExtraTurns,
             Turns = [.. episode.Turns, question],
-            BeforeResume = new ResumePoint(episode.Turns.Count, episode.FinishedAt, episode.TurnLimit, episode.Evidence),
+            BeforeResume = resumePoint,
         };
     }
 

@@ -10,12 +10,15 @@ namespace Revalue.Server.Features.Report;
 public static class ReportScrub
 {
     /// <summary>
-    /// 飛ばしたやりとりが始まった時点。続きを話していた場面なら続きの問いを足した時点、そうでなければ場面を始めた時点。
+    /// 飛ばしたやりとりが始まった時点。続きを話していた場面なら続きを始めた時点（続きの問いを足さずに開いたときも）、そうでなければ場面を始めた時点。
+    /// 続きを始めた日時を持たない前の保存では、続きで足した最初のターンの日時を使う（そのころは続きを開くと必ず問いを足していた）。
     /// </summary>
-    public static DateTimeOffset SkippedSince(EpisodeItem skipped) =>
-        skipped.BeforeResume is { } point && point.TurnCount < skipped.Turns.Count
-            ? skipped.Turns[point.TurnCount].At
-            : skipped.StartedAt;
+    public static DateTimeOffset SkippedSince(EpisodeItem skipped) => skipped.BeforeResume switch
+    {
+        { ResumedAt: { } resumedAt } => resumedAt,
+        { } point when point.TurnCount < skipped.Turns.Count => skipped.Turns[point.TurnCount].At,
+        _ => skipped.StartedAt,
+    };
 
     /// <summary>飛ばしたやりとりが始まった時点より後の版を捨てる。失敗しても、飛ばすのは成功のまま（ログには種類だけを書く）。</summary>
     public static async Task TryAfterSkipAsync(

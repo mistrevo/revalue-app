@@ -107,6 +107,7 @@ export const copy = {
     title: '最近の一日の話',
     logLabel: 'やりとり',
     you: 'あなた',
+    correctionLabel: 'AI の読み取りを、あなたが直した言葉',
     listener: '聞き手',
     waiting: '返事を書いています…',
     choicesLabel: '答えの例',

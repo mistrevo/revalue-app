@@ -21,6 +21,9 @@ public sealed class ResumeTests
         // 調整する力は 2 つ、優先順位をつける力は 1 つ。行動の多い調整する力の、足りない行動 3 を聞く
         var id = await FinishedEpisode(client, ai,
             CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして"));
+        // 区切る前の最後の問いに答えていないと、その行動は続きの最初の問いで聞かない。聞ける形にするため、聞いた記録を外す
+        await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
+            TestUsers.Key("g-1"), id, e => e with { Turns = [.. e.Turns.Select(t => t with { Target = null })] }, Ct);
 
         var response = await Resume(client, id);
 
@@ -44,6 +47,176 @@ public sealed class ResumeTests
         ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
         await Send(client, id, "少し覚えています");
         Assert.Equal(6, (await Saved(factory, "g-1", id)).Turns.Count);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いと同じ行動は、続きの最初の問いで聞かない")]
+    public async Task ResumeDoesNotAskUnansweredAction()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        var last = (await Saved(factory, "g-1", id)).Turns[^1];
+        Assert.Equal(TurnRoles.Assistant, last.Role);
+        Assert.Equal("coordinating.3", last.Target);
+
+        var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+
+        Assert.False(question.TryGetProperty("target", out var target) && target.ValueKind != JsonValueKind.Null);
+        Assert.Equal(AbilityText.ResumeOpening(null, "二人に電話して"), question.GetProperty("text").GetString());
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いのあとに訂正があっても、その問いの行動は続きの最初の問いで聞かない")]
+    public async Task ResumeDoesNotAskUnansweredActionAfterCorrection()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(TestUsers.Key("g-1"), id, e => e with
+        {
+            Turns = [.. e.Turns, new Turn { Role = TurnRoles.User, Text = "夫は母とは別の人です", AnswerKind = AnswerKind.Correction, At = e.StartedAt }],
+        }, Ct);
+
+        var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+
+        Assert.False(question.TryGetProperty("target", out var target) && target.ValueKind != JsonValueKind.Null);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに答えずにまた区切ってから続きを開くと、問いを足さず、その問いから続ける")]
+    public async Task ResumeAgainWithoutAnswerKeepsQuestion()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+
+        await Resume(client, id);
+        var first = await Saved(factory, "g-1", id);
+        await Finish(client, id);
+        var response = await Resume(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var second = await Saved(factory, "g-1", id);
+        Assert.Equal(first.Turns.Count, second.Turns.Count);
+        Assert.Equal((first.Turns[^1].Text, first.Turns[^1].Target), (second.Turns[^1].Text, second.Turns[^1].Target));
+        Assert.Equal(first.Turns[^1].Choices, second.Turns[^1].Choices);
+        Assert.Equal(EpisodeStatus.Talking, second.Status);
+        Assert.Null(second.FinishedAt);
+        Assert.Equal(second.UserTurnCount + NextMovePolicy.ResumeExtraTurns, second.TurnLimit);
+        Assert.Equal(first.Turns.Count, Array(await Json(response), "turns").Length);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに答えずに区切ったあとに訂正したら、訂正を読んだうえで新しい続きの問いを足し、前の続きの問いの行動は聞かない")]
+    public async Task ResumeAfterCorrectionAddsNewQuestion()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var candidates = new[] { CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして") };
+        var id = await FinishedEpisode(client, ai, candidates);
+
+        await Resume(client, id);
+        var first = (await Saved(factory, "g-1", id)).Turns[^1];
+        Assert.Equal(EpisodeInsights.ResumeMove, first.Move);
+        Assert.NotNull(first.Target);
+        await Finish(client, id);
+        Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, "迎えは夫ではなく母に頼みました")).StatusCode);
+        var corrected = await Saved(factory, "g-1", id);
+        Assert.Equal(AnswerKind.Correction, corrected.Turns[^1].AnswerKind);
+
+        var response = await Resume(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var after = await Saved(factory, "g-1", id);
+        Assert.Equal(corrected.Turns.Count + 1, after.Turns.Count);
+        var question = after.Turns[^1];
+        Assert.Equal(TurnRoles.Assistant, question.Role);
+        Assert.Equal(EpisodeInsights.ResumeMove, question.Move);
+        Assert.NotEqual(first.Target, question.Target);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 問いを足さずに続きを開いた場面を飛ばすと、前に話し終えていた姿に戻る")]
+    public async Task SkipAfterResumeWithoutNewQuestionKeepsFinished()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        await Resume(client, id);
+        await Finish(client, id);
+        var before = await Saved(factory, "g-1", id);
+        await Resume(client, id);
+
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+
+        var after = await Saved(factory, "g-1", id);
+        Assert.Equal(EpisodeStatus.Finished, after.Status);
+        Assert.Equal(before.TurnLimit, after.TurnLimit);
+        Assert.Equal(before.Turns.Select(t => (t.Role, t.Text, t.Move)), after.Turns.Select(t => (t.Role, t.Text, t.Move)));
+        Assert.Equal(before.Evidence, after.Evidence);
+        Assert.False(after.ExcludedFromValidation);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いの行動を避けて、ほかの要確認の力の足りない行動を聞く。避けた行動も、続きの中でまた聞ける")]
+    public async Task ResumeAsksNextActionAndAvoidedActionStaysAskable()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        // 調整する力は 2 つ、優先順位をつける力は 1 つ。区切る前の最後の問いは、調整する力 3 を聞いていた（答えていない）
+        var id = await FinishedEpisode(client, ai,
+            CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして"));
+        Assert.Equal("coordinating.3", (await Saved(factory, "g-1", id)).Turns[^1].Target);
+
+        var question = Array(await Json(await Resume(client, id)), "turns")[^1];
+
+        // 調整する力 3 は避け、次の要確認の力（優先順位をつける力）の足りない行動を聞く
+        Assert.Equal("prioritizing.1", question.GetProperty("target").GetString());
+        Assert.Equal(
+            AbilityText.ResumeOpening(new ActionRef(Ability.Prioritizing, 1), "迎えの時間をずらして"),
+            question.GetProperty("text").GetString());
+
+        // 聞いた回数の数え方は変えないので、調整する力 3 はまだ 1 回。続きの答えのあと、いつもの決まりでもう一度聞ける
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+        await Send(client, id, "少し覚えています");
+
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 3)), ai.NextMoves[^1]);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 問いを足さずに続きを開くとき、印を書き換える直前にほかの画面で印が変わったら、話し終えた状態に戻す")]
+    public async Task ResumeWithoutNewQuestionRevertsWhenMarkChanged()
+    {
+        var (factory, ai) = Create(interrupting: true);
+        await using var _f = factory;
+        var store = (InterruptingDataStore)factory.Services.GetRequiredService<IDataStore>();
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, CoordinatingAll[0], CoordinatingAll[1]);
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        await Finish(client, id);
+        var before = await Saved(factory, "g-1", id);
+        var key = TestUsers.Key("g-1");
+
+        // 印を書き換える直前に、ほかの要求が新しい場面と印を書いた（中の保存先に直接書く）
+        var otherId = EpisodeItem.NewId();
+        store.RunOnceBeforeWriting(TalkingMarkItem.ItemId, async inner =>
+        {
+            await inner.UpsertAsync(EpisodeItem.Start(key, factory.Clock.GetUtcNow(), DiscoverText.Opening, DiscoverText.OpeningChoices, "opening") with { Id = otherId }, Ct);
+            await inner.UpsertAsync(new TalkingMarkItem { Id = TalkingMarkItem.ItemId, UserKey = key, Type = TalkingMarkItem.ItemType, EpisodeId = otherId }, Ct);
+        });
+
+        var response = await Resume(client, id);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(otherId, (await Json(response)).GetProperty("episodeId").GetString());
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Equal(EpisodeStatus.Finished, saved.Status);
+        Assert.Equal(before.FinishedAt, saved.FinishedAt);
+        Assert.Equal(before.TurnLimit, saved.TurnLimit);
+        Assert.Equal(before.Turns.Select(t => (t.Role, t.Text, t.Move)), saved.Turns.Select(t => (t.Role, t.Text, t.Move)));
+        Assert.Equal(
+            (before.BeforeResume?.TurnCount, before.BeforeResume?.FinishedAt, before.BeforeResume?.TurnLimit, before.BeforeResume?.ResumedAt),
+            (saved.BeforeResume?.TurnCount, saved.BeforeResume?.FinishedAt, saved.BeforeResume?.TurnLimit, saved.BeforeResume?.ResumedAt));
     }
 
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きを話すと、往復の上限が 4 増える")]
@@ -198,6 +371,9 @@ public sealed class ResumeTests
         // 調整する力は一般論で 3 つ、優先順位をつける力は出来事の中で 1 つ
         var id = await FinishedEpisode(client, ai,
             [.. CoordinatingAll.Select(c => c with { General = true }), Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして")]);
+        // 区切る前の最後の問いの行動は聞かないので、聞いた記録を外す
+        await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
+            TestUsers.Key("g-1"), id, e => e with { Turns = [.. e.Turns.Select(t => t with { Target = null })] }, Ct);
 
         var question = Array(await Json(await Resume(client, id)), "turns")[^1];
 
