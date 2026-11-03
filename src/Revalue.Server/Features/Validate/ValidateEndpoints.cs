@@ -164,7 +164,7 @@ public static class EpisodeInsights
             return null;
         }
 
-        var resumePoint = new ResumePoint(episode.Turns.Count, episode.FinishedAt, episode.TurnLimit, episode.Evidence);
+        var resumePoint = new ResumePoint(episode.Turns.Count, episode.FinishedAt, episode.TurnLimit, episode.Evidence, now);
         if (episode.Turns.Count > 0 && episode.Turns[^1] is { Role: TurnRoles.Assistant, Move: ResumeMove })
         {
             // 続きの問いに答えずに区切ったあと。問いを足さず、その問いから続ける

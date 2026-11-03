@@ -188,6 +188,33 @@ public sealed class ReportApiTests
         Assert.Equal([1], (await Stored(kit, "r-skip-resume"))!.Versions.Select(v => v.Number));
     }
 
+    [Fact(DisplayName = "report-3（版を残す）: 問いを足さずに続きを開いた場面を飛ばしても、前に作った版は残る")]
+    public async Task SkippingResumeWithoutNewQuestionKeepsEarlierVersions()
+    {
+        var kit = Setup();
+        var client = await Consenting(kit.Factory, "r-skip-resume-again");
+        await FinishedEpisode(client, kit.Ai, CoordinatingAll);
+        var id = await FinishedEpisode(client, kit.Ai, Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"));
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(1, Number(await Get(client)));
+        var first =(await Stored(kit, "r-skip-resume-again"))!.Versions.Single();
+
+        // 続きを開く → 答えずに区切る → また続きを開く（問いは足さない） → 飛ばす
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        await Finish(client, id);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+
+        // 第 1 版は、続きを始める前に作ったので捨てない
+        var stored = (await Stored(kit, "r-skip-resume-again"))!;
+        Assert.Equal([(first.Number, first.At)], stored.Versions.Select(v => (v.Number, v.At)));
+        Assert.Equal(1, Number(await Get(client)));
+    }
+
     [Fact(DisplayName = "report-3（版を残す）: 話している途中の新しい場面を飛ばすと、その場面を始めたあとに作った版を捨てる。番号は残った版の続きになる")]
     public async Task SkippingNewTalkDropsItsVersions()
     {

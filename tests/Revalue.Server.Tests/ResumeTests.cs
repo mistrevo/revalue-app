@@ -107,6 +107,35 @@ public sealed class ResumeTests
         Assert.Equal(first.Turns.Count, Array(await Json(response), "turns").Length);
     }
 
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに答えずに区切ったあとに訂正したら、訂正を読んだうえで新しい続きの問いを足し、前の続きの問いの行動は聞かない")]
+    public async Task ResumeAfterCorrectionAddsNewQuestion()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var candidates = new[] { CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして") };
+        var id = await FinishedEpisode(client, ai, candidates);
+
+        await Resume(client, id);
+        var first = (await Saved(factory, "g-1", id)).Turns[^1];
+        Assert.Equal(EpisodeInsights.ResumeMove, first.Move);
+        Assert.NotNull(first.Target);
+        await Finish(client, id);
+        Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, "迎えは夫ではなく母に頼みました")).StatusCode);
+        var corrected = await Saved(factory, "g-1", id);
+        Assert.Equal(AnswerKind.Correction, corrected.Turns[^1].AnswerKind);
+
+        var response = await Resume(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var after = await Saved(factory, "g-1", id);
+        Assert.Equal(corrected.Turns.Count + 1, after.Turns.Count);
+        var question = after.Turns[^1];
+        Assert.Equal(TurnRoles.Assistant, question.Role);
+        Assert.Equal(EpisodeInsights.ResumeMove, question.Move);
+        Assert.NotEqual(first.Target, question.Target);
+    }
+
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 問いを足さずに続きを開いた場面を飛ばすと、前に話し終えていた姿に戻る")]
     public async Task SkipAfterResumeWithoutNewQuestionKeepsFinished()
     {

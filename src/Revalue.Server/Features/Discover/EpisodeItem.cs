@@ -70,7 +70,10 @@ public sealed record Turn
 
 /// <summary>続きを話す前の、話し終えた場面の姿。</summary>
 /// <param name="TurnCount">続きの問いを足す前のターンの数。</param>
-public sealed record ResumePoint(int TurnCount, DateTimeOffset? FinishedAt, int TurnLimit, IReadOnlyList<Evidence> Evidence);
+/// <param name="ResumedAt">続きを始めた日時（続きの問いを足さずに開いたときも）。続きを話している途中で飛ばしたときに、これより後に作ったレポートの版を捨てる
+/// （07-report.md の「版を残す」）。この項目を持たない前の保存では null。</param>
+public sealed record ResumePoint(
+    int TurnCount, DateTimeOffset? FinishedAt, int TurnLimit, IReadOnlyList<Evidence> Evidence, DateTimeOffset? ResumedAt = null);
 
 /// <summary>
 /// エピソード（話した一つの場面）。始めたときから保存し、やりとりのターンをすべて持つ。
