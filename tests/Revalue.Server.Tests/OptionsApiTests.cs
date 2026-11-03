@@ -501,6 +501,29 @@ public sealed class OptionsApiTests
         }
     }
 
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由がほかの力の根拠の言葉を引いたカードは出さない")]
+    public async Task ReasonQuotingAnotherAbilityIsNotShown()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Consenting(factory, "o-24");
+        // 調整する力（場面 1）と、見立てる力（場面 2）。「予定がぶつかっていたので」は見立てる力の根拠にしかない
+        await FinishedEpisode(client, ai, CoordinatingAll);
+        await FinishedEpisode(client, ai, Candidate(Ability.Noticing, 1, "予定がぶつかっていたので"));
+        await PutConditions(client, TenHours);
+        static string Other(string ability) => ability == "noticing" ? "二人に電話して" : "予定がぶつかっていたので";
+        options.Change = d => d with
+        {
+            Choose = d.Choose with { Reason = $"話してくれた「{Other(d.Choose.Ability)}」ときの動き方を、この仕事に生かせるかもしれません。" },
+        };
+
+        var generated = await Generate(client);
+
+        // 場面 2 があとで確かめに使われなくなっても見張れない言葉なので、作るときに落とす
+        Assert.Equal(JsonValueKind.Null, generated.GetProperty("cards").GetProperty("choose").ValueKind);
+        Assert.Contains(("choose", "rejected"), Missing(generated));
+        Assert.NotEqual(JsonValueKind.Null, generated.GetProperty("cards").GetProperty("combine").ValueKind);
+    }
+
     [Fact(DisplayName = "options-5（条件の範囲だけ）: 条件を狭めると、収まらなくなったカードは出さない")]
     public async Task NarrowedConditionsHideCardsOutOfRange()
     {

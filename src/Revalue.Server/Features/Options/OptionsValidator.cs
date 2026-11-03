@@ -38,6 +38,14 @@ public static partial class OptionsValidator
     private static partial Regex BracketPattern();
 
     /// <summary>
+    /// 仕事のカードの文に限って照らし合わせる、大げさな褒め言葉（05-options.md の「AI が書いた中身をコードで確かめる」）。
+    /// 本人がしたことを具体的に書かずに、褒め言葉で埋めないため（製品の芯 1）。「得意先」の「得意」と、「プロジェクト」のように
+    /// カタカナが続く「プロ」は数えない。「」で引いた本人の言葉の中も数えない（Claude の判断）。
+    /// </summary>
+    [GeneratedRegex("すばらしい|素晴らしい|素敵|すてき|達人|天才|得意(?!先)|プロ(?![ァ-ヺー])")]
+    private static partial Regex PraisePattern();
+
+    /// <summary>
     /// お金の額。数字（漢数字を含む）のあとの「円」と、「¥」のあとの数字。収入の目安はコードが登録の業務から計算して出し、「創る」は出さないので、
     /// AI が書いた文には額を書かせない（05-options.md の「AI が書いた中身をコードで確かめる」。Claude の判断）。
     /// </summary>
@@ -50,6 +58,10 @@ public static partial class OptionsValidator
         var outside = BracketPattern().Replace(text, "");
         return AssertiveWords.FirstOrDefault(word => outside.Contains(word, StringComparison.Ordinal));
     }
+
+    /// <summary>文の中の、最初に見つかった大げさな褒め言葉。「」の中は除いて探す。なければ null。</summary>
+    public static string? PraiseIn(string text) =>
+        PraisePattern().Match(BracketPattern().Replace(text, "")) is { Success: true } match ? match.Value : null;
 
     /// <summary>文の中に、お金の額があるか。「」で引いた本人の言葉の中は数えない。</summary>
     private static bool HasMoneyAmount(string text) => MoneyPattern().IsMatch(BracketPattern().Replace(text, ""));
@@ -240,13 +252,6 @@ public static partial class OptionsValidator
     private sealed class Checker(
         OptionCandidates candidates, OptionsInputs inputs, ProfileConditions conditions, JobCatalog catalog, ForbiddenWordList forbidden)
     {
-        private readonly List<string> _evidenceWords = inputs.Abilities
-            .SelectMany(a => a.Quotes)
-            .SelectMany(q => new[] { q.Quote, q.LinkedQuote })
-            .Where(w => !string.IsNullOrEmpty(w))
-            .Select(w => w!)
-            .ToList();
-
         public string? Choose(ChooseDraft d, out ChooseCard? card)
         {
             card = null;
@@ -278,7 +283,7 @@ public static partial class OptionsValidator
                 return "abilityNotInTasks";
             }
 
-            if (TextProblem([(d.Reason, MaxReason)], d.Reason, []) is { } problem)
+            if (TextProblem([(d.Reason, MaxReason)], d.Reason, [], ability.Quotes) is { } problem)
             {
                 return problem;
             }
@@ -329,7 +334,7 @@ public static partial class OptionsValidator
                 return "abilityNotInTasks";
             }
 
-            if (TextProblem([(d.RoleName, MaxRoleName), (d.Reason, MaxReason)], d.Reason, [d.RoleName]) is { } problem)
+            if (TextProblem([(d.RoleName, MaxRoleName), (d.Reason, MaxReason)], d.Reason, [d.RoleName], ability.Quotes) is { } problem)
             {
                 return problem;
             }
@@ -401,10 +406,12 @@ public static partial class OptionsValidator
                 return "outsideConditions";
             }
 
+            // 理由が引いてよいのは、カードに添える根拠の言葉（引いた言葉）だけ。添えない言葉は、あとで記録が変わっても見張れないため
             if (TextProblem(
                 [(d.Title, MaxTitle), (d.Who, MaxWho), (d.Trouble, MaxTrouble), (d.Summary, MaxCreateSummary), (d.Reason, MaxReason)],
                 d.Reason,
-                [d.Title, d.Who, d.Trouble, d.Summary]) is { } problem)
+                [d.Title, d.Who, d.Trouble, d.Summary],
+                drawn) is { } problem)
             {
                 return problem;
             }
@@ -434,11 +441,13 @@ public static partial class OptionsValidator
         }
 
         /// <summary>
-        /// 空、長すぎる、使わない言葉、言い切りと順位の言葉、お金の額、理由のほかの文の括弧、理由の「」の言葉（本人の根拠の言葉の一部を
-        /// 一字一句そのまま引いていない、短すぎる）、の順に見て、当たった規則の名前を返す。
-        /// <paramref name="others"/> は理由のほかの、AI が書いた文。
+        /// 空、長すぎる、使わない言葉、言い切りと順位の言葉、褒め言葉、お金の額、理由のほかの文の括弧、理由の「」の言葉（カードに添える
+        /// 根拠の言葉の一部を一字一句そのまま引いていない、短すぎる）、の順に見て、当たった規則の名前を返す。
+        /// <paramref name="others"/> は理由のほかの、AI が書いた文。<paramref name="evidence"/> はカードに添える根拠の言葉（<see cref="CardAbility.Quotes"/>）。
+        /// 理由の「」をこれに限るのは、作ったあとで見せてよいかを確かめる <see cref="CardAbility.ProblemIn"/> が見張るのが、この言葉だけだから。
+        /// ほかの力の言葉を引けると、その力の場面を確かめに使わなくなったあとも、理由に言葉が残る（製品の芯 1）。
         /// </summary>
-        private string? TextProblem(IEnumerable<(string Text, int Max)> limits, string reason, IReadOnlyList<string> others)
+        private string? TextProblem(IEnumerable<(string Text, int Max)> limits, string reason, IReadOnlyList<string> others, IReadOnlyList<Evidence> evidence)
         {
             foreach (var (text, max) in limits)
             {
@@ -465,6 +474,11 @@ public static partial class OptionsValidator
                 return "assertiveWord";
             }
 
+            if (all.Any(s => PraiseIn(s) is not null))
+            {
+                return "praiseWord";
+            }
+
             if (all.Any(HasMoneyAmount))
             {
                 return "moneyAmount";
@@ -476,10 +490,11 @@ public static partial class OptionsValidator
                 return "bracketOutsideReason";
             }
 
+            var words = evidence.SelectMany(q => new[] { q.Quote, q.LinkedQuote }).OfType<string>().Where(w => w.Length > 0).ToList();
             foreach (Match match in BracketPattern().Matches(reason))
             {
                 var inside = match.Groups[1].Value;
-                if (inside.Length == 0 || !_evidenceWords.Any(w => w.Contains(inside, StringComparison.Ordinal)))
+                if (inside.Length == 0 || !words.Any(w => w.Contains(inside, StringComparison.Ordinal)))
                 {
                     return "bracketNotVerbatim";
                 }

@@ -83,6 +83,7 @@ public sealed class OptionsSummary
             Count($"照らし合わせで落としたカード（規則ごと: {(rules.Any() ? string.Join("、", rules) : "なし")}）", done.Sum(r => r.Rejections.Count(x => x.Rule != "notMade"))),
             Ratio("options-1（3 枚を同じ重さで示す）: 出せたカード", shown.Count, done.Count * 3),
             Count("options-8（理由は本人の言葉とつなぐ）: 本人が外した力を理由に使ったカード", usedExcluded),
+            Count("褒め言葉: 画面に出すカードの文に、すばらしい、達人 などの言葉（コード。照らし合わせで落とすので 0 のはず）", shown.Count(s => s.Praise.Count > 0)),
             Count("大げさに褒めた、確かめ中の力を確かな力のように書いた（判定役）", shown.Count(s => s.Verdict?.OverPraise == true)),
             Ratio("理由が、本人の話した行動とつながっている（判定役）", shown.Count(s => s.Verdict?.Grounded == true), shown.Count),
             Count("本人を三人称で書いた（「本人は…」など。判定役）", shown.Count(s => s.Verdict?.ThirdPerson == true)),
@@ -238,7 +239,8 @@ public static class OptionsReport
                 sb.AppendLine($"- 機械: 登録 {Mark(!card.Unregistered)}、条件の範囲 {Mark(!card.OverConditions)}、" +
                     (card.Kind == CardKind.Create ? $"根拠を引けている {Mark(!card.NoEvidence)}、" : "") +
                     $"引用が一字一句 {Mark(card.QuoteMismatches.Count == 0)}、使わない言葉 {(card.Forbidden.Count == 0 ? "なし" : string.Join("、", card.Forbidden))}、" +
-                    $"言い切りと順位の言葉 {(card.Assertive.Count == 0 ? "なし" : string.Join("、", card.Assertive))}");
+                    $"言い切りと順位の言葉 {(card.Assertive.Count == 0 ? "なし" : string.Join("、", card.Assertive))}、" +
+                    $"褒め言葉 {(card.Praise.Count == 0 ? "なし" : string.Join("、", card.Praise))}");
                 sb.AppendLine($"- 判定役: {Verdict(card.Verdict)}");
             }
 

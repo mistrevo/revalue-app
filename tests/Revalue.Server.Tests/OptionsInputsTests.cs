@@ -127,7 +127,8 @@ public sealed class OptionsInputsTests
         Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Preferences = ["家でできる"] }));
         Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Wants = ["人の役に立つ"] }));
         Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Agency = "自分で決めたい" }));
-        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Excluded = [Ability.Noticing] }));
         Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Abilities = [] }));
+        // まだ聞けていない力（見立てる力）を外しても、使える力は変わらないので作り直さない。使える力を外したときは、上の Abilities の変化で変わる
+        Assert.Equal(basis, OptionsInputsReader.Basis(before with { Excluded = [Ability.Noticing] }));
     }
 }

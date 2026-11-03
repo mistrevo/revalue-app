@@ -43,6 +43,8 @@ type Notice = { where: 'choice' | 'own'; text: string } | null
 
 const KINDS: CardKind[] = ['choose', 'combine', 'create']
 const MAX_OWN_JOBS = 3
+// 入力欄の maxLength は UTF-16 の長さで数えるので、見た目の文字で数える裏側の上限（100 文字、500 文字）より手前で止まることがある。
+// 絵文字などを多く使ったときに短めに止まるだけで、裏側の上限を超えては送らない安全な側に置いている（5 つの記録の画面と同じ。Claude の判断）
 const MAX_TITLE_LENGTH = 100
 const MAX_NOTE_LENGTH = 500
 

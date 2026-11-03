@@ -56,6 +56,7 @@ public sealed record CardCheck(
     IReadOnlyList<string> QuoteMismatches,
     IReadOnlyList<string> Forbidden,
     IReadOnlyList<string> Assertive,
+    IReadOnlyList<string> Praise,
     CardVerdict? Verdict = null);
 
 /// <summary>架空の記録 1 件を流した結果。<see cref="Error"/> があれば、AI が失敗・拒否して途中で終えた。</summary>
@@ -198,13 +199,13 @@ public sealed partial class OptionsEval(
     }
 
     /// <summary>
-    /// 画面に出すカード 1 枚を、照らし合わせとは別に数え直す。登録、条件、「創る」の根拠、引用が本人の言葉と一字一句同じか、使わない言葉、
-    /// 言い切りと順位の言葉（<see cref="OptionsValidator.AssertiveWords"/>。「」で引いた本人の言葉の中は数えない）。
+    /// 画面に出すカード 1 枚を、照らし合わせとは別に数え直す。登録、条件、「創る」の根拠、引用が本人の言葉と一字一句同じか（文の「」は、
+    /// カードに添えた根拠の言葉と比べる）、使わない言葉、言い切りと順位の言葉（<see cref="OptionsValidator.AssertiveWords"/>）、
+    /// 褒め言葉（<see cref="OptionsValidator.PraiseIn"/>）。言い切りと褒め言葉は、「」で引いた本人の言葉の中は数えない。
     /// </summary>
     public static CardCheck CheckShown(object card, OptionsInputs inputs, JobCatalog catalog, ForbiddenWords forbidden)
     {
         var conditions = inputs.Conditions!;
-        var evidenceWords = inputs.Abilities.SelectMany(a => a.Quotes).SelectMany(q => new[] { q.Quote, q.LinkedQuote }).OfType<string>().ToList();
 
         (CardKind Kind, CardAbility Ability, string[] Sentences, bool Unregistered, bool Over, bool NoEvidence) parts = card switch
         {
@@ -236,6 +237,8 @@ public sealed partial class OptionsEval(
             mismatches.Add(quote.Quote);
         }
 
+        // 文の「」が引いてよいのは、カードに添えた根拠の言葉（結びついた言葉を含む）だけ（05-options.md の「AI が書いた中身をコードで確かめる」）
+        var evidenceWords = parts.Ability.Quotes.SelectMany(q => new[] { q.Quote, q.LinkedQuote }).OfType<string>().Where(w => w.Length > 0).ToList();
         foreach (var sentence in parts.Sentences)
         {
             foreach (Match match in BracketPattern().Matches(sentence))
@@ -258,6 +261,7 @@ public sealed partial class OptionsEval(
 
         var outside = parts.Sentences.Select(s => BracketPattern().Replace(s, "")).ToList();
         var assertive = OptionsValidator.AssertiveWords.Where(w => outside.Any(s => s.Contains(w, StringComparison.Ordinal))).ToList();
+        var praise = parts.Sentences.Select(OptionsValidator.PraiseIn).OfType<string>().Distinct().ToList();
 
         return new CardCheck(
             parts.Kind,
@@ -270,7 +274,8 @@ public sealed partial class OptionsEval(
             quoteCount,
             mismatches,
             forbidden.Find(written),
-            assertive);
+            assertive,
+            praise);
     }
 
     /// <summary>その力の、本人の根拠の言葉（と選んだ答えか・結びついた言葉）と一字一句同じか。</summary>

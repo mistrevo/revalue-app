@@ -176,6 +176,60 @@ public sealed class OptionsValidatorTests
         Assert.NotNull(cards.Choose);
     }
 
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」が、カードに使った力でない力の根拠の言葉や、「創る」で引かなかった言葉を引いたカードは出さない")]
+    public void BracketQuoteFromOtherEvidenceIsRejected()
+    {
+        // 見立てる力の根拠「予定を見比べました」は、調整する力のカードの理由には引けない。あとでその場面を確かめに使わなくなっても、
+        // 調整する力のカードは見張られないまま、言葉が理由に残るため
+        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        const string other = "話してくれた「予定を見比べました」ときの動き方を、生かせるかもしれません。";
+        AssertRejected(CardKind.Choose, "bracketNotVerbatim", Draft(choose: GoodChoose() with { Reason = other }), both);
+        AssertRejected(CardKind.Combine, "bracketNotVerbatim", Draft(combine: GoodCombine() with { Reason = other }), both);
+        AssertRejected(CardKind.Create, "bracketNotVerbatim", Draft(create: GoodCreate() with { Reason = other }), both);
+
+        // 「創る」は、引いた言葉（Q1）だけを理由に引ける。同じ力の根拠でも、引いていない Q2 はカードに添えないので引けない
+        AssertRejected(CardKind.Create, "bracketNotVerbatim", Draft(create: GoodCreate() with { Reason = $"話してくれた「{Q2}」ときの動き方が、生かせるかもしれません。" }), both);
+        var (cards, rejections) = Build(Draft(create: GoodCreate() with { Quotes = [Q1, Q2], Reason = $"話してくれた「{Q2}」ときの動き方が、生かせるかもしれません。" }), both);
+        Assert.NotNull(cards.Create);
+        Assert.DoesNotContain(rejections, r => r.Kind == CardKind.Create);
+        Assert.Equal([Q1, Q2], cards.Create!.Ability.Quotes.Select(q => q.Quote));
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 褒め言葉を含む文のカードは出さない。「得意先」「プロジェクト」と、「」で引いた本人の言葉の中は数えない")]
+    public void PraiseWordsAreRejected()
+    {
+        AssertRejected(CardKind.Choose, "praiseWord", Draft(choose: GoodChoose() with { Reason = "段取りのプロとして、日程の調整に生かせるかもしれません。" }));
+        AssertRejected(CardKind.Choose, "praiseWord", Draft(choose: GoodChoose() with { Reason = "得意な段取りを、日程の調整に生かせるかもしれません。" }));
+        AssertRejected(CardKind.Combine, "praiseWord", Draft(combine: GoodCombine() with { RoleName = "予定合わせの達人" }));
+        AssertRejected(CardKind.Create, "praiseWord", Draft(create: GoodCreate() with { Summary = "すばらしい段取りで、送迎の予定を取りまとめる事業のアイデア" }));
+        AssertRejected(CardKind.Create, "praiseWord", Draft(create: GoodCreate() with { Title = "素敵な予定合わせ" }));
+
+        var (plain, plainRejections) = Build(Draft(choose: GoodChoose() with { Reason = "予定を合わせた経験を、得意先との日程の調整や、プロジェクトの予定の取りまとめに生かせるかもしれません。" }));
+        Assert.NotNull(plain.Choose);
+        Assert.DoesNotContain(plainRejections, r => r.Kind == CardKind.Choose);
+
+        // 本人の言葉に褒め言葉があっても、「」で一字一句引くなら落とさない
+        const string own = "素敵な会になったと言われました";
+        var inputs = Inputs() with
+        {
+            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, own)])],
+        };
+        var (cards, rejections) = Build(
+            Draft(choose: GoodChoose() with { Reason = $"話してくれた「{own}」ときの動き方を、日程の調整に生かせるかもしれません。" }), inputs);
+        Assert.NotNull(cards.Choose);
+        Assert.DoesNotContain(rejections, r => r.Kind == CardKind.Choose);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: カードの理由に使えない力を外したり戻したりしても、元の記録の指紋は変わらず、作り直さない")]
+    public void ExcludingUnusableAbilityKeepsBasis()
+    {
+        var inputs = Inputs();
+        // 見立てる力はまだ聞けていない（使える力の一覧にない）。外しても戻しても、AI を呼んで作り直す理由にならない
+        Assert.Equal(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(inputs with { Excluded = [Ability.Noticing] }));
+        // 使える力を外すと、使える力の一覧が変わるので指紋も変わる
+        Assert.NotEqual(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(Inputs(excluded: [Ability.Coordinating], usable: [])));
+    }
+
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が、根拠の言葉の一部でも、空白と記号を除いて 4 文字に満たないカードは出さない")]
     public void TooShortBracketQuoteIsRejected()
     {

@@ -62,6 +62,8 @@ describe('copy', () => {
     expect(missing.noFit).toContain('登録している業務はまだ少ない')
     expect(missing.noFit).not.toContain('条件を直')
     expect(missing.noAbilityMatch).toContain('登録している業務はまだ少ない')
+    // 本人の力を主語にしない。力が仕事に生かせないと読ませないため
+    expect(missing.noAbilityMatch).not.toContain('力')
     // 記録が変わって出していないカードも、話や記録が足りなかったようには読ませず、見立てが下がったとも書かない
     for (const text of [missing.changed, copy.options.chosenChanged]) {
       expect(text).not.toMatch(/話を足|記録を直|下が|足りな/)
