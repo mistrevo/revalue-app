@@ -18,7 +18,7 @@ public sealed record ConsentItem : Item
 
 public static class ConsentInfo
 {
-    public const string CurrentVersion = "2026-11-03";
+    public const string CurrentVersion = "2026-11-03-2";
 }
 
 public sealed record MeDto(bool Consented, string? ConsentVersion, string CurrentVersion);

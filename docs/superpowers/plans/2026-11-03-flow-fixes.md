@@ -116,7 +116,7 @@
 - Modify (Spec): `01-foundation.md`、`02-discover.md`、`03-validate.md`
 - Test: `Talk.test.tsx`、`Start.test.tsx`（なければ作る）、`tests/Revalue.Server.Tests/` の NextMovePolicy と続きを話す結合テスト、了解のテスト
 
-- [ ] **Step 1: テストを先に書く**
+- [x] **Step 1: テストを先に書く**
   - 話している途中の画面に「ホームへ戻る」がある。話は残り、ホームの次にできることは `continue` になる（F4。discover-6（一場面ずつ区切り、続きから話せる））
   - ログインして了解した人の画面では、見出しの「RE:VALUE」がホーム（`/home`）へ行く。案内とはじめにでは、いままでどおり `/`（F4）
   - 相談窓口を出しているあいだは、下の「ここで区切る」「この話は飛ばす」を出さない。窓口の 3 つの続け方（続けて話す、今日はここで区切る、この話は残さずに別の話にする）は出ている（F9。discover-10（つらい状態のサインに応える）、discover-5（つらい話は飛ばせる））
@@ -125,11 +125,11 @@
   - はじめにに「了解せずにやめる（ログアウト）」があり、`/.auth/logout` へページごと移動する（F10。foundation-2（始める前に保存するものを示す））
   - はじめにの「使い道」に、選んだ案を深めるときも、5 つの記録と選んだ案を AI に送ることが入る。保存するものの 5 つ目の記録を「動き出すときに大事にしたいこと」にそろえる（F11）。了解の版（`ConsentInfo.CurrentVersion`）を上げる（案: `2026-11-03-2`）。了解済みの人は、次に開いたときに了解し直す
   - 画面ごとにページのタイトルを変える（例「話す — RE:VALUE」。F12）
-- [ ] **Step 2: 落ちることを確かめる**
-- [ ] **Step 3: 実装する**。続きの選択肢の見分けは、`AbilityText.ResumeChoices` の決まった言葉と一字一句同じかで見る
-- [ ] **Step 4: テストが通ることを確かめる**。`dotnet run --project evals/Revalue.Evals -- --unit discover --dry-run` と `--unit validate --dry-run` も通す
-- [ ] **Step 5: Spec を直す**（`01-foundation.md` のはじめにの文と了解の版、`02-discover.md` の話している途中の道とつらい状態のサインのときの操作、`03-validate.md` の続きの受け止めの一文と決まった選択肢の扱い）
-- [ ] **Step 6: 確認してコミット**
+- [x] **Step 2: 落ちることを確かめる**
+- [x] **Step 3: 実装する**。続きの選択肢の見分けは、`AbilityText.ResumeChoices` の決まった言葉と一字一句同じかで見る
+- [x] **Step 4: テストが通ることを確かめる**。`dotnet run --project evals/Revalue.Evals -- --unit discover --dry-run` と `--unit validate --dry-run` も通す
+- [x] **Step 5: Spec を直す**（`01-foundation.md` のはじめにの文と了解の版、`02-discover.md` の話している途中の道とつらい状態のサインのときの操作、`03-validate.md` の続きの受け止めの一文と決まった選択肢の扱い）
+- [x] **Step 6: 確認してコミット**
 
 ### Task 4: 実際のブラウザで通し、Spec を合わせる
 

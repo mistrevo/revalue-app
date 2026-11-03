@@ -36,13 +36,22 @@ public sealed record NextMove(MoveKind Kind, ActionRef? Target = null);
 /// </summary>
 /// <param name="Evidence">この場面のここまでの根拠（いまの答えの読み取りで見つかったものも含む）。</param>
 /// <param name="LatestAnswer">いまの答えが何番目の本人の答えか（1 から）。</param>
-/// <param name="AskedCounts">この場面で、行動ごとに聞いた回数。訂正で打ち消された行動は、上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）として数える。</param>
-public sealed record ValidationContext(IReadOnlyList<Evidence> Evidence, int LatestAnswer, IReadOnlyDictionary<ActionRef, int> AskedCounts)
+/// <param name="AskedCounts">
+/// この場面で、行動ごとに聞いた回数。訂正で打ち消された行動と、続きの問いに「とくに思い当たりません」を選んだ行動は、
+/// 上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）として数える。
+/// </param>
+/// <param name="WantsOtherThings">いまの答えが、続きの問いに「その日のほかのことを話したい」を選んだものか。</param>
+public sealed record ValidationContext(
+    IReadOnlyList<Evidence> Evidence, int LatestAnswer, IReadOnlyDictionary<ActionRef, int> AskedCounts, bool WantsOtherThings = false)
 {
     /// <summary>
     /// ターンから文脈を作る。聞いた回数は、行動を添えた聞き手のターン（足りない行動を聞く一手と、続きを話すときの問い）から数える。
     /// 続きの問いも同じ行動を聞いているので数に入れる（問い詰めないため。Claude の判断）。
     /// 訂正で打ち消された行動（訂正のターンの <see cref="Turn.Withdrawn"/>）は、本人がもう答えたので、聞いた回数の上限に届いたものとして数える（Claude の判断）。
+    /// 続きの問いへの答えに、決まった選択肢を選んだときは次のように扱う（03-validate.md の「続きを話す」。Claude の判断）。
+    /// 選んだ答え（<see cref="AnswerKind.Choice"/>）で、直前の聞き手のターンが続きの問いのときだけ働き、同じ言葉を書いた答えでは働かない。
+    /// 「とくに思い当たりません」なら、その問いで聞いた行動を上限に届いたものとして数える。
+    /// 「その日のほかのことを話したい」がいまの答えなら、<see cref="WantsOtherThings"/> を立てる。
     /// </summary>
     public static ValidationContext From(IReadOnlyList<Turn> turns, IReadOnlyList<Evidence> evidence)
     {
@@ -60,8 +69,38 @@ public sealed record ValidationContext(IReadOnlyList<Evidence> Evidence, int Lat
             asked[withdrawn] = Math.Max(asked.GetValueOrDefault(withdrawn), NextMovePolicy.MaxAskPerAction);
         }
 
-        return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked);
+        var wantsOtherThings = false;
+        for (var i = 1; i < turns.Count; i++)
+        {
+            if (ResumeChoiceAnswer(turns[i - 1], turns[i]) is not { } choice)
+            {
+                continue;
+            }
+
+            if (choice == AbilityText.ResumeChoiceNone && ActionRef.Parse(turns[i - 1].Target) is { } declined)
+            {
+                asked[declined] = Math.Max(asked.GetValueOrDefault(declined), NextMovePolicy.MaxAskPerAction);
+            }
+
+            if (choice == AbilityText.ResumeChoiceOtherThings && i == turns.Count - 1)
+            {
+                wantsOtherThings = true;
+            }
+        }
+
+        return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked, wantsOtherThings);
     }
+
+    /// <summary>
+    /// 続きの問い（<paramref name="question"/>）に、続きの決まった選択肢を選んで答えた（<paramref name="answer"/>）ならその言葉。ほかは null。
+    /// 言葉は <see cref="AbilityText.ResumeChoices"/> と一字一句同じかで見る。
+    /// </summary>
+    private static string? ResumeChoiceAnswer(Turn question, Turn answer) =>
+        question is { Role: TurnRoles.Assistant, Move: EpisodeInsights.ResumeMove }
+        && answer is { Role: TurnRoles.User, AnswerKind: AnswerKind.Choice }
+        && AbilityText.ResumeChoices.Contains(answer.Text)
+            ? answer.Text
+            : null;
 }
 
 /// <summary>読み取りと往復の数と根拠から、次の一手を決める（02-discover.md と 03-validate.md の「次の一手」）。</summary>
@@ -77,7 +116,8 @@ public static class NextMovePolicy
     public const int MaxAskPerAction = 2;
 
     /// <summary>
-    /// 優先の順: つらい状態のサイン → 往復の上限の締め → 家族の病気の話 → 足りない行動を一つ聞く → 具体的な出来事がある →
+    /// 優先の順: つらい状態のサイン → 往復の上限の締め → 家族の病気の話 → 続きの問いに「その日のほかのことを話したい」を選んだ →
+    /// 足りない行動を一つ聞く → 具体的な出来事がある →
     /// 分からない・何もない → 一般論だけ → それ以外。
     /// </summary>
     /// <param name="reading">いまの答えの読み取り。</param>
@@ -90,6 +130,12 @@ public static class NextMovePolicy
         if (basic is MoveKind.Distress or MoveKind.Close or MoveKind.ReturnFromIllness)
         {
             return new NextMove(basic);
+        }
+
+        // 続きの問いに「その日のほかのことを話したい」を選んだ人には、足りない行動ではなく、その日にしたことを聞く（Claude の判断）
+        if (validation is { WantsOtherThings: true })
+        {
+            return new NextMove(MoveKind.AskWhatYouDid);
         }
 
         return MissingActionToAsk(reading, validation) is { } target

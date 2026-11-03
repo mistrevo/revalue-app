@@ -270,6 +270,9 @@ function TalkScreen({ id }: { id: string }) {
   // つらい状態のサインのあとの 3 つの続け方。並びは裏側の DiscoverText.DistressActions と同じ
   // （続けて話す、今日はここで区切る、この話は残さずに別の話にする）
   const distressHandlers = [focusInput, finish, () => setConfirmingSkip(true)]
+  // 相談窓口の 3 つの続け方を出しているあいだは、下の「ここで区切る」「この話は飛ばす」を重ねて出さない。
+  // 同じことが窓口の「今日はここで区切る」「この話は残さずに、別の話にする」でできる（Claude の判断）
+  const distressActionsShown = notice?.kind === 'distress' && talking && pending === null && Boolean(notice.actions?.length)
 
   return (
     <Page>
@@ -295,9 +298,6 @@ function TalkScreen({ id }: { id: string }) {
           {errorKind === 'refusal' ? copy.talk.refusal : errorKind === 'closed' ? copy.talk.closed : copy.talk.failure}
         </p>
       )}
-      {/* 話し終えた場面は、下にホームへの道が出るので、ここには出さない */}
-      {errorKind === 'closed' && talking && <BackHome />}
-
       {notice !== null && pending === null && (
         <div className="mt-4 rounded-xl border bg-muted/40 px-4 py-3 text-sm leading-relaxed">
           {notice.kind === 'support' && <p>{notice.text}</p>}
@@ -396,7 +396,7 @@ function TalkScreen({ id }: { id: string }) {
                 </Button>
               </div>
             </div>
-          ) : (
+          ) : distressActionsShown ? null : (
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
               <Button variant="outline" onClick={finish} disabled={busy || pending !== null} className="w-full sm:w-auto">
                 {copy.talk.finish}
@@ -411,6 +411,9 @@ function TalkScreen({ id }: { id: string }) {
               </Button>
             </div>
           )}
+
+          {/* 話している途中でも、ホームへ戻れる。話は残り、ホームの次にできることは「続きを話す」になる */}
+          <BackHome />
         </>
       ) : (
         <>

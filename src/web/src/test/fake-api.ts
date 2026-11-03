@@ -51,7 +51,7 @@ export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {
 }
 
 /** 裏側が決める続きの問いと選択肢の代わり（本物は AbilityText.cs）。 */
-export const FAKE_RESUME_QUESTION = 'また話しに来てくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
+export const FAKE_RESUME_QUESTION = '続きを話そうとしてくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
 export const FAKE_RESUME_CHOICES = ['思い当たることがあります', 'とくに思い当たりません', 'その日のほかのことを話したい']
 
 /** 裏側が決める手がかりの言葉の代わり（本物は AbilityText.cs）。 */

@@ -65,8 +65,20 @@ public static class AbilityText
         ],
     };
 
+    /// <summary>
+    /// 続きの選択肢のうち、「していない」を値打ちを下げずに言える答え。続きの問いへの答えにこれを選んだら、
+    /// その問いで聞いた行動を、聞いた回数の上限に届いたものとして扱い、聞き直さない（<see cref="Discover.ValidationContext.From"/>。Claude の判断）。
+    /// </summary>
+    public const string ResumeChoiceNone = "とくに思い当たりません";
+
+    /// <summary>
+    /// 続きの選択肢のうち、その日のほかのことを話したい答え。続きの問いへの答えにこれを選んだら、次の一手は足りない行動ではなく、
+    /// その日にしたことを聞く（<see cref="Discover.NextMovePolicy.Decide"/>。Claude の判断）。
+    /// </summary>
+    public const string ResumeChoiceOtherThings = "その日のほかのことを話したい";
+
     /// <summary>続きを話すときの選択肢（Claude の判断）。「していない」を、値打ちを下げずに言える答えを一つ入れる。</summary>
-    public static IReadOnlyList<string> ResumeChoices { get; } = ["思い当たることがあります", "とくに思い当たりません", "その日のほかのことを話したい"];
+    public static IReadOnlyList<string> ResumeChoices { get; } = ["思い当たることがあります", ResumeChoiceNone, ResumeChoiceOtherThings];
 
     /// <summary>
     /// 根拠が一般論だけの力の手がかり（「もう少し聞かせてほしいこと」）。一般論だけでは根拠ありにしないので、足りない行動ではなく、
@@ -126,8 +138,11 @@ public static class AbilityText
     /// </summary>
     public const string ResumeOpenAsk = "その日のことで、ほかに覚えていることはありますか？";
 
-    /// <summary>続きを話すときの、決まった受け止めの一文。続きを話しに戻ってきたことを受け止める（Claude の判断）。</summary>
-    public const string ResumeLead = "また話しに来てくれて、ありがとうございます。";
+    /// <summary>
+    /// 続きを話すときの、決まった受け止めの一文。続きを話そうとしたことを受け止める。区切った直後に押しても、日をおいて戻っても合うよう、
+    /// 「また」「来てくれて」のように時間を前提にした言い方をしない。問いは後ろの一つだけにするので、ここでは何も求めない（Claude の判断）。
+    /// </summary>
+    public const string ResumeLead = "続きを話そうとしてくれて、ありがとうございます。";
 
     private static string Pick(IReadOnlyDictionary<Ability, string[]> texts, ActionRef action) =>
         action.Number is >= 1 and <= ActionRef.ActionsPerAbility

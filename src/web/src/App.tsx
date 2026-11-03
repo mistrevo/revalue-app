@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import { PageTitle } from '@/components/PageTitle'
 import { RequireUser } from '@/components/RequireUser'
+import { copy } from '@/copy'
 import { Abilities } from '@/pages/Abilities'
 import { Deepen } from '@/pages/Deepen'
 import { Episodes } from '@/pages/Episodes'
@@ -19,85 +21,112 @@ import { Talk } from '@/pages/Talk'
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route
+        path="/"
+        element={
+          <PageTitle>
+            <Landing />
+          </PageTitle>
+        }
+      />
       <Route
         path="/start"
         element={
-          <RequireUser key="start">
-            <Start />
-          </RequireUser>
+          <PageTitle title={copy.titles.start}>
+            <RequireUser key="start">
+              <Start />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/home"
         element={
-          <RequireUser key="home" consent>
-            <Home />
-          </RequireUser>
+          <PageTitle title={copy.titles.home}>
+            <RequireUser key="home" consent>
+              <Home />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/talk/:id"
         element={
-          <RequireUser key="talk" consent>
-            <Talk />
-          </RequireUser>
+          <PageTitle title={copy.titles.talk}>
+            <RequireUser key="talk" consent>
+              <Talk />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/episodes"
         element={
-          <RequireUser key="episodes" consent>
-            <Episodes />
-          </RequireUser>
+          <PageTitle title={copy.titles.episodes}>
+            <RequireUser key="episodes" consent>
+              <Episodes />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/abilities"
         element={
-          <RequireUser key="abilities" consent>
-            <Abilities />
-          </RequireUser>
+          <PageTitle title={copy.titles.abilities}>
+            <RequireUser key="abilities" consent>
+              <Abilities />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/profile"
         element={
-          <RequireUser key="profile" consent>
-            <Profile />
-          </RequireUser>
+          <PageTitle title={copy.titles.profile}>
+            <RequireUser key="profile" consent>
+              <Profile />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/options"
         element={
-          <RequireUser key="options" consent>
-            <Options />
-          </RequireUser>
+          <PageTitle title={copy.titles.options}>
+            <RequireUser key="options" consent>
+              <Options />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/deepen"
         element={
-          <RequireUser key="deepen" consent>
-            <Deepen />
-          </RequireUser>
+          <PageTitle title={copy.titles.deepen}>
+            <RequireUser key="deepen" consent>
+              <Deepen />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/report"
         element={
-          <RequireUser key="report" consent>
-            <Report />
-          </RequireUser>
+          <PageTitle title={copy.titles.report}>
+            <RequireUser key="report" consent>
+              <Report />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route
         path="/settings"
         element={
-          <RequireUser key="settings">
-            <Settings />
-          </RequireUser>
+          <PageTitle title={copy.titles.settings}>
+            <RequireUser key="settings">
+              <Settings />
+            </RequireUser>
+          </PageTitle>
         }
       />
       <Route path="*" element={<Navigate to="/" replace />} />
