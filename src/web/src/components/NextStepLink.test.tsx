@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { copy } from '@/copy'
-import { installFakeApi } from '@/test/fake-api'
+import { FAKE_OPENING, fakeEpisode, installFakeApi } from '@/test/fake-api'
+import { renderApp } from '@/test/render-app'
 import { NextStepLink } from './NextStepLink'
 
 afterEach(() => {
@@ -30,13 +31,42 @@ describe('NextStepLink', () => {
     expect(within(region).getByText(copy.home.next.anywhere)).toBeInTheDocument()
   })
 
-  it('common-3（次にできることを一つ示す）: talk はホームへ、continue はその場面へ行く', async () => {
-    installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'talk', episodeId: null } })
-    const { unmount } = renderAt('/abilities')
-    expect(await screen.findByRole('link', { name: copy.home.next.talk })).toHaveAttribute('href', '/home')
-    unmount()
-    vi.unstubAllGlobals()
+  it('common-3（次にできることを一つ示す）、discover-1（具体的な一日を一つ聞く）: talk は、ホームを経ずにその場で新しい場面を始める', async () => {
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+      nextStep: { step: 'talk', episodeId: null },
+    })
+    renderApp('/abilities')
 
+    const region = await screen.findByRole('region', { name: copy.home.next.title })
+    expect(within(region).queryByRole('link')).not.toBeInTheDocument()
+    await userEvent.click(within(region).getByRole('button', { name: copy.home.next.talk }))
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes')).toHaveLength(1)
+  })
+
+  it('common-3（次にできることを一つ示す）: talk で、ほかの画面で途中の場面ができていたら、新しく作らずにその場面へ進む', async () => {
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+      nextStep: { step: 'talk', episodeId: null },
+    })
+    renderApp('/abilities')
+    const region = await screen.findByRole('region', { name: copy.home.next.title })
+    // 画面を開いたあとで、別のタブで場面を始めていた
+    api.state.episodes.push(fakeEpisode({ id: 'episode-9' }))
+
+    await userEvent.click(within(region).getByRole('button', { name: copy.home.next.talk }))
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    expect(api.calls.some((c) => c.url === '/api/episodes/episode-9')).toBe(true)
+  })
+
+  it('common-3（次にできることを一つ示す）: continue はその場面へ行く', async () => {
     installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'continue', episodeId: 'episode-3' } })
     renderAt('/abilities')
     expect(await screen.findByRole('link', { name: copy.home.next.continue })).toHaveAttribute('href', '/talk/episode-3')
@@ -59,7 +89,7 @@ describe('NextStepLink', () => {
   })
 
   it('common-3（次にできることを一つ示す）: refreshKey が変わったら読み直す', async () => {
-    const api = installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'abilities', episodeId: null } })
+    const api = installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'options', episodeId: null } })
     function Host() {
       const [key, setKey] = useState(0)
       return (
@@ -69,14 +99,14 @@ describe('NextStepLink', () => {
         </>
       )
     }
-    renderAt('/abilities', <Host />)
+    renderAt('/options', <Host />)
     await waitFor(() => expect(nextStepCalls(api)).toHaveLength(1))
     expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
 
-    api.state.nextStep = { step: 'options', episodeId: null }
+    api.state.nextStep = { step: 'deepen', episodeId: null }
     await userEvent.click(screen.getByRole('button', { name: '変える' }))
 
-    expect(await screen.findByRole('link', { name: copy.home.next.options })).toHaveAttribute('href', '/options')
+    expect(await screen.findByRole('link', { name: copy.home.next.deepen })).toHaveAttribute('href', '/deepen')
     expect(nextStepCalls(api)).toHaveLength(2)
   })
 })

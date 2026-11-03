@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { ApiError, createEpisode, getNextStep, listEpisodes, type NextStep } from '@/api'
+import { Link } from 'react-router'
+import { getNextStep, listEpisodes, type NextStep } from '@/api'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { nextStepPath } from '@/lib/next-step'
+import { useStartEpisode } from '@/lib/use-start-episode'
 
 type Episodes = { kind: 'loading' } | { kind: 'ready'; talkingId: string | null; hasFinished: boolean } | { kind: 'error' }
 type Next = { kind: 'loading' } | { kind: 'ready'; next: NextStep } | { kind: 'error' }
@@ -26,13 +27,14 @@ const WRAP = 'h-auto min-h-9 w-full py-2 whitespace-normal'
  * ホーム。先頭に「次にできること」を一つだけ目立たせて出し、その下に各画面への道と設定を並べる（common-3（次にできることを一つ示す））。
  * 次にできることが talk なら新しい場面を作り、continue なら話している途中の場面へ。読めなかったときは、いままでどおり
  * 「話す」（途中の場面があれば「続きから話す」）を出す（行き止まりを作らない）。
+ * 次にできることが talk でも continue でもないときは、各画面への道の先頭に「話す」を置く。別の一日を話して力を足す道を、
+ * どこまで進んでもいつも残す（芯 5（本人が選ぶ））。talk のときは同じことをするボタンを重ねない。continue のときは途中の場面があり、
+ * 新しい場面は作れない（1 人 1 つまで）。
  */
 export function Home() {
-  const navigate = useNavigate()
   const [episodes, setEpisodes] = useState<Episodes>({ kind: 'loading' })
   const [next, setNext] = useState<Next>({ kind: 'loading' })
-  const [starting, setStarting] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const { start, starting, failed } = useStartEpisode()
 
   useEffect(() => {
     let active = true
@@ -51,25 +53,12 @@ export function Home() {
     }
   }, [])
 
-  async function start() {
-    setStarting(true)
-    setFailed(false)
-    try {
-      const episode = await createEpisode()
-      navigate(`/talk/${episode.id}`)
-    } catch (e) {
-      // ほかのタブなどで途中の場面ができていたら、新しく作らずにその場面へ
-      if (e instanceof ApiError && e.status === 409 && e.episodeId) {
-        navigate(`/talk/${e.episodeId}`)
-        return
-      }
-      setFailed(true)
-      setStarting(false)
-    }
-  }
-
   const fallbackTalkingId = episodes.kind === 'ready' ? episodes.talkingId : null
   const fallbackReady = episodes.kind !== 'loading'
+  const nextPath = next.kind === 'ready' ? nextStepPath(next.next) : null
+  // 各画面への道に置く「話す」。次にできることが talk（同じボタンが上にある）、continue（途中の場面がある）、
+  // 読めなかったとき（上に「話す」か「続きから話す」がある）、読んでいるあいだは置かない
+  const talkInOthers = next.kind === 'ready' && next.next.step !== 'talk' && next.next.step !== 'continue'
 
   return (
     <Page>
@@ -86,13 +75,13 @@ export function Home() {
             {copy.home.next.title}
           </h2>
           <div className="mt-3">
-            {next.next.step === 'talk' ? (
+            {nextPath === null ? (
               <Button size="lg" className={WRAP} onClick={start} disabled={starting}>
                 {copy.home.next.talk}
               </Button>
             ) : (
               <Button asChild size="lg" className={WRAP}>
-                <Link to={nextStepPath(next.next)}>{copy.home.next[next.next.step]}</Link>
+                <Link to={nextPath}>{copy.home.next[next.next.step]}</Link>
               </Button>
             )}
           </div>
@@ -125,6 +114,11 @@ export function Home() {
           {copy.home.othersTitle}
         </h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {talkInOthers && (
+            <Button variant="outline" size="lg" className={WRAP} onClick={start} disabled={starting}>
+              {copy.home.talk}
+            </Button>
+          )}
           {LINKS.map((link) => (
             <Button key={link.to} asChild variant="outline" size="lg" className={WRAP}>
               <Link to={link.to}>{link.label}</Link>

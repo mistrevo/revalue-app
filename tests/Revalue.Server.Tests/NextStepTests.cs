@@ -28,7 +28,8 @@ public sealed class NextStepTests
         { "条件がなく、選んだ案がある", null, true, Readiness.NeedsConditions, DeepenReadiness.NeedsConditions, false, NextStepKind.Conditions },
         { "使える力がない", null, true, Readiness.NeedsAbility, DeepenReadiness.NoChoice, false, NextStepKind.Talk },
         { "使える力がなく、選んだ案がある", null, true, Readiness.NeedsAbility, DeepenReadiness.Ready, false, NextStepKind.Talk },
-        { "外した力だけ", null, true, Readiness.OnlyExcluded, DeepenReadiness.NoChoice, false, NextStepKind.Abilities },
+        { "外した力だけ", null, true, Readiness.OnlyExcluded, DeepenReadiness.NoChoice, false, NextStepKind.Talk },
+        { "外した力だけで、選んだ案がある", null, true, Readiness.OnlyExcluded, DeepenReadiness.Ready, false, NextStepKind.Talk },
         { "まだ選んでいない", null, true, Readiness.Ready, DeepenReadiness.NoChoice, false, NextStepKind.Options },
         { "選んでいて、深めた中身がない", null, true, Readiness.Ready, DeepenReadiness.Ready, false, NextStepKind.Deepen },
         { "選んでいて、深めた中身がある", null, true, Readiness.Ready, DeepenReadiness.Ready, true, NextStepKind.Report },
@@ -128,13 +129,13 @@ public sealed class NextStepTests
         Assert.Equal(new NextStepResult(NextStepKind.Continue, talking), await Read(kit));
     }
 
-    [Fact(DisplayName = "common-3（次にできることを一つ示す）: 本人が使える力をすべて外していたら、見えた力の画面で見直すことを示す")]
-    public async Task OnlyExcludedMeansAbilities()
+    [Fact(DisplayName = "common-3（次にできることを一つ示す）: 本人が使える力をすべて外していたら、外した見立てに戻すことは勧めず、別の一日を話すことを示す")]
+    public async Task OnlyExcludedMeansTalk()
     {
         var kit = await Recorded();
         await AbilityBook.SetExcludedAsync(kit.Store, User, Ability.Coordinating, true, kit.Clock, Ct);
 
-        Assert.Equal(NextStepKind.Abilities, (await Read(kit)).Step);
+        Assert.Equal(new NextStepResult(NextStepKind.Talk, null), await Read(kit));
     }
 
     [Fact(DisplayName = "common-3（次にできることを一つ示す）: 選び直して深めた中身が古くなったら、深めることを示す")]

@@ -24,10 +24,6 @@ public enum NextStepKind
     [JsonStringEnumMemberName("conditions")]
     Conditions,
 
-    /// <summary>外した見立てを、見えた力の画面で見直す。</summary>
-    [JsonStringEnumMemberName("abilities")]
-    Abilities,
-
     /// <summary>仕事の選択肢を見て、一つ選ぶか保留する。</summary>
     [JsonStringEnumMemberName("options")]
     Options,
@@ -54,7 +50,8 @@ public static class NextStep
     /// 1. 話している途中の場面がある → 続きを話す
     /// 2. 話し終えた場面がない → 話す
     /// 3. 条件が入っていない → 条件を入れる
-    /// 4. 使える力がない → 話す。外した力だけ → 見えた力で見直す
+    /// 4. 使える力がない（本人が外した力だけのときも）→ 話す。外したのは本人が決めたことなので、外した見立てに戻すことは勧めない
+    ///    （芯 5（本人が選ぶ）。戻す道は見えた力の画面と仕事の選択肢の画面に残す）
     /// 5. まだ選んでいない → 仕事の選択肢
     /// 6. 選んでいて、いまの案で深めた中身がない（または古い）→ 深める
     /// 7. それ以外（保留、深めた中身がある）→ レポート
@@ -70,8 +67,7 @@ public static class NextStep
         var step =
             !hasFinishedEpisode ? NextStepKind.Talk
             : readiness == Readiness.NeedsConditions ? NextStepKind.Conditions
-            : readiness == Readiness.NeedsAbility ? NextStepKind.Talk
-            : readiness == Readiness.OnlyExcluded ? NextStepKind.Abilities
+            : readiness is Readiness.NeedsAbility or Readiness.OnlyExcluded ? NextStepKind.Talk
             : deepenReadiness is DeepenReadiness.NoChoice or DeepenReadiness.NeedsConditions ? NextStepKind.Options
             : deepenReadiness == DeepenReadiness.Ready && !deepened ? NextStepKind.Deepen
             : NextStepKind.Report;

@@ -63,15 +63,15 @@ public sealed class AbilityTextTests
 
         // 4-rules.md の「対話の決まり」: 受け止める一文、本人の行動を映し返す言葉、問い一つ、の順
         Assert.Equal(
-            "続きを話そうとしてくれて、ありがとうございます。前に「夫と母の予定がぶつかって」と話してくれましたね。その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
+            "続きの話を選んでくれて、ありがとうございます。前に「夫と母の予定がぶつかって」と話してくれましたね。その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
             AbilityText.ResumeOpening(target, "夫と母の予定がぶつかって"));
         Assert.Equal(
-            "続きを話そうとしてくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。その日のことで、ほかに覚えていることはありますか？",
+            "続きの話を選んでくれて、ありがとうございます。前に「二人に電話して」と話してくれましたね。その日のことで、ほかに覚えていることはありますか？",
             AbilityText.ResumeOpening(null, "二人に電話して"));
 
         // 映し返す言葉がない場面（根拠がない）でも、問いの「その日」が指す日を先に示す
         Assert.Equal(
-            "続きを話そうとしてくれて、ありがとうございます。前に話してくれた日のことです。その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
+            "続きの話を選んでくれて、ありがとうございます。前に話してくれた日のことです。その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
             AbilityText.ResumeOpening(target, null));
         Assert.Equal(["思い当たることがあります", "とくに思い当たりません", "その日のほかのことを話したい"], AbilityText.ResumeChoices);
         Assert.Equal("とくに思い当たりません", AbilityText.ResumeChoiceNone);
@@ -80,10 +80,12 @@ public sealed class AbilityTextTests
         // 受け止めの一文は、区切った直後に押しても、日をおいて戻っても合う言い方にする（「また」「来てくれて」のように時間を前提にしない）
         Assert.DoesNotContain("また", AbilityText.ResumeLead, StringComparison.Ordinal);
         Assert.DoesNotContain("来て", AbilityText.ResumeLead, StringComparison.Ordinal);
+        // 本人がしたこと（続きを選んだ）をそのまま受け止める。「話そうとして」のように、まだしていないとも読める言い方にしない
+        Assert.DoesNotContain("ようと", AbilityText.ResumeLead, StringComparison.Ordinal);
 
         // 一般論だけの場面は「その日」を前提にせず、最近の一日を一つ聞く（validate-10（一般論には具体的な出来事を聞く））
         Assert.Equal(
-            "続きを話そうとしてくれて、ありがとうございます。前に「いつも私が予定を合わせています」と話してくれましたね。特別な日でなくてかまいません。いつものことの中から、いちばん最近の一日のことを、聞かせてもらえますか？",
+            "続きの話を選んでくれて、ありがとうございます。前に「いつも私が予定を合わせています」と話してくれましたね。特別な日でなくてかまいません。いつものことの中から、いちばん最近の一日のことを、聞かせてもらえますか？",
             AbilityText.ResumeOpeningForGeneral("いつも私が予定を合わせています。"));
         Assert.Equal(["今週のことを話したい", "先週のことを話したい", "すぐには浮かばない"], AbilityText.ConcreteDayChoices);
 

@@ -7,7 +7,7 @@ import forbiddenWords from '../../../shared/forbidden-words.json'
 import { AppRoutes } from '@/App'
 import type { Options } from '@/api'
 import { copy } from '@/copy'
-import { FAKE_SOURCE, fakeOptionCards, fakeOptions, installFakeApi, type FakeCall } from '@/test/fake-api'
+import { FAKE_OPENING, FAKE_SOURCE, fakeEpisode, fakeOptionCards, fakeOptions, installFakeApi, type FakeCall } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
@@ -125,6 +125,27 @@ describe('Options', () => {
     expect(choose).toHaveTextContent(copy.options.missing.noAbilityMatch)
     expect(within(choose).getByRole('link', { name: copy.options.toTalk })).toHaveAttribute('href', '/home')
     expect(within(choose).queryByRole('link', { name: copy.options.toConditions })).not.toBeInTheDocument()
+  })
+
+  it('common-3（次にできることを一つ示す）、discover-1（具体的な一日を一つ聞く）: 話した力を生かせないカードの「ホームから話す」から、ホームの「話す」で新しい場面を始められる（仕事の選択肢へ戻るだけの輪にしない）', async () => {
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+      options: withCards({ cards: fakeOptionCards({ choose: null, missing: [{ kind: 'choose', reason: 'noAbilityMatch' }] }) }),
+      // まだ選んでいないので、ホームの次にできることは仕事の選択肢
+      nextStep: { step: 'options', episodeId: null },
+    })
+    renderApp('/options')
+
+    const choose = await screen.findByRole('region', { name: LABELS[0] })
+    await userEvent.click(within(choose).getByRole('link', { name: copy.options.toTalk }))
+
+    const others = await screen.findByRole('navigation', { name: copy.home.othersTitle })
+    await userEvent.click(await within(others).findByRole('button', { name: copy.home.talk }))
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes')).toHaveLength(1)
   })
 
   it('options-1（3 枚を同じ重さで示す）: 照らし合わせに通らなかったカードには、同じ記録のまま作り直す道を置かない', async () => {

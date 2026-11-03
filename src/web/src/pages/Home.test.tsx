@@ -48,6 +48,7 @@ describe('Home', () => {
     const resume = await screen.findByRole('link', { name: copy.home.next.continue })
     expect(resume).toHaveAttribute('href', '/talk/episode-7')
     expect(screen.queryByRole('button', { name: copy.home.next.talk })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.home.talk })).not.toBeInTheDocument()
 
     await userEvent.click(resume)
     expect(await screen.findByText('昨日は子どもの熱で、朝から予定を組み直した')).toBeInTheDocument()
@@ -122,7 +123,6 @@ describe('Home', () => {
   const linkSteps: { step: Exclude<NextStepKind, 'talk'>; href: string }[] = [
     { step: 'continue', href: '/talk/episode-5' },
     { step: 'conditions', href: '/profile?ask=conditions' },
-    { step: 'abilities', href: '/abilities' },
     { step: 'options', href: '/options' },
     { step: 'deepen', href: '/deepen' },
     { step: 'report', href: '/report' },
@@ -144,11 +144,49 @@ describe('Home', () => {
     expect(within(section).getByText(copy.home.next.anywhere)).toBeInTheDocument()
   })
 
+  const otherSteps: { step: Exclude<NextStepKind, 'talk' | 'continue'> }[] = [
+    { step: 'conditions' },
+    { step: 'options' },
+    { step: 'deepen' },
+    { step: 'report' },
+  ]
+
+  it.each(otherSteps)(
+    'common-3（次にできることを一つ示す）、discover-1（具体的な一日を一つ聞く）: 次にできることが $step でも、ほかの画面の並びの「話す」で新しい場面を始められる',
+    async ({ step }) => {
+      const api = installFakeApi({
+        loggedIn: true,
+        consented: true,
+        episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+        nextStep: { step, episodeId: null },
+      })
+      renderApp('/home')
+
+      const others = await screen.findByRole('navigation', { name: copy.home.othersTitle })
+      await userEvent.click(await within(others).findByRole('button', { name: copy.home.talk }))
+
+      expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+      expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes')).toHaveLength(1)
+    },
+  )
+
+  it('common-3（次にできることを一つ示す）: 話している途中の場面があるときは、ほかの画面の並びに「話す」を置かない', async () => {
+    installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode({ id: 'episode-6' })] })
+    renderApp('/home')
+
+    await screen.findByRole('link', { name: copy.home.next.continue })
+    const others = screen.getByRole('navigation', { name: copy.home.othersTitle })
+    expect(within(others).queryByRole('button', { name: copy.home.talk })).not.toBeInTheDocument()
+  })
+
   it('common-3（次にできることを一つ示す）: 次にできることが talk なら、新しい場面を作るボタンを一つだけ出す', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'talk', episodeId: null } })
     renderApp('/home')
 
     const section = await screen.findByRole('region', { name: copy.home.next.title })
+    // 同じことをするボタンを、ほかの画面の並びに重ねて出さない
+    expect(screen.queryByRole('button', { name: copy.home.talk })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
     await userEvent.click(within(section).getByRole('button', { name: copy.home.next.talk }))
 
     expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
@@ -160,6 +198,7 @@ describe('Home', () => {
     renderApp('/home')
 
     expect(await screen.findByRole('button', { name: copy.home.talk })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: copy.home.talk })).toHaveLength(1)
     expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
   })
 

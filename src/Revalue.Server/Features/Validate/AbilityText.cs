@@ -139,10 +139,11 @@ public static class AbilityText
     public const string ResumeOpenAsk = "その日のことで、ほかに覚えていることはありますか？";
 
     /// <summary>
-    /// 続きを話すときの、決まった受け止めの一文。続きを話そうとしたことを受け止める。区切った直後に押しても、日をおいて戻っても合うよう、
-    /// 「また」「来てくれて」のように時間を前提にした言い方をしない。問いは後ろの一つだけにするので、ここでは何も求めない（Claude の判断）。
+    /// 続きを話すときの、決まった受け止めの一文。本人が続きを選んだことを、そのまま受け止める。区切った直後に押しても、日をおいて戻っても合うよう、
+    /// 「また」「来てくれて」のように時間を前提にした言い方をしない。「話そうとして」のように、まだしていないとも読める言い方もしない。
+    /// 問いは後ろの一つだけにするので、ここでは何も求めない（Claude の判断。開発者が確かめる）。
     /// </summary>
-    public const string ResumeLead = "続きを話そうとしてくれて、ありがとうございます。";
+    public const string ResumeLead = "続きの話を選んでくれて、ありがとうございます。";
 
     private static string Pick(IReadOnlyDictionary<Ability, string[]> texts, ActionRef action) =>
         action.Number is >= 1 and <= ActionRef.ActionsPerAbility

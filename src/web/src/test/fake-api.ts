@@ -51,7 +51,7 @@ export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {
 }
 
 /** 裏側が決める続きの問いと選択肢の代わり（本物は AbilityText.cs）。 */
-export const FAKE_RESUME_QUESTION = '続きを話そうとしてくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
+export const FAKE_RESUME_QUESTION = '続きの話を選んでくれて、ありがとうございます。その日、用事の順番を決めたことがあれば、どう考えて決めたかを聞かせてもらえますか？'
 export const FAKE_RESUME_CHOICES = ['思い当たることがあります', 'とくに思い当たりません', 'その日のほかのことを話したい']
 
 /** 裏側が決める手がかりの言葉の代わり（本物は AbilityText.cs）。 */
@@ -957,8 +957,8 @@ export function installFakeApi(initial: {
     const of = (step: NextStep['step']): NextStep => ({ step, episodeId: null })
     if (!state.episodes.some((e) => e.status === 'finished')) return of('talk')
     if (state.profile.conditions === null) return of('conditions')
-    if (state.options.readiness === 'needsAbility') return of('talk')
-    if (state.options.readiness === 'onlyExcluded') return of('abilities')
+    // 使える力が本人の外した力だけのときも、外した見立てに戻すことを勧めず、別の一日を話す
+    if (state.options.readiness === 'needsAbility' || state.options.readiness === 'onlyExcluded') return of('talk')
     const choice = state.options.choice
     if (!choice) return of('options')
     if (choice.kind === 'hold') return of('report')
