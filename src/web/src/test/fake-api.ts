@@ -10,6 +10,7 @@ import type {
   Episode,
   EpisodeInsights,
   EpisodeSummary,
+  NextStep,
   OptionCards,
   Options,
   Profile,
@@ -494,6 +495,7 @@ export function installFakeApi(initial: {
   options?: Options
   deepen?: Deepen
   report?: Report
+  nextStep?: NextStep | { status: number; body: unknown }
 }) {
   const state = {
     loggedIn: initial.loggedIn,
@@ -538,6 +540,11 @@ export function installFakeApi(initial: {
     deepenSaveFails: false,
     /** 可能性レポート。保留と一歩の保存は、裏側と同じく、次に開いたときの中身に映す（版は増やさない）。 */
     report: initial.report ?? fakeReport({ ready: false, content: null, current: null }),
+    /**
+     * 次にできること（GET /api/next-step）。null なら、裏側と同じ順で、いまの場面と記録から決める。
+     * 入れると、その値を返すか、断る応答を返す。
+     */
+    nextStep: (initial.nextStep ?? null) as NextStep | { status: number; body: unknown } | null,
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
@@ -610,6 +617,11 @@ export function installFakeApi(initial: {
       return new Response(null, { status: 204 })
     }
 
+    if (url === '/api/next-step' && method === 'GET') {
+      if (state.nextStep === null) return json(200, deriveNextStep())
+      if ('status' in state.nextStep) return json(state.nextStep.status, state.nextStep.body)
+      return json(200, state.nextStep)
+    }
     if (url === '/api/report' && method === 'GET') {
       return json(200, state.report)
     }
@@ -933,6 +945,22 @@ export function installFakeApi(initial: {
     }
     return json(404, { status: 404 })
   })
+
+  /** 裏側（NextStep.cs）と同じ順で、次にできることを決める。 */
+  function deriveNextStep(): NextStep {
+    const talking = state.episodes.find((e) => e.status === 'talking')
+    if (talking) return { step: 'continue', episodeId: talking.id }
+    const of = (step: NextStep['step']): NextStep => ({ step, episodeId: null })
+    if (!state.episodes.some((e) => e.status === 'finished')) return of('talk')
+    if (state.profile.conditions === null) return of('conditions')
+    if (state.options.readiness === 'needsAbility') return of('talk')
+    if (state.options.readiness === 'onlyExcluded') return of('abilities')
+    const choice = state.options.choice
+    if (!choice) return of('options')
+    if (choice.kind === 'hold') return of('report')
+    if (!state.deepen.content || state.deepen.content.stale) return of('deepen')
+    return of('report')
+  }
 
   /** 裏側と同じく、返事を最後まで返せた 1 往復を場面に残す（開き直したときや、話し終えて読み直したときに使う）。 */
   function recordRound(episode: Episode, answer: { text: string; kind: 'free' | 'choice' }, events: FakeEvent[]) {

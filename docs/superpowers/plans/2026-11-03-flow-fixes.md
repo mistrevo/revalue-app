@@ -60,7 +60,7 @@
 - Produces: `api.ts` に `type NextStep = { step: NextStepKind; episodeId: string | null }` と `getNextStep(): Promise<NextStep>`
 - Consumes: `OptionsInputsReader`（`Check` の Readiness）、選んだ案（`OptionsItem.Choice`）、深めた中身（`DeepenItem` と `DeepenTarget` で、いまの選んだ案の中身があり古くないか。レポートの `ReportBuilder` と同じ判定を使ってよい）、話している途中の場面（`EpisodeItem.Status == Talking`）
 
-- [ ] **Step 1: 決め方の単体テストを書く**（`NextStepTests`、表で回す）。上から順に最初に当たるものを返す（Claude の判断）
+- [x] **Step 1: 決め方の単体テストを書く**（`NextStepTests`、表で回す）。上から順に最初に当たるものを返す（Claude の判断）
   1. 話している途中の場面がある → `continue`（その場面の id）
   2. 話し終えた場面がない → `talk`
   3. 条件が入っていない（Readiness が NeedsConditions）→ `conditions`
@@ -69,18 +69,18 @@
   6. カードか自分の仕事を選んでいて、いまの案で深めた中身がない、または古い → `deepen`
   7. それ以外（保留、深めた中身がある）→ `report`
   テスト名は `common-3（次にできることを一つ示す）: …` にする
-- [ ] **Step 2: 落ちることを確かめる**（`dotnet test --filter NextStep`）
-- [ ] **Step 3: `NextStep.Decide(...)` と API を実装する**。入力は記録から読んだ値だけにし、読み取りは一度ずつにする
-- [ ] **Step 4: 結合テスト**（`NextStepApiTests`）: 了解していない人は使えない。話し終える → `conditions`、条件を入れる → `options`、選ぶ → `deepen`、深める → `report`、保留 → `report`、新しい場面を始める → `continue`
-- [ ] **Step 5: ホームを直す**
+- [x] **Step 2: 落ちることを確かめる**（`dotnet test --filter NextStep`）
+- [x] **Step 3: `NextStep.Decide(...)` と API を実装する**。入力は記録から読んだ値だけにし、読み取りは一度ずつにする
+- [x] **Step 4: 結合テスト**（`NextStepApiTests`）: 了解していない人は使えない。話し終える → `conditions`、条件を入れる → `options`、選ぶ → `deepen`、深める → `report`、保留 → `report`、新しい場面を始める → `continue`
+- [x] **Step 5: ホームを直す**
   - ボタンの並びを、どの幅でも収まる形にする（F1）。`sm:flex-row` をやめ、縦に並べるか、`sm:grid-cols-2` の格子にする。読みやすい幅（`max-w-xl`）を越えない
   - 先頭に「次にできること」の欄を置き、`getNextStep()` の結果のボタンを一つだけ目立たせて出す（F2）。下に「どこから進めてもかまいません。」を添える。いまの「話す」「続きから話す」のボタンは、この欄にまとめる（`continue` なら続きから話す、`talk` なら新しい場面を作る。いまの `start()` と 409 の扱いをそのまま使う）
   - 文言の案（Claude の判断。`copy.home.next`）: 見出し「次にできること」。`talk`「最近のある一日のことを話す」、`continue`「話している途中の場面の続きを話す」、`conditions`「使える時間と場所を、5 つの記録に入れる」、`abilities`「外した見立てを、見えた力の画面で見直す」、`options`「仕事の選択肢を見て、一つ選ぶか保留する」、`deepen`「選んだ案を深める」、`report`「可能性レポートで、ここまでのまとめを見る」
   - あいさつ: 話し終えた場面があるときは、初めての人向けの「ここから、最近の一日の話を始めます。」を出さず、「ここから、続きを進められます。」のような言い方にする（案。Claude の判断）
   - `getNextStep()` が失敗したら、欄を出さずに、いままでどおり「話す」を出す（行き止まりを作らない）
-- [ ] **Step 6: 画面のテスト**（`Home.test.tsx`）: 7 つの step それぞれのボタンの言葉と行き先、失敗したときに「話す」が出ること、ボタンの並びに `sm:flex-row` がないこと
-- [ ] **Step 7: Spec を直す**: `00-common.md` の「画面」に「次にできること」の決まり（上の順、一つだけ、どこからでもよいと添える、点数や割合にしない）を書き、受け入れ基準に `3. common-3（次にできることを一つ示す）: … 確かめ方: 単体テスト、結合テスト、画面のテスト` を足す。`01-foundation.md` のホームの行を、いまの姿（次にできること、各画面への道、設定）に直し、API の表に `GET /api/next-step` を足す
-- [ ] **Step 8: 確認してコミット**: `dotnet build`、`dotnet test`、`npm --prefix src/web test`、`npm --prefix src/web run build`
+- [x] **Step 6: 画面のテスト**（`Home.test.tsx`）: 7 つの step それぞれのボタンの言葉と行き先、失敗したときに「話す」が出ること、ボタンの並びに `sm:flex-row` がないこと
+- [x] **Step 7: Spec を直す**: `00-common.md` の「画面」に「次にできること」の決まり（上の順、一つだけ、どこからでもよいと添える、点数や割合にしない）を書き、受け入れ基準に `3. common-3（次にできることを一つ示す）: … 確かめ方: 単体テスト、結合テスト、画面のテスト` を足す。`01-foundation.md` のホームの行を、いまの姿（次にできること、各画面への道、設定）に直し、API の表に `GET /api/next-step` を足す
+- [x] **Step 8: 確認してコミット**: `dotnet build`、`dotnet test`、`npm --prefix src/web test`、`npm --prefix src/web run build`
 
 ### Task 2: 各画面から次の一歩への道と、画面の小さな直し
 

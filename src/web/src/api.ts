@@ -713,3 +713,15 @@ export async function getReport(): Promise<Report> {
   const response = await request('/api/report')
   return (await response.json()) as Report
 }
+
+/** 次にできることの種類（00-common.md の「次にできること」）。 */
+export type NextStepKind = 'continue' | 'talk' | 'conditions' | 'abilities' | 'options' | 'deepen' | 'report'
+
+/** 次にできること一つ。episodeId は continue のときだけ、その場面の id。 */
+export type NextStep = { step: NextStepKind; episodeId: string | null }
+
+/** いまの記録から、裏側が決めた次にできることを一つ読む。 */
+export async function getNextStep(): Promise<NextStep> {
+  const response = await request('/api/next-step')
+  return (await response.json()) as NextStep
+}
