@@ -432,13 +432,17 @@ public sealed class ReportApiTests
         Assert.Equal(other.StatusCode, (await client.GetAsync("/api/report", Ct)).StatusCode);
     }
 
-    [Fact(DisplayName = "report-1（一つにまとめて示す）: 本人が力を外していれば、いまの中身に「外した力がある」と添える。前の版には足さない")]
+    [Fact(DisplayName = "report-1（一つにまとめて示す）: できることの欄に出ていた力を本人が外していれば、いまの中身に「外した力がある」と添える。前の版には足さない")]
     public async Task TellsWhenAbilitiesAreExcluded()
     {
         var kit = Setup();
         var client = await Ready(kit, "r-excluded-flag");
         var before = await Get(client);
         Assert.False(before.GetProperty("content").GetProperty("abilitiesExcluded").GetBoolean());
+
+        // 根拠のない力（欄に出ていない力）を外しただけでは添えない。欄が空の理由は外したことではないため
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/prioritizing/exclude", null, Ct)).StatusCode);
+        Assert.False((await Get(client)).GetProperty("content").GetProperty("abilitiesExcluded").GetBoolean());
 
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);

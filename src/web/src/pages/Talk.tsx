@@ -386,7 +386,7 @@ function TalkScreen({ id }: { id: string }) {
           {confirmingSkip ? (
             <div className="mt-6 rounded-lg bg-muted/50 px-4 py-4">
               <p className="text-sm font-medium">{copy.talk.skipQuestion}</p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {/* どちらを選んでもよいので、片方を目立たせない（Claude の判断） */}
                 <Button variant="outline" onClick={skip} disabled={busy} className="w-full sm:w-auto">
                   {copy.talk.skipYes}
@@ -397,7 +397,7 @@ function TalkScreen({ id }: { id: string }) {
               </div>
             </div>
           ) : distressActionsShown ? null : (
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Button variant="outline" onClick={finish} disabled={busy || pending !== null} className="w-full sm:w-auto">
                 {copy.talk.finish}
               </Button>
@@ -461,7 +461,7 @@ function TalkScreen({ id }: { id: string }) {
                       </a>
                     </p>
                   )}
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <Button type="submit" disabled={busy || correction.trim() === ''} className="w-full sm:w-auto">
                       {copy.insights.correctSend}
                     </Button>

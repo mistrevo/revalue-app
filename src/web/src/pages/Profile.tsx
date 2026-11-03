@@ -685,7 +685,7 @@ function ConditionsForm({
         ))}
       </Fieldset>
       {!ready && <p className="text-sm leading-relaxed text-muted-foreground">{copy.profile.conditionsNeed}</p>}
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button type="submit" className="w-full sm:w-auto" disabled={busy || !ready}>
           {copy.profile.save}
         </Button>
@@ -813,7 +813,7 @@ function AgencyForm({
         rows={3}
         className={FIELD_CLASS}
       />
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button type="submit" className="w-full sm:w-auto" disabled={busy}>
           {copy.profile.save}
         </Button>

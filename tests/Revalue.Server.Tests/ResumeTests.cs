@@ -62,8 +62,8 @@ public sealed class ResumeTests
         Assert.Null(saved.FinishedAt);
     }
 
-    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに「その日のほかのことを話したい」を選ぶと、足りない行動ではなく、その日にしたことを聞く")]
-    public async Task ResumeChoiceOtherThingsAsksWhatYouDid()
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに「その日のほかのことを話したい」を選ぶと、足りない行動ではなく、同じ日のほかの時間や出来事を聞く")]
+    public async Task ResumeChoiceOtherThingsAsksOtherPartOfDay()
     {
         var (factory, ai) = Create();
         await using var _f = factory;
@@ -77,7 +77,7 @@ public sealed class ResumeTests
         ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
         await Send(client, id, AbilityText.ResumeChoiceOtherThings, "choice");
 
-        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), ai.NextMoves[^1]);
+        Assert.Equal(new NextMove(MoveKind.AskOtherPartOfDay), ai.NextMoves[^1]);
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いに「とくに思い当たりません」を選ぶと、同じ行動を聞き直さない。書いた答えなら聞き直せる")]
@@ -103,6 +103,11 @@ public sealed class ResumeTests
         await Send(client, chosen, AbilityText.ResumeChoiceNone, "choice");
 
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), ai.NextMoves[^1]);
+
+        // 区切ってもう一度続きを開いても、同じ行動は聞き直さない（ほかに聞ける行動がないので、手がかりを添えない問いで始める）
+        await Finish(client, chosen);
+        var reopened = Array(await Json(await Resume(client, chosen)), "turns")[^1];
+        Assert.True(!reopened.TryGetProperty("target", out var reopenedTarget) || reopenedTarget.ValueKind == JsonValueKind.Null);
 
         // 同じ言葉を書いた答えでは、いつもどおり 2 回まで聞く
         await Finish(client, chosen);

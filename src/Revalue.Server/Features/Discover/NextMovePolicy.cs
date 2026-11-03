@@ -26,6 +26,12 @@ public enum MoveKind
 
     /// <summary>いまの出来事の中で、要確認の力の足りない行動を一つ聞く（03-validate.md）。聞き手には手がかりだけを渡す。</summary>
     AskMissingAction,
+
+    /// <summary>
+    /// 続きの問いに「その日のほかのことを話したい」を選んだ人に、同じ日のほかの時間や出来事を一つ聞く（03-validate.md の「続きを話す」）。
+    /// 前の出来事の行動は聞き直さない。選んだ答えには映し返す行動がないので、映し返さない。
+    /// </summary>
+    AskOtherPartOfDay,
 }
 
 /// <summary>次の一手。<see cref="Target"/> は <see cref="MoveKind.AskMissingAction"/> のときだけ、聞く行動。</summary>
@@ -132,10 +138,10 @@ public static class NextMovePolicy
             return new NextMove(basic);
         }
 
-        // 続きの問いに「その日のほかのことを話したい」を選んだ人には、足りない行動ではなく、その日にしたことを聞く（Claude の判断）
+        // 続きの問いに「その日のほかのことを話したい」を選んだ人には、足りない行動ではなく、同じ日のほかの時間や出来事を聞く（Claude の判断）
         if (validation is { WantsOtherThings: true })
         {
-            return new NextMove(MoveKind.AskWhatYouDid);
+            return new NextMove(MoveKind.AskOtherPartOfDay);
         }
 
         return MissingActionToAsk(reading, validation) is { } target

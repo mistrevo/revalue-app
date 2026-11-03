@@ -717,7 +717,8 @@ export async function getReport(): Promise<Report> {
 }
 
 /** 次にできることの種類（00-common.md の「次にできること」）。 */
-export type NextStepKind = 'continue' | 'talk' | 'conditions' | 'options' | 'deepen' | 'report'
+/** none は何も勧めない（いちばん新しく話し終えた場面が、つらい状態のサインに応えたところで終わっているとき）。 */
+export type NextStepKind = 'continue' | 'talk' | 'conditions' | 'options' | 'deepen' | 'report' | 'none'
 
 /** 次にできること一つ。episodeId は continue のときだけ、その場面の id。 */
 export type NextStep = { step: NextStepKind; episodeId: string | null }

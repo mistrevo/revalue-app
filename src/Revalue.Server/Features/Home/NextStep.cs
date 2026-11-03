@@ -35,6 +35,13 @@ public enum NextStepKind
     /// <summary>可能性レポートで、ここまでのまとめを見る。</summary>
     [JsonStringEnumMemberName("report")]
     Report,
+
+    /// <summary>
+    /// 何も勧めない。いちばん新しく話し終えた場面が、つらい状態のサインに応えたところで終わっているとき。
+    /// 打ち明けた人に、先へ進むことを勧めないため（芯 2（突き放さない）。Claude の判断）。
+    /// </summary>
+    [JsonStringEnumMemberName("none")]
+    None,
 }
 
 /// <summary>次にできること一つ。<paramref name="EpisodeId"/> は <see cref="NextStepKind.Continue"/> のときだけ、その場面の id。</summary>
@@ -49,6 +56,7 @@ public static class NextStep
     /// 上から順に、最初に当たるものを返す（Claude の判断）。
     /// 1. 話している途中の場面がある → 続きを話す
     /// 2. 話し終えた場面がない → 話す
+    /// 2a. いちばん新しく話し終えた場面が、つらい状態のサインに応えたところで終わっている → 何も勧めない
     /// 3. 条件が入っていない → 条件を入れる
     /// 4. 使える力がない（本人が外した力だけのときも）→ 話す。外したのは本人が決めたことなので、外した見立てに戻すことは勧めない
     ///    （芯 5（本人が選ぶ）。戻す道は見えた力の画面と仕事の選択肢の画面に残す）
@@ -57,7 +65,8 @@ public static class NextStep
     /// 7. それ以外（保留、深めた中身がある）→ レポート
     /// </summary>
     public static NextStepResult Decide(
-        string? talkingEpisodeId, bool hasFinishedEpisode, Readiness readiness, DeepenReadiness deepenReadiness, bool deepened)
+        string? talkingEpisodeId, bool hasFinishedEpisode, Readiness readiness, DeepenReadiness deepenReadiness, bool deepened,
+        bool lastEndedWithDistress = false)
     {
         if (talkingEpisodeId is not null)
         {
@@ -66,6 +75,7 @@ public static class NextStep
 
         var step =
             !hasFinishedEpisode ? NextStepKind.Talk
+            : lastEndedWithDistress ? NextStepKind.None
             : readiness == Readiness.NeedsConditions ? NextStepKind.Conditions
             : readiness is Readiness.NeedsAbility or Readiness.OnlyExcluded ? NextStepKind.Talk
             : deepenReadiness is DeepenReadiness.NoChoice or DeepenReadiness.NeedsConditions ? NextStepKind.Options
@@ -97,6 +107,19 @@ public static class NextStep
         var (deepenReadiness, target) = DeepenTargetReader.From(options, inputs.Conditions, catalog);
         var deepened = target is not null && deepen?.Content is { } c && c.Basis == target.Basis;
 
-        return Decide(null, inputs.HasFinishedEpisode, OptionsInputsReader.Check(inputs), deepenReadiness, deepened);
+        return Decide(
+            null, inputs.HasFinishedEpisode, OptionsInputsReader.Check(inputs), deepenReadiness, deepened, LastEndedWithDistress(episodes));
     }
+
+    /// <summary>
+    /// いちばん新しく話し終えた場面が、つらい状態のサインに応えたところで終わっているか。
+    /// 最後のターンが、つらい状態のサインに応えた聞き手のターンかで見る（話す画面で相談窓口を出し続けるときと同じ見分け方）。
+    /// </summary>
+    public static bool LastEndedWithDistress(IReadOnlyList<EpisodeItem> episodes) =>
+        episodes
+            .Where(e => e.Status == EpisodeStatus.Finished)
+            .OrderByDescending(e => e.FinishedAt ?? e.StartedAt)
+            .FirstOrDefault() is { } last
+        && last.Turns.LastOrDefault() is { Role: TurnRoles.Assistant } turn
+        && turn.Move == TalkStream.MoveName(MoveKind.Distress);
 }

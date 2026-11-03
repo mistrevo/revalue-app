@@ -27,6 +27,7 @@ const WRAP = 'h-auto min-h-9 w-full py-2 whitespace-normal'
  * ホーム。先頭に「次にできること」を一つだけ目立たせて出し、その下に各画面への道と設定を並べる（common-3（次にできることを一つ示す））。
  * 次にできることが talk なら新しい場面を作り、continue なら話している途中の場面へ。読めなかったときは、いままでどおり
  * 「話す」（途中の場面があれば「続きから話す」）を出す（行き止まりを作らない）。
+ * 次にできることが none（つらい状態のサインに応えた直後）なら、何も勧めず、欄を出さない（芯 2（突き放さない））。
  * 次にできることが talk でも continue でもないときは、各画面への道の先頭に「話す」を置く。別の一日を話して力を足す道を、
  * どこまで進んでもいつも残す（芯 5（本人が選ぶ））。talk のときは同じことをするボタンを重ねない。continue のときは途中の場面があり、
  * 新しい場面は作れない（1 人 1 つまで）。
@@ -55,7 +56,8 @@ export function Home() {
 
   const fallbackTalkingId = episodes.kind === 'ready' ? episodes.talkingId : null
   const fallbackReady = episodes.kind !== 'loading'
-  const nextPath = next.kind === 'ready' ? nextStepPath(next.next) : null
+  const shown = next.kind === 'ready' && next.next.step !== 'none' ? { ...next.next, step: next.next.step } : null
+  const nextPath = shown ? nextStepPath(shown) : null
   // 各画面への道に置く「話す」。次にできることが talk（同じボタンが上にある）、continue（途中の場面がある）、
   // 読めなかったとき（上に「話す」か「続きから話す」がある）、読んでいるあいだは置かない
   const talkInOthers = next.kind === 'ready' && next.next.step !== 'talk' && next.next.step !== 'continue'
@@ -69,7 +71,7 @@ export function Home() {
 
       {next.kind === 'loading' && <p className="mt-6 text-sm text-muted-foreground">{copy.loading}</p>}
 
-      {next.kind === 'ready' && (
+      {shown && (
         <section aria-labelledby="home-next-title" className="mt-6 rounded-lg border border-border p-4">
           <h2 id="home-next-title" className="text-base font-bold">
             {copy.home.next.title}
@@ -81,7 +83,7 @@ export function Home() {
               </Button>
             ) : (
               <Button asChild size="lg" className={WRAP}>
-                <Link to={nextPath}>{copy.home.next[next.next.step]}</Link>
+                <Link to={nextPath}>{copy.home.next[shown.step]}</Link>
               </Button>
             )}
           </div>
@@ -111,7 +113,7 @@ export function Home() {
 
       <nav aria-labelledby="home-others-title" className="mt-8">
         <h2 id="home-others-title" className="text-sm font-bold text-muted-foreground">
-          {copy.home.othersTitle}
+          {next.kind === 'ready' && next.next.step === 'none' ? copy.home.screensTitle : copy.home.othersTitle}
         </h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {talkInOthers && (

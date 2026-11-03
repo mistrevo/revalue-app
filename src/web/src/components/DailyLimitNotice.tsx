@@ -3,14 +3,16 @@ import { formatResetTime } from '@/lib/jst'
 
 /**
  * 送信回数の上限に達したときの表示。利用者のせいにせず、次に使える時刻を添える。
- * for は使う画面。talk は話す画面（また続きを話せます）、make は仕事の選択肢と選んだ案を深める画面（また作れます）。
+ * for は使う画面。何がまたできるかを、その画面に合わせて書く（00-common.md の「言葉」）。
  */
-export function DailyLimitNotice({ resetAt, for: where = 'talk' }: { resetAt: string; for?: 'talk' | 'make' }) {
+const BODY = { talk: copy.limit.body, options: copy.limit.bodyOptions, deepen: copy.limit.bodyDeepen } as const
+
+export function DailyLimitNotice({ resetAt, for: where = 'talk' }: { resetAt: string; for?: keyof typeof BODY }) {
   return (
     <div role="status" className="rounded-xl border bg-muted/40 px-4 py-4 text-sm leading-relaxed">
       <p className="font-medium">{copy.limit.title}</p>
       <p className="mt-1 text-muted-foreground">
-        {(where === 'make' ? copy.limit.bodyMake : copy.limit.body).replace('{time}', formatResetTime(resetAt))}
+        {BODY[where].replace('{time}', formatResetTime(resetAt))}
       </p>
     </div>
   )

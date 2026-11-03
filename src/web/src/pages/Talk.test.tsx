@@ -238,6 +238,21 @@ describe('Talk', () => {
     expect(screen.getByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toBeInTheDocument()
   })
 
+  it('discover-10（つらい状態のサインに応える）: 「今日はここで区切る」で区切った画面には、次にできることへの道を出さない（先へ進むことを勧めない）', async () => {
+    const api = setup()
+    api.state.reply = distressEvents()
+    api.state.finishInsights = null
+    // 裏側が先へ進む道を返す状態でも、話す画面では出さない
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await typeAndSend('最近ずっと眠れなくて、つらい')
+    await userEvent.click(await screen.findByRole('button', { name: FAKE_DISTRESS_ACTIONS[1] }))
+
+    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
+  })
+
   it('discover-10（つらい状態のサインに応える）: 開き直しても、窓口のリンクと 3 つの行動が出る', async () => {
     setup(
       fakeEpisode({

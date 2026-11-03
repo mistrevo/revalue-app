@@ -80,6 +80,14 @@ describe('NextStepLink', () => {
     expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
   })
 
+  it('discover-10（つらい状態のサインに応える）: none なら何も出さない（つらい状態のサインに応えた直後は、先へ進むことを勧めない）', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, nextStep: { step: 'none', episodeId: null } })
+    renderAt('/abilities')
+
+    await waitFor(() => expect(nextStepCalls(api)).toHaveLength(1))
+    expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
+  })
+
   it('common-3（次にできることを一つ示す）: 読めなかったら何も出さない', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, nextStep: { status: 500, body: { status: 500 } } })
     renderAt('/abilities')

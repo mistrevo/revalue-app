@@ -234,7 +234,7 @@ export function Options() {
                   )}
                 </div>
               )}
-              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} for="make" />}
+              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} for="options" />}
 
               {data.cards === null && generateError?.kind !== 'limit' && (
                 <Button
@@ -410,7 +410,7 @@ function ChoiceArea({
             {own.note && <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{own.note}</p>}
           </>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button asChild className="w-full sm:w-auto">
             <Link to="/deepen">{copy.options.deepen}</Link>
           </Button>

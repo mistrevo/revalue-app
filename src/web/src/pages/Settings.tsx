@@ -38,7 +38,7 @@ export function Settings() {
         {confirming ? (
           <div className="mt-4 rounded-lg bg-muted/50 px-4 py-4">
             <p className="text-sm font-medium">{copy.settings.confirmQuestion}</p>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Button variant="destructive" onClick={deleteAll} disabled={deleting} className="w-full sm:w-auto">
                 {copy.settings.confirmYes}
               </Button>
@@ -68,7 +68,7 @@ export function Settings() {
         )}
       </section>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         {me.consented && (
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link to="/home">{copy.settings.backHome}</Link>

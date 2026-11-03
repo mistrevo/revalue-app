@@ -111,6 +111,9 @@ public sealed class ScriptedConversationAi : IConversationAi
         MoveKind.ReturnFromIllness => (
             "（開発用の決まった返事）話してくれてありがとうございます。そのとき、あなたはまず何をしましたか？",
             ["予定を変えた", "人に連絡した", "よく覚えていない"]),
+        MoveKind.AskOtherPartOfDay => (
+            "（開発用の決まった返事）教えてくれてありがとうございます。その日は、ほかにどんなことをしていましたか？",
+            ["朝のこと", "昼間のこと", "夕方から夜のこと"]),
         MoveKind.Close => (
             "（開発用の決まった返事）たくさん聞かせてくれてありがとうございました。この場面の話は、ここで一区切りにしますね。",
             null),

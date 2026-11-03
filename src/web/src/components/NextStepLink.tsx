@@ -12,7 +12,8 @@ const BUTTON = 'mt-3 h-auto min-h-9 w-full py-2 whitespace-normal sm:w-auto'
 /**
  * 画面の下に出す、次にできることへの道一つ（00-common.md の「次にできること」。common-3（次にできることを一つ示す））。
  * talk はホームを経ずに、その場で新しい場面を始める（ホームと同じ。ボタンの言葉どおりに進む）。continue はその場面へ。
- * いまいる画面と同じ行き先なら出さない。読めなかったら何も出さない（ほかの道は画面に残っている）。
+ * いまいる画面と同じ行き先なら出さない。読めなかったとき、none（つらい状態のサインに応えた直後）のときも何も出さない
+ * （ほかの道は画面に残っている）。
  * refreshKey が変わったら読み直す（条件を保存したときなど、記録が変わったとき）。
  */
 export function NextStepLink({ refreshKey }: { refreshKey?: unknown }) {
@@ -31,8 +32,8 @@ export function NextStepLink({ refreshKey }: { refreshKey?: unknown }) {
     }
   }, [refreshKey])
 
-  if (next === null) return null
-  const to = nextStepPath(next)
+  if (next === null || next.step === 'none') return null
+  const to = nextStepPath({ ...next, step: next.step })
   if (to !== null && to.split('?')[0] === location.pathname) return null
 
   return (

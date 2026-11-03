@@ -155,6 +155,55 @@ public sealed class NextStepTests
         Assert.Equal(NextStepKind.Deepen, (await Read(kit)).Step);
     }
 
+    /// <summary>つらい状態のサインに応えたところで終えた場面を保存する（話す画面の「今日はここで区切る」と同じ形）。</summary>
+    private static async Task SaveDistressEpisode(Kit kit, DateTimeOffset at)
+    {
+        await kit.Store.UpsertAsync(new EpisodeItem
+        {
+            Id = EpisodeItem.NewId(),
+            UserKey = User,
+            Type = EpisodeItem.ItemType,
+            Status = EpisodeStatus.Finished,
+            StartedAt = at,
+            FinishedAt = at.AddMinutes(10),
+            ExcludedFromValidation = true,
+            Turns =
+            [
+                new Turn { Role = TurnRoles.Assistant, Text = "最近の一日を教えてください。", At = at },
+                new Turn { Role = TurnRoles.User, Text = "架空の答え。", AnswerKind = AnswerKind.Free, At = at },
+                new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.DistressText, Move = TalkStream.MoveName(MoveKind.Distress), At = at },
+            ],
+        }, Ct);
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: いちばん新しく話し終えた場面がつらい状態のサインに応えたところで終わっていたら、先へ進むことを勧めない")]
+    public async Task DistressEndedEpisodeMeansNone()
+    {
+        var kit = await Recorded();
+        Assert.Equal(NextStepKind.Options, (await Read(kit)).Step);
+
+        await SaveDistressEpisode(kit, Now.AddHours(1));
+        Assert.Equal(new NextStepResult(NextStepKind.None, null), await Read(kit));
+
+        // そのあと別の一日を話し終えたら、いつもの次にできることに戻る
+        await SaveEpisode(kit, EpisodeStatus.Finished, Now.AddHours(2));
+        Assert.Equal(NextStepKind.Options, (await Read(kit)).Step);
+
+        // 話している途中の場面があれば、そちらが先
+        var talking = await SaveEpisode(kit, EpisodeStatus.Talking, Now.AddHours(3));
+        await SaveDistressEpisode(kit, Now.AddHours(4));
+        Assert.Equal(new NextStepResult(NextStepKind.Continue, talking), await Read(kit));
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: つらい状態のサインで終えた場面しかなくても、話し終えた場面として扱い、先へ進むことを勧めない")]
+    public async Task OnlyDistressEpisodeMeansNone()
+    {
+        var kit = await Create();
+        await SaveDistressEpisode(kit, Now);
+
+        Assert.Equal(new NextStepResult(NextStepKind.None, null), await Read(kit));
+    }
+
     [Fact(DisplayName = "common-3（次にできることを一つ示す）: 自分で書いた仕事を選んでいて、その仕事を消していたら、仕事の選択肢で選ぶことを示す")]
     public async Task DeletedOwnJobMeansOptions()
     {

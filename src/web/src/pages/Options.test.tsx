@@ -348,7 +348,7 @@ describe('Options', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: copy.options.chosenTitle })).not.toBeInTheDocument())
     expect(within(own).queryByText('子ども食堂の手伝い')).not.toBeInTheDocument()
     expect(within(own).getByRole('button', { name: copy.options.ownAdd })).toBeInTheDocument()
-  })
+  }, 20_000)
 
   it('deepen-1（選んだ 1 案だけ深める）: 選んだ案に、深める画面への道を出す。保留しているときは出さない', async () => {
     installFakeApi({

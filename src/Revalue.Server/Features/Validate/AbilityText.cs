@@ -73,7 +73,7 @@ public static class AbilityText
 
     /// <summary>
     /// 続きの選択肢のうち、その日のほかのことを話したい答え。続きの問いへの答えにこれを選んだら、次の一手は足りない行動ではなく、
-    /// その日にしたことを聞く（<see cref="Discover.NextMovePolicy.Decide"/>。Claude の判断）。
+    /// 同じ日のほかの時間や出来事を聞く（<see cref="Discover.MoveKind.AskOtherPartOfDay"/>。Claude の判断）。
     /// </summary>
     public const string ResumeChoiceOtherThings = "その日のほかのことを話したい";
 

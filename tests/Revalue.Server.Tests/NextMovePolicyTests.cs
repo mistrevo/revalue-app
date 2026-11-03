@@ -313,15 +313,15 @@ public sealed class NextMovePolicyTests
 
     private static readonly IReadOnlyList<Evidence> CoordinatingTwo = [E(Ability.Coordinating, 1), E(Ability.Coordinating, 2)];
 
-    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに「その日のほかのことを話したい」を選んだら、足りない行動ではなく、その日にしたことを聞く")]
-    public void ResumeChoiceOtherThingsAsksWhatYouDid()
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに「その日のほかのことを話したい」を選んだら、足りない行動ではなく、同じ日のほかの時間や出来事を聞く")]
+    public void ResumeChoiceOtherThingsAsksOtherPartOfDay()
     {
         var context = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceOtherThings, AnswerKind.Choice), CoordinatingTwo);
 
         Assert.True(context.WantsOtherThings);
-        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
-        // 「分からない」と読まれても、話したいと選んだので、その日にしたことを聞く
-        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Read(AnswerSignal.DontKnow), 2, context));
+        Assert.Equal(new NextMove(MoveKind.AskOtherPartOfDay), NextMovePolicy.Decide(Concrete, 2, context));
+        // 「分からない」と読まれても、話したいと選んだので、同じ日のほかのことを聞く
+        Assert.Equal(new NextMove(MoveKind.AskOtherPartOfDay), NextMovePolicy.Decide(Read(AnswerSignal.DontKnow), 2, context));
         // より先の一手（つらい状態のサイン、締め、家族の病気）はそのまま
         Assert.Equal(MoveKind.Distress, NextMovePolicy.Decide(Read(AnswerSignal.Distress), 2, context).Kind);
         Assert.Equal(MoveKind.Close, NextMovePolicy.Decide(Concrete, NextMovePolicy.MaxUserTurns, context).Kind);

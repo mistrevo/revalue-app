@@ -955,7 +955,11 @@ export function installFakeApi(initial: {
     const talking = state.episodes.find((e) => e.status === 'talking')
     if (talking) return { step: 'continue', episodeId: talking.id }
     const of = (step: NextStep['step']): NextStep => ({ step, episodeId: null })
-    if (!state.episodes.some((e) => e.status === 'finished')) return of('talk')
+    const finished = state.episodes.filter((e) => e.status === 'finished')
+    if (finished.length === 0) return of('talk')
+    // いちばん新しく話し終えた場面が、つらい状態のサインに応えたところで終わっていたら、何も勧めない
+    const last = [...finished].sort((a, b) => (b.finishedAt ?? b.startedAt).localeCompare(a.finishedAt ?? a.startedAt))[0]
+    if (last.notice?.kind === 'distress') return of('none')
     if (state.profile.conditions === null) return of('conditions')
     // 使える力が本人の外した力だけのときも、外した見立てに戻すことを勧めず、別の一日を話す
     if (state.options.readiness === 'needsAbility' || state.options.readiness === 'onlyExcluded') return of('talk')

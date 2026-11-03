@@ -120,7 +120,7 @@ describe('Home', () => {
     expect(await screen.findByRole('heading', { level: 1, name: copy.report.title })).toBeInTheDocument()
   })
 
-  const linkSteps: { step: Exclude<NextStepKind, 'talk'>; href: string }[] = [
+  const linkSteps: { step: Exclude<NextStepKind, 'talk' | 'none'>; href: string }[] = [
     { step: 'continue', href: '/talk/episode-5' },
     { step: 'conditions', href: '/profile?ask=conditions' },
     { step: 'options', href: '/options' },
@@ -144,7 +144,7 @@ describe('Home', () => {
     expect(within(section).getByText(copy.home.next.anywhere)).toBeInTheDocument()
   })
 
-  const otherSteps: { step: Exclude<NextStepKind, 'talk' | 'continue'> }[] = [
+  const otherSteps: { step: Exclude<NextStepKind, 'talk' | 'continue' | 'none'> }[] = [
     { step: 'conditions' },
     { step: 'options' },
     { step: 'deepen' },
@@ -169,6 +169,21 @@ describe('Home', () => {
       expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes')).toHaveLength(1)
     },
   )
+
+  it('discover-10（つらい状態のサインに応える）: 次にできることが none なら、何も勧めず、各画面への道と「話す」だけを並べる', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+      nextStep: { step: 'none', episodeId: null },
+    })
+    renderApp('/home')
+
+    const screens = await screen.findByRole('navigation', { name: copy.home.screensTitle })
+    expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
+    expect(within(screens).getByRole('button', { name: copy.home.talk })).toBeInTheDocument()
+    expect(within(screens).getByRole('link', { name: copy.home.options })).toBeInTheDocument()
+  })
 
   it('common-3（次にできることを一つ示す）: 話している途中の場面があるときは、ほかの画面の並びに「話す」を置かない', async () => {
     installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode({ id: 'episode-6' })] })
@@ -226,7 +241,7 @@ describe('Home', () => {
     expect(screen.queryByText(copy.home.greeting)).not.toBeInTheDocument()
   })
 
-  it('common-3（次にできることを一つ示す）: 各画面への道は、どの幅でも折り返して収まる並びにする（横一列に並べない）', async () => {
+  it('common-4（どの画面からもホームへ戻れ、幅に収まる）: 各画面への道は、どの幅でも折り返して収まる並びにする（横一列に並べない）', async () => {
     installFakeApi({ loggedIn: true, consented: true })
     const { container } = renderApp('/home')
 

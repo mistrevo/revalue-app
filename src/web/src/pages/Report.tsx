@@ -463,7 +463,7 @@ function ChoiceSection({
         <Note>{choice.problem === 'excluded' ? copy.options.chosenExcluded : copy.options.chosenChanged}</Note>
       )}
       {choice.cardsStale && <Note>{copy.report.cardsStale}</Note>}
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {chosen(choice) ? (
           <>
             <EditLink to="/options" label={copy.report.edit.choice} />

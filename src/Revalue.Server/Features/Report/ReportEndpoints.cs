@@ -84,7 +84,7 @@ public static class ReportEndpoints
         {
             var userKey = http.User.GetUserKey()!;
             var watch = Stopwatch.StartNew();
-            var (ready, content) = await ReportBuilder.BuildAsync(store, userKey, catalog, ct);
+            var (ready, content, abilitiesExcluded) = await ReportBuilder.BuildAsync(store, userKey, catalog, ct);
             if (!ready || content is null)
             {
                 return TypedResults.Ok(new ReportDto(false, null, null, []));
@@ -110,7 +110,7 @@ public static class ReportEndpoints
                 saved.Versions.Count,
                 saved.Versions.Count > 0 ? saved.Versions[0].Number : 0);
 
-            return TypedResults.Ok(new ReportDto(true, ContentDto(content, excluded.Count > 0), versions.FirstOrDefault(), versions.Skip(1).ToList()));
+            return TypedResults.Ok(new ReportDto(true, ContentDto(content, abilitiesExcluded), versions.FirstOrDefault(), versions.Skip(1).ToList()));
         });
     }
 

@@ -219,7 +219,7 @@ export function Deepen() {
                   {copy.deepen.generateFailed}
                 </p>
               )}
-              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} for="make" />}
+              {generateError?.kind === 'limit' && <DailyLimitNotice resetAt={generateError.resetAt} for="deepen" />}
               {canGenerate && (
                 <Button
                   size="lg"
@@ -263,7 +263,7 @@ export function Deepen() {
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link to="/report">{copy.deepen.toReport}</Link>
         </Button>
