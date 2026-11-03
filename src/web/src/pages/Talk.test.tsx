@@ -537,6 +537,39 @@ describe('Talk', () => {
     expect(confirmSpy).not.toHaveBeenCalled()
   })
 
+  it('validate-8（訂正したら確かめ直す）: やりとりの中の訂正は、ふつうの答えと分けて「読み取りを直した言葉」として出る', async () => {
+    setup(finishedWithInsights())
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.correct }))
+    await userEvent.type(screen.getByRole('textbox', { name: copy.insights.correctLabel }), '声をかけたのは私ではなく、夫でした')
+    await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
+
+    const log = await screen.findByRole('log', { name: copy.talk.logLabel })
+    await waitFor(() => expect(within(log).getByText(copy.talk.correctionLabel)).toBeInTheDocument())
+    const box = within(log).getByText(copy.talk.correctionLabel).parentElement!
+    expect(within(box).getByText('声をかけたのは私ではなく、夫でした')).toBeInTheDocument()
+    // 本人の答えの吹き出し（読み上げに「あなた」を持つもの）には、訂正が入らない
+    const asAnswer = within(log)
+      .getAllByText(copy.talk.you)
+      .map((label) => label.parentElement!)
+      .filter((bubble) => bubble.textContent?.includes('声をかけたのは私ではなく、夫でした'))
+    expect(asAnswer).toHaveLength(0)
+  })
+
+  it('validate-8（訂正したら確かめ直す）: 訂正のある場面を開き直しても、訂正は分けて出る', async () => {
+    const base = finishedWithInsights()
+    setup({
+      ...base,
+      turns: [...base.turns, { role: 'user', text: '夫が声をかけました', answerKind: 'correction', at: '2026-11-03T04:00:00Z' }],
+    })
+
+    const log = await screen.findByRole('log', { name: copy.talk.logLabel })
+    const label = within(log).getByText(copy.talk.correctionLabel)
+    expect(within(label.parentElement!).getByText('夫が声をかけました')).toBeInTheDocument()
+    expect(within(log).getByText('班の 2 家族の都合を聞きました')).toBeInTheDocument()
+    expect(within(log).getAllByText(copy.talk.you)).toHaveLength(1)
+  })
+
   it('validate-8（訂正したら確かめ直す）: 「やめる」で入力欄を閉じ、何も送らない', async () => {
     const api = setup(finishedWithInsights())
 

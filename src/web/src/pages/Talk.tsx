@@ -279,9 +279,13 @@ function TalkScreen({ id }: { id: string }) {
       <h1 className="text-lg font-bold">{copy.talk.title}</h1>
 
       <div role="log" aria-label={copy.talk.logLabel} className="mt-4 flex flex-col gap-3">
-        {episode.turns.map((turn, index) => (
-          <TurnBubble key={index} role={turn.role} text={turn.text} />
-        ))}
+        {episode.turns.map((turn, index) =>
+          turn.answerKind === 'correction' ? (
+            <CorrectionBox key={index} text={turn.text} />
+          ) : (
+            <TurnBubble key={index} role={turn.role} text={turn.text} />
+          ),
+        )}
         {pending !== null && <TurnBubble role="user" text={pending.text} />}
         {pending !== null && streamText !== '' && <TurnBubble role="assistant" text={streamText} />}
       </div>
@@ -533,6 +537,17 @@ function TurnBubble({ role, text }: { role: Turn['role']; text: string }) {
       >
         <span className="sr-only">{mine ? copy.talk.you : copy.talk.listener}</span>
         <p>{text}</p>
+      </div>
+    </div>
+  )
+}
+
+function CorrectionBox({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[85%] rounded-2xl border px-4 py-2 text-sm leading-relaxed">
+        <p className="text-xs text-muted-foreground">{copy.talk.correctionLabel}</p>
+        <p className="whitespace-pre-wrap">{text}</p>
       </div>
     </div>
   )

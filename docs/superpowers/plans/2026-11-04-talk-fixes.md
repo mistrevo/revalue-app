@@ -100,16 +100,16 @@
 - Produces: `copy.talk.correctionLabel = '読み取りを直した言葉'`（Claude の判断）
 - Changes: やりとり（`role="log"`）の中で、`answerKind === 'correction'` のターンは、本人の答えの吹き出し（`TurnBubble`）ではなく、右に寄せた枠だけの囲み（塗りつぶさない。`rounded-2xl border px-4 py-2 text-sm`、幅は吹き出しと同じ `max-w-[85%]`）で出す。囲みの先頭に見出し `copy.talk.correctionLabel`（小さめの文字、`text-muted-foreground`）を出し、その下に訂正の文（`whitespace-pre-wrap`）。読み上げでは見出しが読まれるので、`sr-only` の「あなた」は付けない
 
-- [ ] **Step 1: 失敗するテストを書く**（`Talk.test.tsx`。いまの訂正のテストと同じ偽物の API を使う）
+- [x] **Step 1: 失敗するテストを書く**（`Talk.test.tsx`。いまの訂正のテストと同じ偽物の API を使う）
   - `it('validate-8（訂正したら確かめ直す）: やりとりの中の訂正は、ふつうの答えと分けて「読み取りを直した言葉」として出る')`: 訂正を送ったあと、やりとりの中に `copy.talk.correctionLabel` が出て、その囲みの中に訂正の文がある。訂正の文が本人の答えの吹き出し（`copy.talk.you` の読み上げを持つもの）として出ていない
   - `it('validate-8（訂正したら確かめ直す）: 訂正のある場面を開き直しても、訂正は分けて出る')`: 訂正のターン（`answerKind: 'correction'`）を含む場面を読み込むと、同じ見せ方で出る
-- [ ] **Step 2: 実行して失敗を確かめる**: `npm --prefix src/web test -- Talk`
-- [ ] **Step 3: 実装する**
-- [ ] **Step 4: 実行して通ることを確かめる**: `npm --prefix src/web test`、`npm --prefix src/web run build`、`npm --prefix src/web run lint`
-- [ ] **Step 5: Spec を直す**（`03-validate.md`）
+- [x] **Step 2: 実行して失敗を確かめる**: `npm --prefix src/web test -- Talk`
+- [x] **Step 3: 実装する**
+- [x] **Step 4: 実行して通ることを確かめる**: `npm --prefix src/web test`、`npm --prefix src/web run build`、`npm --prefix src/web run lint`
+- [x] **Step 5: Spec を直す**（`03-validate.md`）
   - 「訂正」に足す（Claude の判断）: やりとりの中では、訂正を本人の答えの吹き出しと分け、「読み取りを直した言葉」という見出しを付けた囲みで出す。訂正には返事を作らないので、答えに AI が返事をしなかったように見せないため
   - 画面の表の「話す」の行に、やりとりの中の訂正の見せ方を一言足す
-- [ ] **Step 6: コミット**: `git commit -m "やりとりの中の訂正を、ふつうの答えと分けて出す（validate-8（訂正したら確かめ直す））"`
+- [x] **Step 6: コミット**: `git commit -m "やりとりの中の訂正を、ふつうの答えと分けて出す（validate-8（訂正したら確かめ直す））"`
 
 ---
 
