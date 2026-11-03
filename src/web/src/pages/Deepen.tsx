@@ -618,7 +618,8 @@ function QuestionItem({
           <Button
             key={choice}
             variant="outline"
-            className="h-auto w-full justify-start py-2 text-left whitespace-normal"
+            // 選んだ答えは、押した印で分かるようにする（「あなたの答え」と合わせて見せる）
+            className="h-auto w-full justify-start py-2 text-left whitespace-normal aria-pressed:border-primary aria-pressed:bg-primary/10"
             disabled={busy}
             aria-pressed={answer?.fromChoice === true && answer.text === choice}
             onClick={() => void onAnswer(question.id, choice, true)}

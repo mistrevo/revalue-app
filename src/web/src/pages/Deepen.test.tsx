@@ -421,6 +421,8 @@ describe('Deepen', () => {
     await userEvent.click(within(questions).getByRole('button', { name: FAKE_DEEPEN_CHOICES[1] }))
     expect(await within(questions).findByText(copy.deepen.yourAnswer.replace('{text}', FAKE_DEEPEN_CHOICES[1]))).toBeInTheDocument()
     expect(within(questions).getByText(copy.deepen.answerSaved)).toBeInTheDocument()
+    expect(within(questions).getByRole('button', { name: FAKE_DEEPEN_CHOICES[1] })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(questions).getByRole('button', { name: FAKE_DEEPEN_CHOICES[0] })).toHaveAttribute('aria-pressed', 'false')
 
     // 「それ以外」は、自由に書く欄に移る
     await userEvent.click(within(questions).getByRole('button', { name: copy.deepen.other }))
