@@ -10,15 +10,16 @@ namespace Revalue.Evals;
 
 /// <summary>
 /// 評価を回す。
-/// <c>dotnet run --project evals/Revalue.Evals -- --unit discover|validate|options [--dry-run] [--out &lt;フォルダ&gt;]</c>
+/// <c>dotnet run --project evals/Revalue.Evals -- --unit discover|validate|options|deepen [--dry-run] [--out &lt;フォルダ&gt;]</c>
 /// 終了コード: 0 合格、1 不合格、2 回せなかった（引数や鍵の不足など）。
 /// dry-run は仕組みが動くかだけを確かめるので、途中で終えた例がなければ 0、あれば 1 を返す（偽物の AI の数字では合否を決めない。Claude の判断）。
 /// validate では、同じやりとりを汎用の AI にも渡して比べる（<see cref="GenericComparison"/>）。
 /// options は、架空の 5 つの記録（evals/profiles/）から仕事の選択肢を作り、照らし合わせの前とあとを数える（<see cref="OptionsEval"/>）。
+/// deepen は、架空の選んだ案（evals/deepen/）を記録と組にして深め、照らし合わせの前とあとを数える（<see cref="DeepenEval"/>）。
 /// </summary>
 public static class EvalProgram
 {
-    private static readonly string[] Units = ["discover", "validate", "options"];
+    private static readonly string[] Units = ["discover", "validate", "options", "deepen"];
 
     /// <summary>返事の判定役の指示。どのまとまりでも、返事は 02 discover（話す）の決まりで見る。</summary>
     private const string ReplyJudgePrompt = "discover.md";
@@ -43,7 +44,7 @@ public static class EvalProgram
                     break;
                 default:
                     Console.Error.WriteLine($"知らない引数です: {args[i]}");
-                    Console.Error.WriteLine("使い方: dotnet run --project evals/Revalue.Evals -- --unit discover|validate|options [--dry-run] [--out <フォルダ>]");
+                    Console.Error.WriteLine("使い方: dotnet run --project evals/Revalue.Evals -- --unit discover|validate|options|deepen [--dry-run] [--out <フォルダ>]");
                     return 2;
             }
         }
@@ -65,6 +66,11 @@ public static class EvalProgram
         if (unit == "options")
         {
             return await RunOptionsAsync(baseDir, dryRun, outDir, cancel.Token);
+        }
+
+        if (unit == "deepen")
+        {
+            return await RunDeepenAsync(baseDir, dryRun, outDir, cancel.Token);
         }
 
         var scripts = EpisodeScript.LoadAll(Path.Combine(baseDir, "episodes"), unit);
@@ -218,6 +224,84 @@ public static class EvalProgram
         if (summary.Errors > 0)
         {
             Console.WriteLine($"途中で終えた記録: {summary.Errors} 件");
+        }
+
+        Console.WriteLine($"結果を書きました: {path}");
+        return dryRun ? (summary.Errors == 0 ? 0 : 1) : (summary.Passed ? 0 : 1);
+    }
+
+    /// <summary>
+    /// 選んだ案を深める評価を回す。本物の AI では、製品と同じ <see cref="ClaudeDeepenAi"/> と、判定役（judges/deepen.md）を使う。
+    /// </summary>
+    private static async Task<int> RunDeepenAsync(string baseDir, bool dryRun, string? outDir, CancellationToken ct)
+    {
+        var catalog = JobCatalog.Load();
+        var cases = DeepenCase.LoadAll(Path.Combine(baseDir, "deepen"), catalog);
+        var profiles = ProfileCase.LoadAll(Path.Combine(baseDir, "profiles"));
+        if (cases.Count == 0)
+        {
+            Console.Error.WriteLine("架空の選んだ案（deepen）がありません。");
+            return 2;
+        }
+
+        if (cases.FirstOrDefault(c => profiles.All(p => p.Id != c.Profile)) is { } orphan)
+        {
+            Console.Error.WriteLine($"{orphan.Id} の記録 {orphan.Profile} が profiles にありません。");
+            return 2;
+        }
+
+        var forbidden = ForbiddenWords.Load(Path.Combine(baseDir, "forbidden-words.json"));
+        var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
+        var claude = new ClaudeOptions();
+        config.GetSection("Claude").Bind(claude);
+        var usage = new UsageMeter();
+        using var loggers = LoggerFactory.Create(b => b.AddSimpleConsole(o => o.SingleLine = true));
+
+        DeepenEval eval;
+        if (dryRun)
+        {
+            eval = new DeepenEval(new ScriptedDeepenAi(), new DryRunDeepenJudge(), catalog, forbidden);
+        }
+        else
+        {
+            var apiKey = config[AiSetup.ApiKeySetting];
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                Console.Error.WriteLine($"本物の AI で回すには {AiSetup.ApiKeySetting} が要ります。仕組みだけを確かめるなら --dry-run を付けてください。");
+                return 2;
+            }
+
+            var client = new AnthropicClient { ApiKey = apiKey };
+            eval = new DeepenEval(
+                new ClaudeDeepenAi(client, Options.Create(claude), loggers.CreateLogger<ClaudeDeepenAi>(), usage),
+                new ClaudeDeepenJudge(client, claude.Model, File.ReadAllText(Path.Combine(baseDir, "judges", "deepen.md")).Trim(), usage),
+                catalog,
+                forbidden);
+        }
+
+        var runs = new List<DeepenRun>();
+        foreach (var c in cases)
+        {
+            Console.WriteLine($"{c.Id} {c.Title} を流しています");
+            runs.Add(await eval.RunAsync(c, profiles.Single(p => p.Id == c.Profile), ct));
+        }
+
+        var summary = DeepenSummary.From(runs);
+        var at = DateTimeOffset.UtcNow.ToOffset(Jst.Offset);
+        var report = DeepenReport.Write(new ReportContext("deepen", claude.Model, dryRun, at), runs, summary, usage);
+        var directory = outDir ?? (dryRun ? Path.Combine(Path.GetTempPath(), "revalue-evals") : ResultsDirectory());
+        Directory.CreateDirectory(directory);
+        var path = UniquePath(directory, $"{at:yyyy-MM-dd}-deepen");
+        await File.WriteAllTextAsync(path, report.ReplaceLineEndings("\n"), ct);
+
+        foreach (var item in summary.Gated)
+        {
+            Console.WriteLine($"{(item.Passed == true ? "合格" : "不合格")}: {item.Name}（{item.Count} / {item.Total}、合格の線 {item.Line}）");
+        }
+
+        if (summary.Errors > 0)
+        {
+            Console.WriteLine($"途中で終えた案: {summary.Errors} 件");
         }
 
         Console.WriteLine($"結果を書きました: {path}");

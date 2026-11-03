@@ -14,6 +14,9 @@ public static class PromptFiles
     /// <summary>仕事の選択肢（3 枚のカード）の指示。</summary>
     public const string Options = "options.md";
 
+    /// <summary>選んだ案を深める（業務の見立て、仮の場面の問い、最初の一歩）の指示。</summary>
+    public const string Deepen = "deepen.md";
+
     public static string Read(string name) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Ai", "Prompts", name)).ReplaceLineEndings("\n").Trim();
 }

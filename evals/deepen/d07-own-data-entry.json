@@ -1,0 +1,13 @@
+{
+  "id": "d07-own-data-entry",
+  "title": "本人が書いた仕事: 家でできるデータ入力（メモなし）",
+  "profile": "p06-excluded",
+  "note": "すべて架空。選んだ案は、このハッカソンの期間中に新しく書いた。組にする記録は evals/profiles/ にある。",
+  "choice": {
+    "kind": "own",
+    "own": {
+      "title": "家でできるデータ入力",
+      "note": null
+    }
+  }
+}

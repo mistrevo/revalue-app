@@ -1,0 +1,18 @@
+{
+  "id": "d04-create-tight",
+  "title": "創る: 週 1 時間、夜、家でできる家計簿の見直しの手伝い",
+  "profile": "p03-tight-conditions",
+  "note": "すべて架空。選んだ案は、このハッカソンの期間中に新しく書いた。組にする記録は evals/profiles/ にある。",
+  "choice": {
+    "kind": "create",
+    "create": {
+      "title": "家計簿の見直しの手伝い",
+      "who": "共働きで忙しい家庭の",
+      "trouble": "家計簿をつけていても見直す時間がとれず、いつもと違う出費に気づきにくいこと",
+      "summary": "送ってもらった家計簿を週に一度見て、いつもと違うところに印を付けて返す事業のアイデアです。",
+      "hoursPerWeek": 1,
+      "place": "home",
+      "timeSlots": ["night"]
+    }
+  }
+}

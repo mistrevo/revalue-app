@@ -77,6 +77,9 @@ export function Home() {
         <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
           <Link to="/options">{copy.home.options}</Link>
         </Button>
+        <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+          <Link to="/deepen">{copy.home.deepen}</Link>
+        </Button>
         <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
           <Link to="/settings">{copy.home.settingsLink}</Link>
         </Button>

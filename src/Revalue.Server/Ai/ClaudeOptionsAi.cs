@@ -28,7 +28,7 @@ public sealed class ClaudeOptionsAi(
         ["made", "title", "who", "trouble", "summary", "ability", "quotes", "hoursPerWeek", "place", "timeSlots", "reason"];
 
     /// <summary>時間帯の、画面の言葉（src/web/src/copy.ts の profile と同じ）。</summary>
-    private static readonly IReadOnlyDictionary<TimeSlot, string> SlotLabels = new Dictionary<TimeSlot, string>
+    internal static readonly IReadOnlyDictionary<TimeSlot, string> SlotLabels = new Dictionary<TimeSlot, string>
     {
         [TimeSlot.Morning] = "朝（9 時まで）",
         [TimeSlot.Daytime] = "日中（9〜15 時）",
@@ -226,7 +226,7 @@ public sealed class ClaudeOptionsAi(
                 .ToList();
     }
 
-    private static string SlotKey(TimeSlot slot) => slot switch
+    internal static string SlotKey(TimeSlot slot) => slot switch
     {
         TimeSlot.Morning => "morning",
         TimeSlot.Daytime => "daytime",

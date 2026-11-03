@@ -99,4 +99,13 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: copy.options.title })).toBeInTheDocument()
   })
+
+  it('deepen-1（選んだ 1 案だけ深める）: ホームから選んだ案を深める画面へ行ける', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/home')
+
+    await userEvent.click(await screen.findByRole('link', { name: copy.home.deepen }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.deepen.title })).toBeInTheDocument()
+  })
 })

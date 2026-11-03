@@ -18,6 +18,7 @@ export const PROBLEM_TYPES = {
   dailyLimit: '/problems/daily-limit',
   episodeInProgress: '/problems/episode-in-progress',
   episodeFinished: '/problems/episode-finished',
+  deepenChanged: '/problems/deepen-changed',
 } as const
 
 export class ApiError extends Error {
@@ -538,4 +539,94 @@ export function updateOwnJob(id: string, job: { title: string; note: string }): 
 
 export function deleteOwnJob(id: string): Promise<Options> {
   return optionsRequest(`/own/${encodeURIComponent(id)}`, 'DELETE')
+}
+
+// ---- 選んだ案を深める ----
+
+/** 深められるか。noChoice は選んだ案がない、hold は保留している、needsConditions は条件が入っていない。 */
+export type DeepenReadiness = 'ready' | 'noChoice' | 'hold' | 'needsConditions'
+/** 選んだ案の種類。own は本人が書いた仕事。 */
+export type TargetKind = CardKind | 'own'
+
+/** 選んだ案。outsideConditions は、選んだカードがいまの条件に収まらなくなったか（本人が書いた仕事はいつも false）。 */
+export type DeepenTarget = { kind: TargetKind; title: string; outsideConditions: boolean }
+
+/** 業務 1 つの照らし合わせ。usable がなければ、その業務で使う力はまだ確かめていない。drafted は AI の見立て（本人が直せる）。 */
+export type DeepenTask = {
+  id: string | null
+  name: string
+  detail: string
+  ability: AbilityKey
+  abilityName: string
+  usable: { state: 'confirmed' | 'needsCheck'; quotes: Quote[] } | null
+  knowledge: string[]
+  drafted: boolean
+}
+
+export type DeepenAnswer = { text: string; fromChoice: boolean }
+
+/** 仮の場面の問い。答えは考え方として残し、力の確かめには使わない。 */
+export type DeepenQuestion = { id: string; situation: string; abilityName: string; choices: string[]; answer: DeepenAnswer | null }
+
+/** 一歩の候補。fits が false のものは、選んだあとで条件が変わって収まらなくなった候補（選んでいたものだけが来る）。 */
+export type DeepenStep = { id: string; text: string; hours: number; place: TaskPlace; demandCheck: boolean; fits: boolean; chosen: boolean }
+
+/**
+ * 深めた中身。stale は選んだ案が変わって古くなったか（古いときは中身の一覧が空で来る）。
+ * retryPaused は、いまの選んだ案で AI が失敗したか断ったか（開いたときに自動で作り直さず、「もう一度作る」を出す）。
+ */
+export type DeepenContent = {
+  generatedAt: string
+  stale: boolean
+  retryPaused: boolean
+  tasks: DeepenTask[]
+  tasksRejected: boolean
+  questions: DeepenQuestion[]
+  steps: DeepenStep[]
+  stepsFallback: boolean
+  /** いまの条件に収まらず選んでもいない候補を出さずに、コードの候補で補ったか */
+  stepsReplaced: boolean
+  ownSteps: string[]
+}
+
+/** 深める API が返すもの。進めないときは target と content が null。まだ深めていなければ content が null。 */
+/** retryPaused は、いまの選んだ案で AI が失敗したか断ったか。初めて深めるときの失敗も伝えるため、中身の外にも持つ */
+export type Deepen = { readiness: DeepenReadiness; target: DeepenTarget | null; content: DeepenContent | null; retryPaused: boolean }
+
+/** 本人が直した業務。knowledge は要る知識や道具（なくてもよい）。 */
+export type DeepenTaskRequest = { name: string; detail: string; ability: AbilityKey; knowledge: string }
+
+async function deepenRequest(path: string, method: string, body?: unknown): Promise<Deepen> {
+  const response = await request(`/api/deepen${path}`, {
+    method,
+    ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+  })
+  return (await response.json()) as Deepen
+}
+
+export function getDeepen(): Promise<Deepen> {
+  return deepenRequest('', 'GET')
+}
+
+/** 選んだ案を深める（作り直す）。進めないときは 409、AI が失敗・断ったときは 503（kind 付き）、上限なら 429 の ApiError。 */
+export function generateDeepen(): Promise<Deepen> {
+  return deepenRequest('', 'POST')
+}
+
+// 深めた中身の書き換えは、どれも見ていた中身の作った日時（generatedAt）と一緒に送る。
+// 選んだ案が変わっていたか、同じ案でも作り直されていたら 409 の ApiError（仕事の選択肢の PUT /api/options/choice と同じやり方）。
+
+/** 業務の見立てを、送った並びに置き換える。 */
+export function putDeepenTasks(generatedAt: string, tasks: DeepenTaskRequest[]): Promise<Deepen> {
+  return deepenRequest('/tasks', 'PUT', { tasks, generatedAt })
+}
+
+/** 問いの答えを置き換える。 */
+export function putDeepenAnswer(generatedAt: string, questionId: string, answer: DeepenAnswer): Promise<Deepen> {
+  return deepenRequest(`/answers/${encodeURIComponent(questionId)}`, 'PUT', { ...answer, generatedAt })
+}
+
+/** 選んだ候補と、書いた一歩を置き換える（どちらも空でよい）。 */
+export function putDeepenSteps(generatedAt: string, steps: { chosen: string[]; own: string[] }): Promise<Deepen> {
+  return deepenRequest('/steps', 'PUT', { ...steps, generatedAt })
 }

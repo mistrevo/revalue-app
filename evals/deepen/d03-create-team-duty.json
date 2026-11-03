@@ -1,0 +1,18 @@
+{
+  "id": "d03-create-team-duty",
+  "title": "創る: 子どものチームの当番の日程合わせの手伝い",
+  "profile": "p01-coordinating-seen",
+  "note": "すべて架空。選んだ案は、このハッカソンの期間中に新しく書いた。組にする記録は evals/profiles/ にある。",
+  "choice": {
+    "kind": "create",
+    "create": {
+      "title": "チームの当番の日程合わせの手伝い",
+      "who": "子どものスポーツチームに通う家庭の",
+      "trouble": "当番の日程が、家ごとの仕事や用事とぶつかって、なかなか決まらないこと",
+      "summary": "当番を受け持つ家の都合を聞き取り、入れ替えの案をまとめて示す事業のアイデアです。",
+      "hoursPerWeek": 5,
+      "place": "home",
+      "timeSlots": ["daytime", "evening"]
+    }
+  }
+}

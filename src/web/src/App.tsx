@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { RequireUser } from '@/components/RequireUser'
 import { Abilities } from '@/pages/Abilities'
+import { Deepen } from '@/pages/Deepen'
 import { Episodes } from '@/pages/Episodes'
 import { Home } from '@/pages/Home'
 import { Landing } from '@/pages/Landing'
@@ -71,6 +72,14 @@ export function AppRoutes() {
         element={
           <RequireUser key="options" consent>
             <Options />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/deepen"
+        element={
+          <RequireUser key="deepen" consent>
+            <Deepen />
           </RequireUser>
         }
       />
