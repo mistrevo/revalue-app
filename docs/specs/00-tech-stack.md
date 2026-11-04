@@ -72,6 +72,7 @@ evals/
   profiles/                       架空の 5 つの記録（p01-*.json から。仕事の選択肢の評価に使う）
   deepen/                         架空の選んだ案（d01-*.json から。架空の 5 つの記録と組にして、選んだ案を深める評価に使う）
   judges/                         AI の判定役の指示（まとまりごと）
+  personas/                       架空のペルソナとして、手元のサーバーを通しで使うための手引き（README.md）と道具
   criteria.md                     測り方（合格の数字は PRD の 6-quality.md）
   results/                        評価の結果（日付つき）
   Revalue.Evals/                  評価を回すコンソールアプリ（Revalue.Server を参照する）
@@ -93,6 +94,7 @@ Windows と Linux のどちらでも同じように動く形で書く。`cd` で
 | 手元で動かす（裏側） | `dotnet run --project src/Revalue.Server` |
 | 手元で動かす（画面） | `npm --prefix src/web run dev`（`/api` を裏側へ転送する） |
 | 評価を回す | `dotnet run --project evals/Revalue.Evals -- --unit discover`（`--unit` で回すまとまりを選ぶ。`discover` は 02 discover（話す）、`validate` は 03 validate（確かめる）、`options` は 05 options（仕事の選択肢）、`deepen` は 06 deepen（選んだ案を深める）。`--dry-run` で、Claude を呼ばずに仕組みだけを確かめる） |
+| ペルソナで通して試す | 動かし方と API の使い方は `evals/personas/README.md`。道具が動くかは、手元のサーバーを動かしてから `node evals/personas/smoke.mjs` |
 | フックのテスト | `node --test .claude/hooks/guard.test.mjs` |
 
 雛形を作るときは、公式の作り方に従う。
