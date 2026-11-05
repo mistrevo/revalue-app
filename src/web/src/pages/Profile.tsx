@@ -407,7 +407,7 @@ function CanDoSection({ canDo }: { canDo: ProfileData['canDo'] }) {
   const linkClass = 'text-sm font-medium text-primary underline underline-offset-4'
   return (
     <Section title={copy.profile.canDoTitle}>
-      {canDo.seen.length > 0 && <CanDoGroup title={copy.profile.seenTitle} abilities={canDo.seen} />}
+      {canDo.seen.length > 0 && <CanDoGroup title={copy.profile.seenTitle} abilities={canDo.seen} paired />}
       {canDo.checking.length > 0 && <CanDoGroup title={copy.profile.checkingTitle} abilities={canDo.checking} />}
       {empty && <p className="text-sm leading-relaxed text-muted-foreground">{copy.profile.canDoEmpty}</p>}
       {canDo.hasExcluded && <p className="text-sm leading-relaxed text-muted-foreground">{copy.profile.excludedNote}</p>}
@@ -424,7 +424,7 @@ function CanDoSection({ canDo }: { canDo: ProfileData['canDo'] }) {
   )
 }
 
-function CanDoGroup({ title, abilities }: { title: string; abilities: CanDoAbility[] }) {
+function CanDoGroup({ title, abilities, paired = false }: { title: string; abilities: CanDoAbility[]; paired?: boolean }) {
   const id = useId()
   return (
     <div role="group" aria-labelledby={id} className="flex min-w-0 flex-col gap-3">
@@ -434,7 +434,7 @@ function CanDoGroup({ title, abilities }: { title: string; abilities: CanDoAbili
       {abilities.map((ability) => (
         <div key={ability.key} className="min-w-0">
           <h4 className="text-sm font-semibold">{ability.name}</h4>
-          <QuoteList quotes={ability.quotes} />
+          <QuoteList quotes={ability.quotes} paired={paired} />
           {ability.episodeId && (
             <Link
               to={`/talk/${ability.episodeId}`}

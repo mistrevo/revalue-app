@@ -160,7 +160,8 @@ export type Episode = {
 // ---- 力の確かめ ----
 
 /** 根拠の本人の言葉。fromChoice なら選んだ答えで、linkedText に結びついた本人の言葉が入る。 */
-export type Quote = { text: string; fromChoice: boolean; linkedText?: string | null }
+/** action は、その根拠の核となる行動の文（辞書の共通の文）。見えた力では本人の言葉と組にして出す。 */
+export type Quote = { text: string; fromChoice: boolean; linkedText?: string | null; action?: string | null }
 
 /** 力の id。能力辞書（src/shared/abilities.json）の id で、画面のコードには書かない。 */
 export type AbilityKey = string
@@ -172,7 +173,6 @@ export type AbilityState = 'notYet' | 'needsCheck' | 'confirmed'
 export type EpisodeInsights = {
   seen: { key: AbilityKey; name: string; quotes: Quote[] }[]
   moreToHear: { key: AbilityKey; name: string; quotes: Quote[]; hints: string[] }[]
-  notYet: { key: AbilityKey; name: string }[]
   canResume: boolean
 }
 
@@ -656,7 +656,7 @@ export type ReportAbility = { key: AbilityKey; name: string; state: 'confirmed' 
 export type ReportTaskGap = { taskName: string; abilityName: string | null; knowledge: string[] }
 
 /** まだ確かめていないこと。力は名前で来る。hasExcluded は、業務で使う力を本人が外していて、その名前を出していないか。 */
-export type ReportNotYet = { notHeard: string[]; checking: string[]; taskGaps: ReportTaskGap[]; hasExcluded: boolean }
+export type ReportNotYet = { checking: string[]; taskGaps: ReportTaskGap[]; hasExcluded: boolean }
 
 /** 5 つの記録（できることは確かめた力の欄と同じなので来ない）。 */
 export type ReportRecords = {

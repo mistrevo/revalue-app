@@ -11,7 +11,7 @@ import { formatDateTime } from '@/lib/jst'
 type State = { kind: 'loading' } | { kind: 'ready'; data: AbilitiesData } | { kind: 'error' }
 
 /**
- * 見えた力（03-validate.md の「見えた力の画面」）。3 つの力ごとに、生活の中でと仕事でを分けて出し、外す・戻すを置く。
+ * 見えた力（03-validate.md の「見えた力の画面」）。API が返した見せた力ごとに、生活の中でと仕事でを分けて出し、外す・戻すを置く。
  * 下に、変わったことの履歴（新しい順）。状態の呼び名、チェック表、点数、順位は出さない。
  */
 export function Abilities() {
@@ -55,6 +55,9 @@ export function Abilities() {
       )}
       {state.kind === 'ready' && (
         <>
+          {state.data.abilities.length === 0 && (
+            <p className="mt-6 text-sm leading-relaxed">{copy.abilities.noneYet}</p>
+          )}
           <div className="mt-6 flex flex-col gap-4">
             {state.data.abilities.map((ability) => (
               <AbilityCard key={ability.key} ability={ability} busy={busy} onToggle={() => toggle(ability)} />
@@ -64,6 +67,9 @@ export function Abilities() {
             <p role="alert" className="mt-3 text-sm leading-relaxed">
               {copy.errors.generic}
             </p>
+          )}
+          {state.data.abilities.length > 0 && (
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{copy.insights.moreNote}</p>
           )}
           <History history={state.data.history} />
           <NextStepLink refreshKey={state.data} />
@@ -89,13 +95,10 @@ function AbilityCard({ ability, busy, onToggle }: { ability: AbilityView; busy: 
 
       <div className="mt-3">
         <h3 className="text-xs font-semibold text-muted-foreground">{copy.abilities.life}</h3>
-        <p className="mt-1 text-sm font-medium">{copy.abilities.states[ability.life]}</p>
-        {ability.life === 'notYet' && (
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{copy.insights.notYetNote}</p>
-        )}
-        <QuoteList quotes={ability.quotes} />
+        <p className="mt-1 text-sm font-medium">{ability.life === 'confirmed' ? copy.abilities.states.confirmed : copy.abilities.states.needsCheck}</p>
+        <QuoteList quotes={ability.quotes} paired={ability.life === 'confirmed'} />
         {ability.life === 'needsCheck' && <Hints hints={ability.hints} />}
-        {ability.episodeId && ability.life !== 'notYet' && (
+        {ability.episodeId && (
           <Link
             to={`/talk/${ability.episodeId}`}
             className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"

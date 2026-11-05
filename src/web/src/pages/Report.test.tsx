@@ -86,20 +86,21 @@ describe('Report', () => {
     expect(copy.report.sections.abilities).not.toContain('見えた力')
     const seen = within(abilities).getByRole('group', { name: copy.report.seenTitle })
     const checking = within(abilities).getByRole('group', { name: copy.report.checkingTitle })
-    const coordinating = within(seen).getByRole('article', { name: '調整する力' })
-    expect(coordinating).toHaveTextContent('「班の 2 家族の都合を聞きました」')
-    expect(coordinating).toHaveTextContent(`「私から声をかけた」${copy.insights.chosen}「前の晩に、グループのメッセージで声をかけました」`)
-    expect(within(seen).queryByRole('article', { name: '優先順位をつける力' })).not.toBeInTheDocument()
-    expect(within(checking).getByRole('article', { name: '優先順位をつける力' })).toBeInTheDocument()
-    expect(within(checking).queryByRole('article', { name: '調整する力' })).not.toBeInTheDocument()
+    const balancingInterests = within(seen).getByRole('article', { name: '利害調整力' })
+    expect(balancingInterests).toHaveTextContent('「班の 2 家族の都合を聞きました」')
+    expect(balancingInterests).toHaveTextContent(`「私から声をかけた」${copy.insights.chosen}「前の晩に、グループのメッセージで声をかけました」`)
+    expect(within(seen).queryByRole('article', { name: '優先順位設定力' })).not.toBeInTheDocument()
+    expect(within(checking).getByRole('article', { name: '優先順位設定力' })).toBeInTheDocument()
+    expect(within(checking).queryByRole('article', { name: '利害調整力' })).not.toBeInTheDocument()
 
     // まだ確かめていないこと
     const notYet = screen.getByRole('region', { name: copy.report.sections.notYet })
-    expect(notYet).toHaveTextContent(copy.report.notHeard.replace('{names}', '見立てる力'))
-    expect(notYet).toHaveTextContent(copy.report.checking.replace('{names}', '優先順位をつける力'))
-    expect(notYet).toHaveTextContent(copy.report.taskAbility.replace('{task}', '出張や会食の手配').replace('{name}', '見立てる力'))
+    expect(notYet).not.toHaveTextContent('まだ聞けていない力')
+    expect(notYet).not.toHaveTextContent('変化への気づき: ')
+    expect(notYet).toHaveTextContent(copy.report.checking.replace('{names}', '優先順位設定力'))
+    expect(notYet).toHaveTextContent(copy.report.taskAbility.replace('{task}', '出張や会食の手配').replace('{name}', '変化への気づき'))
     expect(notYet).toHaveTextContent(copy.report.taskKnowledge.replace('{task}', '日程の調整').replace('{items}', '表計算'))
-    expect(notYet).toHaveTextContent(copy.insights.notYetNote)
+    expect(notYet).toHaveTextContent(copy.insights.moreNote)
     expect(notYet).toHaveTextContent(copy.deepen.workNote)
     expect(notYet).not.toHaveTextContent(copy.profile.excludedNote)
 
@@ -149,7 +150,7 @@ describe('Report', () => {
       consented: true,
       report: fakeReport({
         content: fakeReportContent({
-          notYet: { notHeard: [], checking: [], taskGaps: [], hasExcluded: true },
+          notYet: { checking: [], taskGaps: [], hasExcluded: true },
           choice: {
             kind: 'card',
             card: 'create',
@@ -178,8 +179,19 @@ describe('Report', () => {
 
     const notYet = screen.getByRole('region', { name: copy.report.sections.notYet })
     expect(notYet).toHaveTextContent(copy.profile.excludedNote)
-    // 聞けていない力も確かめ中の力もなければ、「力がないということではありません」は添えない
-    expect(notYet).not.toHaveTextContent(copy.insights.notYetNote)
+  })
+
+  it('report-1（一つにまとめて示す）: まだ聞けていない力の名前を並べず、代わりの一文を添える', async () => {
+    installFakeApi({ loggedIn: true, consented: true, report: fakeReport() })
+    renderApp('/report')
+
+    const notYet = await screen.findByRole('region', { name: copy.report.sections.notYet })
+    expect(notYet).not.toHaveTextContent('まだ聞けていない力')
+    expect(notYet).toHaveTextContent(copy.insights.moreNote)
+    const seen = within(screen.getByRole('region', { name: copy.report.sections.abilities })).getByRole('group', { name: copy.report.seenTitle })
+    expect(within(seen).getByText('自分から働きかける')).toBeInTheDocument()
+    const checking = within(screen.getByRole('region', { name: copy.report.sections.abilities })).getByRole('group', { name: copy.report.checkingTitle })
+    expect(checking.querySelector('li .block')).toBeNull()
   })
 
   it('report-1（一つにまとめて示す）: 深めていないときは、考え方と一歩の欄に深める画面への道を出す', async () => {
@@ -368,8 +380,8 @@ describe('Report', () => {
 
     const previous = screen.getByRole('region', { name: copy.report.previousTitle })
     const v1 = within(previous).getByRole('article', { name: copy.report.version.replace('{n}', '1').replace('{at}', '11 月 3 日 18:00') })
-    expect(v1).toHaveTextContent('調整する力')
-    expect(v1).toHaveTextContent('優先順位をつける力')
+    expect(v1).toHaveTextContent('利害調整力')
+    expect(v1).toHaveTextContent('優先順位設定力')
     expect(v1).toHaveTextContent('人とやりとりしながら進められる')
     expect(v1).toHaveTextContent('オンライン秘書')
     expect(v1).toHaveTextContent('近所の図書館で本を借りる')
@@ -379,13 +391,13 @@ describe('Report', () => {
     expect(v1).not.toHaveTextContent('班の家族の都合を聞いて集合を決めた動きは')
     expect(within(v1).queryByText(copy.report.abilityStates.needsCheck)).not.toBeInTheDocument()
     // まだ確かめていないことも、力の状態を表す行は出さず、業務に要る知識や道具だけを出す
-    expect(v1).not.toHaveTextContent(copy.report.checking.replace('{names}', '優先順位をつける力'))
+    expect(v1).not.toHaveTextContent(copy.report.checking.replace('{names}', '優先順位設定力'))
     expect(v1).not.toHaveTextContent('まだ聞けていない力')
-    expect(v1).not.toHaveTextContent(copy.report.taskAbility.replace('{task}', '出張や会食の手配').replace('{name}', '見立てる力'))
+    expect(v1).not.toHaveTextContent(copy.report.taskAbility.replace('{task}', '出張や会食の手配').replace('{name}', '変化への気づき'))
     expect(v1).toHaveTextContent(copy.report.taskKnowledge.replace('{task}', '日程の調整').replace('{items}', '表計算'))
     // 前の版の力は状態なしで名前だけ並ぶので、見出しは根拠ありの呼び名にせず、見えた力と確かめ中の力の両方を含む言い方にする（芯 1）
     const names = within(v1).getByRole('heading', { name: copy.report.snapshotAbilities })
-    expect(names.nextElementSibling).toHaveTextContent('調整する力、優先順位をつける力')
+    expect(names.nextElementSibling).toHaveTextContent('利害調整力、優先順位設定力')
     expect(copy.report.snapshotAbilities).toContain('確かめ中')
     expect(v1).not.toHaveTextContent(copy.report.seenTitle)
     expect(within(v1).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
@@ -416,7 +428,7 @@ describe('Report', () => {
     renderApp('/report')
     expect(await screen.findByRole('heading', { name: 'あなたが選んだ案' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: copy.report.previousShow }))
-    // 「優先順位をつける力」は PRD が決めた力の名前なので、この言葉だけ除いて見る
+    // 「優先順位設定力」は PRD が決めた力の名前なので、この言葉だけ除いて見る
     const page = (document.body.textContent ?? '').replaceAll('優先順位', '')
     for (const word of words) {
       expect(page).not.toContain(word)

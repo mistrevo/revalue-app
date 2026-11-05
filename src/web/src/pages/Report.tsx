@@ -211,7 +211,7 @@ function AbilityCard({ ability, showState }: { ability: ReportAbility; showState
         </span>
         {showState && <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.report.abilityStates[ability.state]}</span>}
       </p>
-      <QuoteList quotes={ability.quotes} />
+      <QuoteList quotes={ability.quotes} paired={ability.state === 'confirmed'} />
     </article>
   )
 }
@@ -254,7 +254,6 @@ function AbilitiesSection({ abilities, excluded }: { abilities: ReportAbility[];
 /** まだ確かめていないことの中身（いまの版）。 */
 function NotYetBody({ notYet }: { notYet: ReportNotYet }) {
   const items = [
-    ...(notYet.notHeard.length > 0 ? [copy.report.notHeard.replace('{names}', notYet.notHeard.join('、'))] : []),
     ...(notYet.checking.length > 0 ? [copy.report.checking.replace('{names}', notYet.checking.join('、'))] : []),
     ...notYet.taskGaps.flatMap((gap) => [
       ...(gap.abilityName ? [copy.report.taskAbility.replace('{task}', gap.taskName).replace('{name}', gap.abilityName)] : []),
@@ -275,7 +274,7 @@ function NotYetBody({ notYet }: { notYet: ReportNotYet }) {
         </ul>
       )}
       {notYet.hasExcluded && <Note>{copy.profile.excludedNote}</Note>}
-      {(notYet.notHeard.length > 0 || notYet.checking.length > 0) && <Note>{copy.insights.notYetNote}</Note>}
+      <Note>{copy.insights.moreNote}</Note>
       <Note>{copy.deepen.workNote}</Note>
     </>
   )

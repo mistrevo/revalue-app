@@ -459,7 +459,7 @@ function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
             <span className="font-semibold">{task.abilityName}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.deepen.abilityStates[task.usable.state]}</span>
           </p>
-          <QuoteList quotes={task.usable.quotes} />
+          <QuoteList quotes={task.usable.quotes} paired={task.usable.state === 'confirmed'} />
         </div>
       )}
       {notYet.length > 0 && (

@@ -420,24 +420,21 @@ describe('Talk', () => {
       insights,
     })
 
-  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切るとホームへ移らず、見えた力と根拠、もう少し聞かせてほしいこと、まだ聞けていない力が出る', async () => {
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切るとホームへ移らず、見えた力と根拠、もう少し聞かせてほしいことが出る', async () => {
     setup()
 
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
 
     const seen = await screen.findByRole('region', { name: copy.insights.seenTitle })
-    expect(within(seen).getByText('調整する力')).toBeInTheDocument()
+    expect(within(seen).getByText('利害調整力')).toBeInTheDocument()
     expect(within(seen).getByText('「班の 2 家族の都合を聞きました」')).toBeInTheDocument()
 
     const more = screen.getByRole('region', { name: copy.insights.moreTitle })
-    expect(within(more).getByText('優先順位をつける力')).toBeInTheDocument()
+    expect(within(more).getByText('優先順位設定力')).toBeInTheDocument()
     expect(within(more).getByText('「先に書類を仕上げました」')).toBeInTheDocument()
     expect(within(more).getByText(copy.insights.hintLead)).toBeInTheDocument()
     expect(within(more).getByText(FAKE_HINT)).toBeInTheDocument()
 
-    const notYet = screen.getByRole('region', { name: copy.insights.notYetTitle })
-    expect(within(notYet).getByText('見立てる力')).toBeInTheDocument()
-    expect(within(notYet).getByText(copy.insights.notYetNote)).toBeInTheDocument()
 
     expect(screen.getByRole('link', { name: copy.insights.seeAll })).toHaveAttribute('href', '/abilities')
     expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
@@ -464,18 +461,78 @@ describe('Talk', () => {
   })
 
   it('validate-7（見えた力と、もう少し聞きたいことを示す）: 中身のない見出しは出さない', async () => {
-    setup(finishedWithInsights(fakeInsights({ seen: [], notYet: [], canResume: true })))
+    setup(finishedWithInsights(fakeInsights({ seen: [], canResume: true })))
 
     expect(await screen.findByRole('region', { name: copy.insights.moreTitle })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: copy.insights.seenTitle })).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: copy.insights.notYetTitle })).not.toBeInTheDocument()
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 見えた力に、核となる行動の文と本人の言葉を組にして出す', async () => {
+    setup(finishedWithInsights())
+
+    const seen = await screen.findByRole('region', { name: copy.insights.seenTitle })
+    const item = within(seen).getByText('「班の 2 家族の都合を聞きました」').closest('li')!
+    expect(within(item).getByText('関わる 2 者以上の、それぞれ違う都合をつかむ')).toBeInTheDocument()
+    const chosen = within(seen).getByText('「私から声をかけた」').closest('li')!
+    expect(within(chosen).getByText('自分から働きかける')).toBeInTheDocument()
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 行動が 2 つの力も、行動の文と本人の言葉の組で出し、同じ言葉は行動の文を「、」でつないで一度だけ出す', async () => {
+    const quote = { text: '妹の話を、最後まで聞きました', fromChoice: false, linkedText: null }
+    setup(
+      finishedWithInsights(
+        fakeInsights({
+          seen: [
+            {
+              key: 'active-listening',
+              name: '傾聴力',
+              quotes: [
+                { ...quote, action: '助言より先に、相手の話を聞く' },
+                { ...quote, action: '相手の言いたいことをつかむ' },
+              ],
+            },
+          ],
+        }),
+      ),
+    )
+
+    const seen = await screen.findByRole('region', { name: copy.insights.seenTitle })
+    expect(within(seen).getAllByText('「妹の話を、最後まで聞きました」')).toHaveLength(1)
+    expect(within(seen).getByText('助言より先に、相手の話を聞く、相手の言いたいことをつかむ')).toBeInTheDocument()
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 「まだ聞けていない力」の見出しと名前の一覧を出さず、代わりの一文だけを添える', async () => {
+    setup(finishedWithInsights())
+
+    await screen.findByRole('region', { name: copy.insights.seenTitle })
+    expect(screen.queryByText('まだ聞けていない力')).not.toBeInTheDocument()
+    expect(screen.getByText(copy.insights.moreNote)).toBeInTheDocument()
+    expect(screen.queryByText(copy.insights.nothingYetNote)).not.toBeInTheDocument()
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 見えた力がないときは、話を重ねると見えてくる力があると伝える', async () => {
+    setup(finishedWithInsights(fakeInsights({ seen: [], canResume: true })))
+
+    await screen.findByRole('region', { name: copy.insights.moreTitle })
+    expect(screen.getByText(copy.insights.nothingYetNote)).toBeInTheDocument()
+  })
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: もう少し聞かせてほしいことには行動の文を添えず、本人の言葉と手がかりを出す', async () => {
+    const quote = { text: '先に書類を仕上げました', fromChoice: false, linkedText: null, action: '優先する理由を言葉にする' }
+    const more = fakeInsights().moreToHear.map((ability) => ({ ...ability, quotes: [quote] }))
+    setup(finishedWithInsights(fakeInsights({ moreToHear: more })))
+
+    const region = await screen.findByRole('region', { name: copy.insights.moreTitle })
+    expect(within(region).getByText('「先に書類を仕上げました」')).toBeInTheDocument()
+    expect(within(region).queryByText('優先する理由を言葉にする')).not.toBeInTheDocument()
+    expect(within(region).getByText(FAKE_HINT)).toBeInTheDocument()
   })
 
   it('validate-6（否定の言葉を使わない）: 見えたことに状態の呼び名、使わない言葉、点数・順位が出ない', async () => {
     setup(finishedWithInsights())
 
     await screen.findByRole('region', { name: copy.insights.seenTitle })
-    // 「優先順位をつける力」は PRD が決めた力の名前。使わない言葉の「順位」は人や仕事の順位づけのことなので、この言葉だけ除いて見る
+    // 「優先順位設定力」は PRD が決めた力の名前。使わない言葉の「順位」は人や仕事の順位づけのことなので、この言葉だけ除いて見る
     const text = (document.body.textContent ?? '').replaceAll('優先順位', '')
     for (const word of ['根拠あり', '要確認', '未確認', ...forbiddenWords]) {
       expect(text).not.toContain(word)
@@ -510,7 +567,7 @@ describe('Talk', () => {
     const quote = { text: '書類を先に仕上げました', fromChoice: false, linkedText: null }
     setup(
       finishedWithInsights(
-        fakeInsights({ seen: [{ key: 'prioritizing', name: '優先順位をつける力', quotes: [quote, quote, quote] }] }),
+        fakeInsights({ seen: [{ key: 'setting-priorities', name: '優先順位設定力', quotes: [quote, quote, quote] }] }),
       ),
     )
 
@@ -528,7 +585,7 @@ describe('Talk', () => {
     await userEvent.type(input, '声をかけたのは私ではなく、夫でした')
     await userEvent.click(screen.getByRole('button', { name: copy.insights.correctSend }))
 
-    // 訂正のあとは、調整する力が見えた力から外れる
+    // 訂正のあとは、利害調整力が見えた力から外れる
     await waitFor(() => expect(screen.queryByRole('region', { name: copy.insights.seenTitle })).not.toBeInTheDocument())
     expect(screen.getByText('声をかけたのは私ではなく、夫でした')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: copy.insights.correctLabel })).not.toBeInTheDocument()

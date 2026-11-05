@@ -59,8 +59,8 @@ function ownWithDrafts() {
     target: { kind: 'own', title: '家でできるデータ入力', outsideConditions: false },
     content: fakeDeepenContent({
       tasks: [
-        fakeDraftedTask('d1', { name: '入力の手順を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' }),
-        fakeDraftedTask('d2', { name: '依頼した人との連絡', detail: '締め切りと量を確かめる', ability: 'coordinating', knowledge: '' }),
+        fakeDraftedTask('d1', { name: '入力の手順を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'setting-priorities', knowledge: '表計算' }),
+        fakeDraftedTask('d2', { name: '依頼した人との連絡', detail: '締め切りと量を確かめる', ability: 'balancing-interests', knowledge: '' }),
       ],
     }),
   })
@@ -80,7 +80,7 @@ describe('Deepen', () => {
     const options = within(select).getAllByRole('option').map((o) => o.textContent)
     expect(options).toContain('架空の力 A')
     expect(options).toContain('架空の力 B')
-    expect(options).not.toContain('見立てる力')
+    expect(options).not.toContain('変化への気づき')
   })
 
   it('deepen-1（選んだ 1 案だけ深める）: 選んだ案がないときと保留のときは、仕事の選択肢への道を一つだけ出す', async () => {
@@ -302,7 +302,7 @@ describe('Deepen', () => {
     const schedule = within(tasks).getByRole('article', { name: '日程の調整' })
     expect(schedule).toHaveTextContent('関わる人と連絡を取り合って、会う日時を決める')
     expect(within(schedule).getByText(copy.deepen.usableTitle)).toBeInTheDocument()
-    expect(schedule).toHaveTextContent('調整する力')
+    expect(schedule).toHaveTextContent('利害調整力')
     expect(schedule).toHaveTextContent(copy.deepen.abilityStates.confirmed)
     expect(schedule).toHaveTextContent('「班の 2 家族の都合を聞きました」')
     expect(schedule).toHaveTextContent(`「私から声をかけた」${copy.insights.chosen}`)
@@ -312,7 +312,7 @@ describe('Deepen', () => {
 
     const travel = within(tasks).getByRole('article', { name: '出張や会食の手配' })
     expect(within(travel).queryByText(copy.deepen.usableTitle)).not.toBeInTheDocument()
-    expect(travel).toHaveTextContent(copy.deepen.abilityNotYet.replace('{name}', '見立てる力'))
+    expect(travel).toHaveTextContent(copy.deepen.abilityNotYet.replace('{name}', '変化への気づき'))
 
     expect(tasks).toHaveTextContent(copy.deepen.workNote)
     // 登録した業務は直せない
@@ -326,7 +326,7 @@ describe('Deepen', () => {
 
   it('deepen-2（業務ごとに照らす）: 力の名前のない業務も出し、「まだ確かめていません」の行を出さない', async () => {
     // 業務の力が辞書から消えていると、裏側は力の id と名前を null で返す
-    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'coordinating', knowledge: '表計算' }), ability: null, abilityName: null, usable: null }
+    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'balancing-interests', knowledge: '表計算' }), ability: null, abilityName: null, usable: null }
     installFakeApi({
       loggedIn: true,
       consented: true,
@@ -373,7 +373,7 @@ describe('Deepen', () => {
     // 足す
     await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.taskAdd }))
     await userEvent.type(within(tasks).getByLabelText(copy.deepen.taskNameLabel), '入力したものを見直す')
-    await userEvent.selectOptions(within(tasks).getByLabelText(copy.deepen.taskAbilityLabel), '調整する力')
+    await userEvent.selectOptions(within(tasks).getByLabelText(copy.deepen.taskAbilityLabel), '利害調整力')
     await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.save }))
     const added = await within(tasks).findByRole('article', { name: '入力したものを見直す' })
     // 直した業務も、同じように照らす
@@ -383,16 +383,16 @@ describe('Deepen', () => {
     expect(puts(api.calls, '/api/deepen/tasks')).toEqual([
       {
         tasks: [
-          { name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' },
-          { name: '依頼した人との連絡', detail: '締め切りと量を確かめる', ability: 'coordinating', knowledge: '' },
+          { name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'setting-priorities', knowledge: '表計算' },
+          { name: '依頼した人との連絡', detail: '締め切りと量を確かめる', ability: 'balancing-interests', knowledge: '' },
         ],
         generatedAt,
       },
-      { tasks: [{ name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' }], generatedAt },
+      { tasks: [{ name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'setting-priorities', knowledge: '表計算' }], generatedAt },
       {
         tasks: [
-          { name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'prioritizing', knowledge: '表計算' },
-          { name: '入力したものを見直す', detail: '', ability: 'coordinating', knowledge: '' },
+          { name: '入力の順番を決める', detail: '入力する順番を決めて、表にまとめる', ability: 'setting-priorities', knowledge: '表計算' },
+          { name: '入力したものを見直す', detail: '', ability: 'balancing-interests', knowledge: '' },
         ],
         generatedAt,
       },
@@ -414,11 +414,11 @@ describe('Deepen', () => {
 
     await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.taskAdd }))
     await userEvent.type(within(tasks).getByLabelText(copy.deepen.taskNameLabel), '入力したものを見直す')
-    await userEvent.selectOptions(within(tasks).getByLabelText(copy.deepen.taskAbilityLabel), '調整する力')
+    await userEvent.selectOptions(within(tasks).getByLabelText(copy.deepen.taskAbilityLabel), '利害調整力')
     await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.save }))
     expect(await within(tasks).findByRole('article', { name: '入力したものを見直す' })).toBeInTheDocument()
     expect(puts(api.calls, '/api/deepen/tasks').at(-1)).toEqual({
-      tasks: [{ name: '入力したものを見直す', detail: '', ability: 'coordinating', knowledge: '' }],
+      tasks: [{ name: '入力したものを見直す', detail: '', ability: 'balancing-interests', knowledge: '' }],
       generatedAt: fakeDeepenContent().generatedAt,
     })
   })
@@ -603,7 +603,7 @@ describe('Deepen', () => {
     installFakeApi({ loggedIn: true, consented: true, deepen: ownWithDrafts() })
     renderApp('/deepen')
     await screen.findByRole('region', { name: copy.deepen.tasksTitle })
-    // 「優先順位をつける力」は PRD が決めた力の名前なので、この言葉だけ除いて見る
+    // 「優先順位設定力」は PRD が決めた力の名前なので、この言葉だけ除いて見る
     const page = (document.body.textContent ?? '').replaceAll('優先順位', '')
     for (const word of ['根拠あり', '要確認', '未確認', ...forbiddenWords]) {
       expect(page).not.toContain(word)

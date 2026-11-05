@@ -383,7 +383,7 @@ ask: prioritizing.3
   - 見えた力の画面で見せた力がないとき: 「話を重ねると、ここに見えてきた力が並びます。」
   - どれも、力が「ない」「足りない」と読める言い方、数、「あと〜」を使わない
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `Talk.test.tsx`
     - `validate-7（見えた力と、もう少し聞きたいことを示す）: 見えた力に、核となる行動の文と本人の言葉を組にして出す`
     - `validate-7（見えた力と、もう少し聞きたいことを示す）: 「まだ聞けていない力」の見出しと名前の一覧を出さず、代わりの一文だけを添える`
@@ -395,10 +395,10 @@ ask: prioritizing.3
   - `Options.test.tsx`: `options-8（理由は本人の言葉とつなぐ）: 見えた力のカードは行動の文と本人の言葉を組にし、確かめ中の力のカードは本人の言葉だけを出す`
   - `Report.test.tsx`: `report-1（一つにまとめて示す）: まだ聞けていない力の名前を並べず、代わりの一文を添える`
   - `copy.test.ts`: 足した文に使わない言葉がない
-- [ ] **Step 2: テストが失敗することを確かめる** — `npm --prefix src/web test`
-- [ ] **Step 3: 画面を直す**
-- [ ] **Step 4: 確かめる** — `npm --prefix src/web run build`、`npm --prefix src/web test`。`git grep -nP "(?<![\w-])(noticing|coordinating|prioritizing)(?![\w-])" -- src/web/src` が 0 件。`git grep -nP "(noticing-changes|balancing-interests|setting-priorities)" -- src/web/src ':!*.test.*' ':!src/web/src/test'` が 0 件
-- [ ] **Step 5: コミット**（「辞書の力に置き換える: 見えた力に行動の文と本人の言葉を組にして出し、まだ聞けていない力の一覧を一文にする（validate-7（見えた力と、もう少し聞きたいことを示す））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `npm --prefix src/web test`
+- [x] **Step 3: 画面を直す**
+- [x] **Step 4: 確かめる** — `npm --prefix src/web run build`、`npm --prefix src/web test`。`git grep -nP "(?<![\w-])(noticing|coordinating|prioritizing)(?![\w-])" -- src/web/src` が 0 件。`git grep -nP "(noticing-changes|balancing-interests|setting-priorities)" -- src/web/src ':!*.test.*' ':!src/web/src/test'` が 0 件
+- [x] **Step 5: コミット**（「辞書の力に置き換える: 見えた力に行動の文と本人の言葉を組にして出し、まだ聞けていない力の一覧を一文にする（validate-7（見えた力と、もう少し聞きたいことを示す））」）
 
 ### Task 8: 最初の問いの選択肢を、協力者の入口の言葉に寄せる
 

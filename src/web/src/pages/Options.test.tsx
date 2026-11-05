@@ -570,8 +570,8 @@ describe('Options', () => {
   it('options-7（1 場面で進める）: 確かめ中の力は「確かめ中」と示す', async () => {
     const base = fakeOptionCards()
     const checking = {
-      key: 'prioritizing' as const,
-      name: '優先順位をつける力',
+      key: 'setting-priorities' as const,
+      name: '優先順位設定力',
       state: 'needsCheck' as const,
       quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
     }
@@ -585,8 +585,29 @@ describe('Options', () => {
     const choose = await screen.findByRole('region', { name: LABELS[0] })
     expect(choose).toHaveTextContent(copy.options.abilityStates.needsCheck)
     expect(choose).not.toHaveTextContent(copy.options.abilityStates.confirmed)
-    expect(choose).toHaveTextContent('優先順位をつける力')
+    expect(choose).toHaveTextContent('優先順位設定力')
     expect(card(LABELS[1])).toHaveTextContent(copy.options.abilityStates.confirmed)
+  })
+
+  it('options-8（理由は本人の言葉とつなぐ）: 見えた力のカードは行動の文と本人の言葉を組にし、確かめ中の力のカードは本人の言葉だけを出す', async () => {
+    const base = fakeOptionCards()
+    const checking = {
+      key: 'setting-priorities' as const,
+      name: '優先順位設定力',
+      state: 'needsCheck' as const,
+      quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null, action: '優先する理由を言葉にする' }],
+    }
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({ cards: { ...base, choose: { ...base.choose!, ability: checking } } }),
+    })
+    renderApp('/options')
+
+    const choose = await screen.findByRole('region', { name: LABELS[0] })
+    expect(within(choose).getByText('「先に書類を仕上げました」')).toBeInTheDocument()
+    expect(within(choose).queryByText('優先する理由を言葉にする')).not.toBeInTheDocument()
+    expect(within(card(LABELS[1])).getByText('関わる 2 者以上の、それぞれ違う都合をつかむ')).toBeInTheDocument()
   })
 
   it('options-8（理由は本人の言葉とつなぐ）: 理由に、使った力と根拠の本人の言葉を「」で添える', async () => {
@@ -596,7 +617,7 @@ describe('Options', () => {
     const choose = await screen.findByRole('region', { name: LABELS[0] })
     expect(choose).toHaveTextContent(copy.options.reasonTitle)
     expect(choose).toHaveTextContent('班の家族の都合を聞いて集合を決めた動きは、日程の調整に生かせそうです。')
-    expect(choose).toHaveTextContent('調整する力')
+    expect(choose).toHaveTextContent('利害調整力')
     expect(within(choose).getByText('「班の 2 家族の都合を聞きました」')).toBeInTheDocument()
     expect(within(choose).getByText('「私から声をかけた」')).toBeInTheDocument()
     expect(within(choose).getByText(copy.insights.chosen)).toBeInTheDocument()
@@ -650,7 +671,7 @@ describe('Options', () => {
     })
     renderApp('/options')
     await screen.findByRole('region', { name: LABELS[0] })
-    // 「優先順位をつける力」は PRD が決めた力の名前なので、この言葉だけ除いて見る
+    // 「優先順位設定力」は PRD が決めた力の名前なので、この言葉だけ除いて見る
     const page = (document.body.textContent ?? '').replaceAll('優先順位', '')
     for (const word of ['根拠あり', '要確認', '未確認', ...forbiddenWords]) {
       expect(page).not.toContain(word)
