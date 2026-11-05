@@ -100,7 +100,7 @@ public sealed class AbilityBookTests
             ],
             book.History.Select(h => (h.Ability, h.From, h.To, h.Reason, h.EpisodeId)));
         Assert.Equal(clock.GetUtcNow(), book.History[^1].At);
-        Assert.All(Enum.GetValues<Ability>(), a => Assert.Equal(AbilityState.NotYet, book.StateOf(a)));
+        Assert.All(AbilityCatalog.Active, a => Assert.Equal(AbilityState.NotYet, book.StateOf(a)));
 
         // 外す行がなく、状態も変わらなければ書かない
         var again = await AbilityBook.RecomputeAfterDeletingAsync(store, User, deleted.Id, clock, Ct);

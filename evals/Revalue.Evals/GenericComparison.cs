@@ -96,7 +96,7 @@ public sealed class DryRunGenericAssistant : IGenericAssistant
 public sealed class DryRunGenericReader : IGenericReader
 {
     public Task<GenericReading?> ReadAsync(string transcript, string answer, CancellationToken ct) =>
-        Task.FromResult<GenericReading?>(new GenericReading(Enum.GetValues<Ability>().Select(a => new GenericAbility(a, false, [])).ToList(), ""));
+        Task.FromResult<GenericReading?>(new GenericReading(AbilityCatalog.Active.Select(a => new GenericAbility(a, false, [])).ToList(), ""));
 }
 
 /// <summary>Claude を、特別な指示もシステムプロンプトもなしに呼ぶ（effort は既定）。</summary>
@@ -174,7 +174,7 @@ public sealed class ClaudeGenericReader(AnthropicClient client, string model, st
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            var abilities = Enum.GetValues<Ability>().Select(a =>
+            var abilities = AbilityCatalog.Active.Select(a =>
             {
                 var item = root.GetProperty(ActionRef.Key(a));
                 var quotes = item.GetProperty("quotes").EnumerateArray().Select(q => q.GetString() ?? "").ToList();
@@ -218,7 +218,7 @@ public sealed class ClaudeGenericReader(AnthropicClient client, string model, st
             required = new[] { "named", "quotes" },
             additionalProperties = false,
         };
-        var names = Enum.GetValues<Ability>().Select(ActionRef.Key).ToArray();
+        var names = AbilityCatalog.Active.Select(ActionRef.Key).ToArray();
         var properties = names.ToDictionary(n => n, _ => (object)ability);
         properties["reason"] = new { type = "string" };
         return new Dictionary<string, JsonElement>

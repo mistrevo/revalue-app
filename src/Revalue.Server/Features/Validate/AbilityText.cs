@@ -146,7 +146,7 @@ public static class AbilityText
     public const string ResumeLead = "続きの話を選んでくれて、ありがとうございます。";
 
     private static string Pick(IReadOnlyDictionary<Ability, string[]> texts, ActionRef action) =>
-        action.Number is >= 1 and <= ActionRef.ActionsPerAbility
-            ? texts[action.Ability][action.Number - 1]
+        action.Number >= 1 && action.Number <= AbilityCatalog.ActionCount(action.Ability) && texts.TryGetValue(action.Ability, out var list) && action.Number <= list.Length
+            ? list[action.Number - 1]
             : throw new ArgumentOutOfRangeException(nameof(action));
 }

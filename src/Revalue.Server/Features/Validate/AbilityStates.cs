@@ -8,11 +8,9 @@ public sealed record AbilityResult(Ability Ability, AbilityState State, IReadOnl
 /// <summary>場面の根拠から、力ごとの状態を決める（03-validate.md の「力の状態」）。</summary>
 public static class AbilityStates
 {
-    private static readonly int[] AllActions = [.. Enumerable.Range(1, ActionRef.ActionsPerAbility)];
-
-    /// <summary>3 つの力を <see cref="Ability"/> の順で返す。</summary>
+    /// <summary>判定に使う力を <see cref="AbilityCatalog"/> の順で返す。</summary>
     public static IReadOnlyList<AbilityResult> Evaluate(IReadOnlyList<Evidence> evidence) =>
-        Enum.GetValues<Ability>().Select(a => EvaluateOne(a, evidence.Where(e => e.Ability == a).ToList())).ToList();
+        AbilityCatalog.Active.Select(a => EvaluateOne(a, evidence.Where(e => e.Ability == a).ToList())).ToList();
 
     private static AbilityResult EvaluateOne(Ability ability, List<Evidence> evidence)
     {
@@ -36,17 +34,17 @@ public static class AbilityStates
         if (events.Count > 0)
         {
             var best = events[0];
-            if (best.Shown.Count == ActionRef.ActionsPerAbility)
+            if (best.Shown.Count == AbilityCatalog.ActionCount(ability))
             {
                 return new AbilityResult(ability, AbilityState.Confirmed, best.Shown, []);
             }
 
-            return new AbilityResult(ability, AbilityState.NeedsCheck, best.Shown, MissingOf(best.Shown));
+            return new AbilityResult(ability, AbilityState.NeedsCheck, best.Shown, MissingOf(ability, best.Shown));
         }
 
         // 一般論の根拠だけ。3 つあっても根拠ありにしない（validate-10）
         var general = OnePerAction(evidence);
-        return new AbilityResult(ability, AbilityState.NeedsCheck, general, MissingOf(general));
+        return new AbilityResult(ability, AbilityState.NeedsCheck, general, MissingOf(ability, general));
     }
 
     /// <summary>
@@ -72,7 +70,7 @@ public static class AbilityStates
     {
         var all = evidence.ToList();
         var shown = OnePerAction(all);
-        if (shown.Count != ActionRef.ActionsPerAbility)
+        if (shown.Count == 0 || shown.Count != AbilityCatalog.ActionCount(shown[0].Ability))
         {
             return shown;
         }
@@ -107,6 +105,6 @@ public static class AbilityStates
             .Select(g => g.OrderBy(e => e.Answer).First())
             .ToList();
 
-    private static int[] MissingOf(IReadOnlyList<Evidence> shown) =>
-        AllActions.Where(n => shown.All(e => e.Action != n)).ToArray();
+    private static int[] MissingOf(Ability ability, IReadOnlyList<Evidence> shown) =>
+        Enumerable.Range(1, AbilityCatalog.ActionCount(ability)).Where(n => shown.All(e => e.Action != n)).ToArray();
 }

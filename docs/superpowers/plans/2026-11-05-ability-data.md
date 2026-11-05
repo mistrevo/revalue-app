@@ -60,11 +60,11 @@
 - 分類は、設計の表の 12 分類を書き起こして入れる（id は英語の小文字とハイフン）。いまの 3 つの力の分類は、見立てる力 = 家庭・子育て・人間関係から見える力、調整する力と優先順位をつける力 = 調整・実行・仕組み化する力
 - 核となる行動の文は `docs/prd/4-rules.md` の改訂前の表（`git show origin/main~3:docs/prd/4-rules.md` などで見る）の文、手がかりは `AbilityText.Hints` の文をそのまま写す
 
-- [ ] **Step 1: 失敗するテストを書く** — `AbilityCatalogTests`: 3 つの力が enum と同じ順で `Active` に並ぶ、名前と手がかりがいまの `AbilityText` と同じ、`ActionCount` が 3、行動が 1 つや 4 つの力・id の重なり・ない分類で `Load` が例外、`preparing` の力は `Active` に入らない、`Ability` の JSON が `"noticing"` のまま
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~AbilityCatalogTests`
-- [ ] **Step 3: データと `AbilityCatalog` を作り、`Ability` を値にする**。enum に頼るところ（`switch`、`Enum.GetValues`、`ActionsPerAbility`）を置き換える
-- [ ] **Step 4: すべてのテストが通ることを確かめる** — `dotnet test`。期待を変えたテストがあれば、それが enum の書き方の置き換えだけかを確かめる
-- [ ] **Step 5: コミット**（「力をデータに出す: 能力辞書のデータと力の型（validate-1（3 つともそろったときだけ根拠あり））」）
+- [x] **Step 1: 失敗するテストを書く** — `AbilityCatalogTests`: 3 つの力が enum と同じ順で `Active` に並ぶ、名前と手がかりがいまの `AbilityText` と同じ、`ActionCount` が 3、行動が 1 つや 4 つの力・id の重なり・ない分類で `Load` が例外、`preparing` の力は `Active` に入らない、`Ability` の JSON が `"noticing"` のまま
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~AbilityCatalogTests`
+- [x] **Step 3: データと `AbilityCatalog` を作り、`Ability` を値にする**。enum に頼るところ（`switch`、`Enum.GetValues`、`ActionsPerAbility`）を置き換える
+- [x] **Step 4: すべてのテストが通ることを確かめる** — `dotnet test`。期待を変えたテストがあれば、それが enum の書き方の置き換えだけかを確かめる
+- [x] **Step 5: コミット**（「力をデータに出す: 能力辞書のデータと力の型（validate-1（3 つともそろったときだけ根拠あり））」）
 
 ### Task 2: 力の名前、手がかり、読み取りの表をデータから作る
 

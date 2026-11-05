@@ -356,7 +356,7 @@ public sealed class ClaudeConversationAi(
                 ["type"] = "object",
                 ["properties"] = new Dictionary<string, object>
                 {
-                    ["ability"] = new { type = "string", @enum = Enum.GetValues<Ability>().Select(ActionRef.Key).ToArray() },
+                    ["ability"] = new { type = "string", @enum = AbilityCatalog.Active.Select(ActionRef.Key).ToArray() },
                     ["action"] = new { type = "integer" },
                     ["quote"] = new { type = "string" },
                     ["answer"] = new { type = "integer" },

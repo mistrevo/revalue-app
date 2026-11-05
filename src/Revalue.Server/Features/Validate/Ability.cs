@@ -1,23 +1,55 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Revalue.Server.Features.Validate;
 
-/// <summary>見る力。並びはこの順（表示と、同じ数のときの選び方に使う）。</summary>
-[JsonConverter(typeof(JsonStringEnumConverter<Ability>))]
-public enum Ability
+/// <summary>
+/// 見る力。能力辞書（<see cref="AbilityCatalog"/>。<c>src/shared/abilities.json</c>）の力の id で表す。JSON では id の文字列。
+/// 並びは辞書の順（表示と、同じ数のときの選び方に使う）。辞書にない id（古いデータなど）も値としては持てるが、
+/// 判定に使う力（<see cref="AbilityCatalog.Active"/>）にないので、どこでも数えない。
+/// </summary>
+[JsonConverter(typeof(AbilityJsonConverter))]
+public readonly record struct Ability(string Id) : IComparable<Ability>
 {
+    // 移る間だけ残す決め打ちの力。辞書の力に置き換えるときに消す
     /// <summary>見立てる力。</summary>
-    [JsonStringEnumMemberName("noticing")]
-    Noticing,
+    public static readonly Ability Noticing = new("noticing");
 
     /// <summary>調整する力。</summary>
-    [JsonStringEnumMemberName("coordinating")]
-    Coordinating,
+    public static readonly Ability Coordinating = new("coordinating");
 
     /// <summary>優先順位をつける力。</summary>
-    [JsonStringEnumMemberName("prioritizing")]
-    Prioritizing,
+    public static readonly Ability Prioritizing = new("prioritizing");
+
+    public int CompareTo(Ability other)
+    {
+        var byOrder = AbilityCatalog.Current.OrderOf(this).CompareTo(AbilityCatalog.Current.OrderOf(other));
+        return byOrder != 0 ? byOrder : string.CompareOrdinal(Id, other.Id);
+    }
+
+    public override string ToString() => Id;
+}
+
+/// <summary>力を id の文字列で読み書きする。空でない文字列ならどの id も読む（辞書にあるかは使うところで確かめる）。辞書のキーにも使える。</summary>
+public sealed class AbilityJsonConverter : JsonConverter<Ability>
+{
+    public override Ability Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.TokenType == JsonTokenType.String ? FromName(reader.GetString()) : throw new JsonException("An ability must be a string.");
+
+    public override void Write(Utf8JsonWriter writer, Ability value, JsonSerializerOptions options) => writer.WriteStringValue(NameOf(value));
+
+    public override Ability ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        FromName(reader.GetString());
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, Ability value, JsonSerializerOptions options) =>
+        writer.WritePropertyName(NameOf(value));
+
+    private static Ability FromName(string? name) =>
+        string.IsNullOrEmpty(name) ? throw new JsonException("An ability must not be empty.") : new Ability(name);
+
+    private static string NameOf(Ability value) =>
+        string.IsNullOrEmpty(value.Id) ? throw new JsonException("An ability must not be empty.") : value.Id;
 }
 
 /// <summary>力の状態。画面には呼び名を出さない（00-common.md の「言葉」）。</summary>
@@ -37,26 +69,17 @@ public enum AbilityState
     Confirmed,
 }
 
-/// <summary>核となる行動の一つ。<see cref="Number"/> は 1〜3。文字にすると <c>coordinating.3</c> の形。</summary>
+/// <summary>核となる行動の一つ。<see cref="Number"/> は 1 から、その力の行動の数まで。文字にすると <c>coordinating.3</c> の形。</summary>
 public sealed record ActionRef(Ability Ability, int Number)
 {
-    /// <summary>力ごとの核となる行動の数。</summary>
-    public const int ActionsPerAbility = 3;
+    public static string Key(Ability ability) => ability.Id;
 
-    public static string Key(Ability ability) => ability switch
-    {
-        Ability.Noticing => "noticing",
-        Ability.Coordinating => "coordinating",
-        Ability.Prioritizing => "prioritizing",
-        _ => throw new ArgumentOutOfRangeException(nameof(ability)),
-    };
-
-    /// <summary><c>noticing</c> などの名前を力にする。知らない名前なら false。大文字と小文字は区別する。</summary>
+    /// <summary><c>noticing</c> などの id を、判定に使う力にする。判定に使う力でなければ false。大文字と小文字は区別する。</summary>
     public static bool TryParseAbility(string? key, out Ability ability)
     {
-        foreach (var candidate in Enum.GetValues<Ability>())
+        foreach (var candidate in AbilityCatalog.Active)
         {
-            if (string.Equals(Key(candidate), key, StringComparison.Ordinal))
+            if (string.Equals(candidate.Id, key, StringComparison.Ordinal))
             {
                 ability = candidate;
                 return true;
@@ -67,7 +90,7 @@ public sealed record ActionRef(Ability Ability, int Number)
         return false;
     }
 
-    /// <summary><c>coordinating.3</c> の形を読む。形が違う、知らない力、番号が 1〜3 でなければ null。</summary>
+    /// <summary><c>coordinating.3</c> の形を読む。形が違う、判定に使う力でない、番号が 1〜行動の数でなければ null。</summary>
     public static ActionRef? Parse(string? text)
     {
         var dot = text?.IndexOf('.') ?? -1;
@@ -78,7 +101,7 @@ public sealed record ActionRef(Ability Ability, int Number)
 
         return TryParseAbility(text[..dot], out var ability)
             && int.TryParse(text.AsSpan(dot + 1), NumberStyles.None, CultureInfo.InvariantCulture, out var number)
-            && number is >= 1 and <= ActionsPerAbility
+            && number >= 1 && number <= AbilityCatalog.ActionCount(ability)
                 ? new ActionRef(ability, number)
                 : null;
     }

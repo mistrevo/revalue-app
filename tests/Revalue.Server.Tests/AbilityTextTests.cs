@@ -6,11 +6,11 @@ namespace Revalue.Server.Tests;
 public sealed class AbilityTextTests
 {
     private static IEnumerable<ActionRef> AllActions() =>
-        Enum.GetValues<Ability>().SelectMany(a => Enumerable.Range(1, 3).Select(n => new ActionRef(a, n)));
+        AbilityCatalog.Active.SelectMany(a => Enumerable.Range(1, 3).Select(n => new ActionRef(a, n)));
 
     private static IEnumerable<string> AllTexts() =>
     [
-        .. Enum.GetValues<Ability>().Select(AbilityText.Name),
+        .. AbilityCatalog.Active.Select(AbilityText.Name),
         .. AllActions().Select(AbilityText.Hint),
         .. AllActions().Select(AbilityText.ResumeAsk),
         .. AbilityText.ResumeChoices,

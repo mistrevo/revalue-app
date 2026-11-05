@@ -17,7 +17,10 @@ public sealed class ScriptedOptionsAiTests
 
     private static Evidence E(Ability ability, int action, string quote) => new(ability, action, quote, 1, 1, false, false, null);
 
-    private static OptionsInputs Inputs(int hours = 10, Place place = Place.HomeOnly, TimeSlot[]? slots = null, Ability ability = Ability.Coordinating) =>
+    private static OptionsInputs Inputs(int hours = 10, Place place = Place.HomeOnly, TimeSlot[]? slots = null, Ability? ability = null) =>
+        Inputs(hours, place, slots, ability ?? Ability.Coordinating);
+
+    private static OptionsInputs Inputs(int hours, Place place, TimeSlot[]? slots, Ability ability) =>
         new(
             new ProfileConditions(slots ?? [TimeSlot.Evening, TimeSlot.Daytime], hours, place, null),
             true,
@@ -28,11 +31,12 @@ public sealed class ScriptedOptionsAiTests
             null);
 
     [Theory(DisplayName = "options-1（3 枚を同じ重さで示す）: 偽物の答えは、照らし合わせを通る 3 枚になる")]
-    [InlineData(Ability.Coordinating)]
-    [InlineData(Ability.Noticing)]
-    [InlineData(Ability.Prioritizing)]
-    public async Task ScriptedDraftPassesValidation(Ability ability)
+    [InlineData("coordinating")]
+    [InlineData("noticing")]
+    [InlineData("prioritizing")]
+    public async Task ScriptedDraftPassesValidation(string abilityId)
     {
+        var ability = new Ability(abilityId);
         var inputs = Inputs(ability: ability);
         var candidates = OptionCandidates.From(Catalog, inputs);
         Assert.True(candidates.CanCombine);

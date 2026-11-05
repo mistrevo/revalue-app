@@ -150,7 +150,7 @@ public sealed class ClaudeDeepenAiTests
 
             // 力は 3 つの key と名前だけ
             var abilities = Section(brief, "abilities");
-            foreach (var ability in Enum.GetValues<Ability>())
+            foreach (var ability in AbilityCatalog.Active)
             {
                 Assert.Contains(ActionRef.Key(ability), abilities);
                 Assert.Contains(AbilityText.Name(ability), abilities);

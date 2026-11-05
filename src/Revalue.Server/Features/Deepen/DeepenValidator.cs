@@ -98,7 +98,7 @@ public static class DeepenValidator
         var allowed = (target.Drafts ? tasks.Select(t => t.Ability) : target.Registered.Select(t => t.Ability)).Distinct().ToHashSet();
         if (allowed.Count == 0)
         {
-            allowed = [.. Enum.GetValues<Ability>()];
+            allowed = [.. AbilityCatalog.Active];
         }
 
         var questions = new List<DeepenQuestion>();

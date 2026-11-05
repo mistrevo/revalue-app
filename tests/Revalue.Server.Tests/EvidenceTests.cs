@@ -14,9 +14,9 @@ public sealed class EvidenceTests
         new() { Role = TurnRoles.User, Text = text, AnswerKind = kind, At = At };
 
     private static EvidenceCandidate Candidate(
-        string quote, int answer = 1, Ability ability = Ability.Noticing, int action = 1, int @event = 1, bool general = false,
+        string quote, int answer = 1, Ability? ability = null, int action = 1, int @event = 1, bool general = false,
         string linkedQuote = "", int linkedAnswer = 0) =>
-        new(ability, action, quote, answer, @event, general, linkedQuote, linkedAnswer);
+        new(ability ?? Ability.Noticing, action, quote, answer, @event, general, linkedQuote, linkedAnswer);
 
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 本人の答えに一字一句含まれる引用だけを残す")]
     public void KeepsOnlyQuotesContainedInAnswers()

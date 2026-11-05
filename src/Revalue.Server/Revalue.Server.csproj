@@ -19,9 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 登録した職種と業務、使わない言葉の一覧は、起動時に埋め込みのリソースから読む -->
+    <!-- 登録した職種と業務、使わない言葉の一覧、能力辞書は、起動時に埋め込みのリソースから読む -->
     <EmbeddedResource Include="Features\Options\jobs.json" LogicalName="jobs.json" />
     <EmbeddedResource Include="..\shared\forbidden-words.json" LogicalName="forbidden-words.json" />
+    <EmbeddedResource Include="..\shared\abilities.json" LogicalName="abilities.json" />
   </ItemGroup>
 
   <ItemGroup>

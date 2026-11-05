@@ -139,7 +139,7 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
             }
         }
 
-        if (states.Count != Enum.GetValues<Ability>().Length)
+        if (states.Count != AbilityCatalog.Active.Count)
         {
             throw new FormatException($"エピソード {id} の状態には、3 つの力すべてを書きます。");
         }

@@ -13,7 +13,7 @@ public sealed class ForbiddenWordList
     /// 照らし合わせる前に除く言葉。力の名前と、「優先順位」（「優先順位を決めた」のように、本人がしたことを映し返すときに使う。
     /// 一覧の「順位」は、カードや人に順番を付けることを止めるためのもの。00-common.md の「言葉」）。
     /// </summary>
-    public static readonly IReadOnlyList<string> Allowed = [.. Enum.GetValues<Ability>().Select(AbilityText.Name), "優先順位"];
+    public static readonly IReadOnlyList<string> Allowed = [.. AbilityCatalog.Active.Select(AbilityText.Name), "優先順位"];
 
     private ForbiddenWordList(IReadOnlyList<string> words) => Words = words;
 
