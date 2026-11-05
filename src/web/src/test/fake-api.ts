@@ -100,6 +100,7 @@ export function fakeAbilities(): Abilities {
         hints: [],
         work: 'notChecked',
         excluded: false,
+        canTellMore: false,
       },
       {
         key: 'setting-priorities',
@@ -110,6 +111,7 @@ export function fakeAbilities(): Abilities {
         hints: [FAKE_HINT],
         work: 'notChecked',
         excluded: false,
+        canTellMore: true,
       },
     ],
     history: [

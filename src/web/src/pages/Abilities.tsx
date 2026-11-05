@@ -95,9 +95,9 @@ function AbilityCard({ ability, busy, onToggle }: { ability: AbilityView; busy: 
 
       <div className="mt-3">
         <h3 className="text-xs font-semibold text-muted-foreground">{copy.abilities.life}</h3>
-        <p className="mt-1 text-sm font-medium">{ability.life === 'confirmed' ? copy.abilities.states.confirmed : copy.abilities.states.needsCheck}</p>
+        <p className="mt-1 text-sm font-medium">{lifeLabel(ability)}</p>
         <QuoteList quotes={ability.quotes} paired={ability.life === 'confirmed'} />
-        {ability.life === 'needsCheck' && <Hints hints={ability.hints} />}
+        {ability.life === 'needsCheck' && ability.canTellMore && <Hints hints={ability.hints} />}
         {ability.episodeId && (
           <Link
             to={`/talk/${ability.episodeId}`}
@@ -121,6 +121,15 @@ function AbilityCard({ ability, busy, onToggle }: { ability: AbilityView; busy: 
       </div>
     </section>
   )
+}
+
+/**
+ * 生活の中での状態の言葉。確かめ中の力のうち、根拠の場面の続きではもう聞かない力（canTellMore が false）は、
+ * 聞かせてほしいとは言わずに「確かめ中」とだけ出す（03-validate.md の「見えた力の画面」）。
+ */
+function lifeLabel(ability: AbilityView): string {
+  if (ability.life === 'confirmed') return copy.abilities.states.confirmed
+  return ability.canTellMore ? copy.abilities.states.needsCheck : copy.abilities.states.checking
 }
 
 function History({ history }: { history: AbilityChange[] }) {

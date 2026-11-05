@@ -47,6 +47,24 @@ describe('Abilities', () => {
     expect(screen.queryByText('まだ聞けていない力')).not.toBeInTheDocument()
   })
 
+  it('validate-11（要確認の場面に戻れる）: その場面の続きではもう聞かない確かめ中の力は、手がかりも、続きを話せるという言葉も出さず、本人の言葉だけにする', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    api.state.abilities = {
+      ...api.state.abilities,
+      abilities: api.state.abilities.abilities.map((a) => (a.key === 'setting-priorities' ? { ...a, hints: [], canTellMore: false } : a)),
+    }
+    renderApp('/abilities')
+
+    const settingPriorities = await screen.findByRole('region', { name: '優先順位設定力' })
+    expect(within(settingPriorities).getByText(copy.abilities.states.checking)).toBeInTheDocument()
+    expect(within(settingPriorities).queryByText(copy.abilities.states.needsCheck)).not.toBeInTheDocument()
+    expect(within(settingPriorities).getByText('「先に書類を仕上げました」')).toBeInTheDocument()
+    expect(within(settingPriorities).queryByText(copy.insights.hintLead)).not.toBeInTheDocument()
+    expect(within(settingPriorities).queryByText(copy.insights.noHint)).not.toBeInTheDocument()
+    // 根拠の場面は、いまのまま開ける（読み取りを直せる）
+    expect(within(settingPriorities).getByRole('link', { name: copy.abilities.openEpisode })).toHaveAttribute('href', '/talk/episode-1')
+  })
+
   it('validate-7（見えた力と、もう少し聞きたいことを示す）: 見えた力には行動の文と本人の言葉を組にして出し、確かめ中の力には出さない', async () => {
     setup()
 

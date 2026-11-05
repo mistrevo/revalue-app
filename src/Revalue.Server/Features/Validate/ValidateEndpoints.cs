@@ -30,10 +30,19 @@ public sealed record QuoteDto(string Text, bool FromChoice, string? LinkedText, 
 
 /// <summary>
 /// 見えた力の 1 つ。<paramref name="Life"/> は生活の中での状態、<paramref name="Work"/> は仕事での状態で、いまはいつも "notChecked"
-/// （validate-9（生活での根拠と仕事での発揮を分ける））。
+/// （validate-9（生活での根拠と仕事での発揮を分ける））。<paramref name="CanTellMore"/> は、根拠の場面の「もう少し聞かせてほしいこと」に
+/// いまも出している確かめ中の力か。false の確かめ中の力には、手がかりも、続きを話せるという言葉も出さない（<see cref="AbilityView.CanTellMore"/>）。
 /// </summary>
 public sealed record AbilityDto(
-    string Key, string Name, AbilityState Life, IReadOnlyList<QuoteDto> Quotes, string? EpisodeId, IReadOnlyList<string> Hints, string Work, bool Excluded);
+    string Key,
+    string Name,
+    AbilityState Life,
+    IReadOnlyList<QuoteDto> Quotes,
+    string? EpisodeId,
+    IReadOnlyList<string> Hints,
+    string Work,
+    bool Excluded,
+    bool CanTellMore);
 
 public sealed record AbilityChangeDto(
     DateTimeOffset At, string Key, string Name, AbilityState From, AbilityState To, ChangeReason Reason, string? EpisodeId);
@@ -421,7 +430,8 @@ public static class ValidateEndpoints
                 v.EpisodeId,
                 v.Hints,
                 WorkNotChecked,
-                v.Excluded))
+                v.Excluded,
+                v.CanTellMore))
             .ToList();
         // 辞書の話から確かめる力でない行（保存データの古い id など）は、名前を引く前に除く
         var history = (book?.History ?? [])

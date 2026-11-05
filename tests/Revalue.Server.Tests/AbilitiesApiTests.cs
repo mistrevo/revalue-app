@@ -280,6 +280,49 @@ public sealed class AbilitiesApiTests
             history.Select(h => h.Key).Order(StringComparer.Ordinal));
     }
 
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きを話して、もう少し聞かせてほしいことから外れた力は、見えた力に残しても、手がかりを出さず、続きで聞けるとしない")]
+    public async Task RetainedAbilityThatIsNoLongerAskedHasNoHints()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        // 1 往復目: 段取り力の行動が 1 つ。もう少し聞かせてほしいことに出し、続きを話せる
+        ai.Reading = _ => ReadingWith(Candidate(TestAbilities.PlanningSteps, 1, "やることを紙に書き出しました"));
+        await Send(client, id, "週末の集まりのために、やることを紙に書き出しました。");
+        await ValidateTestKit.Finish(client, id);
+        var before = Ability(await Abilities(client), "planning-steps");
+        Assert.Equal("needsCheck", before.GetProperty("life").GetString());
+        Assert.True(before.GetProperty("canTellMore").GetBoolean());
+        Assert.NotEmpty(before.GetProperty("hints").EnumerateArray());
+
+        // 2 往復目（続き）: 同じ分類で行動の多い利害調整力がそろう。段取り力は、そろっても見せられないので、この場面ではもう聞かない
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/episodes/{id}/resume", null, Ct)).StatusCode);
+        ai.Reading = _ => ReadingWith(
+        [
+            Candidate(TestAbilities.PlanningSteps, 1, "やることを紙に書き出しました"),
+            Candidate(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって", answer: 2),
+            Candidate(TestAbilities.BalancingInterests, 2, "二人に電話して", answer: 2),
+            Candidate(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました", answer: 2),
+        ]);
+        await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
+
+        var insights = (await ValidateTestKit.GetEpisode(client, id)).GetProperty("insights");
+        Assert.Equal(["balancing-interests"], insights.GetProperty("seen").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+        Assert.Empty(insights.GetProperty("moreToHear").EnumerateArray());
+        Assert.False(insights.GetProperty("canResume").GetBoolean());
+
+        // 一度見せた段取り力は見えた力に残るが、手がかりは出さず、その場面の続きで聞けるともしない
+        var after = Ability(await Abilities(client), "planning-steps");
+        Assert.Equal("needsCheck", after.GetProperty("life").GetString());
+        Assert.Equal(id, after.GetProperty("episodeId").GetString());
+        Assert.False(after.GetProperty("canTellMore").GetBoolean());
+        Assert.Empty(after.GetProperty("hints").EnumerateArray());
+        Assert.Equal(["やることを紙に書き出しました"], after.GetProperty("quotes").EnumerateArray().Select(q => q.GetProperty("text").GetString()));
+    }
+
     [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 外すと excluded になり履歴に exclude、戻すと restore")]
     public async Task ExcludeAndRestore()
     {

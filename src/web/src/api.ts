@@ -176,7 +176,11 @@ export type EpisodeInsights = {
   canResume: boolean
 }
 
-/** 見えた力の 1 つ。life は生活の中での状態、work は仕事での状態（いまはいつも notChecked）。 */
+/**
+ * 見えた力の 1 つ。life は生活の中での状態、work は仕事での状態（いまはいつも notChecked）。
+ * canTellMore は、根拠の場面の「もう少し聞かせてほしいこと」にいまも出している確かめ中の力か。false なら、その場面の続きでは聞かないので、
+ * 手がかりも、続きを話せるという言葉も出さない。
+ */
 export type AbilityView = {
   key: AbilityKey
   name: string
@@ -186,6 +190,7 @@ export type AbilityView = {
   hints: string[]
   work: string
   excluded: boolean
+  canTellMore: boolean
 }
 
 export type ChangeReason = 'talk' | 'correction' | 'skip' | 'exclude' | 'restore' | 'setAside'

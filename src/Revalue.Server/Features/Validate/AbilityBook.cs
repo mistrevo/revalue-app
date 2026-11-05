@@ -73,9 +73,20 @@ public sealed record AbilityBookItem : Item
 /// <summary>見えた力の画面と API に渡す、本人に見せた力ごとの中身。状態は根拠ありか要確認。</summary>
 /// <param name="Shown">根拠。その力を見せた場面のうち、いちばん進んだ状態の、新しい場面のもの。</param>
 /// <param name="EpisodeId">根拠を取った場面の id。</param>
-/// <param name="Hints">足りない行動の手がかり。要確認のときだけ。</param>
+/// <param name="Hints">足りない行動の手がかり。<paramref name="CanTellMore"/> のときだけ。</param>
+/// <param name="CanTellMore">
+/// 根拠を取った場面の「もう少し聞かせてほしいこと」に、いまも出している要確認の力か。その場面の続きで、足りない行動を聞く。
+/// 一度見せた力でも、続きを話して同じ分類の行動の多い力がそろったなどで外れていれば false。その場面ではもう聞き返さないので、
+/// 手がかりも、続きを話せるという言葉も出さない（03-validate.md の「力の状態」。Claude の判断）。
+/// </param>
 public sealed record AbilityView(
-    Ability Ability, AbilityState State, IReadOnlyList<Evidence> Shown, string? EpisodeId, IReadOnlyList<string> Hints, bool Excluded);
+    Ability Ability,
+    AbilityState State,
+    IReadOnlyList<Evidence> Shown,
+    string? EpisodeId,
+    IReadOnlyList<string> Hints,
+    bool Excluded,
+    bool CanTellMore);
 
 /// <summary>
 /// 利用者ごとの力の状態を、保存してある場面から計算し直し、変わった力の履歴を残す（03-validate.md の「力の状態」）。
@@ -264,6 +275,7 @@ public static class AbilityBook
     /// <summary>
     /// 本人に見せた力ごとの中身を <see cref="Ability"/> の順で返す。まだ聞けていない力と、どの場面でも見せていない力は返さない
     /// （00-common.md の「力」の「見せる力」）。状態は場面から出し（本と同じ決め方）、外したかと、前に見せた力の印は本から読む。
+    /// 手がかりは、根拠を取った場面の「もう少し聞かせてほしいこと」にいまも出している力だけに添える（<see cref="AbilityView.CanTellMore"/>）。
     /// 見えた力の画面、5 つの記録の「できること」、カードの使える力、深めるの使えるところ、レポートの確かめた力は、どれもここから作る。
     /// </summary>
     public static IReadOnlyList<AbilityView> View(IReadOnlyList<EpisodeItem> episodes, AbilityBookItem? book)
@@ -273,8 +285,11 @@ public static class AbilityBook
             .Select(best =>
             {
                 var excluded = book?.Excluded.Contains(best.Result.Ability) ?? false;
-                var hints = EpisodeInsights.Hints(best.Episode, best.Result);
-                return new AbilityView(best.Result.Ability, best.Result.State, best.Result.Shown, best.Episode.Id, hints, excluded);
+                // 手がかりは、その場面の「もう少し聞かせてほしいこと」にいまも出している力だけ。外れた力は、その場面の続きでも聞かないため
+                var canTellMore = EpisodeInsights.Showcase(best.Episode).MoreToHear.Any(r => r.Ability == best.Result.Ability);
+                var hints = canTellMore ? EpisodeInsights.Hints(best.Episode, best.Result) : [];
+                return new AbilityView(
+                    best.Result.Ability, best.Result.State, best.Result.Shown, best.Episode.Id, hints, excluded, canTellMore);
             })
             .ToList();
     }
