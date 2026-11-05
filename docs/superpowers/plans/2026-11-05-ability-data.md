@@ -79,9 +79,9 @@
 - Consumes: Task 1 の `AbilityCatalog`
 - Produces: `public static string ReaderPrompt()`（読み取りの指示を、表を差し込んだ形で返す。置き場所は実装者が決める）
 
-- [ ] **Step 1: 失敗するテストを書く** — 差し込んだ読み取りの指示が、改訂前の `reader.md`（`git show` で取った文字列をテストの中に固定で持つ）と一字一句同じ
-- [ ] **Step 2〜4: 実装して、`dotnet test` が通ることを確かめる**
-- [ ] **Step 5: コミット**
+- [x] **Step 1: 失敗するテストを書く** — 差し込んだ読み取りの指示が、改訂前の `reader.md`（`git show` で取った文字列をテストの中に固定で持つ）と一字一句同じ
+- [x] **Step 2〜4: 実装して、`dotnet test` が通ることを確かめる**
+- [x] **Step 5: コミット**
 
 ### Task 3: 画面と評価を、力の id の決め打ちから外す
 

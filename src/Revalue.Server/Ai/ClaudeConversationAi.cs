@@ -43,7 +43,7 @@ public sealed class ClaudeConversationAi(
     private static readonly string[] EvidenceFields = ["ability", "action", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer"];
 
     private readonly string _listenerPrompt = PromptFiles.Read(PromptFiles.Listener);
-    private readonly string _readerPrompt = PromptFiles.Read(PromptFiles.Reader);
+    private readonly string _readerPrompt = PromptFiles.ReaderPrompt();
 
     public string Model => options.Value.Model;
 

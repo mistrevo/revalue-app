@@ -74,16 +74,16 @@ public sealed record ActionRef(Ability Ability, int Number)
 {
     public static string Key(Ability ability) => ability.Id;
 
-    /// <summary><c>noticing</c> などの id を、判定に使う力にする。判定に使う力でなければ false。大文字と小文字は区別する。</summary>
+    /// <summary>
+    /// <c>noticing</c> などの id を、判定に使う力にする。辞書にない id と準備中の力は false。大文字と小文字は区別する。
+    /// AI の答えや送られた値の力の id は、ここで確かめる。
+    /// </summary>
     public static bool TryParseAbility(string? key, out Ability ability)
     {
-        foreach (var candidate in AbilityCatalog.Active)
+        if (AbilityCatalog.Find(key) is { IsActive: true } entry)
         {
-            if (string.Equals(candidate.Id, key, StringComparison.Ordinal))
-            {
-                ability = candidate;
-                return true;
-            }
+            ability = entry.Ability;
+            return true;
         }
 
         ability = default;

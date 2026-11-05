@@ -56,6 +56,16 @@ public sealed class AbilityTextTests
         Assert.Equal("優先順位をつける力", AbilityText.Name(Ability.Prioritizing));
     }
 
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 力の名前と手がかりは、能力辞書のデータから出る")]
+    public void NamesAndHintsComeFromTheCatalog()
+    {
+        // 裏側の言葉の 1 か所は能力辞書。AbilityText は辞書をそのまま返す
+        Assert.All(AbilityCatalog.Active, a => Assert.Equal(AbilityCatalog.Name(a), AbilityText.Name(a)));
+        Assert.All(AllActions(), a => Assert.Equal(AbilityCatalog.Hint(a), AbilityText.Hint(a)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => AbilityText.Hint(new ActionRef(Ability.Noticing, 4)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => AbilityText.Name(new Ability("cooking")));
+    }
+
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いは、決まった受け止めの一文、本人の言葉の映し返し、行動ごとの問い一つの順。選択肢は 3 つ")]
     public void ResumeOpeningAcknowledgesMirrorsThenAsksOne()
     {
