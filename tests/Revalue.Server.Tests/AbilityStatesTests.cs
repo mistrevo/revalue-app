@@ -333,6 +333,39 @@ public sealed class AbilityStatesTests
         Assert.Equal([3], result.Missing);
     }
 
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 状況の行動を持つ力で、本人の行動 2 つに同じ句か、一方を含む句を当てても根拠ありにしない")]
+    public void SituationAbilityOwnActionsSamePhraseDoesNotConfirm()
+    {
+        // 優先順位設定力 3（決めた理由や基準がある）を、2（先と後を決める）と同じ事実の句から推し量った読み取り
+        var priorities = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.SettingPriorities, 1, 1, quote: "用事が三つも重なって"),
+            E(TestAbilities.SettingPriorities, 2, 1, quote: "病院を先にして、買い物は明日に回した"),
+            E(TestAbilities.SettingPriorities, 3, 1, quote: "病院を先にして、買い物は明日に回した"),
+        ]), TestAbilities.SettingPriorities);
+        Assert.Equal(AbilityState.NeedsCheck, priorities.State);
+        Assert.Equal([1, 3], priorities.Shown.Select(e => e.Action));
+        Assert.Equal([2], priorities.Missing);
+
+        var resilience = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.Resilience, 1, 1, quote: "ミシンが急に止まってしまい"),
+            E(TestAbilities.Resilience, 2, 1, quote: "残りを数えて手縫いで続けることにした"),
+            E(TestAbilities.Resilience, 3, 1, quote: "手縫いで続けることにした"),
+        ]), TestAbilities.Resilience);
+        Assert.Equal(AbilityState.NeedsCheck, resilience.State);
+        Assert.Equal([2], resilience.Missing);
+
+        // 本人の行動の引用が状況の引用を含んでも、もう一方の本人の行動の引用を含まなければ数える
+        var separate = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.SettingPriorities, 1, 1, quote: "用事が重なって"),
+            E(TestAbilities.SettingPriorities, 2, 1, quote: "用事が重なって、病院を先にした"),
+            E(TestAbilities.SettingPriorities, 3, 1, answer: 2, quote: "薬が切れそうだったからです"),
+        ]), TestAbilities.SettingPriorities);
+        Assert.Equal(AbilityState.Confirmed, separate.State);
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 新しい出来事が状況の行動だけなら、本人の行動がある出来事の根拠を見せる")]
     public void SituationOnlyEventIsSkipped()
     {

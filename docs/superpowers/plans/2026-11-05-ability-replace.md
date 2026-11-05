@@ -634,7 +634,7 @@ ask: prioritizing.3
 1. `dotnet build`（警告 0）、`dotnet test` — すべて PASS
 2. `npm --prefix src/web ci`、`npm --prefix src/web run build`、`npm --prefix src/web test` — すべて PASS
 3. `node --test .claude/hooks/guard.test.mjs` — PASS
-4. `dotnet run --project evals/Revalue.Evals -- --unit discover --dry-run`、`--unit validate --dry-run`、`--unit options --dry-run`、`--unit deepen --dry-run` — 最後まで流れる。validate の結果のファイルに、42 本（e08〜e19、e21〜e50）の例と、根拠の判定役の欄が出る
+4. `dotnet run --project evals/Revalue.Evals -- --unit discover --dry-run`、`--unit validate --dry-run`、`--unit options --dry-run`、`--unit deepen --dry-run` — 最後まで流れる。validate の結果のファイルに、42 本（e08〜e19、e21〜e50）の例と、根拠の判定役の欄が出る（2 回目のあとの追記: 準備中の力の台本 e29、e30、e45 は書いていないので、実際は 39 本）
 
 ## Workflow 2 回目のあと（メインのセッション）
 

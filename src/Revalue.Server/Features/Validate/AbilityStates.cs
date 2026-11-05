@@ -79,6 +79,8 @@ public static class AbilityStates
     /// 差し替えた引用がほかの行動の引用に含まれることがあるので、組ごとに全体を確かめる。どの組でも含む引用が残るなら、行動ごとに答えの番号が
     /// 小さい根拠を選んだ組から、ほかの行動の引用をすべて含む引用（いくつもあれば行動の番号が小さいもの）を除き、その行動を足りないことにする。
     /// 読み取りの AI が一つの句を切り分けてすべての行動に当てると、行動がそろっていないのに根拠ありになるため（validate-1。Claude の判断）。
+    /// 状況の行動を持つ力は、本人の行動どうしでも同じように比べる。本人の行動が 2 つなら、一方の引用がもう一方の引用を含む組（同じ引用の組も）は数えない。
+    /// 状況の句と、本人の行動 2 つに当てた一つの句とで、根拠ありにしないため（Claude の判断）。
     /// 次の一手（<see cref="Discover.NextMovePolicy"/>）も、この数え方で足りない行動を決める。
     /// </summary>
     public static IReadOnlyList<Evidence> Counted(IEnumerable<Evidence> evidence)
@@ -100,7 +102,7 @@ public static class AbilityStates
             return counted;
         }
 
-        var container = Enumerable.Range(0, first.Count).First(i => CoversAllOthers(first, i));
+        var container = Enumerable.Range(0, first.Count).First(i => IsContainer(first, i));
         return [.. first.Where((_, i) => i != container)];
     }
 
@@ -117,7 +119,7 @@ public static class AbilityStates
         {
             if (action == candidates.Count)
             {
-                return !Enumerable.Range(0, picked.Length).Any(i => CoversAllOthers(picked, i));
+                return !Enumerable.Range(0, picked.Length).Any(i => IsContainer(picked, i));
             }
 
             foreach (var candidate in candidates[action])
@@ -133,9 +135,21 @@ public static class AbilityStates
         }
     }
 
-    /// <summary>組の <paramref name="index"/> 番目の引用が、組のほかの引用をすべて含むか。同じ引用も含むものとして数える。</summary>
-    private static bool CoversAllOthers(IReadOnlyList<Evidence> combination, int index) =>
-        Enumerable.Range(0, combination.Count).Where(j => j != index).All(j => Covers(combination[index], combination[j]));
+    /// <summary>
+    /// 組の <paramref name="index"/> 番目の引用を数えないか。組のほかの引用をすべて含むときと、本人の行動の引用が組のほかの本人の行動の引用を
+    /// すべて含むとき。同じ引用も含むものとして数える。状況の行動を持たない力では、二つの条件は同じになる。
+    /// </summary>
+    private static bool IsContainer(IReadOnlyList<Evidence> combination, int index)
+    {
+        var others = Enumerable.Range(0, combination.Count).Where(j => j != index).ToList();
+        if (others.All(j => Covers(combination[index], combination[j])))
+        {
+            return true;
+        }
+
+        var otherOwn = others.Where(j => IsOwnAction(combination[j])).ToList();
+        return IsOwnAction(combination[index]) && otherOwn.Count > 0 && otherOwn.All(j => Covers(combination[index], combination[j]));
+    }
 
     private static bool Covers(Evidence outer, Evidence inner) => OwnWords(outer).Contains(OwnWords(inner), StringComparison.Ordinal);
 

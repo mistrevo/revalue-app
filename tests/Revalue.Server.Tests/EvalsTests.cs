@@ -550,7 +550,7 @@ public sealed class EvalsTests
         Assert.Contains("根拠ありにしてはいけない", report);
     }
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、台本に書いていない力が根拠ありになっても、褒めすぎに数えない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、台本に書いていない力を機械の褒めすぎには数えず、根拠の判定役が見る")]
     public async Task UnlistedAbilityIsNotOverPraise()
     {
         var run = await Run(
@@ -564,6 +564,13 @@ public sealed class EvalsTests
         Assert.Equal((0, 3), (gate.Count, gate.Total));
         var expected = Assert.Single(summary.Reference, i => i.Name.Contains("最後の状態が期待どおりだった力"));
         Assert.Equal(1, expected.Total);
+
+        // 判定役が示していない行動があると答えれば、台本に書いていない力でも褒めすぎに数える
+        var judged = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("noticing-changes=needsCheck", notConfirmed: "setting-priorities", answers: Free(CoordinatingAnswer)),
+            new FixedEvidenceJudge(_ => new EvidenceVerdict([true, false, true], true, "")));
+        Assert.Equal(1, OverPraiseGate(EvalSummary.From([judged])).Count);
 
         // 結果のファイルには、台本に書いていない力でも、未確認でなかった力は書く。話から確かめる力をすべては並べない
         var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
