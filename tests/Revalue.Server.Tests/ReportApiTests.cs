@@ -193,11 +193,15 @@ public sealed class ReportApiTests
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         kit.Ai.Reading = _ => ReadingWith(Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかっていた"));
         await Send(client, id, CoordinatingAnswer);
+        // 続きのあいだの読み取りは、話し終えるまで見せないので、レポートにも出ない。版を作るために、続きのあいだに 5 つの記録を変える
+        await PutPreferences(client, "家でできる");
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var during = await Get(client);
         Assert.Equal(2, Number(during));
-        Assert.Contains("noticing-changes", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
+        Assert.DoesNotContain("noticing-changes", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
 
+        // 5 つの記録を戻してから飛ばす
+        await PutOk(client, "/api/profile/preferences", new { entries = System.Array.Empty<object>() });
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
         var after = await Get(client);
@@ -251,11 +255,15 @@ public sealed class ReportApiTests
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         kit.Ai.Reading = _ => ReadingWith(Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかっていた"));
         await Send(client, id, CoordinatingAnswer);
+        // 話している途中の読み取りは、話し終えるまで見せないので、レポートにも出ない。版を作るために、話している途中に 5 つの記録を変える
+        await PutPreferences(client, "家でできる", "週に 2 日");
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var during = await Get(client);
         Assert.Equal(3, Number(during));
-        Assert.Contains("noticing-changes", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
+        Assert.DoesNotContain("noticing-changes", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
 
+        // 5 つの記録を戻してから飛ばす
+        await PutPreferences(client, "家でできる");
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
         var after = await Get(client);

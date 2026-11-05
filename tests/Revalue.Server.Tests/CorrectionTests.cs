@@ -244,8 +244,31 @@ public sealed class CorrectionTests
         Assert.Equal("notYet", change.GetProperty("to").GetString());
     }
 
-    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 話している途中にサインが出て場面を確かめに使わなくなったら、履歴の理由は setAside")]
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 続きを話している途中にサインが出て場面を確かめに使わなくなったら、履歴の理由は setAside")]
     public async Task DistressWhileTalkingRecordsSetAside()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        // 話し終えた場面で利害調整力の 2 つを見せ（もう少し聞かせてほしいこと）、続きで 3 つ目を話す
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll[0], BalancingInterestsAll[1]);
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
+        await Send(client, id, CoordinatingAnswer);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+
+        await Send(client, id, "最近ずっと眠れなくて、つらいです。");
+
+        // 続きのあいだの読み取りは力の本に入れていないので、下がるのは話し終えたときに見せた状態から
+        var history = Array(await Json(await client.GetAsync("/api/abilities", Ct)), "history");
+        Assert.Equal(
+            [("balancing-interests", "setAside", "needsCheck", "notYet"), ("balancing-interests", "talk", "notYet", "needsCheck")],
+            history.Select(h => (
+                h.GetProperty("key").GetString(), h.GetProperty("reason").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString())));
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 一度も話し終えていない場面でサインが出ても、何も見せていないので、力の履歴は残らない")]
+    public async Task DistressInFirstTalkLeavesNoHistory()
     {
         var (factory, ai) = Create();
         await using var _f = factory;
@@ -256,12 +279,11 @@ public sealed class CorrectionTests
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
 
         await Send(client, id, "最近ずっと眠れなくて、つらいです。");
+        await Finish(client, id);
 
-        var history = Array(await Json(await client.GetAsync("/api/abilities", Ct)), "history");
-        Assert.Equal(
-            [("balancing-interests", "setAside", "confirmed", "notYet"), ("balancing-interests", "talk", "notYet", "confirmed")],
-            history.Select(h => (
-                h.GetProperty("key").GetString(), h.GetProperty("reason").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString())));
+        var dto = await Json(await client.GetAsync("/api/abilities", Ct));
+        Assert.Empty(Array(dto, "abilities"));
+        Assert.Empty(Array(dto, "history"));
     }
 
     [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 訂正にも送信回数の上限が効く")]

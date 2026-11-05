@@ -79,6 +79,7 @@ public sealed class AbilitiesApiTests
         ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間")]);
 
         await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
         var dto = await Abilities(client);
 
         Assert.Equal(["balancing-interests", "setting-priorities"],
@@ -115,6 +116,7 @@ public sealed class AbilitiesApiTests
         ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかった")]);
 
         await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
         var dto = await Abilities(client);
 
         var quotes = dto.GetProperty("abilities").EnumerateArray()
@@ -139,6 +141,7 @@ public sealed class AbilitiesApiTests
         ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 1, "迎えの時間をずらして")]);
 
         await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
         var abilities = (await Abilities(client)).GetProperty("abilities").EnumerateArray().ToList();
 
         Assert.Equal(["balancing-interests", "noticing-changes"], abilities.Select(a => a.GetProperty("key").GetString()));
@@ -165,11 +168,116 @@ public sealed class AbilitiesApiTests
         ]);
 
         await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
         var dto = await Abilities(client);
 
         Assert.Equal(["balancing-interests"], dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
         Assert.Equal(["balancing-interests"], dto.GetProperty("history").EnumerateArray().Select(h => h.GetProperty("key").GetString()));
         Assert.DoesNotContain("planning-steps", dto.GetRawText(), StringComparison.Ordinal);
+    }
+
+    // 2 往復で見せる力が入れ替わる場面の答えと読み取り。
+    // 1 往復目: 傾聴力の 2 つがそろい、優先順位設定力と変化への気づきが 1 つずつ（聞き返すのは辞書の順で前の優先順位設定力）。
+    // 2 往復目: 要約力の 2 つがそろい（傾聴力と同じ分類で、辞書の順で前）、利害調整力が 2 つ（変化への気づきより行動が多い）
+    private const string FirstSwapAnswer = "用事が三つ重なっていて、娘の顔色がいつもと違っていたので、先に最後まで話を聞いて、けんかしたのがつらかったんだと分かりました。";
+    private const string SecondSwapAnswer = "そのあと先生に、娘の話を短くまとめて、私の言葉で伝えました。夫と母の予定がぶつかっていたので、二人に電話しました。";
+
+    private static TurnReading FirstSwapReading(IReadOnlyList<Turn> _) => ReadingWith(
+        Candidate(TestAbilities.ActiveListening, 1, "先に最後まで話を聞いて"),
+        Candidate(TestAbilities.ActiveListening, 2, "けんかしたのがつらかったんだと分かりました"),
+        Candidate(TestAbilities.SettingPriorities, 1, "用事が三つ重なっていて"),
+        Candidate(TestAbilities.NoticingChanges, 1, "顔色がいつもと違って"));
+
+    private static TurnReading SecondSwapReading(IReadOnlyList<Turn> _) => ReadingWith(
+        Candidate(TestAbilities.Summarizing, 1, "娘の話を短くまとめて", answer: 2),
+        Candidate(TestAbilities.Summarizing, 2, "私の言葉で伝えました", answer: 2),
+        Candidate(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって", answer: 2),
+        Candidate(TestAbilities.BalancingInterests, 2, "二人に電話しました", answer: 2));
+
+    private static List<(string? Key, string? From, string? To, string? Reason)> HistoryRows(JsonElement dto) =>
+        dto.GetProperty("history").EnumerateArray()
+            .Select(h => (h.GetProperty("key").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString(),
+                h.GetProperty("reason").GetString()))
+            .ToList();
+
+    private static int Rank(string? state) => state switch { "notYet" => 0, "needsCheck" => 1, "confirmed" => 2, _ => -1 };
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 話している途中に見せる力が入れ替わっても、画面に出さない力は履歴に出ず、下がる行もない")]
+    public async Task SwapWhileTalkingLeavesNoHiddenAbilityInHistory()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+
+        ai.Reading = FirstSwapReading;
+        await Send(client, id, FirstSwapAnswer);
+        // 話している途中の場面では、まだ何も見せていない
+        var talking = await Abilities(client);
+        Assert.Empty(talking.GetProperty("abilities").EnumerateArray());
+        Assert.Empty(talking.GetProperty("history").EnumerateArray());
+
+        ai.Reading = SecondSwapReading;
+        await Send(client, id, SecondSwapAnswer);
+        await ValidateTestKit.Finish(client, id);
+
+        // 話し終えた場面の見せ方: 見えた力は要約力、もう少し聞かせてほしいことは優先順位設定力（聞き返した力）と利害調整力
+        var insights = (await (await client.GetAsync($"/api/episodes/{id}", Ct)).Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("insights");
+        Assert.Equal(["summarizing"], insights.GetProperty("seen").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+        Assert.Equal(["setting-priorities", "balancing-interests"],
+            insights.GetProperty("moreToHear").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+
+        var dto = await Abilities(client);
+        Assert.Equal(["summarizing", "balancing-interests", "setting-priorities"],
+            dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+        var history = HistoryRows(dto);
+        Assert.Equal(["balancing-interests", "setting-priorities", "summarizing"], history.Select(h => h.Key).Order(StringComparer.Ordinal));
+        Assert.All(history, h => Assert.True(Rank(h.To) > Rank(h.From), $"{h.Key}: {h.From} → {h.To}"));
+        Assert.DoesNotContain("active-listening", dto.GetRawText(), StringComparison.Ordinal);
+        Assert.DoesNotContain("noticing-changes", dto.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 続きを話して見せる力が入れ替わっても、一度見せた力は下がらず、画面に出さない力は履歴に出ない")]
+    public async Task SwapAfterResumeKeepsShownAbilities()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        ai.Reading = FirstSwapReading;
+        await Send(client, id, FirstSwapAnswer);
+        await ValidateTestKit.Finish(client, id);
+
+        // 見せたのは、傾聴力（見えた力）と、優先順位設定力・変化への気づき（もう少し聞かせてほしいこと）
+        var before = await Abilities(client);
+        Assert.Equal(["active-listening", "setting-priorities", "noticing-changes"],
+            before.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/episodes/{id}/resume", null, Ct)).StatusCode);
+        ai.Reading = SecondSwapReading;
+        await Send(client, id, SecondSwapAnswer);
+        // 続きを話している途中は、前に話し終えたときの見せ方のまま
+        Assert.Equal(before.GetProperty("abilities").GetRawText(), (await Abilities(client)).GetProperty("abilities").GetRawText());
+        await ValidateTestKit.Finish(client, id);
+
+        // 場面の見せ方は入れ替わる（傾聴力は要約力に、変化への気づきは利害調整力に隠れる）
+        var insights = (await (await client.GetAsync($"/api/episodes/{id}", Ct)).Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("insights");
+        Assert.Equal(["summarizing"], insights.GetProperty("seen").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+        Assert.Equal(["setting-priorities", "balancing-interests"],
+            insights.GetProperty("moreToHear").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+
+        // 一度見せた傾聴力と変化への気づきは、見えた力に残り、下がる行もない
+        var dto = await Abilities(client);
+        Assert.Equal(["summarizing", "active-listening", "balancing-interests", "setting-priorities", "noticing-changes"],
+            dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+        Assert.Equal("confirmed", Ability(dto, "active-listening").GetProperty("life").GetString());
+        Assert.Equal("needsCheck", Ability(dto, "noticing-changes").GetProperty("life").GetString());
+        var history = HistoryRows(dto);
+        Assert.Equal(5, history.Count);
+        Assert.All(history, h => Assert.True(Rank(h.To) > Rank(h.From), $"{h.Key}: {h.From} → {h.To}"));
+        Assert.Equal(
+            dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()).Order(StringComparer.Ordinal),
+            history.Select(h => h.Key).Order(StringComparer.Ordinal));
     }
 
     [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 外すと excluded になり履歴に exclude、戻すと restore")]
@@ -181,6 +289,7 @@ public sealed class AbilitiesApiTests
         var id = await Start(client);
         ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
 
         var excluded = await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
         Assert.Equal(HttpStatusCode.OK, excluded.StatusCode);
@@ -258,7 +367,32 @@ public sealed class AbilitiesApiTests
         Assert.Equal(0, await factory.Services.GetRequiredService<IDataStore>().CountAllAsync(TestUsers.Key("g-1"), Ct));
     }
 
-    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 飛ばした場面の根拠は見えた力から消え、履歴に skip が残る")]
+    /// <summary>
+    /// 前の保存（話している途中の場面も力の本に入れていたころ）の力の本を置く。いまの力の本に、<paramref name="rows"/> の履歴と、その行の後の状態を足す。
+    /// いまは話している途中の場面を力の本に入れないので、飛ばして消した場面の根拠や、確かめに使わないことにした履歴は、前の保存にだけ残っている。
+    /// </summary>
+    private static async Task SeedTalkingEra(
+        RevalueFactory factory, string user, params (Ability Ability, AbilityState From, AbilityState To, ChangeReason Reason, string EpisodeId)[] rows)
+    {
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var key = TestUsers.Key(user);
+        var book = await store.GetAsync<AbilityBookItem>(key, AbilityBookItem.ItemId, Ct)
+            ?? new AbilityBookItem { Id = AbilityBookItem.ItemId, UserKey = key, Type = AbilityBookItem.ItemType };
+        var states = new Dictionary<Ability, AbilityState>(book.States);
+        foreach (var row in rows)
+        {
+            states[row.Ability] = row.To;
+        }
+
+        var at = factory.Clock.GetUtcNow();
+        await store.UpsertAsync(book with
+        {
+            States = states,
+            History = [.. book.History, .. rows.Select(r => new AbilityChange(at, r.Ability, r.From, r.To, r.Reason, r.EpisodeId))],
+        }, Ct);
+    }
+
+    [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 話している途中に飛ばした場面の根拠は見えた力に出ず、前の保存で力の本に入っていた分は、履歴に skip を残して外す")]
     public async Task SkippedEpisodeEvidenceIsRemoved()
     {
         var (factory, ai) = Create();
@@ -267,7 +401,11 @@ public sealed class AbilitiesApiTests
         var id = await Start(client);
         ai.Reading = _ => ReadingWith(BalancingInterestsAll[0], BalancingInterestsAll[1]);
         await Send(client, id, CoordinatingAnswer);
-        Assert.Equal("needsCheck", Ability(await Abilities(client), "balancing-interests").GetProperty("life").GetString());
+        // 話している途中の場面では、まだ何も見せていない
+        var talking = await Abilities(client);
+        Assert.Empty(talking.GetProperty("abilities").EnumerateArray());
+        Assert.Empty(talking.GetProperty("history").EnumerateArray());
+        await SeedTalkingEra(factory, "g-1", (TestAbilities.BalancingInterests, AbilityState.NotYet, AbilityState.NeedsCheck, ChangeReason.Talk, id));
 
         var skipped = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
         Assert.Equal(HttpStatusCode.Created, skipped.StatusCode);
@@ -294,9 +432,11 @@ public sealed class AbilitiesApiTests
         await Send(client, id, CoordinatingAnswer);
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
         await Send(client, id, "もう消えたいと思うことがあります");
-        Assert.Contains(
-            (await Abilities(client)).GetProperty("history").EnumerateArray(),
-            h => h.GetProperty("reason").GetString() == "setAside");
+        // 話している途中の場面では何も見せていないので、確かめに使わないことにした履歴も出ない
+        Assert.Empty((await Abilities(client)).GetProperty("history").EnumerateArray());
+        await SeedTalkingEra(factory, "g-1",
+            (TestAbilities.BalancingInterests, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, id),
+            (TestAbilities.BalancingInterests, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.SetAside, id));
 
         var skipped = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
 
@@ -330,6 +470,9 @@ public sealed class AbilitiesApiTests
         await Send(client, id, CoordinatingAnswer);
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
         await Send(client, id, "もう消えたいと思うことがあります");
+        await SeedTalkingEra(factory, "g-1",
+            (TestAbilities.BalancingInterests, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, id),
+            (TestAbilities.BalancingInterests, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.SetAside, id));
         await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
 
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
@@ -358,6 +501,7 @@ public sealed class AbilitiesApiTests
         var id = await Start(client);
         ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
         await Abilities(client);
         await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
 

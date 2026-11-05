@@ -39,6 +39,9 @@ public enum ChangeReason
 /// <summary>利用者ごとの力の状態の履歴 1 件。外す・戻すでは、From と To はどちらもそのときの状態。</summary>
 public sealed record AbilityChange(DateTimeOffset At, Ability Ability, AbilityState From, AbilityState To, ChangeReason Reason, string? EpisodeId);
 
+/// <summary>本人に見せた力の印。その場面を話し終えたときの見せ方（<see cref="AbilityShowcase.Of"/>）に、一度でも入った力。</summary>
+public sealed record ShownMark(string EpisodeId, Ability Ability);
+
 /// <summary>
 /// 利用者ごとの力の状態（見えた力）、外した力、履歴。利用者ごとに id の決まった 1 件。
 /// 状態は保存してある場面から計算し直したもの（<see cref="AbilityBook.RecomputeAsync"/>）で、本人に見せた力だけを持つ（<see cref="AbilityBook.VisibleStates"/>）。
@@ -56,6 +59,13 @@ public sealed record AbilityBookItem : Item
 
     /// <summary>状態の変わった履歴。古い順。<see cref="AbilityBook.MaxHistory"/> 件まで。</summary>
     public IReadOnlyList<AbilityChange> History { get; init; } = [];
+
+    /// <summary>
+    /// 本人に見せた力の印（場面の id、力の順）。場面が確かめに使える間は持ち続ける。
+    /// 続きを話して、同じ分類のほかの力に隠れたり、もう少し聞かせてほしいことから外れたりしても、一度見せた力を見えた力から消さないため
+    /// （03-validate.md の「力の状態」。Claude の判断）。この項目を持たない前の保存では空。
+    /// </summary>
+    public IReadOnlyList<ShownMark> Shown { get; init; } = [];
 
     public AbilityState StateOf(Ability ability) => States.GetValueOrDefault(ability, AbilityState.NotYet);
 }
@@ -77,8 +87,8 @@ public static class AbilityBook
     public const int MaxHistory = 100;
 
     /// <summary>
-    /// その人の場面（力の確かめに使わない印のないもの）から、本人に見せた力ごとにいちばん進んだ状態を出し（<see cref="VisibleStates"/>）、
-    /// 前と違う力だけ履歴に足して保存する。見せていない力は未確認として扱うので、履歴にも出ない。
+    /// その人の話し終えた場面（<see cref="Checkable"/>）から、本人に見せた力ごとにいちばん進んだ状態を出し（<see cref="VisibleStates"/>）、
+    /// 前と違う力だけ履歴に足して保存する。見せていない力は未確認として扱うので、履歴にも出ない。見せた力の印（<see cref="AbilityBookItem.Shown"/>）も足して保存する。
     /// 了解の記録がない（全部消したあと）ときは、何も書かずに <see cref="ConsentMissingException"/> を投げる。
     /// </summary>
     public static Task<AbilityBookItem> RecomputeAsync(
@@ -115,9 +125,11 @@ public static class AbilityBook
         {
             var read = await store.GetVersionedAsync<AbilityBookItem>(userKey, AbilityBookItem.ItemId, ct);
             var episodes = await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct);
-            var states = VisibleStates(episodes);
 
             var current = read?.Item ?? New(userKey);
+            var checkable = Checkable(episodes);
+            var marks = Marks(checkable, current.Shown);
+            var states = VisibleStates(checkable, marks);
             var forgotten = deletedEpisode && episodeId is not null ? ForgetSetAside(current, episodeId) : null;
             var history = forgotten?.History ?? current.History;
             var recorded = forgotten?.Recorded ?? current.States;
@@ -127,12 +139,12 @@ public static class AbilityBook
                 .OrderBy(s => s.Key)
                 .Select(s => new AbilityChange(now, s.Key, recorded.GetValueOrDefault(s.Key, AbilityState.NotYet), s.Value, reason, episodeId))
                 .ToList();
-            if (read is not null && changes.Count == 0 && forgotten is null)
+            if (read is not null && changes.Count == 0 && forgotten is null && marks.SequenceEqual(current.Shown))
             {
                 return read.Item;
             }
 
-            var next = current with { States = states, History = Trim([.. history, .. changes]) };
+            var next = current with { States = states, History = Trim([.. history, .. changes]), Shown = marks };
             var written = read is null
                 ? await store.TryCreateAsync(next, ct)
                 : await store.TryReplaceAsync(next, read.ETag, ct);
@@ -242,11 +254,13 @@ public static class AbilityBook
 
     /// <summary>
     /// 本人に見せた力ごとの中身を <see cref="Ability"/> の順で返す。まだ聞けていない力と、どの場面でも見せていない力は返さない
-    /// （00-common.md の「力」の「見せる力」）。状態は場面から出し（本と同じ決め方）、外したかは本から読む。
+    /// （00-common.md の「力」の「見せる力」）。状態は場面から出し（本と同じ決め方）、外したかと、前に見せた力の印は本から読む。
     /// 見えた力の画面、5 つの記録の「できること」、カードの使える力、深めるの使えるところ、レポートの確かめた力は、どれもここから作る。
     /// </summary>
-    public static IReadOnlyList<AbilityView> View(IReadOnlyList<EpisodeItem> episodes, AbilityBookItem? book) =>
-        BestShown(episodes)
+    public static IReadOnlyList<AbilityView> View(IReadOnlyList<EpisodeItem> episodes, AbilityBookItem? book)
+    {
+        var checkable = Checkable(episodes);
+        return BestShown(checkable, Marks(checkable, book?.Shown ?? []))
             .Select(best =>
             {
                 var excluded = book?.Excluded.Contains(best.Result.Ability) ?? false;
@@ -254,33 +268,69 @@ public static class AbilityBook
                 return new AbilityView(best.Result.Ability, best.Result.State, best.Result.Shown, best.Episode.Id, hints, excluded);
             })
             .ToList();
+    }
 
     /// <summary>
     /// 話から確かめる力ごとの状態。本人に見せた力は <see cref="View"/> と同じ状態、ほかは未確認。
     /// 力の本の状態と履歴（<see cref="RecomputeAsync"/>）に使う。
     /// </summary>
-    public static Dictionary<Ability, AbilityState> VisibleStates(IReadOnlyList<EpisodeItem> episodes)
+    private static Dictionary<Ability, AbilityState> VisibleStates(IReadOnlyList<EpisodeItem> checkable, IReadOnlyList<ShownMark> marks)
     {
-        var shown = BestShown(episodes).ToDictionary(b => b.Result.Ability, b => b.Result.State);
+        var shown = BestShown(checkable, marks).ToDictionary(b => b.Result.Ability, b => b.Result.State);
         return AbilityCatalog.Active.ToDictionary(a => a, a => shown.GetValueOrDefault(a, AbilityState.NotYet));
     }
 
     /// <summary>
-    /// 本人に見せた力ごとに、その力を見せた場面のうち、いちばん進んだ状態の場面（同じなら <see cref="EpisodeItem.StartedAt"/> が新しいもの）。
-    /// 見せた力とは、力の確かめに使える場面のどれかで、<see cref="AbilityShowcase.Of"/> の見えた力か、もう少し聞かせてほしいことに入った力。
-    /// ほかの場面で根拠ありでも、画面に出さなかった場面の状態は使わない（本人が見ていない力は外せないため。Claude の判断）。並びは <see cref="Ability"/> の順。
+    /// 本人に見せたことのある姿の場面。話し終えた場面はそのまま、続きを話している場面は続きを話す前の姿（<see cref="EpisodeInsights.Rewind"/>）。
+    /// 一度も話し終えていない、話している途中の場面と、力の確かめに使わない印のある場面は入れない。
+    /// 見せる力は話し終えた場面にしか出さないので、話している途中の読み取りで力の本を動かすと、本人が見ていない力が履歴に出るため（Claude の判断）。
     /// </summary>
-    private static IEnumerable<(EpisodeItem Episode, AbilityResult Result)> BestShown(IReadOnlyList<EpisodeItem> episodes) =>
+    private static List<EpisodeItem> Checkable(IReadOnlyList<EpisodeItem> episodes) =>
         episodes
             .Where(e => !e.ExcludedFromValidation)
-            .SelectMany(e =>
-            {
-                var showcase = EpisodeInsights.Showcase(e);
-                return showcase.Seen.Concat(showcase.MoreToHear).Select(r => (Episode: e, Result: r));
-            })
+            .Select(e => e.Status == EpisodeStatus.Finished ? e : EpisodeInsights.Rewind(e, e.FinishedAt ?? e.StartedAt))
+            .OfType<EpisodeItem>()
+            .ToList();
+
+    /// <summary>
+    /// 見せた力の印。前に保存した印のうち、場面がまだ確かめに使えるものと、いまの場面ごとの見せ方（<see cref="AbilityShowcase.Of"/> の見えた力と、
+    /// もう少し聞かせてほしいこと）を合わせる。並びは場面の id、力の順。
+    /// </summary>
+    private static List<ShownMark> Marks(IReadOnlyList<EpisodeItem> checkable, IReadOnlyList<ShownMark> kept)
+    {
+        var ids = checkable.Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
+        var now = checkable.SelectMany(e =>
+        {
+            var showcase = EpisodeInsights.Showcase(e);
+            return showcase.Seen.Concat(showcase.MoreToHear).Select(r => new ShownMark(e.Id, r.Ability));
+        });
+        return kept
+            .Where(m => ids.Contains(m.EpisodeId) && AbilityCatalog.IsActive(m.Ability))
+            .Concat(now)
+            .Distinct()
+            .OrderBy(m => m.EpisodeId, StringComparer.Ordinal)
+            .ThenBy(m => m.Ability)
+            .ToList();
+    }
+
+    /// <summary>
+    /// 本人に見せた力ごとに、その力を見せた場面のうち、いちばん進んだ状態の場面（同じなら <see cref="EpisodeItem.StartedAt"/> が新しいもの）。
+    /// 見せた力とは、話し終えた場面のどれかで、<see cref="AbilityShowcase.Of"/> の見えた力か、もう少し聞かせてほしいことに一度でも入った力（<paramref name="marks"/>）。
+    /// 状態は、その場面のいまの根拠から決める。続きを話して同じ分類のほかの力に隠れても、一度見せた力は残る。訂正や飛ばすで根拠が消えれば下がる。
+    /// ほかの場面で根拠ありでも、画面に出さなかった場面の状態は使わない（本人が見ていない力は外せないため。Claude の判断）。並びは <see cref="Ability"/> の順。
+    /// </summary>
+    private static IEnumerable<(EpisodeItem Episode, AbilityResult Result)> BestShown(
+        IReadOnlyList<EpisodeItem> checkable, IReadOnlyList<ShownMark> marks)
+    {
+        var marked = marks.ToLookup(m => m.EpisodeId, m => m.Ability, StringComparer.Ordinal);
+        return checkable
+            .SelectMany(e => AbilityStates.Evaluate(e.Evidence)
+                .Where(r => r.State != AbilityState.NotYet && marked[e.Id].Contains(r.Ability))
+                .Select(r => (Episode: e, Result: r)))
             .GroupBy(x => x.Result.Ability)
             .Select(g => g.OrderByDescending(x => x.Result.State).ThenByDescending(x => x.Episode.StartedAt).First())
             .OrderBy(x => x.Result.Ability);
+    }
 
     private static AbilityBookItem New(string userKey) => new()
     {

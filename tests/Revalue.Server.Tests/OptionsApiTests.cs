@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Revalue.Server.Ai;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Foundation.Limits;
 using Revalue.Server.Features.Options;
 using Revalue.Server.Features.Validate;
@@ -578,7 +579,7 @@ public sealed class OptionsApiTests
     {
         var (factory, ai, _) = Setup();
         var client = await Consenting(factory, "o-25");
-        // 根拠のない場面を話し終え、利害調整力の 3 つの行動を話している途中の場面から、カードを作って「創る」を選ぶ
+        // 根拠のない場面を話し終え、利害調整力の 3 つの行動を話した場面から、カードを作って「創る」を選ぶ
         var quiet = await Start(client);
         ai.Reading = _ => ReadingWith();
         await Send(client, quiet, "昨日は家で洗濯をして、夕方に買い物に行きました。");
@@ -586,10 +587,15 @@ public sealed class OptionsApiTests
         var talking = await Start(client);
         ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, talking, CoordinatingAnswer);
+        await Finish(client, talking);
         await PutConditions(client, TenHours);
         var generated = await Generate(client);
         Assert.NotEqual(JsonValueKind.Null, generated.GetProperty("cards").GetProperty("create").ValueKind);
         await ChooseCard(client, "create", generated);
+        // いまは話し終えた場面の力だけからカードを作るので、飛ばして消える場面の言葉がカードに入るのは、前の保存（話している途中の場面からも
+        // カードを作っていたころ）だけ。その形にするため、カードを作った場面を話している途中に戻す
+        await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
+            TestUsers.Key("o-25"), talking, e => e with { Status = EpisodeStatus.Talking, FinishedAt = null }, Ct);
 
         var skipped = await client.PostAsync($"/api/episodes/{talking}/skip", null, Ct);
         Assert.True(skipped.IsSuccessStatusCode);

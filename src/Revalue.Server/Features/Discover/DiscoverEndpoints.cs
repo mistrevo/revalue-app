@@ -147,7 +147,7 @@ public static class DiscoverEndpoints
             return TypedResults.ServerSentEvents(talk.RunAsync(episode, valid.Text, valid.Kind, ct));
         }).RequireDailyLimit();
 
-        episodes.MapPost("/{id}/finish", async (string id, HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
+        episodes.MapPost("/{id}/finish", async (string id, HttpContext http, IDataStore store, TimeProvider time, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var userKey = http.User.GetUserKey()!;
             var episode = await FindAsync(store, userKey, id, ct);
@@ -172,6 +172,9 @@ public static class DiscoverEndpoints
                 return await FindAsync(store, userKey, id, ct) is null ? NotFound() : AlreadyFinished();
             }
 
+            // 見せる力は話し終えた場面にだけ出すので、区切ったときに利用者ごとの力の状態を計算し直し、見せた力を残す
+            // （03-validate.md の「力の状態」）。失敗しても、区切るのは成功のまま
+            await AbilityBook.TryRecomputeAsync(store, userKey, ChangeReason.Talk, id, time, loggers.CreateLogger(typeof(AbilityBook)), ct);
             return TypedResults.Ok(EpisodeDto.From(finished));
         });
 
