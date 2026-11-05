@@ -90,7 +90,7 @@ public sealed class ClaudeDeepenAi(
 
     /// <summary>
     /// AI に渡す 1 つの user メッセージの文。選んだ案、業務の見立てが要るか、条件、記録、話から確かめる力を、タグで区切って並べる（Claude の判断）。
-    /// 根拠の本人の言葉、力の状態、カードの理由、収入の目安は入れない。
+    /// 登録の業務は、名前、中身、使う力、要る知識や道具、小さな試し方の例の順。根拠の本人の言葉、力の状態、カードの理由、収入の目安は入れない。
     /// </summary>
     internal static string Brief(DeepenTarget target, OptionsInputs inputs)
     {
@@ -108,13 +108,16 @@ public sealed class ClaudeDeepenAi(
                 {
                     sb.Append("- 名前: ").Append(task.Name).Append('\n');
                     sb.Append("  中身: ").Append(task.Detail).Append('\n');
-                    // 辞書の話から確かめる力でない力（保存データの古い id など）は、名前を引かずに書かない
+                    // 使う力は、主な力と補助の力のうち話から確かめる力。準備中の力と辞書から消えた力（保存データの古い id など）は書かない
                     if (task.ActiveAbilities.Count > 0)
                     {
                         sb.Append("  使う力: ").Append(string.Join("、", task.ActiveAbilities.Select(a => $"{ActionRef.Key(a)}（{AbilityText.Name(a)}）"))).Append('\n');
                     }
 
                     sb.Append("  要る知識や道具: ").Append(task.Knowledge.Count == 0 ? "なし" : string.Join("、", task.Knowledge)).Append('\n');
+
+                    // 一歩の候補の手がかり（deepen-3（最初の一歩は小さく））
+                    sb.Append("  小さな試し方の例: ").Append(task.Trial).Append('\n');
                 }
 
                 break;

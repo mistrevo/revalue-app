@@ -5,29 +5,52 @@ using Revalue.Server.Features.Validate;
 namespace Revalue.Server.Features.Deepen;
 
 /// <summary>
-/// 業務 1 つの照らし合わせ。<paramref name="Usable"/> は、その業務の「使う力」が本人の使える力のときだけ入る。
-/// なければ「この業務で使う○○は、まだ確かめていません」と示す。<paramref name="Drafted"/> は AI の見立ての業務。
+/// 業務 1 つの照らし合わせ。<paramref name="Ability"/> は、登録の業務なら主な力、見立ての業務ならその力。
+/// <paramref name="Usable"/> は業務の力のうち本人の使える力（主な力、補助の力の順。見立ての業務は 0〜1 つ）で、外した力と画面に出さない力は入らない。
+/// 主な力が使える力でなければ（<see cref="MainUsable"/> が false）、「この業務で使う○○は、まだ確かめていません」と示す。補助の力は並べない。
+/// <paramref name="Scene"/> は、登録の業務で主な力が使える力のときだけの、力が生きる場面。<paramref name="Checks"/> は登録の業務の本人に確かめる条件（見立ての業務は空）。
+/// <paramref name="Drafted"/> は AI の見立ての業務。
 /// </summary>
 public sealed record TaskLight(
-    string? Id, string Name, string Detail, Ability Ability, UsableAbility? Usable, IReadOnlyList<string> Knowledge, bool Drafted);
+    string? Id,
+    string Name,
+    string Detail,
+    Ability Ability,
+    IReadOnlyList<UsableAbility> Usable,
+    string? Scene,
+    IReadOnlyList<string> Checks,
+    IReadOnlyList<string> Knowledge,
+    bool Drafted)
+{
+    /// <summary>主な力（見立ての業務ならその力）が、本人の使える力か。</summary>
+    public bool MainUsable => Usable.Any(u => u.Ability == Ability);
+}
 
 public static class DeepenLighting
 {
     /// <summary>業務ごとに、いまの記録から使える力と根拠の言葉を引く。AI は呼ばない（deepen-2（業務ごとに照らす））。</summary>
     public static IReadOnlyList<TaskLight> Light(DeepenTarget target, DeepenContent? content, OptionsInputs inputs)
     {
-        UsableAbility? UsableOf(Ability ability) => inputs.Abilities.FirstOrDefault(a => a.Ability == ability);
+        // 使える力は、見せた力のうち本人が外していない力だけ（OptionsInputs.Abilities）。話から確かめる力でない力は使えるところにしない
+        UsableAbility? UsableOf(Ability ability) =>
+            AbilityCatalog.IsActive(ability) ? inputs.Abilities.FirstOrDefault(a => a.Ability == ability) : null;
 
         if (target.Drafts)
         {
             return (content?.Tasks ?? [])
                 .Select(t => new TaskLight(
-                    t.Id, t.Name, t.Detail, t.Ability, UsableOf(t.Ability), t.Knowledge.Length > 0 ? [t.Knowledge] : [], true))
+                    t.Id, t.Name, t.Detail, t.Ability, UsableOf(t.Ability) is { } u ? [u] : [], null, [],
+                    t.Knowledge.Length > 0 ? [t.Knowledge] : [], true))
                 .ToList();
         }
 
         return target.Registered
-            .Select(t => new TaskLight(t.Id, t.Name, t.Detail, t.Abilities.Main, UsableOf(t.Abilities.Main), t.Knowledge, false))
+            .Select(t =>
+            {
+                IReadOnlyList<UsableAbility> usable = t.ActiveAbilities.Select(UsableOf).OfType<UsableAbility>().ToList();
+                var mainUsable = usable.Any(u => u.Ability == t.Abilities.Main);
+                return new TaskLight(t.Id, t.Name, t.Detail, t.Abilities.Main, usable, mainUsable ? t.Scene : null, t.Checks, t.Knowledge, false);
+            })
             .ToList();
     }
 }

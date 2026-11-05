@@ -105,7 +105,7 @@ public static class ReportBuilder
         foreach (var light in lights)
         {
             Ability? ability = null;
-            if (light.Usable is null)
+            if (!light.MainUsable)
             {
                 if (inputs.Excluded.Contains(light.Ability))
                 {

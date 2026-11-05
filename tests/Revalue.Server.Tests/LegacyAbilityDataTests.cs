@@ -196,7 +196,7 @@ public sealed class LegacyAbilityDataTests
             Assert.Equal(JsonValueKind.Null, t.GetProperty("ability").ValueKind);
             Assert.Equal(JsonValueKind.Null, t.GetProperty("abilityName").ValueKind);
             // 使えるところとして示さない
-            Assert.Equal(JsonValueKind.Null, t.GetProperty("usable").ValueKind);
+            Assert.Empty(Array(t, "usable"));
         });
         var questions = Array(content, "questions");
         Assert.NotEmpty(questions);
