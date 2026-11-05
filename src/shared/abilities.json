@@ -803,7 +803,7 @@
       "status": "active",
       "needsReview": true,
       "actions": [
-        { "number": 1, "text": "全部はこなせないほど用事が重なる", "hint": "その日に重なっていた用事",
+        { "number": 1, "situation": true, "text": "全部はこなせないほど用事が重なる", "hint": "その日に重なっていた用事",
           "resumeQuestion": "その日、重なっていた用事はありましたか？" },
         { "number": 2, "text": "何を先にし、何を後に回すかを具体的に決める", "hint": "何を先にして、何を後に回したか",
           "resumeQuestion": "その日の用事の中で、先にしたことや、後に回したことはありましたか？" },
@@ -1058,7 +1058,7 @@
       "status": "active",
       "needsReview": false,
       "actions": [
-        { "number": 1, "text": "急に予定が変わる", "hint": "急に変わった予定",
+        { "number": 1, "situation": true, "text": "急に予定が変わる", "hint": "急に変わった予定",
           "resumeQuestion": "その日、急に変わった予定はありましたか？" },
         { "number": 2, "text": "関わる人に連絡する", "hint": "予定が変わって、だれにどんな連絡をしたか",
           "resumeQuestion": "その日、予定が変わって、だれかに連絡したことはありましたか？" },
@@ -1444,10 +1444,10 @@
       "status": "active",
       "needsReview": false,
       "actions": [
-        { "number": 1, "text": "途中で困りごとが続けて起きる", "hint": "途中で、続けて起きた困りごと",
+        { "number": 1, "situation": true, "text": "途中で困りごとが続けて起きる", "hint": "途中で、続けて起きた困りごと",
           "resumeQuestion": "その日、途中で、困りごとが続けて起きたことはありましたか？" },
         { "number": 2, "text": "続ける目的がある", "hint": "何のために続けようとしたか",
-          "resumeQuestion": "その日、何のために続けるのかがはっきりしていたことはありましたか？" },
+          "resumeQuestion": "その日、続けようとしたときに、気にかけていた人やことはありましたか？" },
         { "number": 3, "text": "続けるために要る工程を進める", "hint": "続けるために、次にしたこと",
           "resumeQuestion": "その日、続けるために、次に進めたことはありましたか？" }
       ]
@@ -1524,7 +1524,7 @@
       "status": "active",
       "needsReview": false,
       "actions": [
-        { "number": 1, "text": "思うようにいかなかったり、途中で止まったりする", "hint": "思うようにいかなかったことや、途中で止まったこと",
+        { "number": 1, "situation": true, "text": "思うようにいかなかったり、途中で止まったりする", "hint": "思うようにいかなかったことや、途中で止まったこと",
           "resumeQuestion": "その日、思うようにいかなかったことや、途中で止まったことはありましたか？" },
         { "number": 2, "text": "つまずいたあとの状況を整理する", "hint": "つまずいたり止まったりしたあとに、状況をどう整理したか",
           "resumeQuestion": "その日、つまずいたあとに、状況を整理したことはありましたか？" },

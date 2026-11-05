@@ -115,6 +115,37 @@ public sealed class AbilityCatalogTests
         Assert.All(texts, t => Assert.DoesNotContain(probing, p => t.Text.Contains(p, StringComparison.Ordinal)));
     }
 
+    [Fact(DisplayName = "validate-6（否定の言葉を使わない）: 本人の行動ではない状況の行動は辞書で印を付け、見えた力の行動の文として画面に渡さない")]
+    public void SituationActionsAreNotShownAsActions()
+    {
+        // 用事が重なる、思うようにいかない、困りごとが続く、予定が変わる。うまくいかなかった状況を、本人の力の見出しとして本人の言葉に付けない
+        var situation = new ActionRef(TestAbilities.SettingPriorities, 1);
+        var own = new ActionRef(TestAbilities.SettingPriorities, 2);
+        Assert.True(AbilityCatalog.IsSituation(situation));
+        Assert.False(AbilityCatalog.IsSituation(own));
+        Assert.False(AbilityCatalog.IsSituation(new ActionRef(new Ability("cooking"), 1)));
+
+        var quotes = QuoteDto.From(
+        [
+            new Evidence(TestAbilities.SettingPriorities, 1, "用事が三つ重なって", 1, 1, false, false, null),
+            new Evidence(TestAbilities.SettingPriorities, 2, "病院を先にしました", 1, 1, false, false, null),
+        ]);
+        Assert.Equal([null, AbilityCatalog.ActionText(own)], quotes.Select(q => q.Action));
+
+        // 行動がすべて状況の行動の力は、読み込みで止める
+        var allSituation = AbilityJson("a", actions: 2).Replace("{ \"number\": ", "{ \"situation\": true, \"number\": ", StringComparison.Ordinal);
+        Assert.Throws<InvalidOperationException>(() => AbilityCatalog.Load(Json(allSituation)));
+        var oneSituation = AbilityJson("a", actions: 2).Replace("{ \"number\": 1", "{ \"situation\": true, \"number\": 1", StringComparison.Ordinal);
+        Assert.True(AbilityCatalog.Load(Json(oneSituation)).FindEntry("a")!.Actions[0].Situation);
+
+        // 話から確かめる力には、本人の行動が必ず一つ以上ある。状況の印は、話から確かめる力の行動にだけ付ける
+        Assert.All(AbilityCatalog.Current.Entries.Where(e => e.IsActive), e => Assert.Contains(e.Actions, a => !a.Situation));
+        Assert.All(AbilityCatalog.Current.Entries.Where(e => !e.IsActive), e => Assert.DoesNotContain(e.Actions, a => a.Situation));
+        Assert.Equal(
+            ["setting-priorities.1", "handling-schedule-changes.1", "seeing-it-through.1", "resilience.1"],
+            AbilityCatalog.Current.Entries.SelectMany(e => e.Actions.Where(a => a.Situation).Select(a => $"{e.Id}.{a.Number}")));
+    }
+
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 古い id（noticing、coordinating、prioritizing）は辞書になく、話から確かめる力として読めない")]
     public void OldIdsAreNotInTheCatalog()
     {

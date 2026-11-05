@@ -9,8 +9,10 @@ public sealed record AbilityCategory(string Id, string Name);
 /// <summary>
 /// 核となる行動の一つ。<see cref="Number"/> は 1 から順。<see cref="Hint"/> は、足りない行動を聞くときに聞き手へ渡す言葉。
 /// <see cref="ResumeQuestion"/> は、続きを話すときにその行動を聞く問い。話から確かめる力の行動にだけあり、準備中の力では null。
+/// <see cref="Situation"/> は、本人の行動ではなく、その日の状況を表す行動（用事が重なる、など）の印。見えた力では行動の文を出さない
+/// （03-validate.md の「話し終えたとき」。Claude の判断）。
 /// </summary>
-public sealed record AbilityActionEntry(int Number, string Text, string Hint, string? ResumeQuestion);
+public sealed record AbilityActionEntry(int Number, string Text, string Hint, string? ResumeQuestion, bool Situation = false);
 
 /// <summary>辞書の力一つ。<see cref="Status"/> は <c>active</c>（判定に使う）か <c>preparing</c>（準備中）。</summary>
 public sealed record AbilityEntry(
@@ -90,6 +92,13 @@ public sealed partial class AbilityCatalog
     /// <summary>核となる行動の文。辞書にない力か、行動の数を超える番号なら <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string ActionText(ActionRef action) => ActionOf(action).Text;
 
+    /// <summary>本人の行動ではない、状況の行動か（<see cref="AbilityActionEntry.Situation"/>）。辞書にない力や番号なら false。</summary>
+    public static bool IsSituation(ActionRef action)
+    {
+        var actions = Find(action.Ability.Id)?.Actions;
+        return actions is not null && action.Number >= 1 && action.Number <= actions.Count && actions[action.Number - 1].Situation;
+    }
+
     /// <summary>行動の手がかり。辞書にない力か、行動の数を超える番号なら <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string Hint(ActionRef action) => ActionOf(action).Hint;
 
@@ -121,7 +130,7 @@ public sealed partial class AbilityCatalog
     /// <summary>
     /// 辞書の JSON を読む。核となる行動が 2〜3 つでない力、番号が 1 から順でない行動、空の名前・文・手がかり、
     /// id の重なり、ない分類、知らない状態、英語の小文字とハイフンでない id、話から確かめる力が 1 つもない辞書、
-    /// 話から確かめる力の行動に続きの問いがない辞書は <see cref="InvalidOperationException"/> で止める。
+    /// 話から確かめる力の行動に続きの問いがない辞書、行動がすべて状況の行動の力は <see cref="InvalidOperationException"/> で止める。
     /// </summary>
     public static AbilityCatalog Load(string json)
     {
@@ -182,10 +191,15 @@ public sealed partial class AbilityCatalog
                 }
             }
 
+            if (actions.All(x => x.Situation))
+            {
+                throw new InvalidOperationException($"abilities.json: {a.Id} needs at least one action that is not a situation.");
+            }
+
             entries.Add(new AbilityEntry(
                 a.Id!, a.Name!, a.Category, a.Reason!, a.Status!, a.NeedsReview,
                 [.. actions.Select(x => new AbilityActionEntry(
-                    x.Number, x.Text!, x.Hint!, string.IsNullOrWhiteSpace(x.ResumeQuestion) ? null : x.ResumeQuestion))]));
+                    x.Number, x.Text!, x.Hint!, string.IsNullOrWhiteSpace(x.ResumeQuestion) ? null : x.ResumeQuestion, x.Situation))]));
         }
 
         if (!entries.Any(e => e.IsActive))
@@ -210,5 +224,5 @@ public sealed partial class AbilityCatalog
     private sealed record AbilityData(
         string? Id, string? Name, string? Category, string? Reason, string? Status, bool NeedsReview, List<ActionData>? Actions);
 
-    private sealed record ActionData(int Number, string? Text, string? Hint, string? ResumeQuestion);
+    private sealed record ActionData(int Number, string? Text, string? Hint, string? ResumeQuestion, bool Situation);
 }

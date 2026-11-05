@@ -13,7 +13,8 @@ namespace Revalue.Server.Features.Validate;
 /// 根拠の本人の言葉。画面にそのまま出すので、何番目の答えかではなく引用の文字列を返す。
 /// 選んだ答え（<paramref name="FromChoice"/>）では、<paramref name="LinkedText"/> に結びついた本人の言葉が入る。
 /// <paramref name="Action"/> は、その根拠の核となる行動の文（能力辞書の共通の文）。本人の言葉と組にして、なぜその力なのかを伝える
-/// （4-rules.md の「画面での見せ方」）。辞書の話から確かめる力でない、または番号が行動の数を超えるなら null。
+/// （4-rules.md の「画面での見せ方」）。辞書の話から確かめる力でない、番号が行動の数を超える、本人の行動ではない状況の行動
+/// （<see cref="AbilityCatalog.IsSituation"/>）なら null。うまくいかなかった状況を、本人の力の見出しとして本人の言葉に付けないため（Claude の判断）。
 /// </summary>
 public sealed record QuoteDto(string Text, bool FromChoice, string? LinkedText, string? Action)
 {
@@ -22,6 +23,7 @@ public sealed record QuoteDto(string Text, bool FromChoice, string? LinkedText, 
 
     private static string? ActionTextOrNull(Evidence e) =>
         AbilityCatalog.IsActive(e.Ability) && e.Action >= 1 && e.Action <= AbilityCatalog.ActionCount(e.Ability)
+            && !AbilityCatalog.IsSituation(new ActionRef(e.Ability, e.Action))
             ? AbilityCatalog.ActionText(new ActionRef(e.Ability, e.Action))
             : null;
 }
