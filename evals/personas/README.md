@@ -166,7 +166,7 @@ ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5080 dotnet 
 
 仕事の選択肢へ進めるかは、`GET /api/options` の `readiness` で分かる。`needsConditions`（条件がまだ）→ `needsFinishedEpisode`（区切った場面がまだ）→ `needsAbility`（使える力がまだ）→ `ready`（進める）の順に進む。「選んだ案を深める」へ進めるのは、`GET /api/deepen` の `readiness` が `ready` になってから。
 
-力は、話から確かめる 24 の力（id は `src/shared/abilities.json` の `status` が `active` のもの。例: `balancing-interests`、`setting-priorities`、`noticing-changes`）。状態は `notYet`（まだ聞けていない）、`needsCheck`（要確認）、`confirmed`（根拠あり）。
+力は、話から確かめる 22 の力（id は `src/shared/abilities.json` の `status` が `active` のもの。例: `balancing-interests`、`setting-priorities`、`noticing-changes`）。状態は `notYet`（まだ聞けていない）、`needsCheck`（要確認）、`confirmed`（根拠あり）。
 
 ### 道具
 

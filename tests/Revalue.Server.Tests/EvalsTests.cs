@@ -564,7 +564,7 @@ public sealed class EvalsTests
         var expected = Assert.Single(summary.Reference, i => i.Name.Contains("最後の状態が期待どおりだった力"));
         Assert.Equal(1, expected.Total);
 
-        // 結果のファイルには、台本に書いていない力でも、未確認でなかった力は書く。24 の力をすべては並べない
+        // 結果のファイルには、台本に書いていない力でも、未確認でなかった力は書く。話から確かめる力をすべては並べない
         var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
         Assert.Contains($"| {AbilityText.Name(TestAbilities.BalancingInterests)} | —（台本に書いていない） |", report);
         Assert.Contains($"| {AbilityText.Name(TestAbilities.SettingPriorities)} | 根拠ありにしてはいけない |", report);

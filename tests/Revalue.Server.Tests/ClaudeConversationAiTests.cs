@@ -220,7 +220,7 @@ public sealed class ClaudeConversationAiTests
         Assert.DoesNotContain("next_move", body.GetRawText());
     }
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示の力の表は、話から確かめる 24 の力を辞書の順に持ち、準備中の力を持たない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示の力の表は、話から確かめる 22 の力を辞書の順に持ち、準備中の力を持たない")]
     public void ReaderPromptInsertsAbilityTableFromData()
     {
         var file = PromptFiles.Read(PromptFiles.Reader);
@@ -235,7 +235,7 @@ public sealed class ClaudeConversationAiTests
 
         // 表の行は、話から確かめる力を辞書の順に。行動の欄は辞書の文
         var rows = table.Split('\n').Where(l => l.StartsWith("| ", StringComparison.Ordinal)).Skip(1).ToList();
-        Assert.Equal(24, rows.Count);
+        Assert.Equal(22, rows.Count);
         Assert.Equal(
             AbilityCatalog.Active.Select(a => $"| {AbilityCatalog.Name(a)} | `{a.Id}` |"),
             rows.Select(r => r[..(r.IndexOf('`', r.IndexOf('`') + 1) + 3)]));

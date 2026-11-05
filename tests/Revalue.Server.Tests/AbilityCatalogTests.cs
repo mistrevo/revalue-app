@@ -29,13 +29,12 @@ public sealed class AbilityCatalogTests
     private static string ActionJson(int n, bool question) =>
         $$"""{ "number": {{n}}, "text": "行動 {{n}}", "hint": "手がかり {{n}}"{{(question ? $", \"resumeQuestion\": \"その日、行動 {n} はありましたか？\"" : "")}} }""";
 
-    /// <summary>話から確かめる 24 の力（辞書の順）。</summary>
+    /// <summary>話から確かめる 22 の力（辞書の順）。</summary>
     private static readonly string[] ActiveIds =
     [
         "info-gathering", "sensing-incongruity",
         "summarizing", "question-design", "active-listening", "helping-put-into-words", "organizing-issues",
         "considering-fairness",
-        "cause-analysis", "hypothesis-thinking",
         "balancing-interests", "planning-steps", "setting-priorities", "improving-work", "managing-deadlines",
         "noticing-changes", "adapting-explanations", "handling-schedule-changes",
         "empathy", "easing-anxiety",
@@ -43,7 +42,7 @@ public sealed class AbilityCatalogTests
         "seeing-it-through", "persistence", "resilience",
     ];
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 辞書は 12 の分類と 126 の力を持ち、話から確かめる力は 24 で、並びは辞書の順")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 辞書は 12 の分類と 126 の力を持ち、話から確かめる力は 22 で、並びは辞書の順")]
     public void CatalogHasTheDictionary()
     {
         var catalog = AbilityCatalog.Current;
@@ -51,7 +50,7 @@ public sealed class AbilityCatalogTests
         Assert.Equal(12, catalog.Categories.Count);
         Assert.Equal(12, catalog.Categories.Select(c => c.Id).Distinct().Count());
         Assert.Equal(126, catalog.Entries.Count);
-        Assert.Equal(102, catalog.Entries.Count(e => e.Status == AbilityEntry.PreparingStatus));
+        Assert.Equal(104, catalog.Entries.Count(e => e.Status == AbilityEntry.PreparingStatus));
         Assert.Equal(ActiveIds, AbilityCatalog.Active.Select(a => a.Id));
         Assert.Equal(AbilityCatalog.Active, catalog.ActiveAbilities);
         Assert.All(catalog.Entries, e => Assert.False(string.IsNullOrWhiteSpace(e.Reason)));
@@ -99,6 +98,21 @@ public sealed class AbilityCatalogTests
         Assert.Equal([new Ability("a")], catalog.ActiveAbilities);
         Assert.Equal("その日、行動 2 はありましたか？", catalog.FindEntry("a")!.Actions[1].ResumeQuestion);
         Assert.Null(catalog.FindEntry("b")!.Actions[0].ResumeQuestion);
+    }
+
+    [Fact(DisplayName = "validate-3（結果で見立てを変えない）: 話から確かめる力の行動の文、手がかり、続きの問いは、うまくいかなかったわけを問わない")]
+    public void ActiveAbilitiesDoNotAskWhyThingsWentWrong()
+    {
+        // うまくいかなかった日を選んだ人や話した人に、わけを聞かない（6-quality.md、02-discover.md）。続きの問いはコードが決めた文として必ず出て、
+        // 手がかりは画面の「もう少し聞かせてほしいこと」と聞き手の指示に出るので、わけを問う言葉を持つ力は話から確かめる力にしない
+        string[] probing = ["原因", "なぜ", "どうして", "どうすれば"];
+        var texts = AbilityCatalog.Current.Entries
+            .Where(e => e.IsActive)
+            .SelectMany(e => e.Actions.SelectMany(a => new[] { a.Text, a.Hint, a.ResumeQuestion ?? "" }.Select(t => (e.Id, Text: t))))
+            .ToList();
+
+        Assert.NotEmpty(texts);
+        Assert.All(texts, t => Assert.DoesNotContain(probing, p => t.Text.Contains(p, StringComparison.Ordinal)));
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 古い id（noticing、coordinating、prioritizing）は辞書になく、話から確かめる力として読めない")]
