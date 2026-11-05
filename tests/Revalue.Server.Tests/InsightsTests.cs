@@ -11,7 +11,7 @@ namespace Revalue.Server.Tests;
 
 public sealed class InsightsTests
 {
-    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 話し終えた場面に、見えた力と根拠、もう少し聞かせてほしいこと（手がかり）、まだ聞けていない力が入る")]
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 話し終えた場面に、見えた力と根拠、もう少し聞かせてほしいこと（手がかり）が入り、まだ聞けていない力の一覧は入らない")]
     public async Task FinishedEpisodeHasInsights()
     {
         var (factory, ai) = Create();
@@ -36,12 +36,55 @@ public sealed class InsightsTests
             [AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1)), AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3))],
             Array(more, "hints").Select(h => h.GetString()));
 
-        var notYet = Array(insights, "notYet");
-        Assert.Equal(
-            AbilityCatalog.Active.Where(a => a != TestAbilities.BalancingInterests && a != TestAbilities.SettingPriorities).Select(a => a.Id),
-            notYet.Select(n => n.GetProperty("key").GetString()));
-        Assert.Equal("変化への気づき", notYet.Single(n => n.GetProperty("key").GetString() == "noticing-changes").GetProperty("name").GetString());
+        // 話から確かめる力が多いので、まだ聞けていない力の名前は並べない（4-rules.md の「画面での見せ方」）
+        Assert.Equal(["seen", "moreToHear", "canResume"], insights.EnumerateObject().Select(p => p.Name));
         Assert.True(insights.GetProperty("canResume").GetBoolean());
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 根拠の言葉に、その根拠の核となる行動の文が添えてある")]
+    public async Task QuotesHaveActionText()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間をずらして")]);
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+
+        var seen = Assert.Single(Array(insights, "seen"));
+        Assert.Equal(
+            Enumerable.Range(1, 3).Select(n => AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, n))),
+            Array(seen, "quotes").Select(q => q.GetProperty("action").GetString()));
+        var more = Assert.Single(Array(insights, "moreToHear"));
+        Assert.Equal(
+            [AbilityCatalog.ActionText(new ActionRef(TestAbilities.SettingPriorities, 2))],
+            Array(more, "quotes").Select(q => q.GetProperty("action").GetString()));
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 見せない力の根拠も、場面にはそのまま残る")]
+    public async Task HiddenAbilityEvidenceStaysInEpisode()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        // 利害調整力（行動 3 つ）と段取り力（行動 2 つ）が同じ出来事でそろう。どちらも調整・実行・仕組み化
+        var id = await FinishedEpisode(client, ai,
+        [
+            .. BalancingInterestsAll,
+            Candidate(TestAbilities.PlanningSteps, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.PlanningSteps, 2, "迎えの時間をずらしてもらいました"),
+        ]);
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+
+        Assert.Equal(["balancing-interests"], Array(insights, "seen").Select(s => s.GetProperty("key").GetString()));
+        Assert.Empty(Array(insights, "moreToHear"));
+        Assert.DoesNotContain("planning-steps", insights.GetRawText(), StringComparison.Ordinal);
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Equal([1, 2], saved.Evidence.Where(e => e.Ability == TestAbilities.PlanningSteps).Select(e => e.Action).Order());
+        Assert.Equal(
+            AbilityState.Confirmed,
+            AbilityStates.Evaluate(saved.Evidence).Single(r => r.Ability == TestAbilities.PlanningSteps).State);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りが 3 つの行動に 1 文字の引用を返しても、根拠ありにしない")]
@@ -57,7 +100,7 @@ public sealed class InsightsTests
 
         Assert.Empty(Array(insights, "seen"));
         Assert.Empty(Array(insights, "moreToHear"));
-        Assert.Contains(Array(insights, "notYet"), a => a.GetProperty("key").GetString() == "setting-priorities");
+        Assert.False(insights.TryGetProperty("notYet", out _));
         Assert.Empty((await Saved(factory, "g-1", id)).Evidence);
     }
 

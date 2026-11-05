@@ -305,7 +305,7 @@ ask: prioritizing.3
   - 続きを話せるか（`CanResume`）は、いまのまま「要確認の力がある」で決める（要確認の力があれば、1 つは必ず見せる）
   - 続きの問いで聞く行動は、`MoreToHear` の順に、一般論だけの力を除いて、いまの決まり（聞いた回数、打ち消し、答えていない最後の問い）で選ぶ。`MoreToHear` がどれも一般論だけなら、一般論向けの続きの問いにする。映し返す言葉も `MoreToHear` の力の根拠から選ぶ
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `AbilityShowcaseTests`
     - `validate-7（見えた力と、もう少し聞きたいことを示す）: 同じ分類で 2 つの力が根拠ありなら、そろった行動の多い力だけを見せる` — 利害調整力（3）と段取り力（2）
     - `validate-7（見えた力と、もう少し聞きたいことを示す）: そろった行動の数が同じなら、辞書の順で前の力を見せる` — 要約力と傾聴力（どちらも 2）で要約力
@@ -319,11 +319,11 @@ ask: prioritizing.3
   - `ResumeTests`
     - `validate-11（要確認の場面に戻れる）: 続きの問いは、もう少し聞かせてほしいことに出した力の行動を聞き、出していない力の言葉を映し返さない`
     - `validate-11（要確認の場面に戻れる）: もう少し聞かせてほしいことに出した力がどれも一般論だけなら、一般論向けの続きの問いで始まる`
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityShowcaseTests|FullyQualifiedName~InsightsTests|FullyQualifiedName~ResumeTests"`
-- [ ] **Step 3: `AbilityShowcase` を作り、`EpisodeInsights` をそこへ通す**
-- [ ] **Step 4: Spec を直す** — 03-validate.md の「話し終えたとき」の 3 つ目の箇条（まだ聞けていない力）を消し、見えた力の見せ方（分類ごとに 1 つ、行動の文と本人の言葉の組）と、もう少し聞かせてほしいことの数（2 つまで、聞き返した力が先）と、代わりの一文を書く。「続きを話す」の「聞く行動は、要確認の力のうち…（同じ数なら見立てる力、調整する力、優先順位をつける力の順）」を、もう少し聞かせてほしいことに出した力の順に直す。validate-7 と validate-11 の基準も同じ中身にする
-- [ ] **Step 5: 確かめる** — `dotnet test`
-- [ ] **Step 6: コミット**（「辞書の力に置き換える: 一つの話から見せる力を絞る（validate-7（見えた力と、もう少し聞きたいことを示す）、validate-11（要確認の場面に戻れる））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityShowcaseTests|FullyQualifiedName~InsightsTests|FullyQualifiedName~ResumeTests"`
+- [x] **Step 3: `AbilityShowcase` を作り、`EpisodeInsights` をそこへ通す**
+- [x] **Step 4: Spec を直す** — 03-validate.md の「話し終えたとき」の 3 つ目の箇条（まだ聞けていない力）を消し、見えた力の見せ方（分類ごとに 1 つ、行動の文と本人の言葉の組）と、もう少し聞かせてほしいことの数（2 つまで、聞き返した力が先）と、代わりの一文を書く。「続きを話す」の「聞く行動は、要確認の力のうち…（同じ数なら見立てる力、調整する力、優先順位をつける力の順）」を、もう少し聞かせてほしいことに出した力の順に直す。validate-7 と validate-11 の基準も同じ中身にする
+- [x] **Step 5: 確かめる** — `dotnet test`
+- [x] **Step 6: コミット**（「辞書の力に置き換える: 一つの話から見せる力を絞る（validate-7（見えた力と、もう少し聞きたいことを示す）、validate-11（要確認の場面に戻れる））」）
 
 ### Task 6: 見えた力、できること、カード、深める、レポートに同じ絞り込みをかける
 

@@ -442,13 +442,75 @@ public sealed class ResumeTests
         var chosen = new Evidence(TestAbilities.BalancingInterests, 1, "相手の都合を聞いた", 2, 1, false, true, "夫と母の予定がぶつかって");
         Assert.Equal("夫と母の予定がぶつかって", EpisodeInsights.ResumeMirrorQuote(Episode(chosen), coordinating3));
 
-        // 聞く行動がなければ、要確認の力すべてから選ぶ。一般論の言葉は、短くても後にする
+        // 聞く行動がなければ、もう少し聞かせてほしいことに出した力から選ぶ。一般論の言葉は、短くても後にする
         Assert.Equal("夫と母の予定がぶつかって", EpisodeInsights.ResumeMirrorQuote(
             Episode(E(TestAbilities.NoticingChanges, 1, "いつも様子を見ています", general: true), E(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって")),
             null));
         Assert.Equal("いつも様子を見ています", EpisodeInsights.ResumeMirrorQuote(Episode(E(TestAbilities.NoticingChanges, 1, "いつも様子を見ています", general: true)), null));
 
         Assert.Null(EpisodeInsights.ResumeMirrorQuote(Episode(), null));
+    }
+
+    private static EpisodeItem FinishedWith(IReadOnlyList<Turn> turns, params Evidence[] evidence) => new()
+    {
+        Id = "episode-x",
+        UserKey = "u",
+        Type = EpisodeItem.ItemType,
+        Status = EpisodeStatus.Finished,
+        StartedAt = DateTimeOffset.UnixEpoch,
+        FinishedAt = DateTimeOffset.UnixEpoch,
+        Turns = turns,
+        Evidence = evidence,
+    };
+
+    private static Evidence Ev(Ability ability, int action, string quote, bool general = false) => new(ability, action, quote, 1, 1, general, false, null);
+
+    private static Turn AskedTurn(string target) =>
+        new() { Role = TurnRoles.Assistant, Text = "問い", Target = target, At = DateTimeOffset.UnixEpoch };
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いは、もう少し聞かせてほしいことに出した力の行動を聞き、出していない力の言葉を映し返さない")]
+    public void ResumeAsksOnlyAbilitiesShownAsMoreToHear()
+    {
+        // 要確認が 3 つ。もう少し聞かせてほしいことに出すのは、聞き返した変化への気づきと、根拠の多い利害調整力。要約力は出さない。
+        // 出した 2 つの足りない行動は、どれも 2 回聞いてある
+        var turns = new[] { "balancing-interests.3", "balancing-interests.3", "noticing-changes.3", "noticing-changes.3" }.Select(AskedTurn).ToList();
+        var episode = FinishedWith(turns,
+            Ev(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかっていた"),
+            Ev(TestAbilities.BalancingInterests, 2, "二人に電話して頼んだ"),
+            Ev(TestAbilities.NoticingChanges, 1, "息子の顔色がいつもと違った"),
+            Ev(TestAbilities.NoticingChanges, 2, "目をこすっていたので眠いと思った"),
+            Ev(TestAbilities.Summarizing, 1, "話をまとめた"));
+        Assert.Equal(
+            [TestAbilities.NoticingChanges, TestAbilities.BalancingInterests],
+            AbilityShowcase.Of(episode.Turns, episode.Evidence).MoreToHear.Select(r => r.Ability));
+
+        var question = EpisodeInsights.Reopen(episode, DateTimeOffset.UnixEpoch)!.Turns[^1];
+
+        // 出していない要約力の行動は聞かず、要約力の言葉（いちばん短い）も映し返さない
+        Assert.Null(question.Target);
+        Assert.Equal(AbilityText.ResumeOpening(null, "二人に電話して頼んだ"), question.Text);
+        Assert.DoesNotContain("話をまとめた", question.Text, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: もう少し聞かせてほしいことに出した力がどれも一般論だけなら、一般論向けの続きの問いで始まる")]
+    public void ResumeUsesGeneralOpeningWhenShownAbilitiesAreGeneralOnly()
+    {
+        // 利害調整力と変化への気づきは一般論で 2 つずつ。要約力は出来事の中で 1 つだが、根拠が少ないので出さない
+        var episode = FinishedWith([],
+            Ev(TestAbilities.BalancingInterests, 1, "いつも家族の予定を合わせています", general: true),
+            Ev(TestAbilities.BalancingInterests, 2, "だいたい私が電話します", general: true),
+            Ev(TestAbilities.NoticingChanges, 1, "子どもの様子はいつも見ています", general: true),
+            Ev(TestAbilities.NoticingChanges, 2, "顔色で分かります", general: true),
+            Ev(TestAbilities.Summarizing, 1, "話をまとめた"));
+        Assert.Equal(
+            [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges],
+            AbilityShowcase.Of(episode.Turns, episode.Evidence).MoreToHear.Select(r => r.Ability));
+
+        var question = EpisodeInsights.Reopen(episode, DateTimeOffset.UnixEpoch)!.Turns[^1];
+
+        Assert.Null(question.Target);
+        Assert.Equal(AbilityText.ResumeOpeningForGeneral("顔色で分かります"), question.Text);
+        Assert.Equal(AbilityText.ConcreteDayChoices, question.Choices);
     }
 
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 要確認がない場面、印のある場面、話している途中の場面は 409")]
