@@ -12,8 +12,14 @@ namespace Revalue.Server.Features.Report;
 /// <summary>確かめた力 1 つ。<paramref name="State"/> は "confirmed" か "needsCheck"（画面は呼び名を出さない）。</summary>
 public sealed record ReportAbilityDto(string Key, string Name, AbilityState State, IReadOnlyList<QuoteDto> Quotes);
 
-/// <summary>業務 1 つで、まだ確かめていないこと。<paramref name="AbilityName"/> は、まだ確かめていない力の名前（なければ null）。</summary>
-public sealed record ReportTaskGapDto(string TaskName, string? AbilityName, IReadOnlyList<string> Knowledge);
+/// <summary>
+/// 業務 1 つで、まだ確かめていないこと。<paramref name="AbilityName"/> は、まだ確かめていない主な力の名前（なければ null）。
+/// <paramref name="Checks"/> は業務の本人に確かめる条件。
+/// </summary>
+public sealed record ReportTaskGapDto(string TaskName, string? AbilityName, IReadOnlyList<string> Knowledge, IReadOnlyList<string> Checks);
+
+/// <summary>選んだ案の業務 1 つの、力が生きる場面。</summary>
+public sealed record ReportSceneDto(string TaskName, string Scene);
 
 /// <summary>まだ確かめていないこと。力は名前で返す。まだ聞けていない力の名前は返さない。</summary>
 public sealed record ReportNotYetDto(
@@ -23,7 +29,10 @@ public sealed record ReportNotYetDto(
 public sealed record ReportRecordsDto(
     IReadOnlyList<ProfileEntry> Preferences, IReadOnlyList<ProfileEntry> Wants, ProfileConditions? Conditions, string? Agency);
 
-/// <summary>選んだ案。<paramref name="Kind"/> が null ならまだ選んでいない。<paramref name="Reason"/> と <paramref name="Ability"/> は、いまの記録で使えるときだけ。</summary>
+/// <summary>
+/// 選んだ案。<paramref name="Kind"/> が null ならまだ選んでいない。<paramref name="Reason"/>、<paramref name="Ability"/>、<paramref name="Scenes"/>（力が生きる場面）は、
+/// いまの記録で使えるときだけ。
+/// </summary>
 public sealed record ReportChoiceDto(
     ChoiceKind? Kind,
     CardKind? Card,
@@ -35,7 +44,8 @@ public sealed record ReportChoiceDto(
     MissingReason? Problem,
     bool OutsideConditions,
     bool DemandNotChecked,
-    bool CardsStale);
+    bool CardsStale,
+    IReadOnlyList<ReportSceneDto> Scenes);
 
 /// <summary>
 /// いまの中身。<paramref name="Thinking"/> と <paramref name="Steps"/> は、いまの選んだ案で深めた中身がなければ null。
@@ -114,8 +124,11 @@ public static class ReportEndpoints
         });
     }
 
-    private static ReportContentDto ContentDto(ReportContent content, bool abilitiesExcluded) =>
-        new(
+    private static ReportContentDto ContentDto(ReportContent content, bool abilitiesExcluded)
+    {
+        // 選んだ案の力が辞書の話から確かめる力でなければ（保存データの古い id など）、理由と力と力が生きる場面を出さない
+        var shows = content.Choice.Ability is not { } shown || AbilityCatalog.IsActive(shown.Ability);
+        return new(
             content.Abilities.Where(a => AbilityCatalog.IsActive(a.Ability)).Select(AbilityDto).ToList(),
             abilitiesExcluded,
             NotYetDto(content.NotYet),
@@ -126,15 +139,16 @@ public static class ReportEndpoints
                 content.Choice.Title,
                 content.Choice.Summary,
                 content.Choice.Tasks,
-                // 選んだ案の力が辞書の話から確かめる力でなければ（保存データの古い id など）、理由と力を出さない
-                content.Choice.Ability is { } shown && !AbilityCatalog.IsActive(shown.Ability) ? null : content.Choice.Reason,
+                shows ? content.Choice.Reason : null,
                 content.Choice.Ability is { } a && AbilityCatalog.IsActive(a.Ability) ? AbilityDto(a) : null,
                 content.Choice.Problem,
                 content.Choice.OutsideConditions,
                 content.Choice.DemandNotChecked,
-                content.Choice.CardsStale),
+                content.Choice.CardsStale,
+                shows ? content.Choice.Scenes.Select(s => new ReportSceneDto(s.TaskName, s.Scene)).ToList() : []),
             content.Thinking,
             content.Steps);
+    }
 
     private static ReportVersionDto VersionDto(ReportVersion version, IReadOnlyList<Ability> excluded)
     {
@@ -160,7 +174,7 @@ public static class ReportEndpoints
         new(
             notYet.Checking.Where(AbilityCatalog.IsActive).Select(AbilityText.Name).ToList(),
             // 業務の力が辞書の話から確かめる力でなければ、名前なしにする
-            notYet.TaskGaps.Select(g => new ReportTaskGapDto(g.TaskName, g.Ability is { } a ? AbilityText.NameOrNull(a) : null, g.Knowledge)).ToList(),
+            notYet.TaskGaps.Select(g => new ReportTaskGapDto(g.TaskName, g.Ability is { } a ? AbilityText.NameOrNull(a) : null, g.Knowledge, g.Checks)).ToList(),
             notYet.HasExcluded);
 
     private static ReportRecordsDto RecordsDto(ReportRecords records) =>

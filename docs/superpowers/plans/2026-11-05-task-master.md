@@ -306,16 +306,16 @@ public sealed record TaskLightDto(
   - `ReportTaskGapDto(string TaskName, string? AbilityName, IReadOnlyList<string> Knowledge, IReadOnlyList<string> Checks)`、`ReportChoiceDto` に `IReadOnlyList<ReportSceneDto> Scenes`（`ReportSceneDto(string TaskName, string Scene)`）
   - 版の中身: 選んだ案の `Scenes` は残さない（理由と同じ扱い）。まだ確かめていないことの業務には、知識や道具と確かめる条件を残す
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `report-1（一つにまとめて示す）: まだ確かめていないことに、選んだ案の業務の本人に確かめる条件を並べる`
   - `report-1（一つにまとめて示す）: 選んだ案の業務の主な力が準備中なら、まだ確かめていない力に名前を出さない`
   - `report-1（一つにまとめて示す）: 選んだ案の理由と力を出すときは、使った力を主な力に持つ業務の力が生きる場面を添え、外したときは添えない`（validate-12（本人が見立てを外せる）も兼ねる）
   - `report-3（版を残す）: 前の版には、業務の確かめる条件を残し、力が生きる場面を残さない`
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~Report"`
-- [ ] **Step 3: 直す**。`JobTask.Ability` のような単数の業務の力が残っていないことを `git grep -n "light.Ability\|task.Ability\|t.Ability" src/Revalue.Server` で見る（`TaskLight.Ability` を主な力として読む所はよい）
-- [ ] **Step 4: 確かめる** — `dotnet test`
-- [ ] **Step 5: Spec を直す**（`07-report.md`）: 「まとめる中身」の表の「まだ確かめていないこと」に、業務の本人に確かめる条件を足し、業務で使う力のうちまだ確かめていない力を「主な力」に。「選んだ案」に、理由と力を出すときは使った力を主な力に持つ業務の力が生きる場面を添えると足す。「版を残す」の「まだ確かめていないことの欄は、業務に要る知識や道具だけ」を「知識や道具と、本人に確かめる条件だけ」に、理由と同じく力が生きる場面も前の版に出さないと足す。report-1 の基準に、選んだ案の力が生きる場面と、業務の本人に確かめる条件を足す
-- [ ] **Step 6: コミット**（「業務マスター: レポートに選んだ案の力が生きる場面と、業務の確かめる条件を出す（report-1（一つにまとめて示す）、report-3（版を残す））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~Report"`
+- [x] **Step 3: 直す**。`JobTask.Ability` のような単数の業務の力が残っていないことを `git grep -n "light.Ability\|task.Ability\|t.Ability" src/Revalue.Server` で見る（`TaskLight.Ability` を主な力として読む所はよい）
+- [x] **Step 4: 確かめる** — `dotnet test`
+- [x] **Step 5: Spec を直す**（`07-report.md`）: 「まとめる中身」の表の「まだ確かめていないこと」に、業務の本人に確かめる条件を足し、業務で使う力のうちまだ確かめていない力を「主な力」に。「選んだ案」に、理由と力を出すときは使った力を主な力に持つ業務の力が生きる場面を添えると足す。「版を残す」の「まだ確かめていないことの欄は、業務に要る知識や道具だけ」を「知識や道具と、本人に確かめる条件だけ」に、理由と同じく力が生きる場面も前の版に出さないと足す。report-1 の基準に、選んだ案の力が生きる場面と、業務の本人に確かめる条件を足す
+- [x] **Step 6: コミット**（「業務マスター: レポートに選んだ案の力が生きる場面と、業務の確かめる条件を出す（report-1（一つにまとめて示す）、report-3（版を残す））」）
 
 # まとまり C: 画面、保存データ、評価、文書
 

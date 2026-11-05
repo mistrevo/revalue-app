@@ -12,7 +12,7 @@ public sealed class ReportItemTests
             [],
             new ReportNotYet([], [], false),
             new ReportRecords([], [], null, agency),
-            new ReportChoice(null, null, null, null, [], null, null, null, false, false, false),
+            new ReportChoice(null, null, null, null, [], null, null, null, false, false, false, []),
             null,
             null);
 

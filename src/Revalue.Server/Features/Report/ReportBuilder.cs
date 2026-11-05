@@ -104,8 +104,9 @@ public static class ReportBuilder
         var gaps = new List<ReportTaskGap>();
         foreach (var light in lights)
         {
+            // まだ確かめていない力は主な力だけ（補助の力は並べない）。準備中の力と辞書から消えた力は名前を出さない
             Ability? ability = null;
-            if (!light.MainUsable)
+            if (!light.MainUsable && AbilityCatalog.IsActive(light.Ability))
             {
                 if (inputs.Excluded.Contains(light.Ability))
                 {
@@ -119,9 +120,10 @@ public static class ReportBuilder
             }
 
             var knowledge = light.Knowledge.Where(k => !string.IsNullOrWhiteSpace(k)).ToList();
-            if (ability is not null || knowledge.Count > 0)
+            var checks = light.Checks.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+            if (ability is not null || knowledge.Count > 0 || checks.Count > 0)
             {
-                gaps.Add(new ReportTaskGap(light.Name, ability, knowledge));
+                gaps.Add(new ReportTaskGap(light.Name, ability, knowledge, checks));
             }
         }
 
@@ -131,7 +133,7 @@ public static class ReportBuilder
     private static ReportChoice Choice(OptionsItem? options, OptionsInputs inputs, JobCatalog catalog)
     {
         var cardsStale = options?.Cards is { } cards && cards.Basis != OptionsInputsReader.Basis(inputs);
-        var none = new ReportChoice(null, null, null, null, [], null, null, null, false, false, cardsStale);
+        var none = new ReportChoice(null, null, null, null, [], null, null, null, false, false, cardsStale, []);
 
         switch (options?.Choice)
         {
@@ -149,12 +151,12 @@ public static class ReportBuilder
             case { Kind: ChoiceKind.Card, Card: { } kind } choice:
                 var problem = choice.AbilityProblem(inputs);
                 var outside = inputs.Conditions is { } conditions && !OptionsValidator.ChosenFits(choice, conditions, catalog);
-                var (title, summary, tasks, reason) = choice switch
+                var (title, summary, cardTasks, reason) = choice switch
                 {
-                    { Choose: { } c } => (c.OccupationName, (string?)c.Summary, c.Tasks.Select(t => t.Name).ToList(), c.Reason),
-                    { Combine: { } c } => (c.RoleName, null, c.Tasks.Select(t => t.Name).ToList(), c.Reason),
+                    { Choose: { } c } => (c.OccupationName, (string?)c.Summary, c.Tasks, c.Reason),
+                    { Combine: { } c } => (c.RoleName, null, c.Tasks, c.Reason),
                     { Create: { } c } => (c.Title, CreateSummary(c), [], c.Reason),
-                    _ => (null as string, null as string, new List<string>(), null as string),
+                    _ => (null as string, null as string, (IReadOnlyList<CardTask>)[], null as string),
                 };
                 if (title is null)
                 {
@@ -163,13 +165,27 @@ public static class ReportBuilder
 
                 var ability = problem is null && choice.ChosenAbility() is { } a ? new ReportAbility(a.Ability, a.State, a.Quotes) : null;
                 return new ReportChoice(
-                    ChoiceKind.Card, kind, title, summary, tasks,
-                    problem is null ? reason : null, ability, problem, outside, kind == CardKind.Create, cardsStale);
+                    ChoiceKind.Card, kind, title, summary, cardTasks.Select(t => t.Name).ToList(),
+                    problem is null ? reason : null, ability, problem, outside, kind == CardKind.Create, cardsStale,
+                    ability is null ? [] : Scenes(cardTasks, ability.Ability, catalog));
 
             default:
                 return none;
         }
     }
+
+    /// <summary>
+    /// 選んだ案の業務のうち、カードに使った力を主な力に持つ業務の力が生きる場面（05-options.md の options-10（力が生きる場面を添える）と同じ決め方）。
+    /// 業務の名前はカードの写しの名前で、場面はいまの業務マスターから引く。話から確かめる力でない力（保存データの古い id など）なら添えない。
+    /// </summary>
+    private static List<ReportScene> Scenes(IReadOnlyList<CardTask> tasks, Ability ability, JobCatalog catalog) =>
+        AbilityCatalog.IsActive(ability)
+            ? tasks
+                .Select(t => (Card: t, Registered: catalog.FindTask(t.TaskId)))
+                .Where(x => x.Registered is { } r && r.Abilities.Main == ability)
+                .Select(x => new ReportScene(x.Card.Name, x.Registered!.Scene))
+                .ToList()
+            : [];
 
     /// <summary>
     /// 「創る」の誰の、困りごと、中身をつないだ文。言葉を足さずに、読点と句点だけでつなぐ（言い切りの言葉を入れないため。Claude の判断）。

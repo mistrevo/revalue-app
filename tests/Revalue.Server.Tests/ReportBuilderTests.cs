@@ -274,6 +274,110 @@ public sealed class ReportBuilderTests
         Assert.Equal(["簿記の基礎", "会計ソフト"], check.Knowledge);
     }
 
+    [Fact(DisplayName = "report-1（一つにまとめて示す）: まだ確かめていないことに、選んだ案の業務の本人に確かめる条件を並べる")]
+    public async Task TaskGapsHaveChecks()
+    {
+        var kit = await Recorded();
+        await SetChoice(kit, CombineChoice());
+
+        var gaps = (await Build(kit)).NotYet.TaskGaps;
+
+        // 帳簿と口座の照合には確かめる条件があり、出張や会食の手配にはない
+        Assert.Equal(Catalog.FindTask("accounting-check")!.Checks, gaps.Single(g => g.TaskName == "帳簿と口座の照合").Checks);
+        Assert.NotEmpty(gaps.Single(g => g.TaskName == "帳簿と口座の照合").Checks);
+        Assert.Empty(gaps.Single(g => g.TaskName == "出張や会食の手配").Checks);
+    }
+
+    [Fact(DisplayName = "report-1（一つにまとめて示す）: 選んだ案の業務の主な力が準備中なら、まだ確かめていない力に名前を出さない")]
+    public async Task PreparingMainAbilityIsNotNamed()
+    {
+        var kit = await Recorded();
+        // 課題の原因の見当づくり: 主な力は原因分析力（準備中）
+        await SetChoice(kit, ChooseChoice(taskId: "planning-cause-hypothesis"));
+
+        var content = await Build(kit);
+
+        var gap = Assert.Single(content.NotYet.TaskGaps);
+        Assert.Equal(("課題の原因の見当づくり", (Ability?)null), (gap.TaskName, gap.Ability));
+        Assert.Equal(Catalog.FindTask("planning-cause-hypothesis")!.Knowledge, gap.Knowledge);
+        Assert.False(content.NotYet.HasExcluded);
+    }
+
+    [Fact(DisplayName = "report-1（一つにまとめて示す）: 選んだ案の理由と力を出すときは、使った力を主な力に持つ業務の力が生きる場面を添え、外したときは添えない")]
+    public async Task ChoiceScenes()
+    {
+        var kit = await Recorded();
+        // 出張や会食の手配（主な力は利害調整力）と、帳簿と口座の照合（主な力は変化察知力）を、利害調整力で組み合わせた案
+        var combine = CombineChoice() with
+        {
+            Combine = CombineChoice().Combine! with
+            {
+                Ability = new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1)]),
+            },
+        };
+        await SetChoice(kit, combine);
+
+        var content = await Build(kit);
+        Assert.Null(content.Choice.Problem);
+        var scene = Assert.Single(content.Choice.Scenes);
+        Assert.Equal(("出張や会食の手配", Catalog.FindTask("online-secretary-arrangement")!.Scene), (scene.TaskName, scene.Scene));
+
+        // 使った力が補助の力にしかない業務（会議や面会の日程調整）には添えない
+        var schedule = ChooseChoice(taskId: "online-secretary-schedule") with
+        {
+            Choose = ChooseChoice(taskId: "online-secretary-schedule").Choose! with
+            {
+                Ability = new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1)]),
+            },
+        };
+        await SetChoice(kit, schedule);
+        var sub = await Build(kit);
+        Assert.Null(sub.Choice.Problem);
+        Assert.Empty(sub.Choice.Scenes);
+
+        // validate-12（本人が見立てを外せる）: 力を外すと、理由と一緒に力が生きる場面も添えない
+        await SetChoice(kit, combine);
+        await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.BalancingInterests, true, kit.Clock, Ct);
+        var excluded = await Build(kit);
+        Assert.Equal(MissingReason.Excluded, excluded.Choice.Problem);
+        Assert.Empty(excluded.Choice.Scenes);
+    }
+
+    [Fact(DisplayName = "report-3（版を残す）: 前の版には、業務の確かめる条件を残し、力が生きる場面を残さない")]
+    public async Task SnapshotKeepsChecksButNotScenes()
+    {
+        var kit = await Recorded();
+        var combine = CombineChoice() with
+        {
+            Combine = CombineChoice().Combine! with
+            {
+                Ability = new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1)]),
+            },
+        };
+        await SetChoice(kit, combine);
+        var content = await Build(kit);
+        Assert.NotEmpty(content.Choice.Scenes);
+
+        var snapshot = ReportSnapshot.From(content);
+
+        var check = snapshot.NotYet.TaskGaps.Single(g => g.TaskName == "帳簿と口座の照合");
+        Assert.Equal(Catalog.FindTask("accounting-check")!.Checks, check.Checks);
+        var json = JsonSerializer.Serialize(snapshot, DataConstants.Json);
+        Assert.DoesNotContain("\"scenes\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain(Catalog.FindTask("online-secretary-arrangement")!.Scene, json, StringComparison.Ordinal);
+
+        // 確かめる条件だけがある業務も、前の版に残す
+        var onlyChecks = content with
+        {
+            NotYet = content.NotYet with { TaskGaps = [new ReportTaskGap("架空の業務", null, [], ["架空の確かめること"])] },
+        };
+        Assert.Equal(["架空の確かめること"], Assert.Single(ReportSnapshot.From(onlyChecks).NotYet.TaskGaps).Checks);
+
+        // 確かめる条件を持たない前の保存の版も読める
+        var old = JsonSerializer.Deserialize<ReportSnapshotTaskGap>("""{"taskName":"帳簿と口座の照合","knowledge":["簿記の基礎"]}""", DataConstants.Json)!;
+        Assert.Empty(old.Checks);
+    }
+
     [Fact(DisplayName = "report-1（一つにまとめて示す）: 「創る」は需要をまだ確かめていないと持ち、05 のカードが古ければそう持つ")]
     public async Task CreateAndStaleCards()
     {
