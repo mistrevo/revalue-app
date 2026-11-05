@@ -710,13 +710,13 @@ public sealed class EvalsTests
         }
     }
 
-    [Fact(DisplayName = "評価: リポジトリの確かめの例 11 件が読め、どれも期待する状態を 3 つの力すべてに持ち、すべて架空と書いてある")]
+    [Fact(DisplayName = "評価: リポジトリの確かめの例 12 件が読め、どれも期待する状態を 3 つの力すべてに持ち、すべて架空と書いてある")]
     public void RepositoryValidateEpisodesParse()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
         var scripts = EpisodeScript.LoadAll(dir, "validate");
 
-        Assert.Equal(["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18"], scripts.Select(s => s.Id));
+        Assert.Equal(["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19"], scripts.Select(s => s.Id));
         Assert.All(scripts, s =>
         {
             Assert.NotNull(s.States);
@@ -725,6 +725,10 @@ public sealed class EvalsTests
         });
         Assert.Equal(new ActionRef(Ability.Coordinating, 3), scripts.Single(s => s.Id == "e11").Ask);
         Assert.Equal(new ActionRef(Ability.Prioritizing, 3), scripts.Single(s => s.Id == "e12").Ask);
+        // validate-1（3 つともそろったときだけ根拠あり）: 期限を確かめた事実だけでは、決めた理由として根拠にしない
+        var checkedDeadline = scripts.Single(s => s.Id == "e19");
+        Assert.Equal(new ActionRef(Ability.Prioritizing, 3), checkedDeadline.Ask);
+        Assert.Equal(AbilityState.NeedsCheck, checkedDeadline.States![Ability.Prioritizing]);
         Assert.All(scripts.Single(s => s.Id == "e16").Answers, a => Assert.True(a.IsChoice));
         Assert.Contains(scripts.Single(s => s.Id == "e17").Answers, a => a.IsChoice && a.Text.Length > 0);
         var correction = scripts.Single(s => s.Id == "e18");

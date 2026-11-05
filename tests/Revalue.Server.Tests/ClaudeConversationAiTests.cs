@@ -504,6 +504,30 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("（訂正）", reader);
     }
 
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りの指示は、優先順位をつける力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
+    public void ReaderDoesNotInferPrioritizingReason()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.StartsWith("- 優先順位をつける力の 3", StringComparison.Ordinal));
+
+        Assert.Contains("理由や基準を言葉にしているときだけ根拠にする", line);
+        Assert.Contains("理由を推し量らない", line);
+        // 台本（e19）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("締め切り", line);
+        Assert.DoesNotContain("サイト", line);
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 返事の指示は、本人がしたことを聞く一手で、移動の手段や持ち物の中身のような行動の細部を聞かないと書いている")]
+    public void ListenerDoesNotAskActionDetails()
+    {
+        var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskWhatYouDid);
+
+        Assert.DoesNotContain("どうやって", line);
+        Assert.Contains("行動の細部は聞かない", line);
+        Assert.Contains("本人がしたこと、決めたことを聞く", line);
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 返事の指示は、手がかりについてだけ一つ聞き、したことを前提にせず、答えの例で誘導しないと書いている")]
     public void ListenerDescribesAskMissingAction()
     {

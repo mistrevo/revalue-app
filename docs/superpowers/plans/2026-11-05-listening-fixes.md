@@ -157,20 +157,22 @@ git commit -m "聞き返す力を、場面の中で一つに絞る（revisit-4�
 **Interfaces:**
 - Consumes: 台本の形（`evals/episodes/e12-prioritizing-partial.md` と同じ前書き: `id`、`title`、`unit: validate`、`expect`、`states`、`ask`）
 
-- [ ] **Step 1: 再現する台本を書く**
+- [x] **Step 1: 再現する台本を書く**
 
 `e19-prioritizing-checked-deadline.md`（架空。「このハッカソンの期間中に新しく書いた」と書く）。前書き: `id: e19`、`unit: validate`、`expect: concreteEvent`、`states: noticing=notYet, coordinating=notYet, prioritizing=needsCheck`、`ask: prioritizing.3`。答えは 4 つ。1 つ目で 3 つの用事が同じ朝に重なる。2 つ目で、何を先にし、何を後に回したかを具体的に話し、その中に「締め切りをサイトで確かめた」事実を入れる。3 つ目と 4 つ目は、理由を言わずにその後のことを話す。11/4 のペルソナ評価の E と同じ形だが、言葉は新しく書く
 
-- [ ] **Step 2: いまの指示で評価を回し、台本が問題を再現することを確かめる**
+- [x] **Step 2: いまの指示で評価を回し、台本が問題を再現することを確かめる**
 
 Run: `dotnet run --project evals/Revalue.Evals -- --unit validate`
 Expected: e19 で優先順位をつける力が根拠あり（期待と違う）になる。再現しなければ、その結果を計画のこのステップに書き残し、Step 3 へ進む（台本は回帰の確かめとして残す）
 
-- [ ] **Step 3: 読み取りの指示を足す**
+結果（2026-11-05）: 実装を回したエージェントの環境に `ANTHROPIC_API_KEY` がなく、本物の AI で回せなかった。偽物の AI（`--dry-run`）で、e19 が読めて最後まで流れることだけを確かめた。再現の確かめは、Step 5 と合わせて開発者の環境で回す（Claude の判断）
+
+- [x] **Step 3: 読み取りの指示を足す**
 
 `reader.md` の「根拠にしないもの」に足す: 優先順位をつける力の 3（決めた理由や基準がある）は、本人が理由や基準を言葉にしているときだけ根拠にする。期限を確かめた、調べた、のような事実から、理由を推し量らない。例は、e19 と違う言葉で書く（台本の答えを指示に写さない）
 
-- [ ] **Step 4: Spec を直す**
+- [x] **Step 4: Spec を直す**
 
 `docs/specs/03-validate.md` の読み取りの決まりの節に、同じ決まりを 1 行で足す
 
@@ -179,7 +181,9 @@ Expected: e19 で優先順位をつける力が根拠あり（期待と違う）
 Run: `dotnet run --project evals/Revalue.Evals -- --unit validate`
 Expected: e19 で優先順位をつける力が要確認になり、足りない行動に 3 を聞く。ほかの台本（とくに e10-prioritizing-complete、e14-bad-result、e15-no-result）が、これまでどおり根拠ありのまま。`evals/criteria.md` の合格の線をすべて満たす
 
-- [ ] **Step 6: コミット**
+未実施（2026-11-05）: Step 2 と同じく鍵がなく、本物の AI で回せなかった。開発者の環境で回す。
+
+- [x] **Step 6: コミット**
 
 ```bash
 git add src/Revalue.Server/Ai/Prompts/reader.md evals/episodes/e19-prioritizing-checked-deadline.md docs/specs/03-validate.md tests/Revalue.Server.Tests
