@@ -93,10 +93,10 @@ public sealed class AbilitiesApiTests
         Assert.Equal(0, coordinating.GetProperty("hints").GetArrayLength());
         Assert.False(coordinating.GetProperty("excluded").GetBoolean());
 
-        var noticing = Ability(dto, "noticing-changes");
-        Assert.Equal("needsCheck", noticing.GetProperty("life").GetString());
-        Assert.Equal("notChecked", noticing.GetProperty("work").GetString());
-        Assert.Equal(2, noticing.GetProperty("hints").GetArrayLength());
+        var noticingChanges = Ability(dto, "noticing-changes");
+        Assert.Equal("needsCheck", noticingChanges.GetProperty("life").GetString());
+        Assert.Equal("notChecked", noticingChanges.GetProperty("work").GetString());
+        Assert.Equal(2, noticingChanges.GetProperty("hints").GetArrayLength());
 
         // 履歴は新しい順。どれも話した内容から（talk）
         var history = dto.GetProperty("history").EnumerateArray().ToList();

@@ -190,7 +190,7 @@ public sealed class DeepenApiTests
         // 選んだ案がなくても、業務の見立てで選べる力は辞書の話から確かめる力と同じ順で返す
         var dto = await Get(client);
         var returned = dto.GetProperty("abilities").EnumerateArray()
-            .Select(a => (a.GetProperty("key").GetString(), a.GetProperty("name").GetString()))
+            .Select(a => (a.GetProperty("key").GetString()!, a.GetProperty("name").GetString()!))
             .ToList();
         var expected = AbilityCatalog.Active.Select(a => (a.Id, AbilityCatalog.Name(a))).ToList();
         Assert.Equal(expected, returned);
