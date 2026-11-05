@@ -3,7 +3,8 @@ id: e10
 title: 朝に用事が 3 つ重なる
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=notYet, prioritizing=confirmed
+states: prioritizing=confirmed
+notConfirmed: noticing, coordinating
 ---
 
 # e10 朝に用事が 3 つ重なる

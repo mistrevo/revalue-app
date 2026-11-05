@@ -3,7 +3,8 @@ id: e15
 title: 面談と面接の連絡が重なった朝
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=notYet, prioritizing=confirmed
+states: prioritizing=confirmed
+notConfirmed: noticing, coordinating
 ---
 
 # e15 面談と面接の連絡が重なった朝

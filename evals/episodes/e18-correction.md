@@ -3,8 +3,9 @@ id: e18
 title: 声をかけたのは夫だったと直す
 unit: validate
 expect: correction
-states: noticing=notYet, coordinating=needsCheck, prioritizing=notYet
-statesBefore: noticing=notYet, coordinating=confirmed, prioritizing=notYet
+states: coordinating=needsCheck
+notConfirmed: noticing, prioritizing
+statesBefore: coordinating=confirmed
 ---
 
 # e18 声をかけたのは夫だったと直す

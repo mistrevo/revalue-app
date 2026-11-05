@@ -3,7 +3,8 @@ id: e17
 title: 選んだ答えが本人の話と結びつく
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=confirmed, prioritizing=notYet
+states: coordinating=confirmed
+notConfirmed: noticing, prioritizing
 ---
 
 # e17 選んだ答えが本人の話と結びつく

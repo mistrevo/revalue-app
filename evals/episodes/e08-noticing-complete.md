@@ -3,7 +3,8 @@ id: e08
 title: 子どもの帰りの様子に気づく
 unit: validate
 expect: concreteEvent
-states: noticing=confirmed, coordinating=notYet, prioritizing=notYet
+states: noticing=confirmed
+notConfirmed: coordinating, prioritizing
 ---
 
 # e08 子どもの帰りの様子に気づく

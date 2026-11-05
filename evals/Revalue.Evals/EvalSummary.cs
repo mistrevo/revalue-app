@@ -11,7 +11,8 @@ namespace Revalue.Evals;
 public sealed record SummaryItem(string Name, int Count, int Total, string Line, bool? Passed, bool CountsViolations = false);
 
 /// <summary>
-/// 汎用の AI との比較の数字（同じ例、同じ物差し）。褒めすぎは、期待が confirmed でない力を、製品が根拠ありにした数と、汎用の AI が強みとして挙げた数。
+/// 汎用の AI との比較の数字（同じ例、同じ物差し。台本に書いた力だけを数える）。褒めすぎは、期待が confirmed でない狙った力と、根拠ありにしてはいけない力を、
+/// 製品が根拠ありにした数と、汎用の AI が強みとして挙げた数。
 /// 引用は、製品が見せる根拠の引用と、汎用の AI が強みの根拠として引いた言葉のうち、本人の答えに一字一句含まれなかった数。
 /// </summary>
 public sealed record GenericComparisonSummary(
@@ -138,7 +139,8 @@ public sealed class EvalSummary
     }
 
     /// <summary>
-    /// 03 validate（確かめる）の項目を足す（unit: validate の例があるときだけ）。期待する状態は台本の states、statesBefore、ask。
+    /// 03 validate（確かめる）の項目を足す（unit: validate の例があるときだけ）。期待する状態は台本の states、notConfirmed、statesBefore、ask。
+    /// 数えるのは台本に書いた力だけで、台本に書いていない力の状態は問わない。
     /// </summary>
     private static GenericComparisonSummary? AddValidate(IReadOnlyList<EpisodeRun> runs, List<SummaryItem> gated, List<SummaryItem> reference)
     {
@@ -147,12 +149,12 @@ public sealed class EvalSummary
             return null;
         }
 
-        var withStates = runs.Where(r => r.Script.States is not null).ToList();
-        var pairs = withStates
-            .SelectMany(r => r.Final.Select(f => (Run: r, Result: f, Expected: r.Script.States![f.Ability])))
+        var withListed = runs.Where(r => r.Script.Listed.Count > 0).ToList();
+        var pairs = runs.Where(r => r.Script.States is not null)
+            .SelectMany(r => r.Script.States!.Select(s => (Run: r, Result: FinalOf(r, s.Key), Expected: s.Value)))
             .ToList();
-        var notConfirmed = pairs.Where(p => p.Expected != AbilityState.Confirmed).ToList();
-        var overPraise = notConfirmed.Count(p => p.Result.State == AbilityState.Confirmed);
+        var notConfirmed = withListed.SelectMany(r => r.Script.MustNotConfirm.Select(a => FinalOf(r, a))).ToList();
+        var overPraise = notConfirmed.Count(f => f.State == AbilityState.Confirmed);
         var expectedConfirmed = pairs.Where(p => p.Expected == AbilityState.Confirmed).ToList();
         var confirmed = expectedConfirmed.Count(p => p.Result.State == AbilityState.Confirmed);
         var shown = runs.SelectMany(r => r.Final.SelectMany(f => f.Shown).Select(e => (Run: r, Evidence: e))).ToList();
@@ -184,7 +186,8 @@ public sealed class EvalSummary
             Ratio("03 validate（確かめる）: 最後の状態が期待どおりだった力", pairs.Count(p => p.Result.State == p.Expected), pairs.Count),
             Ratio(
                 "validate-8（訂正したら確かめ直す）: 訂正の前の状態が期待どおりだった例",
-                beforeRuns.Count(r => r.BeforeCorrection is { } before && before.All(b => r.Script.StatesBefore![b.Ability] == b.State)),
+                beforeRuns.Count(r => r.BeforeCorrection is { } before
+                    && r.Script.StatesBefore!.All(s => before.FirstOrDefault(b => b.Ability == s.Key)?.State is { } state ? state == s.Value : s.Value == AbilityState.NotYet)),
                 beforeRuns.Count),
             Ratio("validate-2（足りない行動だけ聞き返す）: 一部だけそろった例で、足りない行動を聞いた（判定役の答えは見ない）", asked, askRuns.Count),
             Ratio("validate-5（選んだだけでは根拠にしない）: 見せる根拠のうち、選んだ答えの根拠", shown.Count(x => x.Evidence.FromChoice), shown.Count),
@@ -193,26 +196,28 @@ public sealed class EvalSummary
                 runs.Sum(r => r.ShortCandidates), runs.Sum(r => r.Candidates), "—", null, CountsViolations: true),
         ]);
 
-        var compared = withStates.Where(r => r.Generic is not null).ToList();
+        var compared = withListed.Where(r => r.Generic is not null).ToList();
         if (compared.Count == 0)
         {
             return null;
         }
 
         var read = compared.Where(r => r.Generic!.Reading is not null).ToList();
-        var genericPairs = read
-            .SelectMany(r => r.Generic!.Reading!.Abilities.Select(a => (Run: r, Ability: a, Expected: r.Script.States![a.Ability])))
+        var genericListed = read
+            .SelectMany(r => r.Generic!.Reading!.Abilities.Where(a => r.Script.Listed.Contains(a.Ability)).Select(a => (Run: r, Ability: a)))
             .ToList();
-        var genericOverPraise = genericPairs.Count(p => p.Expected != AbilityState.Confirmed && p.Ability.Named);
-        var genericQuotes = genericPairs.Where(p => p.Ability.Named).SelectMany(p => p.Ability.Quotes.Select(q => (p.Run, Quote: q))).ToList();
+        var genericOverPraise = genericListed.Count(p => p.Run.Script.MustNotConfirm.Contains(p.Ability.Ability) && p.Ability.Named);
+        var genericQuotes = genericListed.Where(p => p.Ability.Named).SelectMany(p => p.Ability.Quotes.Select(q => (p.Run, Quote: q))).ToList();
         var genericMismatches = genericQuotes.Count(q => !GenericComparison.IsVerbatim(q.Run.Turns, q.Quote));
-        var productPairs = read.SelectMany(r => r.Final.Select(f => (Result: f, Expected: r.Script.States![f.Ability]))).ToList();
-        var productShown = read.SelectMany(r => r.Final.SelectMany(f => f.Shown).Select(e => (Run: r, Evidence: e))).ToList();
+        var productMustNot = read.SelectMany(r => r.Script.MustNotConfirm.Select(a => FinalOf(r, a))).ToList();
+        var productShown = read
+            .SelectMany(r => r.Final.Where(f => r.Script.Listed.Contains(f.Ability)).SelectMany(f => f.Shown).Select(e => (Run: r, Evidence: e)))
+            .ToList();
         var summary = new GenericComparisonSummary(
             compared.Count,
             compared.Count - read.Count,
-            productPairs.Count(p => p.Expected != AbilityState.Confirmed),
-            productPairs.Count(p => p.Expected != AbilityState.Confirmed && p.Result.State == AbilityState.Confirmed),
+            productMustNot.Count,
+            productMustNot.Count(f => f.State == AbilityState.Confirmed),
             genericOverPraise,
             productShown.Count,
             productShown.Count(x => !IsVerbatim(x.Run.Turns, x.Evidence)),
@@ -248,6 +253,10 @@ public sealed class EvalSummary
         return evidence.LinkedQuote is not { } linked
             || (linked.Length > 0 && answers.Any(a => a.AnswerKind != AnswerKind.Choice && a.Text.Contains(linked, StringComparison.Ordinal)));
     }
+
+    /// <summary>最後の状態のうち、その力の結果。結果にない力（辞書にない力）は未確認とみなす。</summary>
+    private static AbilityResult FinalOf(EpisodeRun run, Ability ability) =>
+        run.Final.FirstOrDefault(f => f.Ability == ability) ?? new AbilityResult(ability, AbilityState.NotYet, [], []);
 
     private static SummaryItem Ratio(string name, int count, int total) => new(name, count, total, "—", null);
 }

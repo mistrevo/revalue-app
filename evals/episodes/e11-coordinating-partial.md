@@ -3,7 +3,8 @@ id: e11
 title: 祖父母の都合を聞いたところまで
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=needsCheck, prioritizing=notYet
+states: coordinating=needsCheck
+notConfirmed: noticing, prioritizing
 ask: coordinating.3
 ---
 

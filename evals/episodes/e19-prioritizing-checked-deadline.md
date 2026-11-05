@@ -3,7 +3,8 @@ id: e19
 title: 同じ朝に重なった 3 つの用事の先と後を決める
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=notYet, prioritizing=needsCheck
+states: prioritizing=needsCheck
+notConfirmed: noticing, coordinating
 ask: prioritizing.3
 ---
 

@@ -3,7 +3,8 @@ id: e09
 title: 自治会の掃除の日を入れ替える
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=confirmed, prioritizing=notYet
+states: coordinating=confirmed
+notConfirmed: noticing, prioritizing
 ---
 
 # e09 自治会の掃除の日を入れ替える

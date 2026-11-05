@@ -146,17 +146,17 @@ ask: prioritizing.3
 | e18 | coordinating=needsCheck | noticing, prioritizing | statesBefore: coordinating=confirmed |
 | e19 | prioritizing=needsCheck | noticing, coordinating | ask: prioritizing.3 |
 
-- [ ] **Step 1: 失敗するテストを書く**（`EvalsTests.cs`）
+- [x] **Step 1: 失敗するテストを書く**（`EvalsTests.cs`）
   - `評価: 確かめの例の前書きは、狙った力の期待する状態と、根拠ありにしてはいけない力を読む` — `states` が 1 つ、`notConfirmed` が 2 つ、`*` の 3 通り。`*` は、confirmed の狙った力を除くすべての力になる
   - `評価: 知らない力、同じ力の重なり、confirmed と notConfirmed の重なり、states も notConfirmed もない確かめの例は読めない`（いまの 475 行目の Theory を置き換える）
   - `validate-1（すべてそろったときだけ根拠あり）: 評価は、期待が confirmed でない狙った力と、根拠ありにしてはいけない力を Confirmed にした数を褒めすぎとして数え、1 件でも合格にしない`（いまの 500 行目を置き換える）
   - `validate-1（すべてそろったときだけ根拠あり）: 評価は、台本に書いていない力が根拠ありになっても、褒めすぎに数えない`
   - `評価: 汎用の AI との比較は、台本に書いた力だけを数える`（いまの 679 行目を直す）
   - `評価: リポジトリの確かめの例 12 件が読め、どれも狙った力か根拠ありにしてはいけない力を持ち、すべて架空と書いてある`（いまの 743 行目を置き換える）
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`
-- [ ] **Step 3: 読み方と数え方を直し、e08〜e19 の前書きを表のとおりに書き直す**。本文と答えは変えない
-- [ ] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
-- [ ] **Step 5: コミット**（「辞書の力に置き換える: 台本の前書きを、狙った力と根拠ありにしてはいけない力だけにする（validate-1（すべてそろったときだけ根拠あり））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`
+- [x] **Step 3: 読み方と数え方を直し、e08〜e19 の前書きを表のとおりに書き直す**。本文と答えは変えない
+- [x] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
+- [x] **Step 5: コミット**（「辞書の力に置き換える: 台本の前書きを、狙った力と根拠ありにしてはいけない力だけにする（validate-1（すべてそろったときだけ根拠あり））」）
 
 ### Task 2: 能力辞書を 126 項目に置き換え、力の決め打ちを消す
 

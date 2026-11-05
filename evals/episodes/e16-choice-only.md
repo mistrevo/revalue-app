@@ -3,7 +3,7 @@ id: e16
 title: 選んだ答えだけで話す
 unit: validate
 expect: choiceOnly
-states: noticing=notYet, coordinating=notYet, prioritizing=notYet
+notConfirmed: *
 ---
 
 # e16 選んだ答えだけで話す

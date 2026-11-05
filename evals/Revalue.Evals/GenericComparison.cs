@@ -13,7 +13,7 @@ namespace Revalue.Evals;
 /// <param name="Quotes">その力の根拠として、本人の言葉だとして引いた言葉。</param>
 public sealed record GenericAbility(Ability Ability, bool Named, IReadOnlyList<string> Quotes);
 
-/// <summary>汎用の AI の答えを読んだ結果。3 つの力を <see cref="Ability"/> の順で持つ。</summary>
+/// <summary>汎用の AI の答えを読んだ結果。話から確かめる力を辞書の順で持つ。評価が数えるのは、台本に書いた力だけ（<see cref="EpisodeScript.Listed"/>）。</summary>
 public sealed record GenericReading(IReadOnlyList<GenericAbility> Abilities, string Reason);
 
 /// <summary>
@@ -29,7 +29,7 @@ public interface IGenericAssistant
     Task<string?> AnswerAsync(string prompt, CancellationToken ct);
 }
 
-/// <summary>汎用の AI の答えを読み、3 つの力ごとに「強みとして挙げたか」と「根拠として引いた言葉」を返す判定役。答えられなければ null。</summary>
+/// <summary>汎用の AI の答えを読み、話から確かめる力ごとに「強みとして挙げたか」と「根拠として引いた言葉」を返す判定役。答えられなければ null。</summary>
 public interface IGenericReader
 {
     Task<GenericReading?> ReadAsync(string transcript, string answer, CancellationToken ct);

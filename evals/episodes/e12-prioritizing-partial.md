@@ -3,7 +3,8 @@ id: e12
 title: 夕方の用事の先と後を決める
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=notYet, prioritizing=needsCheck
+states: prioritizing=needsCheck
+notConfirmed: noticing, coordinating
 ask: prioritizing.3
 ---
 

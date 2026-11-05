@@ -3,7 +3,8 @@ id: e13
 title: いつも家族の予定を合わせている
 unit: validate
 expect: generalOnly
-states: noticing=notYet, coordinating=needsCheck, prioritizing=notYet
+states: coordinating=needsCheck
+notConfirmed: *
 ---
 
 # e13 いつも家族の予定を合わせている

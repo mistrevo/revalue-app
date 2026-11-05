@@ -3,7 +3,8 @@ id: e14
 title: 雨で中止になった子ども会の行事
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=confirmed, prioritizing=notYet
+states: coordinating=confirmed
+notConfirmed: noticing, prioritizing
 ---
 
 # e14 雨で中止になった子ども会の行事

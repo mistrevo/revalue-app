@@ -408,8 +408,9 @@ public sealed class EvalsTests
         title: 確かめの試しの例
         unit: validate
         expect: correction
-        states: noticing=notYet, coordinating=needsCheck, prioritizing=notYet
-        statesBefore: noticing=notYet, coordinating=confirmed, prioritizing=notYet
+        states: coordinating=needsCheck
+        notConfirmed: noticing, prioritizing
+        statesBefore: coordinating=confirmed
         ask: coordinating.3
         ---
 
@@ -422,9 +423,10 @@ public sealed class EvalsTests
         """;
 
     private static EpisodeScript ValidateScript(
-        string states, string? statesBefore = null, string? ask = null, params ScriptedAnswer[] answers)
+        string states, string? statesBefore = null, string? ask = null, string? notConfirmed = null, params ScriptedAnswer[] answers)
     {
         var header = $"---\nid: e98\ntitle: 試しの例\nunit: validate\nexpect: concreteEvent\nstates: {states}\n" +
+            (notConfirmed is null ? "" : $"notConfirmed: {notConfirmed}\n") +
             (statesBefore is null ? "" : $"statesBefore: {statesBefore}\n") + (ask is null ? "" : $"ask: {ask}\n") + "---\n\n## 利用者の答え\n\n- 仮の答え\n";
         return EpisodeScript.Parse(header) with { Answers = answers };
     }
@@ -466,18 +468,46 @@ public sealed class EvalsTests
                 new ScriptedAnswer("声をかけたのは私ではなく、夫でした", false, IsCorrection: true),
             ],
             script.Answers);
-        Assert.Equal(AbilityState.NeedsCheck, script.States![Ability.Coordinating]);
-        Assert.Equal(AbilityState.NotYet, script.States[Ability.Noticing]);
+        Assert.Equal(AbilityState.NeedsCheck, Assert.Single(script.States!, s => s.Key == Ability.Coordinating).Value);
+        Assert.Equal(new HashSet<Ability> { Ability.Noticing, Ability.Prioritizing }, script.NotConfirmed);
         Assert.Equal(AbilityState.Confirmed, script.StatesBefore![Ability.Coordinating]);
         Assert.Equal(new ActionRef(Ability.Coordinating, 3), script.Ask);
     }
 
-    [Theory(DisplayName = "評価: states に知らない力や状態がある、力が欠けている、ask の形が違う、訂正のあとに答えがある例は読めない")]
-    [InlineData("states: noticing=notYet, coordinating=great, prioritizing=notYet", false)]
-    [InlineData("states: noticing=notYet, cooking=confirmed, prioritizing=notYet", false)]
-    [InlineData("states: noticing=notYet, coordinating=confirmed", false)]
-    [InlineData("states: noticing=notYet, coordinating=confirmed, prioritizing=notYet\nask: coordinating.4", false)]
-    [InlineData("states: noticing=notYet, coordinating=confirmed, prioritizing=notYet", true)]
+    [Fact(DisplayName = "評価: 確かめの例の前書きは、狙った力の期待する状態と、根拠ありにしてはいけない力を読む")]
+    public void ParsesTargetedStatesAndNotConfirmed()
+    {
+        static EpisodeScript Parse(string fields) =>
+            EpisodeScript.Parse($"---\nid: e98\ntitle: 試し\nunit: validate\nexpect: concreteEvent\n{fields}\n---\n\n## 利用者の答え\n\n- 昨日のこと\n");
+
+        var one = Parse("states: coordinating=needsCheck");
+        Assert.Equal(new Dictionary<Ability, AbilityState> { [Ability.Coordinating] = AbilityState.NeedsCheck }, one.States);
+        Assert.Empty(one.NotConfirmed);
+        Assert.Equal([Ability.Coordinating], one.Listed);
+
+        var two = Parse("states: coordinating=confirmed\nnotConfirmed: noticing, prioritizing");
+        Assert.Equal(AbilityState.Confirmed, Assert.Single(two.States!).Value);
+        Assert.Equal(new HashSet<Ability> { Ability.Noticing, Ability.Prioritizing }, two.NotConfirmed);
+        Assert.Equal(new HashSet<Ability> { Ability.Noticing, Ability.Coordinating, Ability.Prioritizing }, two.Listed);
+
+        // * は、話から確かめるすべての力から、states で confirmed の力を除いたもの
+        var all = Parse("states: noticing=confirmed, coordinating=needsCheck\nnotConfirmed: *");
+        Assert.Equal(AbilityCatalog.Active.Where(a => a != Ability.Noticing).ToHashSet(), all.NotConfirmed);
+        var onlyAll = Parse("notConfirmed: *");
+        Assert.Null(onlyAll.States);
+        Assert.Equal(AbilityCatalog.Active.ToHashSet(), onlyAll.NotConfirmed);
+    }
+
+    [Theory(DisplayName = "評価: 知らない力、同じ力の重なり、confirmed と notConfirmed の重なり、states も notConfirmed もない確かめの例は読めない")]
+    [InlineData("states: coordinating=great", false)]
+    [InlineData("states: cooking=confirmed", false)]
+    [InlineData("states: coordinating=confirmed\nnotConfirmed: cooking", false)]
+    [InlineData("states: coordinating=confirmed, coordinating=needsCheck", false)]
+    [InlineData("states: coordinating=confirmed\nnotConfirmed: noticing, noticing", false)]
+    [InlineData("states: coordinating=confirmed\nnotConfirmed: noticing, coordinating", false)]
+    [InlineData("statesBefore: coordinating=confirmed", false)]
+    [InlineData("states: coordinating=confirmed\nask: coordinating.4", false)]
+    [InlineData("states: coordinating=confirmed", true)]
     public void InvalidValidateFieldsAreRejected(string fields, bool answerAfterCorrection)
     {
         var answers = answerAfterCorrection ? "- 昨日のこと\n- [訂正] 違いました\n- そのあとの答え\n" : "- 昨日のこと\n";
@@ -497,27 +527,54 @@ public sealed class EvalsTests
         Assert.Equal(AnswerKind.Choice, run.Turns.Single(t => t.Role == TurnRoles.User).AnswerKind);
     }
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、期待が confirmed でない力を Confirmed にした数を褒めすぎとして数え、1 件でも合格にしない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、期待が confirmed でない狙った力と、根拠ありにしてはいけない力を Confirmed にした数を褒めすぎとして数え、1 件でも合格にしない")]
     public async Task OverPraiseFails()
     {
-        var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
-        var script = ValidateScript("noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: Free(CoordinatingAnswer));
+        // 狙った力（needsCheck）を根拠ありにした例と、根拠ありにしてはいけない力を根拠ありにした例
+        var targeted = await Run(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("coordinating=needsCheck", notConfirmed: "noticing", answers: Free(CoordinatingAnswer)));
+        var listed = await Run(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("noticing=needsCheck", notConfirmed: "coordinating", answers: Free(CoordinatingAnswer)));
+        var summary = EvalSummary.From([targeted, listed]);
 
-        var run = await Run(ai, script);
+        Assert.Equal(AbilityState.Confirmed, targeted.Final.Single(r => r.Ability == Ability.Coordinating).State);
+        Assert.Equal(AbilityState.Confirmed, listed.Final.Single(r => r.Ability == Ability.Coordinating).State);
+        var gate = Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
+        Assert.Equal((2, 4), (gate.Count, gate.Total));
+        Assert.True(gate.CountsViolations);
+        Assert.False(summary.Passed);
+
+        var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [listed], summary, new UsageMeter());
+        Assert.Contains("根拠ありにしてはいけない", report);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、台本に書いていない力が根拠ありになっても、褒めすぎに数えない")]
+    public async Task UnlistedAbilityIsNotOverPraise()
+    {
+        var run = await Run(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("noticing=needsCheck", notConfirmed: "prioritizing", answers: Free(CoordinatingAnswer)));
         var summary = EvalSummary.From([run]);
 
         Assert.Equal(AbilityState.Confirmed, run.Final.Single(r => r.Ability == Ability.Coordinating).State);
         var gate = Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
-        Assert.Equal((1, 3), (gate.Count, gate.Total));
-        Assert.True(gate.CountsViolations);
-        Assert.False(summary.Passed);
+        Assert.Equal((0, 2), (gate.Count, gate.Total));
+        var expected = Assert.Single(summary.Reference, i => i.Name.Contains("最後の状態が期待どおりだった力"));
+        Assert.Equal(1, expected.Total);
+
+        // 結果のファイルには、台本に書いていない力でも、未確認でなかった力は書く。24 の力をすべては並べない
+        var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
+        Assert.Contains($"| {AbilityText.Name(Ability.Coordinating)} | —（台本に書いていない） |", report);
+        Assert.Contains($"| {AbilityText.Name(Ability.Prioritizing)} | 根拠ありにしてはいけない |", report);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、そろっている例で Confirmed にした割合を数え、期待どおりなら合格にする")]
     public async Task ConfirmedAsExpectedPasses()
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
-        var script = ValidateScript("noticing=notYet, coordinating=confirmed, prioritizing=notYet", answers: Free(CoordinatingAnswer));
+        var script = ValidateScript("coordinating=confirmed", notConfirmed: "noticing, prioritizing", answers: Free(CoordinatingAnswer));
 
         var summary = EvalSummary.From([await Run(ai, script)]);
 
@@ -532,7 +589,7 @@ public sealed class EvalsTests
     public async Task AskMissingActionIsCounted()
     {
         var script = ValidateScript(
-            "noticing=notYet, coordinating=needsCheck, prioritizing=notYet", ask: "coordinating.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
+            "coordinating=needsCheck", notConfirmed: "noticing, prioritizing", ask: "coordinating.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
         var judge = new RecordingJudge();
 
         var good = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden()).RunAsync(script, Ct);
@@ -569,7 +626,7 @@ public sealed class EvalsTests
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 評価は、最後の根拠の引用が本人の答えに一字一句含まれるかを数え直す")]
     public void QuotesAreRecounted()
     {
-        var script = ValidateScript("noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: Free("朝 8 時に家を出ました。"));
+        var script = ValidateScript("coordinating=needsCheck", notConfirmed: "noticing, prioritizing", answers: Free("朝 8 時に家を出ました。"));
         var turns = new List<Turn>
         {
             new() { Role = TurnRoles.Assistant, Text = DiscoverText.Opening, At = DateTimeOffset.UnixEpoch },
@@ -608,7 +665,7 @@ public sealed class EvalsTests
                     ]),
         };
         var script = ValidateScript(
-            "noticing=notYet, coordinating=notYet, prioritizing=notYet", answers: [Free(CoordinatingAnswer), Correction("夫と義母に電話したのは私です")]);
+            "coordinating=notYet", notConfirmed: "*", answers: [Free(CoordinatingAnswer), Correction("夫と義母に電話したのは私です")]);
 
         var run = await Run(ai, script);
         var summary = EvalSummary.From([run]);
@@ -632,8 +689,8 @@ public sealed class EvalsTests
                 turns[^1].AnswerKind == AnswerKind.Correction ? [1, 3] : [1, 2, 3])(turns),
         };
         var script = ValidateScript(
-            "noticing=notYet, coordinating=needsCheck, prioritizing=notYet",
-            statesBefore: "noticing=notYet, coordinating=confirmed, prioritizing=notYet",
+            "coordinating=needsCheck", notConfirmed: "noticing, prioritizing",
+            statesBefore: "coordinating=confirmed",
             answers: [Free(CoordinatingAnswer), Correction("声をかけたのは私ではなく、夫でした")]);
 
         var run = await Run(ai, script);
@@ -662,7 +719,7 @@ public sealed class EvalsTests
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
         var script = ValidateScript(
-            "noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: [Free(CoordinatingAnswer), Correction("違いました")]);
+            "coordinating=needsCheck", notConfirmed: "noticing, prioritizing", answers: [Free(CoordinatingAnswer), Correction("違いました")]);
         // 1 往復目の返事のあと（次の読み取り = 訂正の読み取り）で失敗させる
         ai.BeforeReply = () =>
         {
@@ -676,17 +733,18 @@ public sealed class EvalsTests
         Assert.False(EvalSummary.From([run]).Passed);
     }
 
-    [Fact(DisplayName = "評価: 汎用の AI との比較は、挙げた力と引用の違いを同じ物差しで数え、合格の線には入れない")]
+    [Fact(DisplayName = "評価: 汎用の AI との比較は、台本に書いた力だけを数え、挙げた力と引用の違いを同じ物差しで数え、合格の線には入れない")]
     public async Task GenericComparisonIsCounted()
     {
-        var script = ValidateScript("noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: Free(CoordinatingAnswer));
+        var script = ValidateScript("coordinating=needsCheck", notConfirmed: "noticing", answers: Free(CoordinatingAnswer));
         var run = await Run(new FakeConversationAi(), script);
         var assistant = new FakeGenericAssistant("あなたの強みは調整力です。「都合をうかがった」と話しています。");
+        // 台本に書いていない優先順位をつける力は、挙げていても、引用が一字一句でなくても数えない
         var reader = new FakeGenericReader(new GenericReading(
             [
                 new GenericAbility(Ability.Noticing, true, []),
                 new GenericAbility(Ability.Coordinating, true, ["「都合を聞いて」", "都合をうかがった"]),
-                new GenericAbility(Ability.Prioritizing, false, []),
+                new GenericAbility(Ability.Prioritizing, true, ["朝ごはんを先にした"]),
             ],
             ""));
 
@@ -701,7 +759,7 @@ public sealed class EvalsTests
         Assert.Equal(assistant.Answer, reader.Answer);
 
         var praise = Assert.Single(summary.Reference, i => i.Name.Contains("汎用の AI") && i.Name.Contains("褒めすぎ"));
-        Assert.Equal((2, 3), (praise.Count, praise.Total));
+        Assert.Equal((2, 2), (praise.Count, praise.Total));
         var quotes = Assert.Single(summary.Reference, i => i.Name.Contains("汎用の AI") && i.Name.Contains("引用"));
         Assert.Equal((1, 2), (quotes.Count, quotes.Total));
         Assert.True(summary.Passed);
@@ -709,6 +767,7 @@ public sealed class EvalsTests
         var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [withGeneric], summary, new UsageMeter());
         Assert.Contains("## 汎用の AI との比較", report);
         Assert.Contains(assistant.Answer, report);
+        Assert.DoesNotContain("朝ごはんを先にした", report);
     }
 
     /// <summary>決まった答えを返す汎用の AI。受け取った問いを覚える。</summary>
@@ -740,7 +799,7 @@ public sealed class EvalsTests
         }
     }
 
-    [Fact(DisplayName = "評価: リポジトリの確かめの例 12 件が読め、どれも期待する状態を 3 つの力すべてに持ち、すべて架空と書いてある")]
+    [Fact(DisplayName = "評価: リポジトリの確かめの例 12 件が読め、どれも狙った力か根拠ありにしてはいけない力を持ち、すべて架空と書いてある")]
     public void RepositoryValidateEpisodesParse()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
@@ -749,10 +808,14 @@ public sealed class EvalsTests
         Assert.Equal(["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19"], scripts.Select(s => s.Id));
         Assert.All(scripts, s =>
         {
-            Assert.NotNull(s.States);
-            Assert.Equal(3, s.States.Count);
+            Assert.NotEmpty(s.Listed);
+            Assert.True(s.States is null || s.States.Count == 1, $"{s.Id} の states は狙った力だけ");
             Assert.InRange(s.Answers.Count(a => !a.IsCorrection), 4, 7);
         });
+        // どの力も根拠ありにしてはいけない話は、notConfirmed: *
+        Assert.Null(scripts.Single(s => s.Id == "e16").States);
+        Assert.Equal(AbilityCatalog.Active.ToHashSet(), scripts.Single(s => s.Id == "e16").NotConfirmed);
+        Assert.Equal(AbilityCatalog.Active.ToHashSet(), scripts.Single(s => s.Id == "e13").NotConfirmed);
         Assert.Equal(new ActionRef(Ability.Coordinating, 3), scripts.Single(s => s.Id == "e11").Ask);
         Assert.Equal(new ActionRef(Ability.Prioritizing, 3), scripts.Single(s => s.Id == "e12").Ask);
         // validate-1（すべてそろったときだけ根拠あり）: 期限を確かめた事実だけでは、決めた理由として根拠にしない
