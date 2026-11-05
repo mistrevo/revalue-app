@@ -6,20 +6,46 @@ namespace Revalue.Server.Features.Discover;
 /// </summary>
 public static class DiscoverText
 {
-    /// <summary>新しい場面の最初の問い。最近の具体的な一日を一つ尋ねる（discover-1）。</summary>
+    /// <summary>
+    /// 初めて話す人の、新しい場面の最初の問い。最近の、気持ちが動いた日を一つ尋ねる（discover-1）。
+    /// 「最近の一日」より「〜と感じた日」と聞くほうが、うまくいった経験や乗り越えた経験を話しやすいため（PRD の 4-rules.md の「最初の問い」）。
+    /// </summary>
     public const string Opening =
-        "最近のある一日のことを、聞かせてください。たとえば昨日、朝起きてから夜までに、どんなことがありましたか？";
+        "最近、気持ちが動いた日のことを、一つ聞かせてください。どんな日でしたか？";
 
     /// <summary>
     /// 本人が答えた話し終えた場面がすでにある人の、新しい場面の最初の問い（discover-1）。いつもと同じ問い（<see cref="Opening"/>）で聞くと、
-    /// 前の話を覚えていないように見えるため（Claude の判断）。前に話した日を指さない。前の場面が一般論だけの人や、つらい話で区切った人もいるため。
-    /// 「別の日」を求めず、問いの前に、特別な日でなくてよいと伝える。
+    /// 前の話を覚えていないように見えるため（Claude の判断）。前に話した日を指さず、「別の日」も求めない。前の場面が一般論だけの人もいるため。
+    /// いちばん新しい話し終えた場面がつらい状態のサインの場面なら、これではなく <see cref="OpeningAfterDistress"/> を使う。
     /// </summary>
     public const string OpeningAnotherDay =
+        "また、最近、気持ちが動いた日のことを、一つ聞かせてください。どんな日でしたか？";
+
+    /// <summary>
+    /// 最初の問い（<see cref="Opening"/> と <see cref="OpeningAnotherDay"/>）の選択肢。気持ちの向きで分け、特定の力の核となる行動に寄せない（誘導しない）。
+    /// 成功の話だけを求めず、うまくいかなかった日も同じ重さで並べる。「私には何もない」と思っている人が答えにくくならないようにするため。
+    /// 選んだだけでは根拠にしない（validate-5）。
+    /// </summary>
+    public static readonly IReadOnlyList<string> OpeningChoices =
+    [
+        "うまくいったと感じた日",
+        "大変だったけど、乗り切った日",
+        "思うようにいかなかった日",
+    ];
+
+    /// <summary>
+    /// いちばん新しい話し終えた場面が、つらい状態のサインで力の確かめに使わない場面だった人の、新しい場面の最初の問い（discover-1）。
+    /// 気持ちが動いた日は聞かず、ふだんの一日を聞く。重い日に話を戻さないため（PRD の 4-rules.md の「別の日の入口」）。
+    /// 前の話にふれず、問いの前に、特別な日でなくてよいと伝える。
+    /// </summary>
+    public const string OpeningAfterDistress =
         "また、最近のある一日のことを、聞かせてください。特別な日でなくてかまいません。その日の朝起きてから夜までに、どんなことがありましたか？";
 
-    /// <summary>最初の問いの選択肢。特定の力の核となる行動に寄らない、中立な出来事にする（誘導しない）。</summary>
-    public static readonly IReadOnlyList<string> OpeningChoices =
+    /// <summary>
+    /// <see cref="OpeningAfterDistress"/> の選択肢。気持ちの向きではなく、特定の力に寄らない中立な出来事の種類にする。
+    /// 「思うようにいかなかった日」のような、重い日を思わせる選択肢を出さないため。
+    /// </summary>
+    public static readonly IReadOnlyList<string> OpeningAfterDistressChoices =
     [
         "家族と出かけた",
         "家で過ごした",

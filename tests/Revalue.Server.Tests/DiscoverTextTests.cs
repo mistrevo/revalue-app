@@ -54,30 +54,90 @@ public sealed class DiscoverTextTests
         }
     }
 
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 最初の問いは、気持ちが動いた日を聞き、うまくいかなかった日も同じ重さで選べる")]
+    public void OpeningAsksDayWhenFeelingsMoved()
+    {
+        Assert.Equal("最近、気持ちが動いた日のことを、一つ聞かせてください。どんな日でしたか？", DiscoverText.Opening);
+        Assert.Equal(["うまくいったと感じた日", "大変だったけど、乗り切った日", "思うようにいかなかった日"], DiscoverText.OpeningChoices);
+        Assert.Equal(3, DiscoverText.OpeningChoices.Count);
+        Assert.DoesNotContain("たとえば昨日", DiscoverText.Opening, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 2 つ目からの問いは「また」で始まり、選択肢は最初の問いと同じ")]
+    public void AnotherDayStartsWithMata()
+    {
+        Assert.Equal("また、最近、気持ちが動いた日のことを、一つ聞かせてください。どんな日でしたか？", DiscoverText.OpeningAnotherDay);
+        Assert.StartsWith("また、", DiscoverText.OpeningAnotherDay, StringComparison.Ordinal);
+        Assert.NotEqual(DiscoverText.Opening, DiscoverText.OpeningAnotherDay);
+    }
+
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: つらい状態のサインで終わった人の問いは、気持ちを聞かない")]
+    public void AfterDistressDoesNotAskFeelings()
+    {
+        Assert.Equal(
+            "また、最近のある一日のことを、聞かせてください。特別な日でなくてかまいません。その日の朝起きてから夜までに、どんなことがありましたか？",
+            DiscoverText.OpeningAfterDistress);
+        Assert.Equal(["家族と出かけた", "家で過ごした", "人と会った"], DiscoverText.OpeningAfterDistressChoices);
+        IEnumerable<string> texts = [DiscoverText.OpeningAfterDistress, .. DiscoverText.OpeningAfterDistressChoices];
+        foreach (var heavy in new[] { "気持ち", "うまくいかなかった", "思うように" })
+        {
+            Assert.All(texts, text => Assert.DoesNotContain(heavy, text, StringComparison.Ordinal));
+        }
+    }
+
     [Fact(DisplayName = "discover-3（選んでも書いてもよい）: 決まった選択肢と続け方は、どれも 3 つ")]
     public void ChoicesAreThree()
     {
         Assert.Equal(3, DiscoverText.OpeningChoices.Count);
+        Assert.Equal(3, DiscoverText.OpeningAfterDistressChoices.Count);
         Assert.Equal(3, DiscoverText.AfterSkipChoices.Count);
         Assert.Equal(["もう少しくわしく話す", "別の日の話にする", "よく覚えていない"], DiscoverText.FallbackChoices);
         Assert.Equal(3, DiscoverText.DistressActions.Count);
     }
 
-    [Theory(DisplayName = "discover-3（選んでも書いてもよい）: 決まった選択肢と飛ばしたあとの問いは、核となる行動や負担の重い日へ誘導しない")]
+    [Theory(DisplayName = "discover-3（選んでも書いてもよい）: 決まった問いと選択肢は、核となる行動へ誘導しない")]
     [InlineData("重な")]
     [InlineData("予定")]
     [InlineData("手間")]
-    [InlineData("大変")]
     [InlineData("忙し")]
     [InlineData("優先")]
     [InlineData("段取り")]
     [InlineData("調整")]
     public void FixedChoicesDoNotLead(string leading)
     {
-        // 「用事が重なる」「家族の予定が重なる」は、優先順位をつける力・調整する力の核となる行動をそのまま並べることになる。
-        // 飛ばした直後に「手間がかかった日」を聞くと、負担の重い日へ話を戻すことになる
-        IEnumerable<string> texts = [.. DiscoverText.OpeningChoices, DiscoverText.AfterSkip, .. DiscoverText.AfterSkipChoices];
+        // 「用事が重なる」「家族の予定が重なる」は、優先順位をつける力・調整する力の核となる行動をそのまま並べることになる
+        IEnumerable<string> texts =
+        [
+            DiscoverText.Opening,
+            DiscoverText.OpeningAnotherDay,
+            .. DiscoverText.OpeningChoices,
+            DiscoverText.OpeningAfterDistress,
+            .. DiscoverText.OpeningAfterDistressChoices,
+            DiscoverText.AfterSkip,
+            .. DiscoverText.AfterSkipChoices,
+        ];
         Assert.All(texts, text => Assert.DoesNotContain(leading, text));
+    }
+
+    [Theory(DisplayName = "discover-5（つらい話は飛ばせる）: 飛ばしたあとと、つらい状態のサインのあとの問いは、負担の重い日へ話を戻さない")]
+    [InlineData("大変")]
+    [InlineData("手間")]
+    [InlineData("忙し")]
+    [InlineData("気持ち")]
+    [InlineData("うまくいかなかった")]
+    [InlineData("思うように")]
+    public void LightOpeningsDoNotReturnToHeavyDays(string heavy)
+    {
+        // 飛ばした直後や、つらい話で区切った人に「大変だった日」「思うようにいかなかった日」を聞くと、負担の重い日へ話を戻すことになる。
+        // 最初の問いの「大変だったけど、乗り切った日」は、うまくいかなかった日も同じ重さで選べるようにするための選択肢なので、ここには入れない
+        IEnumerable<string> texts =
+        [
+            DiscoverText.OpeningAfterDistress,
+            .. DiscoverText.OpeningAfterDistressChoices,
+            DiscoverText.AfterSkip,
+            .. DiscoverText.AfterSkipChoices,
+        ];
+        Assert.All(texts, text => Assert.DoesNotContain(heavy, text, StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: サインのあとの続け方に「消す」を使わない")]

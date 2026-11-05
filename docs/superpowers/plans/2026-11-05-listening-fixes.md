@@ -47,7 +47,7 @@
 **Interfaces:**
 - Produces: `DiscoverText.Opening`、`DiscoverText.OpeningAnotherDay`、`DiscoverText.OpeningChoices`（文言は Global Constraints）、`DiscoverText.OpeningAfterDistress`（いまの `OpeningAnotherDay` の文）、`DiscoverText.OpeningAfterDistressChoices`（いまの `OpeningChoices`）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `DiscoverTextTests.cs`:
 - `discover-1（具体的な一日を一つ聞く）: 最初の問いは、気持ちが動いた日を聞き、うまくいかなかった日も同じ重さで選べる` — `Opening` と `OpeningChoices` が Global Constraints の文と一字一句同じ。`OpeningChoices.Count == 3`
@@ -60,32 +60,32 @@
 - `discover-1（具体的な一日を一つ聞く）: いちばん新しい話し終えた場面がつらい状態のサインで終わっていれば、新しい場面は気持ちを聞かない問いで始まる` — 話し終えた答えのある場面を 1 つ置き、その次に `ExcludedFromValidation = true` で話し終えた場面を置いてから `POST /api/episodes`。最初のターンが `OpeningAfterDistress`、選択肢が `OpeningAfterDistressChoices`
 - `discover-1（具体的な一日を一つ聞く）: つらい状態のサインの場面のあとに、ふつうに話し終えた場面があれば、「また」の気持ちの問いに戻る` — 順番を逆にして、`OpeningAnotherDay`
 
-- [ ] **Step 2: テストが失敗することを確かめる**
+- [x] **Step 2: テストが失敗することを確かめる**
 
 Run: `dotnet test --filter "FullyQualifiedName~DiscoverTextTests|FullyQualifiedName~EpisodeTests"`
 Expected: 新しいテストが FAIL
 
-- [ ] **Step 3: `DiscoverText` を変え、`DiscoverEndpoints` で問いを選ぶ**
+- [x] **Step 3: `DiscoverText` を変え、`DiscoverEndpoints` で問いを選ぶ**
 
 いちばん新しい場面は、本人が答えた話し終えた場面（いまの `answered` と同じ条件）のうち `StartedAt` がいちばん新しいもの。それが `ExcludedFromValidation` なら `OpeningAfterDistress`、ほかは `OpeningAnotherDay`、なければ `Opening`。`EpisodeItem.Start` に渡す選択肢も、問いと組で選ぶ。`DiscoverText` の各定数の `<summary>` に、どの場面で使うかと理由（重い日に話を戻さない）を書く。
 
-- [ ] **Step 4: 聞き手の指示を足す**
+- [x] **Step 4: 聞き手の指示を足す**
 
 `listener.md` の `AskWhatYouDid` に 1 文足す: 本人がまだ出来事を話していないとき（最初の問いの答えの例を選んだだけのときなど）は、映し返しを書かず、受け止める一文のあと、その日にどんなことがあったかを一つ聞く。うまくいかなかった日を選んだ人に、理由やうまくいかなかったわけを聞かない。
 
-- [ ] **Step 5: PRD と Spec を直す**
+- [x] **Step 5: PRD と Spec を直す**
 
 - `docs/prd/4-rules.md`「最初の問い」の 4 つ目: 「話を飛ばしたあとの問いと、つらい状態のサインに応えたところで終わった人の入口では、気持ちが動いた日を聞かず、ふだんの一日を聞く。重い日に話を戻さないため」
 - 同「別の日の入口」の表の 1 行目の 2 列目: 「気持ちが動いた日を聞かず、ふだんの一日を聞く。選択肢も出来事の種類にする。前の話にも一歩にもふれない」。例: 「また、最近のある一日のことを、聞かせてください。特別な日でなくてかまいません」
 - `docs/prd/3-features.md` revisit-7 の括弧を「（気持ちが動いた日ではなく、ふだんの一日を聞く）」に、`docs/prd/6-quality.md` の該当行の後半を「気持ちが動いた日を聞かない」に、決定記録の表の 4 行目を同じ内容に直す（Claude の判断と添える）
 - `docs/specs/02-discover.md` の discover-1 の基準と、最初の問いを書いた節（64 行目付近）を、3 つの問い（初めて、2 つ目から、つらい状態のサインのあと）に直す。「最近のある一日」「たとえば昨日」が残らないこと
 
-- [ ] **Step 6: テストが通ることを確かめる**
+- [x] **Step 6: テストが通ることを確かめる**
 
 Run: `dotnet test`
 Expected: すべて PASS（`ClaudeConversationAiTests`、`EvalsTests`、`ResumeTests` は `DiscoverText` を参照しているだけなので、文を変えても通る）
 
-- [ ] **Step 7: コミット**
+- [x] **Step 7: コミット**
 
 ```bash
 git add src/Revalue.Server/Features/Discover src/Revalue.Server/Ai/Prompts/listener.md tests/Revalue.Server.Tests docs/specs/02-discover.md docs/prd docs/decisions
