@@ -109,6 +109,22 @@ public sealed class NextMovePolicyTests
             NextMovePolicy.Decide(Concrete, 1, context));
     }
 
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 含む引用を同じ行動の別の引用に差し替えても、どの組でもほかの行動の引用を含む引用が残るなら、その行動を足りない行動として聞く")]
+    public void AsksActionWhenEveryCombinationKeepsContainingQuote()
+    {
+        static Evidence Q(int action, int answer, string quote) => new(TestAbilities.Summarizing, action, quote, answer, 1, false, false, null);
+        var context = Context(2,
+        [
+            Q(1, 1, "子どもの話を聞いて要点を書き出した"),
+            Q(2, 1, "子どもの話を聞いて要点を書き出したら先生に伝えた"),
+            Q(2, 2, "要点を書き出した"),
+        ]);
+
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.Summarizing, 2)),
+            NextMovePolicy.Decide(Concrete, 2, context));
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 同じ行動は 2 回まで。2 回聞いたら次の足りない行動か、いつもの一手へ")]
     public void SameActionAtMostTwice()
     {

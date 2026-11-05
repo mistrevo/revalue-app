@@ -61,39 +61,69 @@ public static class AbilityStates
 
     /// <summary>
     /// 一つの出来事の根拠のうち、数える根拠。行動ごとに 1 つ（答えの番号が小さいもの）を、行動の番号の順に。
-    /// ただしすべての行動がそろったときは、ほかの行動の引用をすべて含む引用を数えない。行動が 2 つなら、もう一方の引用を含む引用（同じ引用も含む）。
-    /// 同じ行動に、ほかの行動の引用をすべては含まない別の根拠があれば、そちらを数える。
+    /// ただしすべての行動がそろったときは、行動ごとに 1 つずつ選んだ組のうち、ほかの行動の引用をすべて含む引用がない組だけを数える。
+    /// 行動が 2 つなら、一方の引用がもう一方の引用を含む組（同じ引用の組も）は数えない。
+    /// 組は、行動の番号の順に、答えの番号が小さい根拠から試し、最初に見つかった組を数える。含む引用を同じ行動の別の引用に差し替えても、
+    /// 差し替えた引用がほかの行動の引用に含まれることがあるので、組ごとに全体を確かめる。どの組でも含む引用が残るなら、行動ごとに答えの番号が
+    /// 小さい根拠を選んだ組から、ほかの行動の引用をすべて含む引用（いくつもあれば行動の番号が小さいもの）を除き、その行動を足りないことにする。
     /// 読み取りの AI が一つの句を切り分けてすべての行動に当てると、行動がそろっていないのに根拠ありになるため（validate-1。Claude の判断）。
     /// 次の一手（<see cref="Discover.NextMovePolicy"/>）も、この数え方で足りない行動を決める。
     /// </summary>
     public static IReadOnlyList<Evidence> Counted(IEnumerable<Evidence> evidence)
     {
-        var all = evidence.ToList();
-        var shown = OnePerAction(all);
-        if (shown.Count == 0 || shown.Count != AbilityCatalog.ActionCount(shown[0].Ability))
+        // 行動ごとの候補。答えの番号が小さい順（同じなら渡された順）。同じ引用は含むかどうかが変わらないので、先の 1 つだけを試す
+        var candidates = evidence
+            .GroupBy(e => e.Action)
+            .OrderBy(g => g.Key)
+            .Select(g => g.OrderBy(e => e.Answer).DistinctBy(e => e.Quote).ToList())
+            .ToList();
+        var first = candidates.Select(c => c[0]).ToList();
+        if (first.Count == 0 || first.Count != AbilityCatalog.ActionCount(first[0].Ability))
         {
-            return shown;
+            return first;
         }
 
-        foreach (var container in shown)
+        if (FirstCombinationWithoutContainer(candidates) is { } counted)
         {
-            var others = shown.Where(e => e != container).ToList();
-            if (!others.All(o => Covers(container, o)))
+            return counted;
+        }
+
+        var container = Enumerable.Range(0, first.Count).First(i => CoversAllOthers(first, i));
+        return [.. first.Where((_, i) => i != container)];
+    }
+
+    /// <summary>
+    /// 行動ごとに候補から 1 つずつ選んだ組のうち、ほかの行動の引用をすべて含む引用がない最初の組。
+    /// 行動の番号の順に、答えの番号が小さい候補から試す（行動は 2〜3 つで候補も少ないので、組をすべて試してよい）。なければ null。
+    /// </summary>
+    private static List<Evidence>? FirstCombinationWithoutContainer(IReadOnlyList<IReadOnlyList<Evidence>> candidates)
+    {
+        var picked = new Evidence[candidates.Count];
+        return Pick(0) ? [.. picked] : null;
+
+        bool Pick(int action)
+        {
+            if (action == candidates.Count)
             {
-                continue;
+                return !Enumerable.Range(0, picked.Length).Any(i => CoversAllOthers(picked, i));
             }
 
-            var alternative = all
-                .Where(e => e.Action == container.Action && !others.All(o => Covers(e, o)))
-                .OrderBy(e => e.Answer)
-                .FirstOrDefault();
-            return alternative is null
-                ? others
-                : [.. shown.Select(e => e == container ? alternative : e)];
-        }
+            foreach (var candidate in candidates[action])
+            {
+                picked[action] = candidate;
+                if (Pick(action + 1))
+                {
+                    return true;
+                }
+            }
 
-        return shown;
+            return false;
+        }
     }
+
+    /// <summary>組の <paramref name="index"/> 番目の引用が、組のほかの引用をすべて含むか。同じ引用も含むものとして数える。</summary>
+    private static bool CoversAllOthers(IReadOnlyList<Evidence> combination, int index) =>
+        Enumerable.Range(0, combination.Count).Where(j => j != index).All(j => Covers(combination[index], combination[j]));
 
     private static bool Covers(Evidence outer, Evidence inner) => outer.Quote.Contains(inner.Quote, StringComparison.Ordinal);
 

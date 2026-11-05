@@ -218,6 +218,49 @@ public sealed class AbilityStatesTests
         Assert.Equal("要点を紙に三つ書き出しました", alternative.Shown[0].Quote);
     }
 
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 含む引用を同じ行動の別の引用に差し替えたら組を確かめ直し、どの組でもほかの行動の引用を含む引用が残るなら根拠ありにしない")]
+    public void ReplacedQuoteIsCheckedAgain()
+    {
+        // 2 の 1 つ目は 1 の引用を含む。2 の 2 つ目に差し替えると、今度は 1 の引用が 2 の引用を含む
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.Summarizing, 1, 1, answer: 1, quote: "子どもの話を聞いて要点を書き出した"),
+            E(TestAbilities.Summarizing, 2, 1, answer: 1, quote: "子どもの話を聞いて要点を書き出したら先生に伝えた"),
+            E(TestAbilities.Summarizing, 2, 1, answer: 2, quote: "要点を書き出した"),
+        ]), TestAbilities.Summarizing);
+
+        Assert.Equal(AbilityState.NeedsCheck, result.State);
+        Assert.Equal(["子どもの話を聞いて要点を書き出した"], result.Shown.Select(e => e.Quote));
+        Assert.Equal([2], result.Missing);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 同じ行動に別の引用がいくつかあれば、ほかの行動の引用をすべて含む引用が残らない組を選んで数える")]
+    public void PicksCombinationWithoutContainingQuote()
+    {
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.Summarizing, 1, 1, answer: 1, quote: "子どもの話を聞いて要点を書き出した"),
+            E(TestAbilities.Summarizing, 2, 1, answer: 1, quote: "子どもの話を聞いて要点を書き出したら先生に伝えた"),
+            E(TestAbilities.Summarizing, 2, 1, answer: 2, quote: "要点を書き出した"),
+            E(TestAbilities.Summarizing, 2, 1, answer: 3, quote: "明日までに書くのねと言い直して返しました"),
+        ]), TestAbilities.Summarizing);
+
+        Assert.Equal(AbilityState.Confirmed, result.State);
+        Assert.Equal(["子どもの話を聞いて要点を書き出した", "明日までに書くのねと言い直して返しました"], result.Shown.Select(e => e.Quote));
+
+        // 行動が 3 つの力でも同じ。1 の引用が、2 の 1 つ目と 3 をどちらも含むので、1 を残したまま、2 は 1 に含まれない引用にする
+        var three = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.BalancingInterests, 1, 1, answer: 1, quote: "夫と母の予定を聞いて、迎えの時間をずらしてもらいました"),
+            E(TestAbilities.BalancingInterests, 2, 1, answer: 1, quote: "夫と母の予定を聞いて"),
+            E(TestAbilities.BalancingInterests, 2, 1, answer: 2, quote: "私から母に電話しました"),
+            E(TestAbilities.BalancingInterests, 3, 1, answer: 1, quote: "迎えの時間をずらしてもらいました"),
+        ]), TestAbilities.BalancingInterests);
+
+        Assert.Equal(AbilityState.Confirmed, three.State);
+        Assert.Equal("私から母に電話しました", three.Shown[1].Quote);
+    }
+
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力で、同じ引用を 2 つの行動に当てても根拠ありにしない")]
     public void TwoActionAbilitySameQuoteDoesNotConfirm()
     {
