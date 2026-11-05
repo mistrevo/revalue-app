@@ -519,14 +519,14 @@ ask: prioritizing.3
 **Interfaces:**
 - Produces: `IGenericReader.ReadAsync(string transcript, string answer, IReadOnlyList<Ability> abilities, CancellationToken ct)`、`GenericReading`（渡した力だけを持つ）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `評価: 汎用の AI の答えを読む判定役には、台本に書いた力だけを、名前と核となる行動の文と一緒に渡す`
   - `評価: 汎用の AI の答えを読む判定役の答えに、渡した力が欠けているか重なっていれば、読めなかったと数える`
   - いまの `評価: 汎用の AI との比較は、…` のテストを、渡した力だけで数える形で通す
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`
-- [ ] **Step 3: 直す**
-- [ ] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
-- [ ] **Step 5: コミット**（「辞書の力に置き換える: 汎用の AI との比較を台本に書いた力で読み、評価との対応を書き直す（validate-1（すべてそろったときだけ根拠あり））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`
+- [x] **Step 3: 直す**
+- [x] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
+- [x] **Step 5: コミット**（「辞書の力に置き換える: 汎用の AI との比較を台本に書いた力で読み、評価との対応を書き直す（validate-1（すべてそろったときだけ根拠あり））」）
 
 ## まとまり E: 根拠ありになる台本（21 本）
 

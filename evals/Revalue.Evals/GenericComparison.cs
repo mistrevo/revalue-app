@@ -13,7 +13,7 @@ namespace Revalue.Evals;
 /// <param name="Quotes">その力の根拠として、本人の言葉だとして引いた言葉。</param>
 public sealed record GenericAbility(Ability Ability, bool Named, IReadOnlyList<string> Quotes);
 
-/// <summary>汎用の AI の答えを読んだ結果。話から確かめる力を辞書の順で持つ。評価が数えるのは、台本に書いた力だけ（<see cref="EpisodeScript.Listed"/>）。</summary>
+/// <summary>汎用の AI の答えを読んだ結果。判定役に渡した力（台本に書いた力、<see cref="EpisodeScript.Listed"/>）だけを、辞書の順に 1 つずつ持つ。</summary>
 public sealed record GenericReading(IReadOnlyList<GenericAbility> Abilities, string Reason);
 
 /// <summary>
@@ -29,15 +29,16 @@ public interface IGenericAssistant
     Task<string?> AnswerAsync(string prompt, CancellationToken ct);
 }
 
-/// <summary>汎用の AI の答えを読み、話から確かめる力ごとに「強みとして挙げたか」と「根拠として引いた言葉」を返す判定役。答えられなければ null。</summary>
+/// <summary>汎用の AI の答えを読み、渡した力ごとに「強みとして挙げたか」と「根拠として引いた言葉」を返す判定役。答えられなければ null。</summary>
 public interface IGenericReader
 {
-    Task<GenericReading?> ReadAsync(string transcript, string answer, CancellationToken ct);
+    /// <param name="abilities">読む力。台本に書いた力を辞書の順で渡す。</param>
+    Task<GenericReading?> ReadAsync(string transcript, string answer, IReadOnlyList<Ability> abilities, CancellationToken ct);
 }
 
 /// <summary>
 /// 汎用の AI との比較（03-validate.md の「評価との対応」、6-quality.md の「確かめ方」）。
-/// 製品と同じやりとりを、特別な指示のない汎用の AI に渡して強みと根拠を書いてもらい、判定役が読み取る。
+/// 製品と同じやりとりを、特別な指示のない汎用の AI に渡して強みと根拠を書いてもらい、判定役が台本に書いた力だけを読み取る。
 /// 引用が本人の答えに一字一句含まれるかはコードが数える。合格の線は持たせず、比べる数字として結果に残す。
 /// </summary>
 public sealed class GenericComparison(IGenericAssistant assistant, IGenericReader reader)
@@ -54,7 +55,7 @@ public sealed class GenericComparison(IGenericAssistant assistant, IGenericReade
             return new GenericResult(null, null, "汎用の AI が答えなかった");
         }
 
-        var reading = await reader.ReadAsync(transcript, answer, ct);
+        var reading = await reader.ReadAsync(transcript, answer, [.. run.Script.Listed.Order()], ct);
         return reading is null
             ? new GenericResult(answer, null, "判定役が答えを読めなかった")
             : new GenericResult(answer, reading, null);
@@ -95,8 +96,8 @@ public sealed class DryRunGenericAssistant : IGenericAssistant
 /// <summary>dry-run 用の判定役。いつも「どの力も挙げていない」と答える。Claude を呼ばない。</summary>
 public sealed class DryRunGenericReader : IGenericReader
 {
-    public Task<GenericReading?> ReadAsync(string transcript, string answer, CancellationToken ct) =>
-        Task.FromResult<GenericReading?>(new GenericReading(AbilityCatalog.Active.Select(a => new GenericAbility(a, false, [])).ToList(), ""));
+    public Task<GenericReading?> ReadAsync(string transcript, string answer, IReadOnlyList<Ability> abilities, CancellationToken ct) =>
+        Task.FromResult<GenericReading?>(new GenericReading(abilities.Select(a => new GenericAbility(a, false, [])).ToList(), ""));
 }
 
 /// <summary>Claude を、特別な指示もシステムプロンプトもなしに呼ぶ（effort は既定）。</summary>
@@ -137,17 +138,22 @@ public sealed class ClaudeGenericAssistant(AnthropicClient client, string model,
     };
 }
 
-/// <summary>汎用の AI の答えを読む Claude の判定役（evals/judges/generic.md）。構造化出力（effort high）。</summary>
+/// <summary>
+/// 汎用の AI の答えを読む Claude の判定役（evals/judges/generic.md）。構造化出力（effort high）。
+/// 読む力（名前と核となる行動の文）は、キャッシュの効くシステムの指示ではなく、会話と一緒に渡す。
+/// 答えの型は、挙げた力だけの配列（<c>{ "named": [{ "ability", "quotes" }], "reason" }</c>）にする。力ごとの欄を並べると、
+/// 力の数が多いときに API が型を受け付けないため。配列にない力は、挙げていないものとして読む。
+/// </summary>
 public sealed class ClaudeGenericReader(AnthropicClient client, string model, string prompt, IAiUsageMeter meter) : IGenericReader
 {
     private const int MaxTokens = 16000;
 
-    public async Task<GenericReading?> ReadAsync(string transcript, string answer, CancellationToken ct)
+    public async Task<GenericReading?> ReadAsync(string transcript, string answer, IReadOnlyList<Ability> abilities, CancellationToken ct)
     {
         BetaMessage response;
         try
         {
-            response = await client.Beta.Messages.Create(BuildParams(model, prompt, transcript, answer), ct);
+            response = await client.Beta.Messages.Create(BuildParams(model, prompt, transcript, answer, abilities), ct);
         }
         catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -164,23 +170,34 @@ public sealed class ClaudeGenericReader(AnthropicClient client, string model, st
             return null;
         }
 
-        return Parse(string.Concat(response.Content.Select(b => b.TryPickText(out var t) ? t.Text : "")));
+        return Parse(string.Concat(response.Content.Select(b => b.TryPickText(out var t) ? t.Text : "")), abilities);
     }
 
-    /// <summary>判定役の JSON を読む。形が違えば null。</summary>
-    internal static GenericReading? Parse(string json)
+    /// <summary>
+    /// 判定役の JSON を読む。渡した力ごとに、配列にあれば挙げた、なければ挙げていないとする。
+    /// 形が違う、渡していない力がある、同じ力が 2 回ある、のどれかなら null（読めなかったと数える）。
+    /// </summary>
+    internal static GenericReading? Parse(string json, IReadOnlyList<Ability> abilities)
     {
         try
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            var abilities = AbilityCatalog.Active.Select(a =>
+            var named = new Dictionary<Ability, IReadOnlyList<string>>();
+            foreach (var item in root.GetProperty("named").EnumerateArray())
             {
-                var item = root.GetProperty(ActionRef.Key(a));
+                var ability = new Ability(item.GetProperty("ability").GetString() ?? "");
                 var quotes = item.GetProperty("quotes").EnumerateArray().Select(q => q.GetString() ?? "").ToList();
-                return new GenericAbility(a, item.GetProperty("named").GetBoolean(), quotes);
-            }).ToList();
-            return new GenericReading(abilities, root.GetProperty("reason").GetString() ?? "");
+                if (!abilities.Contains(ability) || !named.TryAdd(ability, quotes))
+                {
+                    Console.Error.WriteLine("汎用の AI の答えを読む判定役の答えに、渡していない力か、同じ力の重なりがありました");
+                    return null;
+                }
+            }
+
+            return new GenericReading(
+                abilities.Select(a => named.TryGetValue(a, out var quotes) ? new GenericAbility(a, true, quotes) : new GenericAbility(a, false, [])).ToList(),
+                root.GetProperty("reason").GetString() ?? "");
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)
         {
@@ -189,43 +206,59 @@ public sealed class ClaudeGenericReader(AnthropicClient client, string model, st
         }
     }
 
-    internal static MessageCreateParams BuildParams(string model, string prompt, string transcript, string answer) => new()
+    /// <summary>判定役への文。会話、汎用の AI の答え、読む力（id、名前、核となる行動の文）。</summary>
+    internal static string UserMessage(string transcript, string answer, IReadOnlyList<Ability> abilities)
+    {
+        var sb = new StringBuilder();
+        sb.Append("<conversation>\n").Append(transcript).Append("\n</conversation>\n");
+        sb.Append("<answer>\n").Append(answer).Append("\n</answer>\n");
+        sb.Append("<abilities>\n");
+        foreach (var ability in abilities)
+        {
+            var actions = Enumerable.Range(1, AbilityCatalog.ActionCount(ability)).Select(n => AbilityCatalog.ActionText(new ActionRef(ability, n)));
+            sb.Append($"- `{ability.Id}`（{AbilityText.Name(ability)}）: 核となる行動は「{string.Join("」「", actions)}」\n");
+        }
+
+        return sb.Append("</abilities>").ToString();
+    }
+
+    internal static MessageCreateParams BuildParams(string model, string prompt, string transcript, string answer, IReadOnlyList<Ability> abilities) => new()
     {
         Model = model,
         MaxTokens = MaxTokens,
         System = new List<BetaTextBlockParam> { new() { Text = prompt, CacheControl = new BetaCacheControlEphemeral() } },
-        Messages = new List<BetaMessageParam>
-        {
-            new BetaUserMessageParam { Content = $"<conversation>\n{transcript}\n</conversation>\n<answer>\n{answer}\n</answer>" },
-        },
+        Messages = new List<BetaMessageParam> { new BetaUserMessageParam { Content = UserMessage(transcript, answer, abilities) } },
         OutputConfig = new BetaOutputConfig
         {
             Effort = Effort.High,
-            Format = new BetaJsonOutputFormat { Schema = Schema() },
+            Format = new BetaJsonOutputFormat { Schema = Schema(abilities) },
         },
     };
 
-    private static Dictionary<string, JsonElement> Schema()
+    /// <summary>答えの型。挙げた力の配列で、力は渡した力の id の enum から選ぶ。力ごとの欄は持たない。</summary>
+    internal static Dictionary<string, JsonElement> Schema(IReadOnlyList<Ability> abilities)
     {
-        var ability = new
+        var item = new
         {
             type = "object",
             properties = new Dictionary<string, object>
             {
-                ["named"] = new { type = "boolean" },
+                ["ability"] = new { type = "string", @enum = abilities.Select(ActionRef.Key).ToArray() },
                 ["quotes"] = new { type = "array", items = new { type = "string" } },
             },
-            required = new[] { "named", "quotes" },
+            required = new[] { "ability", "quotes" },
             additionalProperties = false,
         };
-        var names = AbilityCatalog.Active.Select(ActionRef.Key).ToArray();
-        var properties = names.ToDictionary(n => n, _ => (object)ability);
-        properties["reason"] = new { type = "string" };
+        var properties = new Dictionary<string, object>
+        {
+            ["named"] = new { type = "array", items = item },
+            ["reason"] = new { type = "string" },
+        };
         return new Dictionary<string, JsonElement>
         {
             ["type"] = JsonSerializer.SerializeToElement("object"),
             ["properties"] = JsonSerializer.SerializeToElement(properties),
-            ["required"] = JsonSerializer.SerializeToElement(names.Append("reason").ToArray()),
+            ["required"] = JsonSerializer.SerializeToElement(new[] { "named", "reason" }),
             ["additionalProperties"] = JsonSerializer.SerializeToElement(false),
         };
     }

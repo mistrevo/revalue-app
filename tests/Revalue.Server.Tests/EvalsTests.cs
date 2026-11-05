@@ -952,6 +952,8 @@ public sealed class EvalsTests
         Assert.Contains(CoordinatingAnswer, assistant.Prompt);
         Assert.Contains(CoordinatingAnswer, reader.Transcript);
         Assert.Equal(assistant.Answer, reader.Answer);
+        // 答えを読む判定役には、台本に書いた力だけを辞書の順で渡す
+        Assert.Equal(script.Listed.Order(), reader.Abilities);
 
         var praise = Assert.Single(summary.Reference, i => i.Name.Contains("汎用の AI") && i.Name.Contains("褒めすぎ"));
         Assert.Equal((2, 2), (praise.Count, praise.Total));
@@ -986,12 +988,91 @@ public sealed class EvalsTests
 
         public string Answer { get; private set; } = "";
 
-        public Task<GenericReading?> ReadAsync(string transcript, string answer, CancellationToken ct)
+        public IReadOnlyList<Ability> Abilities { get; private set; } = [];
+
+        public Task<GenericReading?> ReadAsync(string transcript, string answer, IReadOnlyList<Ability> abilities, CancellationToken ct)
         {
             Transcript = transcript;
             Answer = answer;
+            Abilities = abilities;
             return Task.FromResult<GenericReading?>(reading);
         }
+    }
+
+    [Fact(DisplayName = "評価: 汎用の AI の答えを読む判定役には、台本に書いた力だけを、名前と核となる行動の文と一緒に渡す")]
+    public void GenericReaderReceivesListedAbilities()
+    {
+        IReadOnlyList<Ability> listed = [TestAbilities.BalancingInterests, TestAbilities.Summarizing];
+
+        var message = ClaudeGenericReader.UserMessage("利用者: 昨日のこと", "強みは調整力です。", listed);
+
+        Assert.Contains("<conversation>\n利用者: 昨日のこと\n</conversation>", message);
+        Assert.Contains("<answer>\n強みは調整力です。\n</answer>", message);
+        foreach (var ability in listed)
+        {
+            Assert.Contains($"`{ability.Id}`（{AbilityText.Name(ability)}）", message);
+            for (var n = 1; n <= AbilityCatalog.ActionCount(ability); n++)
+            {
+                Assert.Contains(AbilityCatalog.ActionText(new ActionRef(ability, n)), message);
+            }
+        }
+
+        Assert.DoesNotContain(AbilityText.Name(TestAbilities.SettingPriorities), message);
+        Assert.DoesNotContain(TestAbilities.SettingPriorities.Id, message);
+
+        // 判定役の指示（キャッシュの効くシステムの指示）には、力を決め打ちしない
+        var prompt = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "judges", "generic.md"));
+        Assert.All(AbilityCatalog.Active, a => Assert.DoesNotContain(a.Id, prompt));
+        Assert.Contains("`<abilities>`", prompt);
+        Assert.All(["named", "ability", "quotes", "reason"], field => Assert.Contains($"`{field}`", prompt));
+    }
+
+    [Fact(DisplayName = "評価: 汎用の AI の答えを読む判定役の答えの型は、挙げた力の配列で、力の数で欄が増えない")]
+    public void GenericReaderSchemaDoesNotGrowWithAbilities()
+    {
+        var one = ClaudeGenericReader.Schema([TestAbilities.BalancingInterests]);
+        var all = ClaudeGenericReader.Schema(AbilityCatalog.Active);
+
+        Assert.Equal(["named", "reason"], all["properties"].EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(["named", "reason"], one["properties"].EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        var item = all["properties"].GetProperty("named").GetProperty("items");
+        Assert.Equal(["ability", "quotes"], item.GetProperty("properties").EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        // 力は、渡した力の id の enum で選ぶ
+        Assert.Equal(
+            AbilityCatalog.Active.Select(a => a.Id),
+            item.GetProperty("properties").GetProperty("ability").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal(
+            [TestAbilities.BalancingInterests.Id],
+            one["properties"].GetProperty("named").GetProperty("items").GetProperty("properties").GetProperty("ability").GetProperty("enum")
+                .EnumerateArray().Select(e => e.GetString()));
+    }
+
+    [Fact(DisplayName = "評価: 汎用の AI の答えを読む判定役の答えで、渡していない力と同じ力の重なりは読めなかったと数え、配列にない力は挙げていないものとして読む")]
+    public async Task GenericReaderAnswerIsChecked()
+    {
+        IReadOnlyList<Ability> listed = [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges];
+
+        var reading = ClaudeGenericReader.Parse(
+            """{"named":[{"ability":"balancing-interests","quotes":["都合を聞いて"]}],"reason":"r"}""", listed);
+        Assert.NotNull(reading);
+        Assert.Equal(listed, reading.Abilities.Select(a => a.Ability));
+        Assert.True(reading.Abilities[0].Named);
+        Assert.Equal(["都合を聞いて"], reading.Abilities[0].Quotes);
+        Assert.False(reading.Abilities[1].Named);
+        Assert.Empty(reading.Abilities[1].Quotes);
+        Assert.Equal("r", reading.Reason);
+
+        Assert.Null(ClaudeGenericReader.Parse(
+            """{"named":[{"ability":"balancing-interests","quotes":[]},{"ability":"balancing-interests","quotes":[]}],"reason":""}""", listed));
+        Assert.Null(ClaudeGenericReader.Parse("""{"named":[{"ability":"setting-priorities","quotes":[]}],"reason":""}""", listed));
+
+        // 読めなかった答えは、汎用の AI との比較で「答えを得られなかった例」に数える
+        var script = ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
+        var run = await Run(new FakeConversationAi(), script);
+        var generic = await new GenericComparison(new FakeGenericAssistant("強みは調整力です。"), new FakeGenericReader(null!)).RunAsync(run, Ct);
+        Assert.Equal("判定役が答えを読めなかった", generic.Error);
+        var unavailable = Assert.Single(EvalSummary.From([run with { Generic = generic }]).Reference, i => i.Name.Contains("答えを得られなかった"));
+        Assert.Equal((1, 1), (unavailable.Count, unavailable.Total));
     }
 
     [Fact(DisplayName = "評価: リポジトリの確かめの例 12 件が読め、どれも狙った力か根拠ありにしてはいけない力を持ち、すべて架空と書いてある")]
