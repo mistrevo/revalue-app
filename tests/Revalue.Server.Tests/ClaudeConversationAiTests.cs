@@ -561,6 +561,21 @@ public sealed class ClaudeConversationAiTests
         Assert.DoesNotContain("サイト", line);
     }
 
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、気づく、思い浮かべる、つかむ、受け取るのような心の中の行動を、その中身を本人が話しているときだけ根拠にし、外から見える行動から推し量らないと書いている")]
+    public void ReaderDoesNotInferInnerActions()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.Contains("心の中", StringComparison.Ordinal));
+
+        Assert.All(new[] { "気づく", "思い浮かべる", "つかむ", "受け取る" }, verb => Assert.Contains(verb, line));
+        Assert.Contains("本人が話しているときだけ根拠にする", line);
+        Assert.Contains("推し量らない", line);
+        // 台本（e08）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("夕ごはん", line);
+        Assert.DoesNotContain("けんか", line);
+    }
+
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示に、力の数と、力の名前と行動の番号の決め打ちがない")]
     public void ReaderHasNoHardcodedAbilities()
     {
