@@ -606,9 +606,9 @@ ask: prioritizing.3
 | e49-resilience-partial | 回復力 = needsCheck | resilience.3 | 手作りの準備が途中で止まり、状況を整理し直したところまでで、また動き出したことは話さない |
 
 - 足りない行動は、あとの答えでも話さない（聞き返したかを見るため）。狙った力の行動が、その出来事でいちばん多くそろうようにし、ほかの力の行動を重ねない
-- [ ] **Step 1: 8 本を書く**
-- [ ] **Step 2: 確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
-- [ ] **Step 3: コミット**（「辞書の力に置き換える: 分類ごとに一部だけそろう台本を足す（validate-2（足りない行動だけ聞き返す））」）
+- [x] **Step 1: 7 本を書く**（仮説思考力は準備中のため e45 は書かず、番号を空けた）
+- [x] **Step 2: 確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
+- [x] **Step 3: コミット**（「辞書の力に置き換える: 分類ごとに一部だけそろう台本を足す（validate-2（足りない行動だけ聞き返す））」）
 
 ### Task 15: 似た力が並ぶ台本と、台本のそろい方のテスト
 
@@ -617,16 +617,16 @@ ask: prioritizing.3
 - Modify: `tests/Revalue.Server.Tests/EvalsTests.cs`
 - Modify: `docs/specs/03-validate.md`（「評価との対応」に e21〜e50 の数が合っているか見直す）
 
-- [ ] **Step 1: 失敗するテストを書く**（`EvalsTests.cs`。リポジトリの台本を読む）
+- [x] **Step 1: 失敗するテストを書く**（`EvalsTests.cs`。リポジトリの台本を読む）
   - `validate-1（すべてそろったときだけ根拠あり）: 話から確かめる 24 の力それぞれに、根拠ありになる台本が 1 本以上ある` — 話から確かめる力は辞書から読む（力の id をテストに決め打ちしない）
   - `validate-2（足りない行動だけ聞き返す）: 話から確かめる力のある分類それぞれに、一部だけそろう台本（ask あり）が 1 本以上ある`
   - `validate-7（見えた力と、もう少し聞きたいことを示す）: 同じ分類の 2 つの力が根拠ありになる台本が 1 本以上ある`
   - `評価: リポジトリの確かめの例がすべて読め、すべて架空と書いてあり、ask の行動は states で needsCheck の力のもの`
   - `評価: 台本の答えに、狙った力の核となる行動の文と手がかりを、そのまま写していない`
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`（e50 がないので、似た力のテストが FAIL）
-- [ ] **Step 3: e50 を書く**
-- [ ] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
-- [ ] **Step 5: コミット**（「辞書の力に置き換える: 似た力が並ぶ台本を足し、台本のそろい方をテストで確かめる（validate-7（見えた力と、もう少し聞きたいことを示す））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`（e50 がないので、似た力のテストが FAIL）
+- [x] **Step 3: e50 を書く**
+- [x] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
+- [x] **Step 5: コミット**（「辞書の力に置き換える: 似た力が並ぶ台本を足し、台本のそろい方をテストで確かめる（validate-7（見えた力と、もう少し聞きたいことを示す））」）
 
 ## Workflow 2 回目の確認コマンド
 
