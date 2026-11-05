@@ -50,7 +50,9 @@ public static class DiscoverEndpoints
     /// いちばん新しく話し終えたものが、つらい状態のサインで力の確かめに使わない場面なら、気持ちを聞かない問い。
     /// ほかに答えた場面があれば「また」と添えた問い。なければ初めての問い。
     /// 「いちばん新しい」は、話し終えた時刻（続きを話した場面も、話し終えた時刻で並ぶ）で見る。
-    /// ホームの次にできること（NextStep.LastEndedWithDistress）と同じ並べ方にするため（Claude の判断）。
+    /// 並べ方はホームの次にできること（NextStep.LastEndedWithDistress）と同じだが、見分ける条件は違う。
+    /// ホームは最後のターンがサインへの応えかで見るのに対し、ここは力の確かめに使わない印で見る。
+    /// サインのあと「続けて話す」を選んでふつうに締めた場面も、重い日に話を戻さない側に入れるため（Claude の判断）。
     /// </summary>
     public static (string Question, IReadOnlyList<string> Choices) ChooseOpening(IEnumerable<EpisodeItem> episodes)
     {
@@ -66,6 +68,18 @@ public static class DiscoverEndpoints
             _ => (DiscoverText.OpeningAnotherDay, DiscoverText.OpeningChoices),
         };
     }
+
+    /// <summary>
+    /// 飛ばしたあとの新しい場面の問いと選択肢を、組で選ぶ（discover-5）。ふだんは、飛ばしたあとの問い（<see cref="DiscoverText.AfterSkip"/>）。
+    /// 飛ばした場面につらい状態のサインが出ていたら（力の確かめに使わない印。サインのあとの「この話は残さずに、別の話にする」もここを通る）、
+    /// つらい状態のサインのあとの入口と同じ問いと選択肢にする。サインには家庭内の暴力や暴言も入るので、打ち明けた直後に、
+    /// 家族や家の中の場面（「家族とゆっくり過ごした」、ごはんの前後）を出さないため（Claude の判断）。
+    /// 続きを話している場面を飛ばしたときも、戻す前の場面の印で見る（続きの中でサインが出ていれば入る）。
+    /// </summary>
+    public static (string Question, IReadOnlyList<string> Choices) ChooseAfterSkip(EpisodeItem skipped) =>
+        skipped.ExcludedFromValidation
+            ? (DiscoverText.OpeningAfterDistress, DiscoverText.OpeningAfterDistressChoices)
+            : (DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices);
 
     public static void Map(RouteGroupBuilder api)
     {
@@ -211,8 +225,9 @@ public static class DiscoverEndpoints
             await ReportScrub.TryAfterSkipAsync(store, userKey, skipped!, time, loggers.CreateLogger(typeof(ReportScrub)), ct);
 
             // 消したあと、ほかの画面で新しい場面が始まっていたら、2 つ目は作らずに 409 でその場面を知らせる
+            var (question, choices) = ChooseAfterSkip(skipped!);
             var outcome = await EpisodeStarter.StartAsync(
-                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices, "afterSkip"), ct);
+                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), question, choices, "afterSkip"), ct);
             return Started(outcome);
         });
     }

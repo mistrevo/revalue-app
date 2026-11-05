@@ -273,6 +273,66 @@ public sealed class TalkStreamTests
         Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("notice").ValueKind);
     }
 
+    /// <summary>飛ばしたあとの新しい場面の最初のターン。</summary>
+    private static async Task<JsonElement> SkipAndReadFirstTurn(HttpClient client, string episodeId)
+    {
+        var skip = await client.PostAsync($"/api/episodes/{episodeId}/skip", null, Ct);
+        Assert.Equal(HttpStatusCode.Created, skip.StatusCode);
+        return (await skip.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("turns")[0];
+    }
+
+    /// <summary>つらい状態のサインのあとの入口と同じ問いと選択肢で、家族や家を前提にしていないこと。</summary>
+    private static void AssertDistressSafeOpening(JsonElement first)
+    {
+        var text = first.GetProperty("text").GetString()!;
+        var choices = first.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray();
+        Assert.Equal(DiscoverText.OpeningAfterDistress, text);
+        Assert.Equal(DiscoverText.OpeningAfterDistressChoices, choices);
+        Assert.Equal("afterSkip", first.GetProperty("move").GetString());
+        foreach (var word in new[] { "家族", "家", "夫", "子ども", "ごはん" })
+        {
+            Assert.All([text, .. choices], t => Assert.DoesNotContain(word, t, StringComparison.Ordinal));
+        }
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: つらい状態のサインのあとに「この話は残さずに、別の話にする」を選ぶと、つらい状態のサインのあとの入口と同じ、家族や家を前提にしない問いで始まる")]
+    public async Task SkipRightAfterDistressStartsWithoutFamilyOrHome()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress });
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        await SendAndRead(client, id, "架空の答え。家で大きな声で責められることが続いていて、つらいです。");
+
+        // サインのあとの続け方「この話は残さずに、別の話にする」は、「この話は飛ばす」と同じ API を呼ぶ。
+        // サインには家庭内の暴力や暴言も入るので、打ち明けた直後に「家族とゆっくり過ごした」や、ごはんの前後の場面を出さない
+        var first = await SkipAndReadFirstTurn(client, id);
+
+        AssertDistressSafeOpening(first);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/episodes/{id}", Ct)).StatusCode);
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: つらい状態のサインのあと「続けて話す」で話を続けてから飛ばしても、家族や家を前提にしない問いで始まる")]
+    public async Task SkipAfterContinuingFromDistressStartsWithoutFamilyOrHome()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        ai.Reading = turns => turns[^1].Text.Contains("つらい", StringComparison.Ordinal)
+            ? new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress })
+            : new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent });
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        await SendAndRead(client, id, "架空の答え。家で大きな声で責められることが続いていて、つらいです。");
+        await SendAndRead(client, id, "架空の答え。昨日は午後から図書館に行きました。");
+
+        // 続けて話したので、最後の返事はサインへの応えではない（窓口の知らせは外れている）。それでも場面には印が残っている
+        Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("notice").ValueKind);
+        var first = await SkipAndReadFirstTurn(client, id);
+
+        AssertDistressSafeOpening(first);
+    }
+
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 読み取りに失敗したときも、窓口を添える")]
     public async Task ReadFailureAddsSupportNotice()
     {

@@ -37,6 +37,7 @@ public static class DiscoverText
     /// いちばん新しい話し終えた場面が、つらい状態のサインで力の確かめに使わない場面だった人の、新しい場面の最初の問い（discover-1）。
     /// 気持ちが動いた日は聞かず、ふだんの一日を聞く。重い日に話を戻さないため（PRD の 4-rules.md の「別の日の入口」）。
     /// 前の話にふれず、問いの前に、特別な日でなくてよいと伝える。
+    /// つらい状態のサインが出た場面を飛ばしたあとも、<see cref="AfterSkip"/> ではなくこれを使う（discover-5。DiscoverEndpoints.ChooseAfterSkip）。
     /// </summary>
     public const string OpeningAfterDistress =
         "また、最近のある一日のことを、聞かせてください。特別な日でなくてかまいません。その日の朝起きてから夜までに、どんなことがありましたか？";
@@ -57,6 +58,8 @@ public static class DiscoverText
     /// <summary>
     /// 「この話は飛ばす」のあとの問い。最初の問いとは違う、負担の軽い具体的な場面を尋ねる（discover-5）。
     /// 飛ばした理由が負担の重い日だったかもしれないので、重い日へ話を戻さない。
+    /// 飛ばした場面につらい状態のサインが出ていたら、これではなく <see cref="OpeningAfterDistress"/> を使う。
+    /// 夕方のごはんの前後と、選択肢の「家族とゆっくり過ごした」は家族や家の中を思わせるため（DiscoverEndpoints.ChooseAfterSkip）。
     /// </summary>
     public const string AfterSkip =
         "では、別の日のことにしましょう。最近のある日の夕方、ごはんの前後は、どんなふうに過ごしましたか？";

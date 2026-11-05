@@ -214,3 +214,11 @@ git commit -m "優先順位をつける力の 3 つ目を、推し量りで根�
 - discover の台本 `evals/episodes/e20-unexpected-day.md`（最初の問いで「思うようにいかなかった日」を選び、そのあと出来事を書く）を足し、判定役に `noFailureProbe`（うまくいかなかったわけを問い詰めていない）を足した。合格の線は持たせず、参考の数字として残す（Claude の判断）
 
 本物の AI での評価（確認コマンド 4 と 5、Task 3 の Step 2 と Step 5）は、鍵がなく、まだ回せていない。開発者の環境で回し、e19 と e20 の会話記録を読む。
+
+### 2 回目の直し（2026-11-05）
+
+確認とレビューで出た指摘（確認の失敗 1 件、should 5 件）を、次のように扱った。
+
+- つらい状態のサインが出た場面を飛ばしたあとの問い: サインのあとの続け方「この話は残さずに、別の話にする」は飛ばす API を通るので、打ち明けた直後に `AfterSkip`（夕方のごはんの前後）と「家族とゆっくり過ごした」が出ていた。飛ばした場面に力の確かめに使わない印があれば、`OpeningAfterDistress` と `OpeningAfterDistressChoices` で始めるようにした（`DiscoverEndpoints.ChooseAfterSkip`。続きを話している場面は、戻す前の印で見る）。Global Constraints のとおり `AfterSkip` と `AfterSkipChoices` の言葉は変えていない。サインのない場面を飛ばしたときは、これまでどおり `AfterSkip`（Claude の判断）
+- `ChooseOpening` のコメントと `docs/specs/02-discover.md` に、つらい状態のサインの場面を印で見分けること（PRD の「サインに応えたところで終わっている」より広い）と、その理由を書いた（Claude の判断）
+- 本物の AI での評価と、e19 の見立てる力の期待（notYet）がぶれないかは、鍵がなく確かめられないので、開発者の環境で確かめる

@@ -92,7 +92,8 @@ public sealed class DiscoverTextTests
     [InlineData("子ども")]
     public void AfterDistressDoesNotAssumeFamilyOrHome(string word)
     {
-        // つらい状態のサインには家庭内の暴力や暴言も入る。打ち明けたあとの入口で「家族と」「家で」と出すと、重い場面へ戻すきっかけになりうる
+        // つらい状態のサインには家庭内の暴力や暴言も入る。打ち明けたあとの入口で「家族と」「家で」と出すと、重い場面へ戻すきっかけになりうる。
+        // サインが出た場面を飛ばしたあとも、同じ問いと選択肢で始める（TalkStreamTests の discover-5（つらい話は飛ばせる））
         IEnumerable<string> texts = [DiscoverText.OpeningAfterDistress, .. DiscoverText.OpeningAfterDistressChoices];
         Assert.All(texts, text => Assert.DoesNotContain(word, text, StringComparison.Ordinal));
     }

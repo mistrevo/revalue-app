@@ -577,7 +577,7 @@ public sealed class ResumeTests
                 h.GetProperty("key").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString(), h.GetProperty("reason").GetString())));
     }
 
-    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 続きでつらい状態のサインが出た場面を飛ばすと、続きは残さず、力の確かめに使わない印は残す")]
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 続きでつらい状態のサインが出た場面を飛ばすと、続きは残さず、力の確かめに使わない印は残し、つらい状態のサインのあとの入口と同じ問いで始める")]
     public async Task SkipAfterResumeWithDistressKeepsMark()
     {
         var (factory, ai) = Create();
@@ -590,7 +590,13 @@ public sealed class ResumeTests
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
         await Send(client, id, "最近ずっと眠れなくて、つらいです");
 
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+        var skip = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
+        Assert.Equal(HttpStatusCode.Created, skip.StatusCode);
+
+        // 続きの中でサインが出た場面を飛ばしたあとも、つらい状態のサインのあとの入口と同じ問いで始める（discover-5（つらい話は飛ばせる））
+        var next = (await Json(skip)).GetProperty("turns")[0];
+        Assert.Equal(DiscoverText.OpeningAfterDistress, next.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.OpeningAfterDistressChoices, next.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
 
         var after = await Saved(factory, "g-1", id);
         Assert.Equal(EpisodeStatus.Finished, after.Status);
