@@ -44,3 +44,6 @@ Thumbs.db
 
 # 画面を作った結果（裏側が配る。コミットしない）
 src/Revalue.Server/wwwroot/
+
+#tmp
+.tmp/
