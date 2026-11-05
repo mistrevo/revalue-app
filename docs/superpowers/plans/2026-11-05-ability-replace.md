@@ -413,13 +413,13 @@ ask: prioritizing.3
 **Interfaces:**
 - Produces: `DiscoverText.OpeningChoices`（新しい 3 つ。この順）。`Opening`、`OpeningAnotherDay`、`OpeningAfterDistress`、`OpeningAfterDistressChoices`、`AfterSkip`、`AfterSkipChoices` は変えない
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `DiscoverTextTests`: いまの 61 行目のテストを `discover-1（具体的な一日を一つ聞く）: 最初の問いは、気持ちが動いた日を聞き、選択肢は「うれしかった日」「困ったことがあった日」「思いどおりにいかなかった日」` に直す。つらい状態のサインのあとの問いと選択肢に、新しい 3 つの言葉が入らないことも確かめる
   - `EvalsTests`: `discover-3（選んでも書いてもよい）: リポジトリの e20 は、最初の問いで「思いどおりにいかなかった日」を選び、そのあと出来事を書く`
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~DiscoverTextTests|FullyQualifiedName~EvalsTests|FullyQualifiedName~EpisodeTests"`
-- [ ] **Step 3: 言葉と文書を直す** — `git grep -n "思うようにいかなかった日\|うまくいったと感じた日\|大変だったけど、乗り切った日" -- src tests evals docs/prd docs/specs ':!evals/results'` が 0 件
-- [ ] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit discover --dry-run`
-- [ ] **Step 5: コミット**（「最初の問いの選択肢を、協力者の入口の言葉に寄せる（discover-1（具体的な一日を一つ聞く））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~DiscoverTextTests|FullyQualifiedName~EvalsTests|FullyQualifiedName~EpisodeTests"`
+- [x] **Step 3: 言葉と文書を直す** — `git grep -n "思うようにいかなかった日\|うまくいったと感じた日\|大変だったけど、乗り切った日" -- src tests evals docs/prd docs/specs ':!evals/results'` が 0 件
+- [x] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit discover --dry-run`
+- [x] **Step 5: コミット**（「最初の問いの選択肢を、協力者の入口の言葉に寄せる（discover-1（具体的な一日を一つ聞く））」）
 
 ### Task 9: Spec、PRD、README を 24 の力に合わせる
 

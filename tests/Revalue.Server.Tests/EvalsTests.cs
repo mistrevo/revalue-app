@@ -90,14 +90,14 @@ public sealed class EvalsTests
         Assert.All(scripts, s => Assert.InRange(s.Answers.Count, 1, NextMovePolicy.MaxUserTurns));
     }
 
-    [Fact(DisplayName = "discover-3（選んでも書いてもよい）: リポジトリの e20 は、最初の問いで「思うようにいかなかった日」を選び、そのあと出来事を書く")]
+    [Fact(DisplayName = "discover-3（選んでも書いてもよい）: リポジトリの e20 は、最初の問いで「思いどおりにいかなかった日」を選び、そのあと出来事を書く")]
     public void RepositoryEpisodeChoosesUnexpectedDay()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
         var script = Assert.Single(EpisodeScript.LoadAll(dir, "discover"), s => s.Id == "e20");
 
         // 最初の問いの選択肢を、言葉で指して選ぶ（validate-5（選んだだけでは根拠にしない）の入口）
-        Assert.Equal(new ScriptedAnswer("思うようにいかなかった日", true), script.Answers[0]);
+        Assert.Equal(new ScriptedAnswer("思いどおりにいかなかった日", true), script.Answers[0]);
         Assert.Contains(script.Answers[0].Text, DiscoverText.OpeningChoices);
         Assert.All(script.Answers.Skip(1), a => Assert.False(a.IsChoice));
         // 選んだ人だけでなく、うまくいかなかったと書いた人にも、わけを問い詰めないかを見る
@@ -240,7 +240,7 @@ public sealed class EvalsTests
     {
         var probing = new FixedJudge(AllGood with { NoFailureProbe = false, Reason = "なぜうまくいかなかったのかを聞いている" });
         var run = await new EvalRunner(new FakeConversationAi(), probing, Forbidden())
-            .RunAsync(Script("concreteEvent", new ScriptedAnswer("思うようにいかなかった日", true), Free("公園に行けませんでした。")), Ct);
+            .RunAsync(Script("concreteEvent", new ScriptedAnswer("思いどおりにいかなかった日", true), Free("公園に行けませんでした。")), Ct);
         var summary = EvalSummary.From([run]);
 
         var item = Assert.Single(summary.Reference, i => i.Name.Contains("うまくいかなかったわけを問い詰めていない"));

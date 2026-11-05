@@ -54,11 +54,11 @@ public sealed class DiscoverTextTests
         }
     }
 
-    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 最初の問いは、気持ちが動いた日を聞き、うまくいかなかった日も同じ重さで選べる")]
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 最初の問いは、気持ちが動いた日を聞き、選択肢は「うれしかった日」「困ったことがあった日」「思いどおりにいかなかった日」")]
     public void OpeningAsksDayWhenFeelingsMoved()
     {
         Assert.Equal("最近、気持ちが動いた日のことを、一つ聞かせてください。どんな日でしたか？", DiscoverText.Opening);
-        Assert.Equal(["うまくいったと感じた日", "大変だったけど、乗り切った日", "思うようにいかなかった日"], DiscoverText.OpeningChoices);
+        Assert.Equal(["うれしかった日", "困ったことがあった日", "思いどおりにいかなかった日"], DiscoverText.OpeningChoices);
         Assert.Equal(3, DiscoverText.OpeningChoices.Count);
         Assert.DoesNotContain("たとえば昨日", DiscoverText.Opening, StringComparison.Ordinal);
     }
@@ -139,10 +139,13 @@ public sealed class DiscoverTextTests
     [InlineData("気持ち")]
     [InlineData("うまくいかなかった")]
     [InlineData("思うように")]
+    [InlineData("思いどおり")]
+    [InlineData("うれしかった")]
+    [InlineData("困ったこと")]
     public void LightOpeningsDoNotReturnToHeavyDays(string heavy)
     {
-        // 飛ばした直後や、つらい話で区切った人に「大変だった日」「思うようにいかなかった日」を聞くと、負担の重い日へ話を戻すことになる。
-        // 最初の問いの「大変だったけど、乗り切った日」は、うまくいかなかった日も同じ重さで選べるようにするための選択肢なので、ここには入れない
+        // 飛ばした直後や、つらい話で区切った人に「困ったことがあった日」「思いどおりにいかなかった日」を聞くと、負担の重い日へ話を戻すことになる。
+        // 最初の問いの「困ったことがあった日」は、うまくいかなかった日も同じ重さで選べるようにするための選択肢なので、ここには入れない
         IEnumerable<string> texts =
         [
             DiscoverText.OpeningAfterDistress,
