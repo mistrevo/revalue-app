@@ -76,8 +76,10 @@ RE:VALUE（リバリュー）は、育児などでキャリアを中断した人
 |---|---|
 | スキル build-unit | まとまりを Spec → 計画 → 実装・評価 → main まで作り、次のまとまりへ進む。自走の入口 |
 | スキル run-plan | 計画を Workflow（`.claude/workflows/run-plan.js`）で回す。実装 → 確認 → レビュー → 反証（通ったという結論を壊しにいく）→ 直し（2 回まで）→ 文書の点検 |
+| スキル persona-eval | 架空の 6 人（`evals/personas/people/`）を AI に演じさせ、手元の RE:VALUE を画面から最後まで通して評価する。サーバーと画面を動かす道具の起動 → Workflow（`.claude/workflows/persona-eval.js`）で演じる → 評価する → まとめる |
 | エージェント doc-reviewer | PRD・Spec・README の読みやすさを点検して削る |
 | エージェント voice-reviewer | 製品の AI の言い方を、芯に照らして点検する |
+| エージェント persona-player / persona-reviewer | ペルソナ評価で、人物を演じる役（人物ファイルと演じ方だけを読む）と、記録を評価の見方に照らす役 |
 | フック guard.mjs | 鍵、実在しうる連絡先、開発者の名前を止める。名前のハッシュは、git が無視する `.claude/hooks/guard-names.txt` に置く（新しい環境では最初に置く）。テストは `node --test .claude/hooks/guard.test.mjs` |
 | フック session-start.mjs | セッションの最初に `docs/superpowers/progress.md` を読ませる |
 | MCP microsoft-learn | ASP.NET Core と Azure の公式ドキュメントを引く |
