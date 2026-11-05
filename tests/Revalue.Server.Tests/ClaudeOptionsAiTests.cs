@@ -238,6 +238,60 @@ public sealed class ClaudeOptionsAiTests
         Assert.Contains("まだ決めていない", Section(tightBrief, "conditions"));
     }
 
+    /// <summary>AI に渡す文の、ある業務の行（「- 業務 id:」から次の業務か職種まで）。</summary>
+    private static string TaskLines(string brief, string taskId)
+    {
+        var start = brief.IndexOf($"- 業務 id: {taskId}\n", StringComparison.Ordinal);
+        Assert.True(start >= 0, taskId);
+        var next = brief.IndexOf("\n- 業務 id: ", start + 1, StringComparison.Ordinal);
+        var section = brief.IndexOf("\n\n", start, StringComparison.Ordinal);
+        var end = new[] { next, section }.Where(i => i >= 0).DefaultIfEmpty(brief.Length).Min();
+        return brief[start..end];
+    }
+
+    [Fact(DisplayName = "options-10（力が生きる場面を添える）: AI に渡す業務には、話から確かめる主な力と補助の力と、力が生きる場面を書き、準備中の力を書かない")]
+    public void BriefHasTaskAbilitiesAndScene()
+    {
+        var sensing = new Ability("sensing-incongruity");
+        var inputs = Inputs() with
+        {
+            Abilities =
+            [
+                new UsableAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1)]),
+                new UsableAbility(sensing, AbilityState.NeedsCheck, [E(sensing, 1, NoticingQuote)]),
+            ],
+        };
+        var brief = ClaudeOptionsAi.Brief(inputs, OptionCandidates.From(Catalog, inputs));
+
+        // 課題の原因の見当づくり: 主な力（原因分析力）と補助の力の仮説思考力は準備中。違和感察知力だけを補助の力に書き、場面は書かない
+        var cause = TaskLines(brief, "planning-cause-hypothesis");
+        Assert.DoesNotContain("cause-analysis", cause);
+        Assert.DoesNotContain("hypothesis-thinking", cause);
+        Assert.DoesNotContain("主な力", cause);
+        Assert.Contains("  補助の力: sensing-incongruity（違和感察知力）\n", cause);
+        Assert.DoesNotContain("力が生きる場面", cause);
+
+        // 出張や会食の手配: 主な力は利害調整力、補助の力は段取り力。場面を書く
+        var arrangement = TaskLines(brief, "online-secretary-arrangement");
+        var task = Catalog.FindTask("online-secretary-arrangement")!;
+        Assert.Contains("  主な力: balancing-interests（利害調整力）\n", arrangement);
+        Assert.Contains("  補助の力: planning-steps（段取り力）\n", arrangement);
+        Assert.Contains($"  力が生きる場面: {task.Scene}\n", arrangement);
+        Assert.DoesNotContain("使う力", arrangement);
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 仕事の選択肢の指示は、カードの力を業務の主な力か補助の力から選ぶよう書く")]
+    public void PromptUsesMainAndSubAbilities()
+    {
+        var prompt = PromptFiles.Read(PromptFiles.Options);
+
+        Assert.Contains("主な力", prompt);
+        Assert.Contains("補助の力", prompt);
+        Assert.Contains("力が生きる場面", prompt);
+        Assert.Equal(2, prompt.Split("`taskIds` の業務のどれかの「主な力」か「補助の力」と同じにする").Length - 1);
+        Assert.DoesNotContain("「使う力」", prompt);
+    }
+
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: AI に渡す文には、外した力と未確認の力が入らない")]
     public void BriefHasOnlyUsableAbilities()
     {

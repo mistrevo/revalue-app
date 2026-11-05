@@ -48,13 +48,14 @@ public sealed class DeepenApiTests
     {
         var ai = new FakeConversationAi();
         // 選ぶは、オンライン秘書の出張や会食の手配（主な力は利害調整力）にする。
-        // 組み合わせるは、出張や会食の手配（利害調整力）と帳簿と口座の照合（変化への気づき）にする
+        // 組み合わせるは、出張や会食の手配（主な力は利害調整力）と支払いの予定の管理（主な力は段取り力、利害調整力は補助の力）にする。
+        // 組み合わせるの業務は、どれも使える力（利害調整力）につながる
         var options = new FakeOptionsAi
         {
             Change = d => d with
             {
                 Choose = d.Choose with { Made = true, OccupationId = "online-secretary", TaskIds = ["online-secretary-arrangement"], Ability = "balancing-interests" },
-                Combine = d.Combine with { Made = true, TaskIds = ["online-secretary-arrangement", "accounting-check"], Ability = "balancing-interests" },
+                Combine = d.Combine with { Made = true, TaskIds = ["online-secretary-arrangement", "accounting-payables"], Ability = "balancing-interests" },
             },
         };
         var deepen = new FakeDeepenAi();
@@ -262,7 +263,7 @@ public sealed class DeepenApiTests
         var regenerated = await Generate(client);
         var content = Content(regenerated);
         Assert.False(content.GetProperty("stale").GetBoolean());
-        Assert.Equal(["online-secretary-arrangement", "accounting-check"], Array(content, "tasks").Select(t => t.GetProperty("id").GetString()));
+        Assert.Equal(["online-secretary-arrangement", "accounting-payables"], Array(content, "tasks").Select(t => t.GetProperty("id").GetString()));
         Assert.All(Array(content, "questions"), q => Assert.Equal(JsonValueKind.Null, q.GetProperty("answer").ValueKind));
         Assert.All(Steps(regenerated), s => Assert.False(s.Chosen));
         Assert.Empty(Array(content, "ownSteps"));
@@ -330,10 +331,11 @@ public sealed class DeepenApiTests
         Assert.Equal(BalancingInterestsAll.Select(c => c.Quote), Array(usable, "quotes").Select(q => q.GetProperty("text").GetString()));
         Assert.Equal(["予約サイトの使い方"], Array(schedule, "knowledge").Select(k => k.GetString()));
 
-        var check = tasks[1];
-        Assert.Equal("noticing-changes", check.GetProperty("ability").GetString());
-        Assert.Equal(JsonValueKind.Null, check.GetProperty("usable").ValueKind);
-        Assert.Equal(["簿記の基礎", "会計ソフト"], Array(check, "knowledge").Select(k => k.GetString()));
+        // 支払いの予定の管理の主な力（段取り力）は、使える力でない
+        var payables = tasks[1];
+        Assert.Equal("planning-steps", payables.GetProperty("ability").GetString());
+        Assert.Equal(JsonValueKind.Null, payables.GetProperty("usable").ValueKind);
+        Assert.Equal(["簿記の基礎", "表計算"], Array(payables, "knowledge").Select(k => k.GetString()));
     }
 
     [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 「創る」と自分の仕事は見立ての業務を返し、本人が直せる")]

@@ -217,6 +217,7 @@ public static class OptionsReport
             sb.AppendLine();
             Quote(sb, OptionsEval.RecordText(run.Case.Inputs));
             sb.AppendLine();
+            sb.AppendLine($"- AI に渡した業務の数（参考）: {run.Candidates.Tasks.Count}（{run.Candidates.Occupations.Count} の職種）");
             sb.AppendLine($"- 候補の業務: {(run.Candidates.Tasks.Count == 0 ? "なし" : string.Join("、", run.Candidates.Tasks.Select(t => t.Id)))}");
             sb.AppendLine($"- 作れるカード: 選ぶ {(run.Candidates.CanChoose ? "作れる" : "作れない")}、組み合わせる {(run.Candidates.CanCombine ? "作れる" : "作れない")}");
             if (run.Error is not null)

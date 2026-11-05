@@ -206,7 +206,7 @@ public sealed record JobCatalog(JobSource Source, IReadOnlyList<JobDomain> Domai
 
 - `options.md` に書くこと: `ability` は `taskIds` の業務のどれかの「主な力」か「補助の力」と同じにする（2 か所）。「力が生きる場面」は、主な力が業務のどこで生きるかの手がかりで、理由に、本人がしたことがその業務のどこに生かせそうかを書くときに使ってよい。場面の文をそのまま写さず、主な力でない力のカードでは使わない。言葉は voice-reviewer が点検する
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - 候補（小さい JSON の業務マスターで作る）
     - `options-2（選ぶは登録した職種から）: AI に渡す候補は、条件に合い、使える力のどれかにつながる業務だけで、準備中の業務を含まない`
     - `options-2（選ぶは登録した職種から）: 条件に合う業務はあるが、どれも使える力につながらなければ、選ぶは noAbilityMatch`
@@ -219,15 +219,15 @@ public sealed record JobCatalog(JobSource Source, IReadOnlyList<JobDomain> Domai
     - `options-10（力が生きる場面を添える）: カードの業務のうち、使った力を主な力に持つ業務にだけ、力が生きる場面を添える` — 偽物の AI が補助の力で作ったカードの業務には添えない
     - `options-10（力が生きる場面を添える）: 選んだ案の力を外したときと、記録と合わなくなったときは、力が生きる場面も出さない`（validate-12（本人が見立てを外せる）の確かめも兼ねる）
   - `OptionsEvalTests`: `options-2（選ぶは登録した職種から）: 評価は、準備中の業務の id を返したカードを、登録していない職種として数える`
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~Options"`
-- [ ] **Step 3: 候補、`Brief`、`options.md`、`CardTaskDto`、評価の数え方を直す**
-- [ ] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit options --dry-run`（結果のファイルに AI に渡した業務の数が出る）
-- [ ] **Step 5: Spec を直す**（`05-options.md`）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~Options"`
+- [x] **Step 3: 候補、`Brief`、`options.md`、`CardTaskDto`、評価の数え方を直す**
+- [x] **Step 4: 確かめる** — `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit options --dry-run`（結果のファイルに AI に渡した業務の数が出る）
+- [x] **Step 5: Spec を直す**（`05-options.md`）
   - 「AI が書いた中身をコードで確かめる」の冒頭: AI に渡すのは、条件に合い、本人の使える力のどれかにつながる `active` の業務と、その職種だけ（理由は上の「AI に渡す候補」を 1 文で）。業務ごとに、話から確かめる主な力と補助の力、力が生きる場面を渡す
   - 「3 枚のカード」の表の「組み合わせる」: どの業務も、使える力のどれかにつながる
   - 「画面」のカードの中身に、使った力を主な力に持つ業務の力が生きる場面を足す（理由と力を出さないときは出さない）
   - 受け入れ基準: options-3 に「どの業務も、使える力のどれかにつながる」を足す。`10. options-10（力が生きる場面を添える）: 「選ぶ」と「組み合わせる」のカードと選んだ案で、使った力を主な力に持つ業務に、その力が業務のどこで生きるか（力が生きる場面）を添える。理由と力を出さないときは添えない。確かめ方: 単体テスト、結合テスト（裏側を丸ごと立ち上げて API を呼ぶテスト）、画面のテスト`
-- [ ] **Step 6: コミット**（「業務マスター: 仕事の選択肢の候補を使える力につながる業務に絞り、カードに力が生きる場面を添える（options-2（選ぶは登録した職種から）、options-3（組み合わせるは登録した業務から）、options-10（力が生きる場面を添える））」）
+- [x] **Step 6: コミット**（「業務マスター: 仕事の選択肢の候補を使える力につながる業務に絞り、カードに力が生きる場面を添える（options-2（選ぶは登録した職種から）、options-3（組み合わせるは登録した業務から）、options-10（力が生きる場面を添える））」）
 
 # まとまり B: 選んだ案を深める、可能性レポート（heavy）
 

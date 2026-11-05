@@ -252,6 +252,62 @@ public sealed class OptionsApiTests
         Assert.Equal("はじめての面談での聞き取り", chosen.GetProperty("tasks")[0].GetProperty("name").GetString());
     }
 
+    [Fact(DisplayName = "options-10（力が生きる場面を添える）: カードの業務のうち、使った力を主な力に持つ業務にだけ、力が生きる場面を添える")]
+    public async Task SceneIsAddedOnlyForMainAbility()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Ready(factory, ai, "o-scene");
+        var catalog = factory.Services.GetRequiredService<JobCatalog>();
+        // 選ぶ: 出張や会食の手配（主な力が利害調整力）と、会議や面会の日程調整（利害調整力は補助の力）
+        // 組み合わせる: 会議や面会の日程調整と、面接の日程調整（どちらも利害調整力は補助の力）
+        options.Change = d => d with
+        {
+            Choose = d.Choose with { OccupationId = "online-secretary", TaskIds = ["online-secretary-arrangement", "online-secretary-schedule"], Ability = "balancing-interests" },
+            Combine = d.Combine with { TaskIds = ["online-secretary-schedule", "recruiting-interview-schedule"], Ability = "balancing-interests" },
+        };
+
+        var cards = (await Generate(client)).GetProperty("cards");
+
+        var choose = Array(cards.GetProperty("choose"), "tasks");
+        Assert.Equal(catalog.FindTask("online-secretary-arrangement")!.Scene, choose[0].GetProperty("scene").GetString());
+        Assert.Equal(JsonValueKind.Null, choose[1].GetProperty("scene").ValueKind);
+        Assert.All(Array(cards.GetProperty("combine"), "tasks"), t => Assert.Equal(JsonValueKind.Null, t.GetProperty("scene").ValueKind));
+    }
+
+    [Fact(DisplayName = "options-10（力が生きる場面を添える）: 選んだ案の力を外したときと、記録と合わなくなったときは、力が生きる場面も出さない")]
+    public async Task SceneIsHiddenWhenAbilityIsNotShown()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Ready(factory, ai, "o-scene-2");
+        var scene = factory.Services.GetRequiredService<JobCatalog>().FindTask("online-secretary-arrangement")!.Scene;
+        options.Change = d => d with
+        {
+            Choose = d.Choose with { OccupationId = "online-secretary", TaskIds = ["online-secretary-arrangement"], Ability = "balancing-interests" },
+        };
+        var chosen = (await ChooseCard(client, "choose", await Generate(client))).GetProperty("choice").GetProperty("card").GetProperty("choose");
+        Assert.Equal(scene, Assert.Single(Array(chosen, "tasks")).GetProperty("scene").GetString());
+
+        // validate-12（本人が見立てを外せる）: 外すと、選んだ案の理由と力と一緒に、力が生きる場面も出さない。戻すとまた出す
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
+        var excluded = (await Get(client)).GetProperty("choice").GetProperty("card").GetProperty("choose");
+        Assert.Equal(JsonValueKind.Null, excluded.GetProperty("ability").ValueKind);
+        Assert.Equal(JsonValueKind.Null, Assert.Single(Array(excluded, "tasks")).GetProperty("scene").ValueKind);
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct)).StatusCode);
+        var included = (await Get(client)).GetProperty("choice").GetProperty("card").GetProperty("choose");
+        Assert.Equal(scene, Assert.Single(Array(included, "tasks")).GetProperty("scene").GetString());
+
+        // 記録と合わなくなった（選んだ案の写しの状態が、いまの記録と違う）ときも出さない
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        await store.TryUpdateAsync<OptionsItem>(TestUsers.Key("o-scene-2"), OptionsItem.ItemId, item => item with
+        {
+            Choice = item.Choice! with { Choose = item.Choice.Choose! with { Ability = item.Choice.Choose.Ability with { State = AbilityState.NeedsCheck } } },
+        }, Ct);
+        var changed = (await Get(client)).GetProperty("choice").GetProperty("card");
+        Assert.True(changed.GetProperty("abilityChanged").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, Assert.Single(Array(changed.GetProperty("choose"), "tasks")).GetProperty("scene").ValueKind);
+    }
+
     [Fact(DisplayName = "options-6（本人が選ぶ、保留する、自分で書く）: カードを選び、作り直しても選んだ案はそのまま残る")]
     public async Task ChoiceSurvivesRegeneration()
     {

@@ -150,17 +150,19 @@ public sealed partial class OptionsEval(
         var conditions = inputs.Conditions!;
         var unregistered = 0;
         var over = 0;
-        bool Candidate(JobTask t) => candidates.Tasks.Any(c => c.Id == t.Id);
+        // 候補は使える力につながる業務に絞っているので、条件を超えたかは条件で直接見る
+        bool Fits(JobTask t) => ConditionFit.Fits(t, conditions);
 
+        // 準備中の業務は、カードに使わないので、登録していないものとして数える
         if (draft.Choose.Made)
         {
             var occupation = catalog.FindOccupation(draft.Choose.OccupationId);
-            var tasks = draft.Choose.TaskIds.Select(catalog.FindTask).ToList();
+            var tasks = draft.Choose.TaskIds.Select(catalog.FindActiveTask).ToList();
             if (occupation is null || tasks.Any(t => t is null) || tasks.Any(t => catalog.OccupationOf(t!).Id != occupation.Id))
             {
                 unregistered++;
             }
-            else if (tasks.Any(t => !Candidate(t!)))
+            else if (tasks.Any(t => !Fits(t!)))
             {
                 over++;
             }
@@ -168,12 +170,12 @@ public sealed partial class OptionsEval(
 
         if (draft.Combine.Made)
         {
-            var tasks = draft.Combine.TaskIds.Select(catalog.FindTask).ToList();
+            var tasks = draft.Combine.TaskIds.Select(catalog.FindActiveTask).ToList();
             if (tasks.Any(t => t is null))
             {
                 unregistered++;
             }
-            else if (tasks.Any(t => !Candidate(t!)) || !ConditionFit.CombineFits(tasks.Select(t => t!).ToList(), conditions))
+            else if (tasks.Any(t => !Fits(t!)) || !ConditionFit.CombineFits(tasks.Select(t => t!).ToList(), conditions))
             {
                 over++;
             }
@@ -212,13 +214,13 @@ public sealed partial class OptionsEval(
             ChooseCard c => (
                 CardKind.Choose, c.Ability, [c.Reason],
                 catalog.FindOccupation(c.OccupationId) is null
-                    || c.Tasks.Any(t => catalog.FindTask(t.TaskId) is not { } task || catalog.OccupationOf(task).Id != c.OccupationId),
-                c.Tasks.Any(t => catalog.FindTask(t.TaskId) is { } task && !ConditionFit.Fits(task, conditions)),
+                    || c.Tasks.Any(t => catalog.FindActiveTask(t.TaskId) is not { } task || catalog.OccupationOf(task).Id != c.OccupationId),
+                c.Tasks.Any(t => catalog.FindActiveTask(t.TaskId) is { } task && !ConditionFit.Fits(task, conditions)),
                 false),
             CombineCard c => (
                 CardKind.Combine, c.Ability, [c.RoleName, c.Reason],
-                c.Tasks.Any(t => catalog.FindTask(t.TaskId) is null),
-                c.Tasks.Select(t => catalog.FindTask(t.TaskId)).ToList() is var tasks && tasks.All(t => t is not null)
+                c.Tasks.Any(t => catalog.FindActiveTask(t.TaskId) is null),
+                c.Tasks.Select(t => catalog.FindActiveTask(t.TaskId)).ToList() is var tasks && tasks.All(t => t is not null)
                     && !ConditionFit.CombineFits(tasks.Select(t => t!).ToList(), conditions),
                 false),
             CreateCard c => (

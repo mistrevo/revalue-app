@@ -13,8 +13,12 @@ using Revalue.Server.Features.Validate;
 namespace Revalue.Server.Features.Options;
 
 /// <summary>カードの業務。<paramref name="Ability"/> は使う力の key。辞書の話から確かめる力でなければ（保存データの古い id など）null。</summary>
+/// <summary>
+/// カードの業務。<paramref name="Scene"/> は力が生きる場面で、カードの理由と力を出すときに、カードに使った力を主な力に持つ業務にだけ添える
+/// （options-10（力が生きる場面を添える））。ほかは null。
+/// </summary>
 public sealed record CardTaskDto(
-    string Id, string OccupationName, string Name, string Detail, string? Ability, IReadOnlyList<TimeSlot> TimeSlots, TaskPlace Place);
+    string Id, string OccupationName, string Name, string Detail, string? Ability, IReadOnlyList<TimeSlot> TimeSlots, TaskPlace Place, string? Scene);
 
 /// <summary>カードの理由に使った力。<paramref name="State"/> は "confirmed" か "needsCheck"。</summary>
 public sealed record CardAbilityDto(string Key, string Name, AbilityState State, IReadOnlyList<QuoteDto> Quotes);
@@ -406,8 +410,8 @@ public static class OptionsEndpoints
                 shown.GeneratedAt,
                 stale,
                 stale && item.FailedBasis == basis,
-                shown.Choose is { } choose ? ChooseDto(choose) : null,
-                shown.Combine is { } combine ? CombineDto(combine) : null,
+                shown.Choose is { } choose ? ChooseDto(choose, catalog) : null,
+                shown.Combine is { } combine ? CombineDto(combine, catalog) : null,
                 shown.Create is { } create ? CreateDto(create) : null,
                 shown.Missing);
         }
@@ -418,7 +422,7 @@ public static class OptionsEndpoints
                 c.Kind,
                 c.At,
                 c is { Kind: ChoiceKind.Card, Card: { } kind }
-                    ? ChosenDto(c, kind, c.AbilityProblem(inputs), inputs.Conditions is { } conditions && !OptionsValidator.ChosenFits(c, conditions, catalog))
+                    ? ChosenDto(c, kind, c.AbilityProblem(inputs), inputs.Conditions is { } conditions && !OptionsValidator.ChosenFits(c, conditions, catalog), catalog)
                     : null,
                 ownJobs.FirstOrDefault(j => c.Kind == ChoiceKind.Own && j.Id == c.OwnJobId) is { } own ? OwnDto(own) : null)
             : null;
@@ -438,13 +442,13 @@ public static class OptionsEndpoints
     /// 選んだカードの写し。カードの力を本人があとで外していたか（validate-12（本人が見立てを外せる））、力の状態か根拠の言葉が
     /// いまの記録と合わなくなっていたら（<paramref name="problem"/>）、理由と力と根拠の言葉を外す。
     /// </summary>
-    private static ChosenCardDto ChosenDto(OptionChoice choice, CardKind kind, MissingReason? problem, bool outsideConditions)
+    private static ChosenCardDto ChosenDto(OptionChoice choice, CardKind kind, MissingReason? problem, bool outsideConditions, JobCatalog catalog)
     {
         var withReason = problem is null;
         return new ChosenCardDto(
             kind,
-            choice.Choose is { } ch ? ChooseDto(ch, withReason) : null,
-            choice.Combine is { } co ? CombineDto(co, withReason) : null,
+            choice.Choose is { } ch ? ChooseDto(ch, catalog, withReason) : null,
+            choice.Combine is { } co ? CombineDto(co, catalog, withReason) : null,
             choice.Create is { } cr ? CreateDto(cr, withReason) : null,
             problem == MissingReason.Excluded,
             problem == MissingReason.Changed,
@@ -454,18 +458,23 @@ public static class OptionsEndpoints
     private static CardAbilityDto AbilityDto(CardAbility ability) =>
         new(ActionRef.Key(ability.Ability), AbilityText.Name(ability.Ability), ability.State, QuoteDto.From(ability.Quotes));
 
-    private static CardTaskDto TaskDto(CardTask task) =>
-        new(task.TaskId, task.OccupationName, task.Name, task.Detail, AbilityCatalog.IsActive(task.Ability) ? ActionRef.Key(task.Ability) : null, task.TimeSlots, task.Place);
+    /// <summary>
+    /// カードの業務の写し。力が生きる場面は保存せず、見せるときに業務マスターから引く。カードの理由と力を出すとき（<paramref name="showsReason"/>）で、
+    /// 業務マスターの業務の主な力がカードに使った力と同じときだけ添える。場面の文は主な力を中心に書いてあるため（Claude の判断）。
+    /// </summary>
+    private static CardTaskDto TaskDto(CardTask task, CardAbility cardAbility, bool showsReason, JobCatalog catalog) =>
+        new(task.TaskId, task.OccupationName, task.Name, task.Detail, AbilityCatalog.IsActive(task.Ability) ? ActionRef.Key(task.Ability) : null, task.TimeSlots, task.Place,
+            showsReason && catalog.FindTask(task.TaskId) is { } registered && registered.Abilities.Main == cardAbility.Ability ? registered.Scene : null);
 
     // カードの力が辞書の話から確かめる力でなければ（保存データの古い id など）、理由と力を出さない（名前を引く前に除く）
     private static bool ShowsReason(CardAbility ability, bool withReason) => withReason && AbilityCatalog.IsActive(ability.Ability);
 
-    private static ChooseCardDto ChooseDto(ChooseCard card, bool withReason = true) =>
-        new(card.OccupationName, card.Summary, card.Tasks.Select(TaskDto).ToList(), card.Range,
+    private static ChooseCardDto ChooseDto(ChooseCard card, JobCatalog catalog, bool withReason = true) =>
+        new(card.OccupationName, card.Summary, card.Tasks.Select(t => TaskDto(t, card.Ability, ShowsReason(card.Ability, withReason), catalog)).ToList(), card.Range,
             ShowsReason(card.Ability, withReason) ? card.Reason : null, ShowsReason(card.Ability, withReason) ? AbilityDto(card.Ability) : null);
 
-    private static CombineCardDto CombineDto(CombineCard card, bool withReason = true) =>
-        new(card.RoleName, card.Tasks.Select(TaskDto).ToList(), card.Range,
+    private static CombineCardDto CombineDto(CombineCard card, JobCatalog catalog, bool withReason = true) =>
+        new(card.RoleName, card.Tasks.Select(t => TaskDto(t, card.Ability, ShowsReason(card.Ability, withReason), catalog)).ToList(), card.Range,
             ShowsReason(card.Ability, withReason) ? card.Reason : null, ShowsReason(card.Ability, withReason) ? AbilityDto(card.Ability) : null);
 
     private static CreateCardDto CreateDto(CreateCard card, bool withReason = true) =>

@@ -49,6 +49,29 @@ public sealed class OptionsEvalTests
         Assert.Equal((0, true), (gated.Count, gated.Passed));
     }
 
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 評価は、準備中の業務の id を返したカードを、登録していない職種として数える")]
+    public async Task CountsPreparingTasksAsUnregistered()
+    {
+        // 保険の営業（業務はすべて準備中）の選ぶと、準備中の業務を入れた組み合わせる
+        var ai = new ChangedAi(d => d with
+        {
+            Choose = d.Choose with { Made = true, OccupationId = "insurance-sales", TaskIds = ["insurance-sales-hearing"] },
+            Combine = d.Combine with { Made = true, TaskIds = [d.Choose.TaskIds[0], "insurance-sales-hearing"] },
+        });
+
+        var run = await Eval(ai).RunAsync(Case("p01-coordinating-seen"), Ct);
+
+        Assert.Null(run.Error);
+        Assert.Equal(2, run.Before.Unregistered);
+        Assert.Null(run.Cards!.Choose);
+        Assert.Null(run.Cards.Combine);
+
+        var shown = new ChooseCard("insurance-sales", "保険の営業", "要約",
+            [new CardTask("insurance-sales-hearing", "insurance-sales", "保険の営業", "業務", "中身", TestAbilities.ActiveListening, [], TaskPlace.Home, [])],
+            new WorkRange(1, 2, 1, 2), "理由です。", new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, []));
+        Assert.True(OptionsEval.CheckShown(shown, run.Case.Inputs, Catalog, Forbidden()).Unregistered);
+    }
+
     [Fact(DisplayName = "options-5（条件の範囲だけ）: 評価は、条件を超える案を照らし合わせの前とあとで分けて数える")]
     public async Task CountsOverConditionsBeforeAndAfter()
     {
@@ -172,6 +195,8 @@ public sealed class OptionsEvalTests
         Assert.NotNull(summary.Comparison);
 
         var report = OptionsReport.Write(new ReportContext("options", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), runs, summary, new UsageMeter());
+        // 記録ごとに、AI に渡した業務の数を参考に書く（入力の長さを見るため）
+        Assert.Contains($"- AI に渡した業務の数（参考）: {tight.Candidates.Tasks.Count}（", report);
         foreach (var name in new[] { "options-2（選ぶは登録した職種から）", "options-4（創るは根拠を引けるときだけ）", "options-5（条件の範囲だけ）", "options-7（1 場面で進める）", "options-8（理由は本人の言葉とつなぐ）" })
         {
             Assert.Contains(name, report);

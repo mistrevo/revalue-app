@@ -152,9 +152,22 @@ public sealed class ClaudeOptionsAi(
                 sb.Append("- 業務 id: ").Append(task.Id).Append('\n');
                 sb.Append("  名前: ").Append(task.Name).Append('\n');
                 sb.Append("  中身: ").Append(task.Detail).Append('\n');
-                if (task.ActiveAbilities.Count > 0)
+                // 準備中の力は書かない。力が生きる場面は主な力を中心に書いてあるので、主な力を書くときだけ添える
+                var mainActive = AbilityCatalog.IsActive(task.Abilities.Main);
+                if (mainActive)
                 {
-                    sb.Append("  使う力: ").Append(string.Join("、", task.ActiveAbilities.Select(a => $"{ActionRef.Key(a)}（{AbilityText.Name(a)}）"))).Append('\n');
+                    sb.Append("  主な力: ").Append(AbilityLabel(task.Abilities.Main)).Append('\n');
+                }
+
+                var subs = task.Abilities.Sub.Where(AbilityCatalog.IsActive).ToList();
+                if (subs.Count > 0)
+                {
+                    sb.Append("  補助の力: ").Append(string.Join("、", subs.Select(AbilityLabel))).Append('\n');
+                }
+
+                if (mainActive)
+                {
+                    sb.Append("  力が生きる場面: ").Append(task.Scene).Append('\n');
                 }
 
                 sb.Append("  週あたりの時間: ").Append(task.HoursPerWeek.Min).Append(" 時間から ").Append(task.HoursPerWeek.Max).Append(" 時間まで\n");
@@ -230,6 +243,9 @@ public sealed class ClaudeOptionsAi(
                 .Select(v => v.ValueKind == JsonValueKind.String ? v.GetString()! : throw new InvalidOperationException(name))
                 .ToList();
     }
+
+    /// <summary>力の key と名前（<c>balancing-interests（利害調整力）</c> の形）。</summary>
+    private static string AbilityLabel(Ability ability) => $"{ActionRef.Key(ability)}（{AbilityText.Name(ability)}）";
 
     internal static string SlotKey(TimeSlot slot) => slot switch
     {
