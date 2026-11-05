@@ -135,6 +135,7 @@ public static class ReportWriter
         "read" => "読み取り",
         "reply" => "返事",
         "judge" => "判定役",
+        "evidenceJudge" => "根拠の判定役",
         "generic" => "汎用の AI",
         "genericJudge" => "汎用の AI の答えを読む判定役",
         "options" => "仕事の選択肢",
@@ -287,6 +288,8 @@ public static class ReportWriter
                 $"{beforeText} | {quotes} |");
         }
 
+        WriteEvidenceJudgements(sb, run);
+
         if (run.Generic is not { } generic)
         {
             return;
@@ -305,6 +308,55 @@ public static class ReportWriter
                     ? "引用なし"
                     : string.Join("、", ability.Quotes.Select(q => $"「{q}」{(GenericComparison.IsVerbatim(run.Turns, q) ? "" : "（一字一句でない）")}"));
                 sb.AppendLine($"- {AbilityText.Name(ability.Ability)}: {(ability.Named ? "強みとして挙げた" : "挙げていない")}。{quotes}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 画面に出す力と、根拠ありにした力ごとの根拠の判定役の答え（行動の文、引用、示しているか、同じ出来事か、理由）を書く。
+    /// 判定役が「示していない」とした引用と、画面に出さなかった力を、開発者が読んで確かめるため。
+    /// </summary>
+    private static void WriteEvidenceJudgements(StringBuilder sb, EpisodeRun run)
+    {
+        if (run.Showcase is { } showcase)
+        {
+            static string Names(IReadOnlyList<AbilityResult> results) =>
+                results.Count == 0 ? "なし" : string.Join("、", results.Select(r => AbilityText.Name(r.Ability)));
+
+            sb.AppendLine();
+            sb.AppendLine($"**画面に出す力**: 見えた力: {Names(showcase.Seen)}。もう少し聞かせてほしいこと: {Names(showcase.MoreToHear)}");
+        }
+
+        if (run.Judged.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("**根拠の判定役**（根拠ありにした力ごとに、引用が核となる行動を推し量らずに示しているか。× は褒めすぎと数える）");
+        sb.AppendLine();
+        foreach (var judged in run.Judged)
+        {
+            var result = judged.Result;
+            var shown = run.Showcase?.Seen.Any(r => r.Ability == result.Ability) == true ? "画面に出す" : "画面に出さない";
+            var head = $"- {AbilityText.Name(result.Ability)}（{shown}）: ";
+            if (judged.Verdict is not { } verdict)
+            {
+                sb.AppendLine(head + "判定役が答えられなかった ×（褒めすぎと数える）");
+                continue;
+            }
+
+            var reason = verdict.Reason.Length == 0 ? "" : $"。理由: {verdict.Reason}";
+            sb.AppendLine(head + $"同じ出来事 {(verdict.SameEvent ? "○" : "×")}{reason}");
+            for (var i = 0; i < result.Shown.Count; i++)
+            {
+                var evidence = result.Shown[i];
+                var mark = i < verdict.ActionsShown.Count
+                    ? verdict.ActionsShown[i] ? "示している" : "示していない ×"
+                    : "判定役の答えにない ×";
+                var linked = evidence.FromChoice ? $"（選んだ答え。結びついた言葉「{Cell(evidence.LinkedQuote ?? "")}」）" : "";
+                sb.AppendLine(
+                    $"  - {AbilityCatalog.ActionText(new ActionRef(result.Ability, evidence.Action))}: 「{Cell(evidence.Quote)}」{linked} → {mark}");
             }
         }
     }

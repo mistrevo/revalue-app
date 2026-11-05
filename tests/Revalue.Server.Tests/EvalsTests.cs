@@ -46,7 +46,7 @@ public sealed class EvalsTests
     private static readonly ScriptedAnswer Choice = new("", true);
 
     private static Task<EpisodeRun> Run(FakeConversationAi ai, EpisodeScript script) =>
-        new EvalRunner(ai, new DryRunJudge(), Forbidden()).RunAsync(script, Ct);
+        new EvalRunner(ai, new DryRunJudge(), Forbidden(), new DryRunEvidenceJudge()).RunAsync(script, Ct);
 
     [Fact(DisplayName = "評価: 架空エピソードの Markdown から、id、まとまり、expect、答えを読む")]
     public void ParsesEpisodeMarkdown()
@@ -239,7 +239,7 @@ public sealed class EvalsTests
     public async Task CountsFailureProbing()
     {
         var probing = new FixedJudge(AllGood with { NoFailureProbe = false, Reason = "なぜうまくいかなかったのかを聞いている" });
-        var run = await new EvalRunner(new FakeConversationAi(), probing, Forbidden())
+        var run = await new EvalRunner(new FakeConversationAi(), probing, Forbidden(), new DryRunEvidenceJudge())
             .RunAsync(Script("concreteEvent", new ScriptedAnswer("思いどおりにいかなかった日", true), Free("公園に行けませんでした。")), Ct);
         var summary = EvalSummary.From([run]);
 
@@ -258,7 +258,7 @@ public sealed class EvalsTests
         };
         var judge = new FixedJudge(AllGood with { SingleQuestion = false, Reason = "誰に頼んだかと、どう分けたかを一度に聞いている" });
 
-        var run = await new EvalRunner(ai, judge, Forbidden()).RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
+        var run = await new EvalRunner(ai, judge, Forbidden(), new DryRunEvidenceJudge()).RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
         var summary = EvalSummary.From([run]);
 
         Assert.All(run.Replies, r => Assert.Equal(1, r.Questions));
@@ -297,7 +297,7 @@ public sealed class EvalsTests
     public async Task JudgeSeesOverPraiseAndDismissal()
     {
         var verdict = AllGood with { NoOverPraise = false, NoDismissal = false, Reason = "特別なことではないかもしれませんが、と値打ちを下げている" };
-        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden())
+        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden(), new DryRunEvidenceJudge())
             .RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
 
         var summary = EvalSummary.From([run]);
@@ -318,7 +318,7 @@ public sealed class EvalsTests
     public async Task JudgeSeesReflectionAndTraitLabels()
     {
         var verdict = AllGood with { ReflectedActions = false, NoTraitLabel = false, Reason = "段取りが得意なんですね、と力を言い当てている" };
-        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden())
+        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden(), new DryRunEvidenceJudge())
             .RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
 
         var summary = EvalSummary.From([run]);
@@ -338,7 +338,7 @@ public sealed class EvalsTests
     public async Task JudgeReceivesChoices()
     {
         var judge = new RecordingJudge();
-        await new EvalRunner(new FakeConversationAi(), judge, Forbidden()).RunAsync(Script("concreteEvent", Free("買い物に行きました。")), Ct);
+        await new EvalRunner(new FakeConversationAi(), judge, Forbidden(), new DryRunEvidenceJudge()).RunAsync(Script("concreteEvent", Free("買い物に行きました。")), Ct);
 
         var choices = Assert.Single(judge.Choices);
         Assert.Equal(FakeConversationAi.DefaultChoices, choices);
@@ -559,8 +559,9 @@ public sealed class EvalsTests
         var summary = EvalSummary.From([run]);
 
         Assert.Equal(AbilityState.Confirmed, run.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
+        // 台本に書いた 2 つの力と、判定役が見た根拠ありの力（判定役はすべての行動を示していると答える）
         var gate = Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
-        Assert.Equal((0, 2), (gate.Count, gate.Total));
+        Assert.Equal((0, 3), (gate.Count, gate.Total));
         var expected = Assert.Single(summary.Reference, i => i.Name.Contains("最後の状態が期待どおりだった力"));
         Assert.Equal(1, expected.Total);
 
@@ -592,9 +593,9 @@ public sealed class EvalsTests
             "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", ask: "balancing-interests.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
         var judge = new RecordingJudge();
 
-        var good = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden()).RunAsync(script, Ct);
+        var good = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden(), new DryRunEvidenceJudge()).RunAsync(script, Ct);
         var bad = await new EvalRunner(
-                new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, new FixedJudge(AllGood with { MissingOnly = false }), Forbidden())
+                new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, new FixedJudge(AllGood with { MissingOnly = false }), Forbidden(), new DryRunEvidenceJudge())
             .RunAsync(script, Ct);
 
         var reply = Assert.Single(good.Replies);
@@ -727,10 +728,204 @@ public sealed class EvalsTests
             return Task.CompletedTask;
         };
 
-        var run = await new EvalRunner(ai, new DryRunJudge(), Forbidden()).RunAsync(script, Ct);
+        var run = await new EvalRunner(ai, new DryRunJudge(), Forbidden(), new DryRunEvidenceJudge()).RunAsync(script, Ct);
 
         Assert.Equal("訂正の読み取りで failure", run.Error);
         Assert.False(EvalSummary.From([run]).Passed);
+    }
+
+    // ---- 根拠の判定役（根拠ありにした力ごとに、引用が行動を示しているか） ----
+
+    /// <summary>決まった答えを返し、渡された会話と力を覚える根拠の判定役。</summary>
+    private sealed class FixedEvidenceJudge(Func<AbilityResult, EvidenceVerdict?> verdict) : IEvidenceJudge
+    {
+        public List<(string Transcript, AbilityResult Confirmed)> Calls { get; } = [];
+
+        public Task<EvidenceVerdict?> JudgeAsync(string transcript, AbilityResult confirmed, CancellationToken ct)
+        {
+            Calls.Add((transcript, confirmed));
+            return Task.FromResult(verdict(confirmed));
+        }
+    }
+
+    private static EvidenceVerdict AllShown(AbilityResult result) => new(result.Shown.Select(_ => true).ToList(), true, "");
+
+    private static Task<EpisodeRun> RunJudged(FakeConversationAi ai, EpisodeScript script, IEvidenceJudge evidenceJudge) =>
+        new EvalRunner(ai, new DryRunJudge(), Forbidden(), evidenceJudge).RunAsync(script, Ct);
+
+    private static SummaryItem OverPraiseGate(EvalSummary summary) => Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、根拠ありにした力ごとに、判定役へ会話と行動の文と引用を渡し、示していない行動があれば褒めすぎに数える")]
+    public async Task EvidenceJudgeCountsUnshownAction()
+    {
+        var judge = new FixedEvidenceJudge(_ => new EvidenceVerdict([true, false, true], true, "声をかけたのが本人か分からない"));
+        var script = ValidateScript("balancing-interests=confirmed", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
+
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script, judge);
+        var summary = EvalSummary.From([run]);
+
+        var call = Assert.Single(judge.Calls);
+        Assert.Equal(TestAbilities.BalancingInterests, call.Confirmed.Ability);
+        Assert.Equal(AbilityState.Confirmed, call.Confirmed.State);
+        // 本人の答えに番号を振った会話（読み取りと同じ形）
+        Assert.Contains($"[答え 1]（自由に書いた）{CoordinatingAnswer}", call.Transcript);
+        // 判定役への文には、力の名前と理由、行動ごとの行動の文と引用が入る
+        var message = ClaudeEvidenceJudge.UserMessage(call.Transcript, call.Confirmed);
+        Assert.Contains(call.Transcript, message);
+        Assert.Contains(AbilityText.Name(TestAbilities.BalancingInterests), message);
+        Assert.Contains(AbilityCatalog.Find(TestAbilities.BalancingInterests.Id)!.Reason, message);
+        for (var n = 1; n <= 3; n++)
+        {
+            Assert.Contains(AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, n)), message);
+            Assert.Contains($"「{CoordinatingParts[n - 1]}」", message);
+        }
+
+        var judged = Assert.Single(run.Judged);
+        Assert.False(judged.Passed);
+        // 機械で見る力（noticing-changes）と、判定役が見た力（balancing-interests）
+        Assert.Equal((1, 2), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.False(summary.Passed);
+        var byJudge = Assert.Single(summary.Reference, i => i.Name.Contains("褒めすぎのうち、判定役"));
+        Assert.Equal((1, 1), (byJudge.Count, byJudge.Total));
+        var byMachine = Assert.Single(summary.Reference, i => i.Name.Contains("褒めすぎのうち、機械"));
+        Assert.Equal((0, 1), (byMachine.Count, byMachine.Total));
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 判定役が別の出来事の話だと答えた力と、判定役が答えられなかった力も、褒めすぎに数える")]
+    public async Task EvidenceJudgeCountsOtherEventAndNoAnswer()
+    {
+        var script = ValidateScript("balancing-interests=confirmed", answers: Free(CoordinatingAnswer));
+        var otherEvent = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script,
+            new FixedEvidenceJudge(r => AllShown(r) with { SameEvent = false, Reason = "都合を聞いたのは別の日" }));
+        var noAnswer = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script, new FixedEvidenceJudge(_ => null));
+
+        var summary = EvalSummary.From([otherEvent, noAnswer]);
+
+        Assert.Equal((2, 2), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.False(summary.Passed);
+        // 判定役の答えの行動の数が、根拠の行動の数と合わないときも、示していないとみなす
+        var shortVerdict = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script,
+            new FixedEvidenceJudge(_ => new EvidenceVerdict([true, true], true, "")));
+        Assert.False(Assert.Single(shortVerdict.Judged).Passed);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 根拠の判定役の答えに、行動の番号が欠けているか重なっていれば、答えられなかったとみなす")]
+    public void EvidenceJudgeAnswerNeedsEveryActionOnce()
+    {
+        const string good = """{"actions":[{"number":2,"shown":false},{"number":1,"shown":true},{"number":3,"shown":true}],"sameEvent":true,"reason":"r"}""";
+        const string missing = """{"actions":[{"number":1,"shown":true},{"number":3,"shown":true}],"sameEvent":true,"reason":""}""";
+        const string duplicated = """{"actions":[{"number":1,"shown":true},{"number":1,"shown":true},{"number":2,"shown":true}],"sameEvent":true,"reason":""}""";
+
+        var verdict = ClaudeEvidenceJudge.Parse(good, 3);
+        Assert.NotNull(verdict);
+        Assert.Equal([true, false, true], verdict.ActionsShown);
+        Assert.True(verdict.SameEvent);
+        Assert.Equal("r", verdict.Reason);
+        Assert.Null(ClaudeEvidenceJudge.Parse(missing, 3));
+        Assert.Null(ClaudeEvidenceJudge.Parse(duplicated, 3));
+        Assert.Null(ClaudeEvidenceJudge.Parse("{}", 3));
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 機械の褒めすぎと判定役の褒めすぎが同じ力なら、1 件と数える")]
+    public async Task OverPraiseByMachineAndJudgeIsCountedOnce()
+    {
+        // 狙った力は needsCheck のはずなのに根拠ありになり、判定役も示していない行動を見つけた
+        var script = ValidateScript("balancing-interests=needsCheck", answers: Free(CoordinatingAnswer));
+        var run = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script,
+            new FixedEvidenceJudge(_ => new EvidenceVerdict([true, true, false], true, "合わせたとは言っていない")));
+
+        var summary = EvalSummary.From([run]);
+
+        Assert.Equal((1, 1), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.False(summary.Passed);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 判定役がすべての行動を示していると答えた力は、褒めすぎに数えない")]
+    public async Task AllShownIsNotOverPraise()
+    {
+        var script = ValidateScript("balancing-interests=confirmed", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script, new FixedEvidenceJudge(AllShown));
+
+        var summary = EvalSummary.From([run]);
+
+        Assert.True(Assert.Single(run.Judged).Passed);
+        Assert.Equal((0, 2), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.True(summary.Passed);
+    }
+
+    private const string PlanningAnswer = "夫と義母の都合を聞いて、私から声をかけて、日を入れ替えて合わせました。そのあと、やることを紙に書き出して、掃除の順番を決めました。";
+
+    /// <summary>最初の答えから、利害調整力の 3 つと段取り力の 2 つを、同じ出来事の根拠として返す読み取り（同じ分類の力が 2 つ根拠ありになる）。</summary>
+    private static TurnReading CoordinatingAndPlanning(IReadOnlyList<Turn> turns) => new(
+        new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent },
+        [
+            .. CoordinatingParts.Select((part, i) => new EvidenceCandidate(TestAbilities.BalancingInterests, i + 1, part, 1, 1, false, "", 0)),
+            new EvidenceCandidate(TestAbilities.PlanningSteps, 1, "やることを紙に書き出して", 1, 1, false, "", 0),
+            new EvidenceCandidate(TestAbilities.PlanningSteps, 2, "掃除の順番を決めました", 1, 1, false, "", 0),
+        ]);
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 評価は、一つの話から画面に出す力を記録し、分類ごとに 2 つ以上出した話の数を参考の数字に残す")]
+    public async Task ShowcaseIsRecorded()
+    {
+        var judge = new FixedEvidenceJudge(AllShown);
+        var script = ValidateScript("balancing-interests=confirmed", answers: Free(PlanningAnswer));
+
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingAndPlanning }, script, judge);
+        var summary = EvalSummary.From([run]);
+
+        // 根拠ありの力はすべて判定役が見る。画面に出すのは、同じ分類で行動の多い利害調整力だけ
+        Assert.Equal([TestAbilities.BalancingInterests, TestAbilities.PlanningSteps], judge.Calls.Select(c => c.Confirmed.Ability).Order());
+        Assert.NotNull(run.Showcase);
+        Assert.Equal([TestAbilities.BalancingInterests], run.Showcase.Seen.Select(r => r.Ability));
+        var crowded = Assert.Single(summary.Reference, i => i.Name.Contains("分類ごとに 2 つ以上"));
+        Assert.Equal((0, 1), (crowded.Count, crowded.Total));
+        Assert.True(crowded.CountsViolations);
+        Assert.Null(crowded.Passed);
+        var seen = Assert.Single(summary.Reference, i => i.Name.Contains("根拠ありにした力のうち、画面に出した力"));
+        Assert.Equal((1, 2), (seen.Count, seen.Total));
+        var moreToHear = Assert.Single(summary.Reference, i => i.Name.Contains("もう少し聞かせてほしいことが 3 つ以上"));
+        Assert.Equal((0, 1), (moreToHear.Count, moreToHear.Total));
+    }
+
+    [Fact(DisplayName = "評価: 根拠の判定役の指示に、判定役の答えの項目がすべて書いてあり、答えの型は力の数で大きくならない")]
+    public void EvidenceJudgePromptListsEveryField()
+    {
+        var prompt = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "judges", "evidence.md"));
+        var schema = System.Text.Json.JsonSerializer.Serialize(ClaudeEvidenceJudge.Schema());
+
+        Assert.Equal(["actions", "number", "shown", "sameEvent", "reason"], ClaudeEvidenceJudge.Fields);
+        Assert.All(ClaudeEvidenceJudge.Fields, field =>
+        {
+            Assert.Contains($"`{field}`", prompt);
+            Assert.Contains($"\"{field}\"", schema);
+        });
+        // 力ごとの欄を持たない
+        Assert.All(AbilityCatalog.Active, a => Assert.DoesNotContain($"\"{a.Id}\"", schema));
+    }
+
+    [Fact(DisplayName = "評価: 結果のファイルに、根拠ありにした力ごとの行動の文、引用、判定役の答えと、画面に出す力を書く")]
+    public async Task ReportHasEvidenceJudgementAndShowcase()
+    {
+        var judge = new FixedEvidenceJudge(r => r.Ability == TestAbilities.BalancingInterests
+            ? new EvidenceVerdict([true, false, true], true, "声をかけたのが本人か分からない")
+            : null);
+        var script = ValidateScript("balancing-interests=confirmed", answers: Free(PlanningAnswer));
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingAndPlanning }, script, judge);
+
+        var report = ReportWriter.Write(
+            new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-05T12:00:00+09:00")), [run], EvalSummary.From([run]),
+            new UsageMeter());
+
+        Assert.Contains("根拠の判定役", report);
+        Assert.Contains($"{AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, 2))}: 「私から声をかけて」 → 示していない ×", report);
+        Assert.Contains($"{AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, 1))}: 「夫と義母の都合を聞いて」 → 示している", report);
+        Assert.Contains("声をかけたのが本人か分からない", report);
+        Assert.Contains($"{AbilityText.Name(TestAbilities.PlanningSteps)}（画面に出さない）: 判定役が答えられなかった", report);
+        Assert.Contains($"見えた力: {AbilityText.Name(TestAbilities.BalancingInterests)}", report);
     }
 
     [Fact(DisplayName = "評価: 汎用の AI との比較は、台本に書いた力だけを数え、挙げた力と引用の違いを同じ物差しで数え、合格の線には入れない")]

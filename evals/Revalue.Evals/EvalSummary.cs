@@ -153,8 +153,15 @@ public sealed class EvalSummary
         var pairs = runs.Where(r => r.Script.States is not null)
             .SelectMany(r => r.Script.States!.Select(s => (Run: r, Result: FinalOf(r, s.Key), Expected: s.Value)))
             .ToList();
-        var notConfirmed = withListed.SelectMany(r => r.Script.MustNotConfirm.Select(a => FinalOf(r, a))).ToList();
-        var overPraise = notConfirmed.Count(f => f.State == AbilityState.Confirmed);
+        // 褒めすぎは（例、力）の組で数える。機械で見る組（根拠ありにしてはいけない力）と、判定役が見る組（根拠ありにした力）が重なれば 1 件
+        var indexed = runs.Select((r, i) => (Run: r, Index: i)).ToList();
+        var byMachine = indexed
+            .Where(x => x.Run.Script.Listed.Count > 0)
+            .SelectMany(x => x.Run.Script.MustNotConfirm.Select(a => (x.Index, Ability: a, Over: FinalOf(x.Run, a).State == AbilityState.Confirmed)))
+            .ToList();
+        var byJudge = indexed.SelectMany(x => x.Run.Judged.Select(j => (x.Index, j.Result.Ability, Over: !j.Passed))).ToList();
+        var overPraisePairs = byMachine.Concat(byJudge).GroupBy(p => (p.Index, p.Ability)).ToList();
+        var overPraise = overPraisePairs.Count(g => g.Any(p => p.Over));
         var expectedConfirmed = pairs.Where(p => p.Expected == AbilityState.Confirmed).ToList();
         var confirmed = expectedConfirmed.Count(p => p.Result.State == AbilityState.Confirmed);
         var shown = runs.SelectMany(r => r.Final.SelectMany(f => f.Shown).Select(e => (Run: r, Evidence: e))).ToList();
@@ -166,8 +173,8 @@ public sealed class EvalSummary
         gated.AddRange(
         [
             new(
-                "validate-1（すべてそろったときだけ根拠あり）: 褒めすぎ（根拠ありにしてはいけない力を根拠ありにした）",
-                overPraise, notConfirmed.Count, "0 件", overPraise == 0, CountsViolations: true),
+                "validate-1（すべてそろったときだけ根拠あり）: 褒めすぎ（根拠ありにしてはいけない力を根拠ありにした。根拠ありにした力の引用が、核となる行動を示していない）",
+                overPraise, overPraisePairs.Count, "0 件", overPraise == 0, CountsViolations: true),
             new(
                 "validate-4（根拠は本人の言葉）: 根拠の引用が、本人の発言と一字一句同じ",
                 verbatim, shown.Count, "すべて", verbatim == shown.Count),
@@ -177,6 +184,27 @@ public sealed class EvalSummary
             new(
                 "validate-2（足りない行動だけ聞き返す）: 一部だけそろった例で、足りない行動だけを聞き返した",
                 askedOnlyMissing, askRuns.Count, "9 割以上", askedOnlyMissing * 10 >= askRuns.Count * 9),
+        ]);
+
+        var showcased = runs.Where(r => r.Showcase is not null).ToList();
+        reference.AddRange(
+        [
+            new(
+                "validate-1（すべてそろったときだけ根拠あり）: 褒めすぎのうち、機械で数えたもの（根拠ありにしてはいけない力を根拠ありにした）",
+                byMachine.Count(p => p.Over), byMachine.Count, "—", null, CountsViolations: true),
+            new(
+                "validate-1（すべてそろったときだけ根拠あり）: 褒めすぎのうち、判定役が見たもの（根拠ありにした力の引用が、行動を示していない、別の出来事の話、または判定役が答えられなかった）",
+                byJudge.Count(p => p.Over), byJudge.Count, "—", null, CountsViolations: true),
+            Ratio(
+                "validate-7（見えた力と、もう少し聞きたいことを示す）: 根拠ありにした力のうち、画面に出した力",
+                showcased.Sum(r => r.Showcase!.Seen.Count), showcased.Sum(r => r.Final.Count(f => f.State == AbilityState.Confirmed))),
+            new(
+                "validate-7（見えた力と、もう少し聞きたいことを示す）: 画面に出す力が分類ごとに 2 つ以上だった話",
+                showcased.Count(r => r.Showcase!.Seen.GroupBy(s => AbilityCatalog.Category(s.Ability)).Any(g => g.Count() >= 2)), showcased.Count,
+                "—", null, CountsViolations: true),
+            new(
+                "validate-7（見えた力と、もう少し聞きたいことを示す）: もう少し聞かせてほしいことが 3 つ以上だった話",
+                showcased.Count(r => r.Showcase!.MoreToHear.Count >= 3), showcased.Count, "—", null, CountsViolations: true),
         ]);
 
         var beforeRuns = runs.Where(r => r.Script.StatesBefore is not null).ToList();

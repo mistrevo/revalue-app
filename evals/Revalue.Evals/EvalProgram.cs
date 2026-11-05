@@ -13,7 +13,7 @@ namespace Revalue.Evals;
 /// <c>dotnet run --project evals/Revalue.Evals -- --unit discover|validate|options|deepen [--dry-run] [--out &lt;フォルダ&gt;]</c>
 /// 終了コード: 0 合格、1 不合格、2 回せなかった（引数や鍵の不足など）。
 /// dry-run は仕組みが動くかだけを確かめるので、途中で終えた例がなければ 0、あれば 1 を返す（偽物の AI の数字では合否を決めない。Claude の判断）。
-/// validate では、同じやりとりを汎用の AI にも渡して比べる（<see cref="GenericComparison"/>）。
+/// validate では、根拠ありにした力ごとに根拠の判定役が引用を見て（<see cref="IEvidenceJudge"/>）、同じやりとりを汎用の AI にも渡して比べる（<see cref="GenericComparison"/>）。
 /// options は、架空の 5 つの記録（evals/profiles/）から仕事の選択肢を作り、照らし合わせの前とあとを数える（<see cref="OptionsEval"/>）。
 /// deepen は、架空の選んだ案（evals/deepen/）を記録と組にして深め、照らし合わせの前とあとを数える（<see cref="DeepenEval"/>）。
 /// </summary>
@@ -89,11 +89,13 @@ public static class EvalProgram
         using var loggers = LoggerFactory.Create(b => b.AddSimpleConsole(o => o.SingleLine = true));
         IConversationAi ai;
         IReplyJudge judge;
+        IEvidenceJudge evidenceJudge;
         GenericComparison generic;
         if (dryRun)
         {
             ai = new ScriptedConversationAi();
             judge = new DryRunJudge();
+            evidenceJudge = new DryRunEvidenceJudge();
             generic = new GenericComparison(new DryRunGenericAssistant(), new DryRunGenericReader());
         }
         else
@@ -108,12 +110,13 @@ public static class EvalProgram
             var client = new AnthropicClient { ApiKey = apiKey };
             ai = new ClaudeConversationAi(client, Options.Create(claude), loggers.CreateLogger<ClaudeConversationAi>(), usage);
             judge = new ClaudeJudge(client, claude.Model, File.ReadAllText(Path.Combine(baseDir, "judges", ReplyJudgePrompt)).Trim(), usage);
+            evidenceJudge = new ClaudeEvidenceJudge(client, claude.Model, File.ReadAllText(Path.Combine(baseDir, "judges", "evidence.md")).Trim(), usage);
             generic = new GenericComparison(
                 new ClaudeGenericAssistant(client, claude.Model, usage),
                 new ClaudeGenericReader(client, claude.Model, File.ReadAllText(Path.Combine(baseDir, "judges", "generic.md")).Trim(), usage));
         }
 
-        var runner = new EvalRunner(ai, judge, forbidden);
+        var runner = new EvalRunner(ai, judge, forbidden, evidenceJudge);
         var runs = new List<EpisodeRun>();
         foreach (var script in scripts)
         {

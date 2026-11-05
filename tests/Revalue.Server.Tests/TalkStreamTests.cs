@@ -645,7 +645,7 @@ public sealed class TalkStreamTests
 
         var script = new Revalue.Evals.EpisodeScript("e99", "試しの例", "discover", "distress", answers.Select(a => new Revalue.Evals.ScriptedAnswer(a, false)).ToList());
         var forbidden = Revalue.Evals.ForbiddenWords.Load(Path.Combine(AppContext.BaseDirectory, "forbidden-words.json"));
-        var run = await new Revalue.Evals.EvalRunner(ai, new Revalue.Evals.DryRunJudge(), forbidden).RunAsync(script, Ct);
+        var run = await new Revalue.Evals.EvalRunner(ai, new Revalue.Evals.DryRunJudge(), forbidden, new Revalue.Evals.DryRunEvidenceJudge()).RunAsync(script, Ct);
         var evaluated = run.Replies.Select(r => $"{TalkStream.MoveName(r.Move)} | {r.Body} | {string.Join(" / ", r.Choices)}").ToList();
 
         Assert.Equal(["askWhatYouDid", "askEasierScene", "askConcreteEvent", "returnFromIllness", "distress"], product.Select(p => p.Split(" | ")[0]));
