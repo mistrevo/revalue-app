@@ -1,0 +1,12 @@
+{
+  "name": "revalue-persona-driver",
+  "private": true,
+  "description": "ペルソナ評価で、人ごとにブラウザを分けて手元の RE:VALUE の画面を動かす道具",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "playwright": "1.64.1"
+  }
+}
