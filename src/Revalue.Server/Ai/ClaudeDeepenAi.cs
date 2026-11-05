@@ -147,7 +147,7 @@ public sealed class ClaudeDeepenAi(
         sb.Append("主体性: ").Append(string.IsNullOrWhiteSpace(inputs.Agency) ? "まだ書いていない" : inputs.Agency).Append('\n');
 
         sb.Append("</records>\n\n<abilities>\n");
-        foreach (var ability in Enum.GetValues<Ability>())
+        foreach (var ability in AbilityCatalog.Active)
         {
             sb.Append("- ").Append(ActionRef.Key(ability)).Append('（').Append(AbilityText.Name(ability)).Append("）\n");
         }
@@ -205,7 +205,7 @@ public sealed class ClaudeDeepenAi(
 
     private static Dictionary<string, JsonElement> Schema()
     {
-        var abilities = new { type = "string", @enum = Enum.GetValues<Ability>().Select(ActionRef.Key).ToArray() };
+        var abilities = new { type = "string", @enum = AbilityCatalog.Active.Select(ActionRef.Key).ToArray() };
         var text = new { type = "string" };
 
         object ArrayOf(string[] fields, Dictionary<string, object> properties) => new

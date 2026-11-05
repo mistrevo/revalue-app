@@ -42,7 +42,7 @@ public sealed class InsightsTests
         Assert.True(insights.GetProperty("canResume").GetBoolean());
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りが 3 つの行動に 1 文字の引用を返しても、根拠ありにしない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りが 3 つの行動に 1 文字の引用を返しても、根拠ありにしない")]
     public async Task OneLetterQuotesDoNotConfirm()
     {
         var (factory, ai) = Create();
@@ -154,7 +154,7 @@ public sealed class InsightsTests
         Assert.Equal(new Dictionary<string, bool> { [confirmed] = false, [partial] = true, [talking] = false }, canResume);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りが出来事の番号を振り直しても、別の日の行動を同じ出来事としてそろえない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りが出来事の番号を振り直しても、別の日の行動を同じ出来事としてそろえない")]
     public async Task RenumberedEventsDoNotCombineAcrossDays()
     {
         var (factory, ai) = Create();

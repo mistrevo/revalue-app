@@ -3,13 +3,13 @@ import { Link } from 'react-router'
 import {
   ApiError,
   generateDeepen,
-  getAbilities,
   getDeepen,
   isDailyLimit,
   putDeepenAnswer,
   putDeepenSteps,
   putDeepenTasks,
   type AbilityKey,
+  type DeepenAbility,
   type Deepen as DeepenData,
   type DeepenContent,
   type DeepenQuestion,
@@ -37,7 +37,6 @@ type GenerateError = { kind: 'failed' } | { kind: 'limit'; resetAt: string } | n
 type Where = 'top' | 'tasks' | 'steps' | `question:${string}`
 type Notice = { where: Where; text: string } | null
 
-const ABILITY_KEYS: AbilityKey[] = ['noticing', 'coordinating', 'prioritizing']
 const MAX_TASKS = 5
 // 入力欄の maxLength は UTF-16 の長さで数えるので、見た目の文字で数える裏側の上限より手前で止まることがある。
 // 裏側の上限を超えては送らない安全な側に置いている（仕事の選択肢の画面と同じ。Claude の判断）
@@ -76,8 +75,6 @@ export function Deepen() {
   const [busy, setBusy] = useState(false)
   // 一歩の欄を、読み直した中身で作り直すための印
   const [reloads, setReloads] = useState(0)
-  // 業務を直すときの力の名前（裏側が決めた名前を、見えた力の API から取る）
-  const [abilityNames, setAbilityNames] = useState<Partial<Record<AbilityKey, string>>>({})
   // 開いたときの作り直しを 1 回だけにする印。StrictMode で画面を開く処理が 2 回走っても POST は 1 回
   const autoRegenerated = useRef(false)
 
@@ -126,14 +123,6 @@ export function Deepen() {
         }
       })
       .catch(() => active && setState({ kind: 'error' }))
-    getAbilities()
-      .then((abilities) => {
-        if (!active) return
-        setAbilityNames(Object.fromEntries(abilities.abilities.map((a) => [a.key, a.name])))
-      })
-      .catch(() => {
-        // 取れなくても、業務に付いている力の名前で選べる
-      })
     return () => {
       active = false
     }
@@ -235,7 +224,7 @@ export function Deepen() {
                   <TasksSection
                     content={content}
                     editable={draftsTasks(data.target)}
-                    abilityNames={abilityNames}
+                    abilities={data.abilities}
                     busy={busy}
                     notice={noticeAt('tasks')}
                     onSave={(tasks) => change('tasks', (seen) => putDeepenTasks(seen, tasks))}
@@ -346,14 +335,14 @@ function TargetSection({ target }: { target: DeepenTarget }) {
 function TasksSection({
   content,
   editable,
-  abilityNames,
+  abilities,
   busy,
   notice,
   onSave,
 }: {
   content: DeepenContent
   editable: boolean
-  abilityNames: Partial<Record<AbilityKey, string>>
+  abilities: DeepenAbility[]
   busy: boolean
   notice: string | null
   onSave: (tasks: DeepenTaskRequest[]) => Promise<boolean>
@@ -361,10 +350,10 @@ function TasksSection({
   // 'new' は書き足している、数字はその並びの業務を直している
   const [editing, setEditing] = useState<number | 'new' | null>(null)
   const { tasks, tasksRejected } = content
-  // 業務に付いている名前を先に、見えた力の API の名前で足す
-  const names: Partial<Record<AbilityKey, string>> = {
-    ...abilityNames,
-    ...Object.fromEntries(tasks.map((t) => [t.ability, t.abilityName])),
+  // 裏側が返した力の一覧を辞書の順に出す。一覧にない力が付いた業務があれば、その力も選べるように足す
+  const options: DeepenAbility[] = [...abilities]
+  for (const t of tasks) {
+    if (!options.some((o) => o.key === t.ability)) options.push({ key: t.ability, name: t.abilityName })
   }
   const current = tasks.map(toRequest)
 
@@ -384,7 +373,7 @@ function TasksSection({
               <li key={task.id ?? index}>
                 <TaskForm
                   initial={current[index]}
-                  names={names}
+                  abilities={options}
                   busy={busy}
                   onCancel={() => setEditing(null)}
                   onSave={(value) => save(current.map((t, i) => (i === index ? value : t)))}
@@ -429,7 +418,7 @@ function TasksSection({
 
       {editable &&
         (editing === 'new' ? (
-          <TaskForm initial={null} names={names} busy={busy} onCancel={() => setEditing(null)} onSave={(value) => save([...current, value])} />
+          <TaskForm initial={null} abilities={options} busy={busy} onCancel={() => setEditing(null)} onSave={(value) => save([...current, value])} />
         ) : tasks.length < MAX_TASKS ? (
           <Button variant="outline" className="w-full sm:w-auto sm:self-start" disabled={busy} onClick={() => setEditing('new')}>
             {copy.deepen.taskAdd}
@@ -489,13 +478,13 @@ function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
 /** 業務の名前、中身、使う力、要る知識や道具。名前と力がないと保存しない（裏側も断る）。 */
 function TaskForm({
   initial,
-  names,
+  abilities,
   busy,
   onSave,
   onCancel,
 }: {
   initial: DeepenTaskRequest | null
-  names: Partial<Record<AbilityKey, string>>
+  abilities: DeepenAbility[]
   busy: boolean
   onSave: (task: DeepenTaskRequest) => void
   onCancel: () => void
@@ -558,9 +547,9 @@ function TaskForm({
           <option value="" disabled>
             {copy.deepen.taskAbilityPlaceholder}
           </option>
-          {ABILITY_KEYS.filter((key) => names[key]).map((key) => (
-            <option key={key} value={key}>
-              {names[key]}
+          {abilities.map((a) => (
+            <option key={a.key} value={a.key}>
+              {a.name}
             </option>
           ))}
         </select>

@@ -707,7 +707,7 @@ public sealed class TalkStreamTests
         Assert.False(evidence.FromChoice);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 前の往復の根拠は、次の往復の読み取りに出なくても残る")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 前の往復の根拠は、次の往復の読み取りに出なくても残る")]
     public async Task EarlierEvidenceIsKept()
     {
         var (factory, ai) = Create();
@@ -726,7 +726,7 @@ public sealed class TalkStreamTests
         Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 3)), ai.NextMoves[^1]);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: つらい状態のサインの往復では根拠を保存しない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: つらい状態のサインの往復では根拠を保存しない")]
     public async Task DistressRoundSavesNoEvidence()
     {
         var (factory, ai) = Create();

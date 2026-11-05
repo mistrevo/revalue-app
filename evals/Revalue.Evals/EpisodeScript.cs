@@ -121,7 +121,7 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
         };
     }
 
-    /// <summary><c>noticing=notYet, coordinating=confirmed, prioritizing=notYet</c> の形を読む。3 つの力すべてを書く。</summary>
+    /// <summary><c>noticing=notYet, coordinating=confirmed, prioritizing=notYet</c> の形を読む。判定に使う力すべてを書く。力の id は能力辞書（abilities.json）で確かめる。</summary>
     private static Dictionary<Ability, AbilityState> ParseStates(string id, string text)
     {
         var states = new Dictionary<Ability, AbilityState>();
@@ -139,9 +139,9 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
             }
         }
 
-        if (states.Count != Enum.GetValues<Ability>().Length)
+        if (states.Count != AbilityCatalog.Active.Count)
         {
-            throw new FormatException($"エピソード {id} の状態には、3 つの力すべてを書きます。");
+            throw new FormatException($"エピソード {id} の状態には、判定に使う力すべて（{AbilityCatalog.Active.Count} つ）を書きます。");
         }
 
         return states;

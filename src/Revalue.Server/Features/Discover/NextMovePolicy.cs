@@ -245,13 +245,13 @@ public static class NextMovePolicy
             .Where(e => validation.Focus is not { } only || e.Ability == only)
             .GroupBy(e => e.Ability)
             .Select(g => (Ability: g.Key, Actions: AbilityStates.Counted(g).Select(e => e.Action).ToHashSet()))
-            .Where(c => c.Actions.Count < ActionRef.ActionsPerAbility)
+            .Where(c => c.Actions.Count < AbilityCatalog.ActionCount(c.Ability))
             .OrderByDescending(c => c.Actions.Count)
             .ThenBy(c => c.Ability);
 
         foreach (var (ability, actions) in candidates)
         {
-            var missing = Enumerable.Range(1, ActionRef.ActionsPerAbility).Where(n => !actions.Contains(n));
+            var missing = Enumerable.Range(1, AbilityCatalog.ActionCount(ability)).Where(n => !actions.Contains(n));
             var next = AbilityStates.AskOrder(ability, missing, validation.Evidence)
                 .FirstOrDefault(a => validation.AskedCounts.GetValueOrDefault(a) < MaxAskPerAction);
             if (next is not null)

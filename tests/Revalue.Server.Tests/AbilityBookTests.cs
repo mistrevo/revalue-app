@@ -100,7 +100,7 @@ public sealed class AbilityBookTests
             ],
             book.History.Select(h => (h.Ability, h.From, h.To, h.Reason, h.EpisodeId)));
         Assert.Equal(clock.GetUtcNow(), book.History[^1].At);
-        Assert.All(Enum.GetValues<Ability>(), a => Assert.Equal(AbilityState.NotYet, book.StateOf(a)));
+        Assert.All(AbilityCatalog.Active, a => Assert.Equal(AbilityState.NotYet, book.StateOf(a)));
 
         // 外す行がなく、状態も変わらなければ書かない
         var again = await AbilityBook.RecomputeAfterDeletingAsync(store, User, deleted.Id, clock, Ct);
@@ -156,7 +156,7 @@ public sealed class AbilityBookTests
         Assert.Contains(raw, j => j.Contains("\"states\":{\"noticing\":\"notYet\",\"coordinating\":\"confirmed\"", StringComparison.Ordinal));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 力の確かめに使わない場面は数えない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 力の確かめに使わない場面は数えない")]
     public async Task ExcludedEpisodesAreNotCounted()
     {
         var (store, clock) = Create();
@@ -171,7 +171,7 @@ public sealed class AbilityBookTests
         Assert.All(view, v => Assert.Equal(AbilityState.NotYet, v.State));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 場面のうちいちばん進んだ状態を使い、根拠はその状態の新しい場面から")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 場面のうちいちばん進んだ状態を使い、根拠はその状態の新しい場面から")]
     public async Task MostAdvancedStateWithNewestEvidence()
     {
         var (store, clock) = Create();

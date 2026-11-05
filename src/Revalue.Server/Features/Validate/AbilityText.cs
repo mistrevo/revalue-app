@@ -1,43 +1,12 @@
 namespace Revalue.Server.Features.Validate;
 
 /// <summary>
-/// 力の名前と、核となる行動を普通の言葉にした手がかり（03-validate.md の表）。裏側の言葉の 1 か所で、画面へは API で渡す。
-/// 聞き手の AI には、核となる行動の一覧ではなく、この手がかりだけを渡す。
+/// 力の名前と、核となる行動を普通の言葉にした手がかり、続きを話すときの問い。名前と手がかりは能力辞書（<see cref="AbilityCatalog"/>）から返す。
+/// 画面へは API で渡す。聞き手の AI には、核となる行動の一覧ではなく、手がかりだけを渡す。
+/// 手がかりは、画面の「もう少し聞かせてほしいこと」に前の文脈なしで並ぶので、「そう」のように前を指す言葉を使わず、それだけで意味が通る形にする。
 /// </summary>
 public static class AbilityText
 {
-    private static readonly IReadOnlyDictionary<Ability, string> Names = new Dictionary<Ability, string>
-    {
-        [Ability.Noticing] = "見立てる力",
-        [Ability.Coordinating] = "調整する力",
-        [Ability.Prioritizing] = "優先順位をつける力",
-    };
-
-    /// <summary>
-    /// 手がかりの言葉。画面の「もう少し聞かせてほしいこと」に、前の文脈なしで並ぶので、「そう」のように前を指す言葉を使わず、それだけで意味が通る形にする。
-    /// </summary>
-    private static readonly IReadOnlyDictionary<Ability, string[]> Hints = new Dictionary<Ability, string[]>
-    {
-        [Ability.Noticing] =
-        [
-            "いつもと違うことに、自分で気づいたこと",
-            "何を見たり聞いたりして、いつもと違うと思ったか",
-            "いつもの様子や、前のときと比べたこと",
-        ],
-        [Ability.Coordinating] =
-        [
-            "ほかに関わっていた人と、その人たちの都合",
-            "あなたから声をかけたり、頼んだりしたこと",
-            "みんなの都合を合わせたり、別の案を出したりしたこと",
-        ],
-        [Ability.Prioritizing] =
-        [
-            "その日に重なっていた用事",
-            "何を先にして、何を後に回したか",
-            "先にすること、後に回すことを、どう考えて決めたか",
-        ],
-    };
-
     /// <summary>
     /// 続きを話すときの、行動ごとの問い（Claude の判断）。本人がその行動をしたことを前提にせず、「ありましたか」「いましたか」で聞く。
     /// どの問いにも同じ選択肢（<see cref="ResumeChoices"/>）が自然な答えになるよう、問いの形をそろえる。一度に一つだけ求める。
@@ -96,10 +65,11 @@ public static class AbilityText
     /// <summary>一般論だけの場面の続きの選択肢（Claude の判断）。日が浮かばない人も選べる答えを一つ入れる。</summary>
     public static IReadOnlyList<string> ConcreteDayChoices { get; } = ["今週のことを話したい", "先週のことを話したい", "すぐには浮かばない"];
 
-    public static string Name(Ability ability) => Names[ability];
+    /// <summary>力の名前（能力辞書の名前）。辞書にない力なら <see cref="ArgumentOutOfRangeException"/>。</summary>
+    public static string Name(Ability ability) => AbilityCatalog.Name(ability);
 
-    /// <summary>行動の手がかり。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。</summary>
-    public static string Hint(ActionRef action) => Pick(Hints, action);
+    /// <summary>行動の手がかり（能力辞書の手がかり）。辞書にない力か、番号が 1〜行動の数でなければ <see cref="ArgumentOutOfRangeException"/>。</summary>
+    public static string Hint(ActionRef action) => AbilityCatalog.Hint(action);
 
     /// <summary>
     /// 続きを話すときの、コードが決めた最初の問い（Claude の判断）。4-rules.md の「対話の決まり」のとおり、
@@ -146,7 +116,7 @@ public static class AbilityText
     public const string ResumeLead = "続きの話を選んでくれて、ありがとうございます。";
 
     private static string Pick(IReadOnlyDictionary<Ability, string[]> texts, ActionRef action) =>
-        action.Number is >= 1 and <= ActionRef.ActionsPerAbility
-            ? texts[action.Ability][action.Number - 1]
+        action.Number >= 1 && action.Number <= AbilityCatalog.ActionCount(action.Ability) && texts.TryGetValue(action.Ability, out var list) && action.Number <= list.Length
+            ? list[action.Number - 1]
             : throw new ArgumentOutOfRangeException(nameof(action));
 }

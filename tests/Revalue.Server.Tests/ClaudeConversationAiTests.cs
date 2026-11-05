@@ -220,6 +220,47 @@ public sealed class ClaudeConversationAiTests
         Assert.DoesNotContain("next_move", body.GetRawText());
     }
 
+    /// <summary>力をデータに出す前の reader.md の、力の表の部分（一字一句そのまま）。</summary>
+    private const string AbilityTableBeforeData = """
+        見る力は 3 つです。力ごとに、核となる行動を 3 つ決めています。
+
+        | 力 | `ability` | `action` 1 | `action` 2 | `action` 3 |
+        |---|---|---|---|---|
+        | 見立てる力 | `noticing` | 変化に自分で気づく | 判断の手がかりを挙げる | いつもの様子や前と比べる |
+        | 調整する力 | `coordinating` | 都合の違う 2 者以上が関わる | 本人から働きかける | 代わりの案を出すか、双方の都合を合わせる |
+        | 優先順位をつける力 | `prioritizing` | 全部はこなせないほど用事が重なる | 何を先にし、何を後に回すかを具体的に決める | 決めた理由や基準がある |
+        """;
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示の力の表は、判定に使う力からコードが作って差し込み、いまの表と一字一句同じ")]
+    public void ReaderPromptInsertsAbilityTableFromData()
+    {
+        var file = PromptFiles.Read(PromptFiles.Reader);
+        var prompt = PromptFiles.ReaderPrompt();
+
+        // 差し込みの印は 1 か所だけで、力の id はファイルに書かない
+        Assert.Single(file.Split(PromptFiles.AbilityTableMarker)[1..]);
+        Assert.DoesNotContain("`noticing`", file);
+
+        Assert.Equal(AbilityTableBeforeData, PromptFiles.AbilityTable());
+        Assert.Equal(file.Replace(PromptFiles.AbilityTableMarker, AbilityTableBeforeData, StringComparison.Ordinal), prompt);
+        Assert.DoesNotContain("{{", prompt);
+
+        // 毎回同じ文字列（キャッシュが効く）
+        Assert.Equal(prompt, PromptFiles.ReaderPrompt());
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りのシステムプロンプトは、力の表を差し込んだ指示")]
+    public async Task ReadRequestUsesReaderPromptWithTable()
+    {
+        var (ai, http, _) = Create(HttpStatusCode.OK, MessageJson(ReadingJson, "end_turn"));
+
+        await ai.ReadAsync(Conversation(), Ct);
+
+        var system = http.RequestBody.GetProperty("system");
+        Assert.Equal(PromptFiles.ReaderPrompt(), system[0].GetProperty("text").GetString());
+        Assert.Contains("| 見立てる力 | `noticing` |", system[0].GetProperty("text").GetString());
+    }
+
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 読み取りには、本人の答えに番号と答え方を付けた 1 つの文を渡し、スキーマに evidence を求める")]
     public async Task ReadRequestNumbersAnswersAndAsksEvidence()
     {
@@ -486,7 +527,7 @@ public sealed class ClaudeConversationAiTests
     [Fact(DisplayName = "validate-3（結果で見立てを変えない）: 読み取りの指示は、核となる行動の一覧、一字一句の抜き出し、結果で変えないこと、訂正を優先することを書いている")]
     public void ReaderDescribesEvidence()
     {
-        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var reader = PromptFiles.ReaderPrompt();
 
         foreach (var key in new[] { "noticing", "coordinating", "prioritizing", "evidence", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer" })
         {
@@ -504,7 +545,7 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("（訂正）", reader);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りの指示は、優先順位をつける力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、優先順位をつける力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
     public void ReaderDoesNotInferPrioritizingReason()
     {
         var reader = PromptFiles.Read(PromptFiles.Reader);

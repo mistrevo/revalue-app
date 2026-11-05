@@ -1,0 +1,57 @@
+{
+  "categories": [
+    { "id": "understand-people", "name": "人を理解する力" },
+    { "id": "communication", "name": "対話・コミュニケーション" },
+    { "id": "hr-organization", "name": "人事・組織" },
+    { "id": "analysis-judgment", "name": "問題発見・分析・判断" },
+    { "id": "coordination-execution", "name": "調整・実行・仕組み化" },
+    { "id": "family-life", "name": "家庭・子育て・人間関係から見える力" },
+    { "id": "independent-work", "name": "フリーランス・独立の経験から見える力" },
+    { "id": "new-value", "name": "新しい価値を見つけ、創る力" },
+    { "id": "empathy-support", "name": "共感・安心・対人支援" },
+    { "id": "inquiry-insight", "name": "問い・洞察" },
+    { "id": "execution-challenge", "name": "実行・挑戦" },
+    { "id": "negotiation", "name": "対人・交渉" }
+  ],
+  "abilities": [
+    {
+      "id": "noticing",
+      "name": "見立てる力",
+      "category": "family-life",
+      "reason": "変化に自分で気づき、手がかりを挙げて、いつもと比べる",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "変化に自分で気づく", "hint": "いつもと違うことに、自分で気づいたこと" },
+        { "number": 2, "text": "判断の手がかりを挙げる", "hint": "何を見たり聞いたりして、いつもと違うと思ったか" },
+        { "number": 3, "text": "いつもの様子や前と比べる", "hint": "いつもの様子や、前のときと比べたこと" }
+      ]
+    },
+    {
+      "id": "coordinating",
+      "name": "調整する力",
+      "category": "coordination-execution",
+      "reason": "都合の違う人たちのあいだで、自分から働きかけ、都合を合わせたり別の案を出したりする",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "都合の違う 2 者以上が関わる", "hint": "ほかに関わっていた人と、その人たちの都合" },
+        { "number": 2, "text": "本人から働きかける", "hint": "あなたから声をかけたり、頼んだりしたこと" },
+        { "number": 3, "text": "代わりの案を出すか、双方の都合を合わせる", "hint": "みんなの都合を合わせたり、別の案を出したりしたこと" }
+      ]
+    },
+    {
+      "id": "prioritizing",
+      "name": "優先順位をつける力",
+      "category": "coordination-execution",
+      "reason": "用事が重なったとき、理由をもって、何を先にし何を後に回すかを決める",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "全部はこなせないほど用事が重なる", "hint": "その日に重なっていた用事" },
+        { "number": 2, "text": "何を先にし、何を後に回すかを具体的に決める", "hint": "何を先にして、何を後に回したか" },
+        { "number": 3, "text": "決めた理由や基準がある", "hint": "先にすること、後に回すことを、どう考えて決めたか" }
+      ]
+    }
+  ]
+}

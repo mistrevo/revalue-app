@@ -236,7 +236,7 @@ public sealed class ClaudeOptionsAi(
 
     private static Dictionary<string, JsonElement> Schema()
     {
-        var abilities = new { type = "string", @enum = Enum.GetValues<Ability>().Select(ActionRef.Key).ToArray() };
+        var abilities = new { type = "string", @enum = AbilityCatalog.Active.Select(ActionRef.Key).ToArray() };
         var text = new { type = "string" };
         var texts = new { type = "array", items = text };
         var made = new { type = "boolean" };

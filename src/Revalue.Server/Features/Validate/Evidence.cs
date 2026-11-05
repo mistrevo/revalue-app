@@ -78,8 +78,9 @@ public static class EvidenceChecker
         foreach (var c in candidates ?? [])
         {
             if (c is null
-                || !Enum.IsDefined(c.Ability)
-                || c.Action is < 1 or > ActionRef.ActionsPerAbility
+                || !AbilityCatalog.Active.Contains(c.Ability)
+                || c.Action < 1
+                || c.Action > AbilityCatalog.ActionCount(c.Ability)
                 || c.Event < 1
                 || !Contains(answers, c.Answer, c.Quote))
             {

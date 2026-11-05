@@ -203,7 +203,7 @@ public sealed class NextMovePolicyTests
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 1, generalOnly));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: そろった力は聞かない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: そろった力は聞かない")]
     public void ConfirmedAbilityIsNotAsked()
     {
         var context = Context(3, [E(Ability.Coordinating, 1, answer: 1), E(Ability.Coordinating, 2, answer: 2), E(Ability.Coordinating, 3, answer: 3)]);

@@ -162,7 +162,8 @@ export type Episode = {
 /** 根拠の本人の言葉。fromChoice なら選んだ答えで、linkedText に結びついた本人の言葉が入る。 */
 export type Quote = { text: string; fromChoice: boolean; linkedText?: string | null }
 
-export type AbilityKey = 'noticing' | 'coordinating' | 'prioritizing'
+/** 力の id。能力辞書（src/shared/abilities.json）の id で、画面のコードには書かない。 */
+export type AbilityKey = string
 
 /** 力の状態。画面には呼び名を出さず、copy の言葉にして出す。 */
 export type AbilityState = 'notYet' | 'needsCheck' | 'confirmed'
@@ -591,7 +592,16 @@ export type DeepenContent = {
 
 /** 深める API が返すもの。進めないときは target と content が null。まだ深めていなければ content が null。 */
 /** retryPaused は、いまの選んだ案で AI が失敗したか断ったか。初めて深めるときの失敗も伝えるため、中身の外にも持つ */
-export type Deepen = { readiness: DeepenReadiness; target: DeepenTarget | null; content: DeepenContent | null; retryPaused: boolean }
+/** 業務の見立てで選べる力。辞書の判定に使う力が、辞書の順で来る。 */
+export type DeepenAbility = { key: AbilityKey; name: string }
+
+export type Deepen = {
+  readiness: DeepenReadiness
+  target: DeepenTarget | null
+  content: DeepenContent | null
+  retryPaused: boolean
+  abilities: DeepenAbility[]
+}
 
 /** 本人が直した業務。knowledge は要る知識や道具（なくてもよい）。 */
 export type DeepenTaskRequest = { name: string; detail: string; ability: AbilityKey; knowledge: string }

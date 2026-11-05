@@ -181,6 +181,21 @@ public sealed class DeepenApiTests
         Assert.Equal(0, kit.Deepen.Calls);
     }
 
+    [Fact]
+    public async Task DeepenReturnsActiveAbilitiesFromCatalog()
+    {
+        var kit = Setup();
+        var client = await Ready(kit, "d-abilities");
+
+        // 選んだ案がなくても、業務の見立てで選べる力は辞書の判定に使う力と同じ順で返す
+        var dto = await Get(client);
+        var returned = dto.GetProperty("abilities").EnumerateArray()
+            .Select(a => (a.GetProperty("key").GetString(), a.GetProperty("name").GetString()))
+            .ToList();
+        var expected = AbilityCatalog.Active.Select(a => (a.Id, AbilityCatalog.Name(a))).ToList();
+        Assert.Equal(expected, returned);
+    }
+
     [Fact(DisplayName = "deepen-1（選んだ 1 案だけ深める）: 選んだ案を深め、同じ案なら AI を呼ばずに返す")]
     public async Task DeepensChosenOnceAndReuses()
     {

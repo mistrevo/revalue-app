@@ -343,6 +343,11 @@ export function fakeDeepen(overrides: Partial<Deepen> = {}): Deepen {
     target: { kind: 'choose', title: 'オンライン秘書', outsideConditions: false },
     content: null,
     retryPaused: false,
+    abilities: [
+      { key: 'noticing', name: '見立てる力' },
+      { key: 'coordinating', name: '調整する力' },
+      { key: 'prioritizing', name: '優先順位をつける力' },
+    ],
     ...overrides,
   }
 }

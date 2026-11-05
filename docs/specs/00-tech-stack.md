@@ -63,6 +63,9 @@ src/Revalue.Server/               ASP.NET Core
   Ai/Prompts/*.md                 プロンプト（日本語）。評価からも同じファイルを読む
   Data/                           Cosmos DB と、テスト用のインメモリの保存先
   wwwroot/                        画面を作った結果（コミットしない）
+src/shared/                       画面と裏側の両方が読むデータ
+  forbidden-words.json            使わない言葉の一覧
+  abilities.json                  能力辞書（力の分類、力、核となる行動とその手がかり）。裏側は埋め込みのリソースとして読み、形が崩れていれば起動時に止める
 src/web/                          React と TypeScript の画面（Vite）
   src/components/ui/              shadcn/ui の部品（CLI で足す）
   src/copy.ts                     画面の文言をまとめる場所（言い方の点検をしやすくするため。Claude の判断）

@@ -497,7 +497,7 @@ public sealed class EvalsTests
         Assert.Equal(AnswerKind.Choice, run.Turns.Single(t => t.Role == TurnRoles.User).AnswerKind);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 評価は、期待が confirmed でない力を Confirmed にした数を褒めすぎとして数え、1 件でも合格にしない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、期待が confirmed でない力を Confirmed にした数を褒めすぎとして数え、1 件でも合格にしない")]
     public async Task OverPraiseFails()
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
@@ -513,7 +513,7 @@ public sealed class EvalsTests
         Assert.False(summary.Passed);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 評価は、そろっている例で Confirmed にした割合を数え、期待どおりなら合格にする")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、そろっている例で Confirmed にした割合を数え、期待どおりなら合格にする")]
     public async Task ConfirmedAsExpectedPasses()
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
@@ -654,7 +654,7 @@ public sealed class EvalsTests
         var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
         Assert.Contains("03 validate（確かめる）", report);
         Assert.Contains("声をかけたのは私ではなく、夫でした", report);
-        Assert.Contains("validate-1（3 つともそろったときだけ根拠あり）", report);
+        Assert.Contains("validate-1（すべてそろったときだけ根拠あり）", report);
     }
 
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 訂正の読み取りが失敗したら、途中で終えた例として残す")]
@@ -755,7 +755,7 @@ public sealed class EvalsTests
         });
         Assert.Equal(new ActionRef(Ability.Coordinating, 3), scripts.Single(s => s.Id == "e11").Ask);
         Assert.Equal(new ActionRef(Ability.Prioritizing, 3), scripts.Single(s => s.Id == "e12").Ask);
-        // validate-1（3 つともそろったときだけ根拠あり）: 期限を確かめた事実だけでは、決めた理由として根拠にしない
+        // validate-1（すべてそろったときだけ根拠あり）: 期限を確かめた事実だけでは、決めた理由として根拠にしない
         var checkedDeadline = scripts.Single(s => s.Id == "e19");
         Assert.Equal(new ActionRef(Ability.Prioritizing, 3), checkedDeadline.Ask);
         Assert.Equal(AbilityState.NeedsCheck, checkedDeadline.States![Ability.Prioritizing]);

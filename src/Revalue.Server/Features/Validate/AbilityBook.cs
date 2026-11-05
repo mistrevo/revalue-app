@@ -114,7 +114,7 @@ public static class AbilityBook
         {
             var read = await store.GetVersionedAsync<AbilityBookItem>(userKey, AbilityBookItem.ItemId, ct);
             var episodes = await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct);
-            var states = Enum.GetValues<Ability>().ToDictionary(a => a, a => Best(episodes, a)?.Result.State ?? AbilityState.NotYet);
+            var states = AbilityCatalog.Active.ToDictionary(a => a, a => Best(episodes, a)?.Result.State ?? AbilityState.NotYet);
 
             var current = read?.Item ?? New(userKey);
             var forgotten = deletedEpisode && episodeId is not null ? ForgetSetAside(current, episodeId) : null;
@@ -158,7 +158,7 @@ public static class AbilityBook
         }
 
         var history = new List<AbilityChange>(book.History.Count);
-        var recorded = Enum.GetValues<Ability>().ToDictionary(a => a, book.StateOf);
+        var recorded = AbilityCatalog.Active.ToDictionary(a => a, book.StateOf);
         var rewriting = new Dictionary<Ability, AbilityState>();
         foreach (var change in book.History)
         {
@@ -243,7 +243,7 @@ public static class AbilityBook
     /// 力ごとの中身を <see cref="Ability"/> の順で返す。状態は場面から出し（本と同じ決め方）、外したかは本から読む。
     /// </summary>
     public static IReadOnlyList<AbilityView> View(IReadOnlyList<EpisodeItem> episodes, AbilityBookItem? book) =>
-        Enum.GetValues<Ability>().Select(ability =>
+        AbilityCatalog.Active.Select(ability =>
         {
             var excluded = book?.Excluded.Contains(ability) ?? false;
             if (Best(episodes, ability) is not { } best)

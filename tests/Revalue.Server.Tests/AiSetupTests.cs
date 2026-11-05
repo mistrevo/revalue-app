@@ -128,7 +128,7 @@ public sealed class AiSetupTests
         Assert.Empty((await new ScriptedConversationAi().ReadAsync(chosen, Ct)).Candidates!);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 偽物の AI も、本物の読み取りと同じく前の答えから根拠を探す")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 偽物の AI も、本物の読み取りと同じく前の答えから根拠を探す")]
     public async Task ScriptedReadsWholeScene()
     {
         IReadOnlyList<Turn> turns =

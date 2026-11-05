@@ -14,9 +14,9 @@ public sealed class EvidenceTests
         new() { Role = TurnRoles.User, Text = text, AnswerKind = kind, At = At };
 
     private static EvidenceCandidate Candidate(
-        string quote, int answer = 1, Ability ability = Ability.Noticing, int action = 1, int @event = 1, bool general = false,
+        string quote, int answer = 1, Ability? ability = null, int action = 1, int @event = 1, bool general = false,
         string linkedQuote = "", int linkedAnswer = 0) =>
-        new(ability, action, quote, answer, @event, general, linkedQuote, linkedAnswer);
+        new(ability ?? Ability.Noticing, action, quote, answer, @event, general, linkedQuote, linkedAnswer);
 
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 本人の答えに一字一句含まれる引用だけを残す")]
     public void KeepsOnlyQuotesContainedInAnswers()
@@ -171,7 +171,7 @@ public sealed class EvidenceTests
         Assert.Equal(2, evidence.Answer);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 照らし合わせを通った根拠には、どの読み取りかとして、読んだときの本人の答えの数が入る")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 照らし合わせを通った根拠には、どの読み取りかとして、読んだときの本人の答えの数が入る")]
     public void CheckTagsReading()
     {
         IReadOnlyList<Turn> turns =
@@ -190,7 +190,7 @@ public sealed class EvidenceTests
     private static Evidence E(int action, string quote, int answer, int @event, int reading) =>
         new(Ability.Prioritizing, action, quote, answer, @event, false, false, null, reading);
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: EvidenceSet.Merge は前の読み取りの根拠を消さず、新しい読み取りの根拠を番号ごと足す")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: EvidenceSet.Merge は前の読み取りの根拠を消さず、新しい読み取りの根拠を番号ごと足す")]
     public void MergeKeepsKnownAndAddsNewReading()
     {
         var a = E(1, "重なっていました", answer: 1, @event: 1, reading: 1);
@@ -207,7 +207,7 @@ public sealed class EvidenceTests
         Assert.Equal([a, b], EvidenceSet.Merge([a, b], []));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: EvidenceSet.Merge は、新しい読み取りのある出来事に中身がすべて含まれる前の出来事だけをまとめる")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: EvidenceSet.Merge は、新しい読み取りのある出来事に中身がすべて含まれる前の出来事だけをまとめる")]
     public void MergeDropsOnlyCoveredEarlierEvents()
     {
         var first = E(1, "重なっていました", answer: 1, @event: 1, reading: 1);
@@ -230,7 +230,7 @@ public sealed class EvidenceTests
         Assert.Equal([coordinating, monday], EvidenceSet.Merge([coordinating], [monday]));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 番号を振り直す読み取りを重ねても、別の日の行動はそろわない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 番号を振り直す読み取りを重ねても、別の日の行動はそろわない")]
     public void RenumberingReadingsDoNotConfirmAcrossDays()
     {
         // 2 回目: 月曜（出来事 1）に行動 1、木曜（出来事 2）に行動 2 と 3。3 回目: 月曜を外し、木曜を出来事 1 に振り直す
