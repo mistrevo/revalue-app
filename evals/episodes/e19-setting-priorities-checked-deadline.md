@@ -3,8 +3,9 @@ id: e19
 title: 同じ朝に重なった 3 つの用事の先と後を決める
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=notYet, prioritizing=needsCheck
-ask: prioritizing.3
+states: setting-priorities=needsCheck
+notConfirmed: noticing-changes, balancing-interests, managing-deadlines
+ask: setting-priorities.3
 ---
 
 # e19 同じ朝に重なった 3 つの用事の先と後を決める
@@ -13,7 +14,7 @@ ask: prioritizing.3
 
 ## どんな例か
 
-優先順位をつける力の行動のうち、用事が重なったことと、先と後を決めたことは話す。締め切りを確かめたという事実は話すが、それを決めた理由や基準としては言葉にしていない。事実から理由を推し量らずに要確認にし、足りない行動（決めた理由）だけを聞き返せるかを見る。
+優先順位設定力の行動のうち、用事が重なったことと、先と後を決めたことは話す。締め切りを確かめたという事実は話すが、それを決めた理由や基準としては言葉にしていない。事実から理由を推し量らずに要確認にし、足りない行動（決めた理由や基準がある）だけを聞き返せるかを見る。
 
 ## 利用者の答え
 

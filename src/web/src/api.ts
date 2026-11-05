@@ -160,7 +160,8 @@ export type Episode = {
 // ---- 力の確かめ ----
 
 /** 根拠の本人の言葉。fromChoice なら選んだ答えで、linkedText に結びついた本人の言葉が入る。 */
-export type Quote = { text: string; fromChoice: boolean; linkedText?: string | null }
+/** action は、その根拠の核となる行動の文（辞書の共通の文）。見えた力では本人の言葉と組にして出す。 */
+export type Quote = { text: string; fromChoice: boolean; linkedText?: string | null; action?: string | null }
 
 /** 力の id。能力辞書（src/shared/abilities.json）の id で、画面のコードには書かない。 */
 export type AbilityKey = string
@@ -172,11 +173,14 @@ export type AbilityState = 'notYet' | 'needsCheck' | 'confirmed'
 export type EpisodeInsights = {
   seen: { key: AbilityKey; name: string; quotes: Quote[] }[]
   moreToHear: { key: AbilityKey; name: string; quotes: Quote[]; hints: string[] }[]
-  notYet: { key: AbilityKey; name: string }[]
   canResume: boolean
 }
 
-/** 見えた力の 1 つ。life は生活の中での状態、work は仕事での状態（いまはいつも notChecked）。 */
+/**
+ * 見えた力の 1 つ。life は生活の中での状態、work は仕事での状態（いまはいつも notChecked）。
+ * canTellMore は、根拠の場面の「もう少し聞かせてほしいこと」にいまも出している確かめ中の力か。false なら、その場面の続きでは聞かないので、
+ * 手がかりも、続きを話せるという言葉も出さない。
+ */
 export type AbilityView = {
   key: AbilityKey
   name: string
@@ -186,6 +190,7 @@ export type AbilityView = {
   hints: string[]
   work: string
   excluded: boolean
+  canTellMore: boolean
 }
 
 export type ChangeReason = 'talk' | 'correction' | 'skip' | 'exclude' | 'restore' | 'setAside'
@@ -408,13 +413,13 @@ export type CardKind = 'choose' | 'combine' | 'create'
 export type MissingReason = 'noFit' | 'noAbilityMatch' | 'rejected' | 'excluded' | 'changed'
 export type TaskPlace = 'home' | 'out'
 
-/** カードの業務。ability は使う力の key。timeSlots は本人の時間帯に入るもの。 */
+/** カードの業務。ability は使う力の key（辞書の話から確かめる力でなければ null）。timeSlots は本人の時間帯に入るもの。 */
 export type CardTask = {
   id: string
   occupationName: string
   name: string
   detail: string
-  ability: AbilityKey
+  ability: AbilityKey | null
   timeSlots: TimeSlot[]
   place: TaskPlace
 }
@@ -552,13 +557,16 @@ export type TargetKind = CardKind | 'own'
 /** 選んだ案。outsideConditions は、選んだカードがいまの条件に収まらなくなったか（本人が書いた仕事はいつも false）。 */
 export type DeepenTarget = { kind: TargetKind; title: string; outsideConditions: boolean }
 
-/** 業務 1 つの照らし合わせ。usable がなければ、その業務で使う力はまだ確かめていない。drafted は AI の見立て（本人が直せる）。 */
+/**
+ * 業務 1 つの照らし合わせ。usable がなければ、その業務で使う力はまだ確かめていない。drafted は AI の見立て（本人が直せる）。
+ * 業務の力が辞書の話から確かめる力でなければ（保存データの古い id など）、ability と abilityName は null。
+ */
 export type DeepenTask = {
   id: string | null
   name: string
   detail: string
-  ability: AbilityKey
-  abilityName: string
+  ability: AbilityKey | null
+  abilityName: string | null
   usable: { state: 'confirmed' | 'needsCheck'; quotes: Quote[] } | null
   knowledge: string[]
   drafted: boolean
@@ -567,7 +575,7 @@ export type DeepenTask = {
 export type DeepenAnswer = { text: string; fromChoice: boolean }
 
 /** 仮の場面の問い。答えは考え方として残し、力の確かめには使わない。 */
-export type DeepenQuestion = { id: string; situation: string; abilityName: string; choices: string[]; answer: DeepenAnswer | null }
+export type DeepenQuestion = { id: string; situation: string; abilityName: string | null; choices: string[]; answer: DeepenAnswer | null }
 
 /** 一歩の候補。fits が false のものは、選んだあとで条件が変わって収まらなくなった候補（選んでいたものだけが来る）。 */
 export type DeepenStep = { id: string; text: string; hours: number; place: TaskPlace; demandCheck: boolean; fits: boolean; chosen: boolean }
@@ -653,7 +661,7 @@ export type ReportAbility = { key: AbilityKey; name: string; state: 'confirmed' 
 export type ReportTaskGap = { taskName: string; abilityName: string | null; knowledge: string[] }
 
 /** まだ確かめていないこと。力は名前で来る。hasExcluded は、業務で使う力を本人が外していて、その名前を出していないか。 */
-export type ReportNotYet = { notHeard: string[]; checking: string[]; taskGaps: ReportTaskGap[]; hasExcluded: boolean }
+export type ReportNotYet = { checking: string[]; taskGaps: ReportTaskGap[]; hasExcluded: boolean }
 
 /** 5 つの記録（できることは確かめた力の欄と同じなので来ない）。 */
 export type ReportRecords = {

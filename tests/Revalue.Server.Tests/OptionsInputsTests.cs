@@ -33,11 +33,11 @@ public sealed class OptionsInputsTests
 
     private static Evidence E(Ability ability, int action, string quote) => new(ability, action, quote, 1, 1, false, false, null);
 
-    private static readonly Evidence[] CoordinatingAll =
+    private static readonly Evidence[] BalancingInterestsAll =
     [
-        E(Ability.Coordinating, 1, "夫と母の予定がぶつかって"),
-        E(Ability.Coordinating, 2, "二人に電話しました"),
-        E(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました"),
+        E(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって"),
+        E(TestAbilities.BalancingInterests, 2, "二人に電話しました"),
+        E(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました"),
     ];
 
     private static async Task SaveEpisode(IDataStore store, DateTimeOffset at, IReadOnlyList<Evidence> evidence, string status = EpisodeStatus.Finished) =>
@@ -74,11 +74,11 @@ public sealed class OptionsInputsTests
         Assert.True(noAbility.HasFinishedEpisode);
         Assert.Equal(Readiness.NeedsAbility, OptionsInputsReader.Check(noAbility));
 
-        await SaveEpisode(store, clock.GetUtcNow().AddMinutes(1), [CoordinatingAll[0]]);
+        await SaveEpisode(store, clock.GetUtcNow().AddMinutes(1), [BalancingInterestsAll[0]]);
         var checking = await OptionsInputsReader.ReadAsync(store, User, Ct);
         Assert.Equal(Readiness.Ready, OptionsInputsReader.Check(checking));
         var ability = Assert.Single(checking.Abilities);
-        Assert.Equal((Ability.Coordinating, AbilityState.NeedsCheck), (ability.Ability, ability.State));
+        Assert.Equal((TestAbilities.BalancingInterests, AbilityState.NeedsCheck), (ability.Ability, ability.State));
         Assert.Equal("夫と母の予定がぶつかって", Assert.Single(ability.Quotes).Quote);
     }
 
@@ -87,7 +87,7 @@ public sealed class OptionsInputsTests
     {
         var (store, clock) = await Create();
         await ProfileStore.UpdateAsync(store, User, p => p with { Conditions = Conditions }, clock, Ct);
-        await SaveEpisode(store, clock.GetUtcNow(), CoordinatingAll, EpisodeStatus.Talking);
+        await SaveEpisode(store, clock.GetUtcNow(), BalancingInterestsAll, EpisodeStatus.Talking);
 
         var inputs = await OptionsInputsReader.ReadAsync(store, User, Ct);
 
@@ -100,14 +100,14 @@ public sealed class OptionsInputsTests
     {
         var (store, clock) = await Create();
         await ProfileStore.UpdateAsync(store, User, p => p with { Conditions = Conditions }, clock, Ct);
-        await SaveEpisode(store, clock.GetUtcNow(), CoordinatingAll);
+        await SaveEpisode(store, clock.GetUtcNow(), BalancingInterestsAll);
         Assert.Equal(AbilityState.Confirmed, Assert.Single((await OptionsInputsReader.ReadAsync(store, User, Ct)).Abilities).State);
 
-        await AbilityBook.SetExcludedAsync(store, User, Ability.Coordinating, true, clock, Ct);
+        await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, true, clock, Ct);
         var inputs = await OptionsInputsReader.ReadAsync(store, User, Ct);
 
         Assert.Empty(inputs.Abilities);
-        Assert.Equal([Ability.Coordinating], inputs.Excluded);
+        Assert.Equal([TestAbilities.BalancingInterests], inputs.Excluded);
         // 外さなければ使える力があるので、話が足りないとは返さない
         Assert.True(inputs.HasExcludedUsable);
         Assert.Equal(Readiness.OnlyExcluded, OptionsInputsReader.Check(inputs));
@@ -118,7 +118,7 @@ public sealed class OptionsInputsTests
     {
         var (store, clock) = await Create();
         await ProfileStore.UpdateAsync(store, User, p => p with { Conditions = Conditions }, clock, Ct);
-        await SaveEpisode(store, clock.GetUtcNow(), CoordinatingAll);
+        await SaveEpisode(store, clock.GetUtcNow(), BalancingInterestsAll);
         var before = await OptionsInputsReader.ReadAsync(store, User, Ct);
         var basis = OptionsInputsReader.Basis(before);
 
@@ -128,7 +128,7 @@ public sealed class OptionsInputsTests
         Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Wants = ["人の役に立つ"] }));
         Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Agency = "自分で決めたい" }));
         Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Abilities = [] }));
-        // まだ聞けていない力（見立てる力）を外しても、使える力は変わらないので作り直さない。使える力を外したときは、上の Abilities の変化で変わる
-        Assert.Equal(basis, OptionsInputsReader.Basis(before with { Excluded = [Ability.Noticing] }));
+        // まだ聞けていない力（変化への気づき）を外しても、使える力は変わらないので作り直さない。使える力を外したときは、上の Abilities の変化で変わる
+        Assert.Equal(basis, OptionsInputsReader.Basis(before with { Excluded = [TestAbilities.NoticingChanges] }));
     }
 }

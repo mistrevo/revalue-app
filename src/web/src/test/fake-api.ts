@@ -62,19 +62,19 @@ export function fakeInsights(overrides: Partial<EpisodeInsights> = {}): EpisodeI
   return {
     seen: [
       {
-        key: 'coordinating',
-        name: '調整する力',
+        key: 'balancing-interests',
+        name: '利害調整力',
         quotes: [
-          { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
-          { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
-          { text: '順番を入れ替える案を出しました', fromChoice: false, linkedText: null },
+          { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null, action: '関わる 2 者以上の、それぞれ違う都合をつかむ' },
+          { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました', action: '自分から働きかける' },
+          { text: '順番を入れ替える案を出しました', fromChoice: false, linkedText: null, action: '代わりの案を出すか、双方の都合を合わせる' },
         ],
       },
     ],
     moreToHear: [
       {
-        key: 'prioritizing',
-        name: '優先順位をつける力',
+        key: 'setting-priorities',
+        name: '優先順位設定力',
         quotes: [
           { text: '用事が重なっていました', fromChoice: false, linkedText: null },
           { text: '先に書類を仕上げました', fromChoice: false, linkedText: null },
@@ -82,7 +82,6 @@ export function fakeInsights(overrides: Partial<EpisodeInsights> = {}): EpisodeI
         hints: [FAKE_HINT],
       },
     ],
-    notYet: [{ key: 'noticing', name: '見立てる力' }],
     canResume: true,
     ...overrides,
   }
@@ -93,41 +92,33 @@ export function fakeAbilities(): Abilities {
   return {
     abilities: [
       {
-        key: 'noticing',
-        name: '見立てる力',
-        life: 'notYet',
-        quotes: [],
-        episodeId: null,
-        hints: [],
-        work: 'notChecked',
-        excluded: false,
-      },
-      {
-        key: 'coordinating',
-        name: '調整する力',
+        key: 'balancing-interests',
+        name: '利害調整力',
         life: 'confirmed',
-        quotes: [{ text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null }],
+        quotes: [{ text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null, action: '関わる 2 者以上の、それぞれ違う都合をつかむ' }],
         episodeId: 'episode-1',
         hints: [],
         work: 'notChecked',
         excluded: false,
+        canTellMore: false,
       },
       {
-        key: 'prioritizing',
-        name: '優先順位をつける力',
+        key: 'setting-priorities',
+        name: '優先順位設定力',
         life: 'needsCheck',
         quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
         episodeId: 'episode-1',
         hints: [FAKE_HINT],
         work: 'notChecked',
         excluded: false,
+        canTellMore: true,
       },
     ],
     history: [
       {
         at: '2026-11-03T03:00:00Z',
-        key: 'coordinating',
-        name: '調整する力',
+        key: 'balancing-interests',
+        name: '利害調整力',
         from: 'needsCheck',
         to: 'confirmed',
         reason: 'talk',
@@ -143,27 +134,27 @@ export const FAKE_PREFERENCE_CHOICES = ['自分のペースで進められる', 
 export const FAKE_WANT_QUESTION = 'これからやってみたいことや、目指したいことに近いものはありますか？'
 export const FAKE_WANT_CHOICES = ['これまでの経験を活かしたい', '人の役に立つことをしたい', '新しいことを覚えたい']
 
-/** 架空の 5 つの記録。できることは fakeAbilities と同じ力（調整する力が見えた力、優先順位をつける力が確かめ中）。 */
+/** 架空の 5 つの記録。できることは fakeAbilities と同じ力（利害調整力が見えた力、優先順位設定力が確かめ中）。 */
 export function fakeProfile(overrides: Partial<Profile> = {}): Profile {
   return {
     canDo: {
       seen: [
         {
-          key: 'coordinating',
-          name: '調整する力',
+          key: 'balancing-interests',
+          name: '利害調整力',
           quotes: [
-            { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
-            { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
+            { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null, action: '関わる 2 者以上の、それぞれ違う都合をつかむ' },
+            { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました', action: '自分から働きかける' },
             // 3 つ目の核となる行動（代わりの案を出す）。見えた力は 3 つの行動がそろった力なので、見本もそろえる
-            { text: '片方の家族には、集合を 30 分遅らせる案を出しました', fromChoice: false, linkedText: null },
+            { text: '片方の家族には、集合を 30 分遅らせる案を出しました', fromChoice: false, linkedText: null, action: '代わりの案を出すか、双方の都合を合わせる' },
           ],
           episodeId: 'episode-1',
         },
       ],
       checking: [
         {
-          key: 'prioritizing',
-          name: '優先順位をつける力',
+          key: 'setting-priorities',
+          name: '優先順位設定力',
           quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
           episodeId: 'episode-1',
         },
@@ -192,13 +183,13 @@ export const FAKE_SOURCE = {
 
 /** 架空の 3 枚のカード。中身はすべて架空。力と根拠の言葉は fakeProfile と同じ。 */
 export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCards {
-  const coordinating = {
-    key: 'coordinating' as const,
-    name: '調整する力',
+  const balancingInterests = {
+    key: 'balancing-interests' as const,
+    name: '利害調整力',
     state: 'confirmed' as const,
     quotes: [
-      { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
-      { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
+      { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null, action: '関わる 2 者以上の、それぞれ違う都合をつかむ' },
+      { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました', action: '自分から働きかける' },
     ],
   }
   const schedule = {
@@ -206,7 +197,7 @@ export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCar
     occupationName: 'オンライン秘書',
     name: '日程の調整',
     detail: '関わる人と連絡を取り合って、会う日時を決める',
-    ability: 'coordinating' as const,
+    ability: 'balancing-interests' as const,
     timeSlots: ['daytime' as const],
     place: 'home' as const,
   }
@@ -220,7 +211,7 @@ export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCar
       tasks: [schedule],
       range: { minHours: 3, maxHours: 10, minMonthlyYen: 15000, maxMonthlyYen: 80000 },
       reason: '班の家族の都合を聞いて集合を決めた動きは、日程の調整に生かせそうです。',
-      ability: coordinating,
+      ability: balancingInterests,
     },
     combine: {
       roleName: '小さな事務所の段取り係',
@@ -231,14 +222,14 @@ export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCar
           occupationName: '採用事務',
           name: '面接の日程の連絡',
           detail: '応募した人と面接する人の都合を聞いて、日時を伝える',
-          ability: 'coordinating',
+          ability: 'balancing-interests',
           timeSlots: ['daytime'],
           place: 'home',
         },
       ],
       range: { minHours: 6, maxHours: 10, minMonthlyYen: 31000, maxMonthlyYen: 76000 },
       reason: '何人かの都合を聞いて案を出した動きは、二つの連絡の業務に生かせそうです。',
-      ability: coordinating,
+      ability: balancingInterests,
     },
     create: {
       title: '習い事の送り迎えの調整の手伝い',
@@ -249,7 +240,7 @@ export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCar
       place: 'home',
       timeSlots: ['daytime'],
       reason: '班の家族の都合を聞いて案を出した動きを、当番決めに生かせそうです。',
-      ability: coordinating,
+      ability: balancingInterests,
     },
     missing: [],
     ...overrides,
@@ -270,17 +261,17 @@ export function fakeOptions(overrides: Partial<Options> = {}): Options {
 }
 
 /** 架空の根拠の言葉（fakeProfile の見えた力と同じ）。 */
-const FAKE_COORDINATING_QUOTES = [
-  { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null },
-  { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました' },
-  { text: '片方の家族には、集合を 30 分遅らせる案を出しました', fromChoice: false, linkedText: null },
+const FAKE_BALANCING_QUOTES = [
+  { text: '班の 2 家族の都合を聞きました', fromChoice: false, linkedText: null, action: '関わる 2 者以上の、それぞれ違う都合をつかむ' },
+  { text: '私から声をかけた', fromChoice: true, linkedText: '前の晩に、グループのメッセージで声をかけました', action: '自分から働きかける' },
+  { text: '片方の家族には、集合を 30 分遅らせる案を出しました', fromChoice: false, linkedText: null, action: '代わりの案を出すか、双方の都合を合わせる' },
 ]
 
 /** 力の名前（本物は AbilityText.cs）。 */
 const FAKE_ABILITY_NAMES: Record<AbilityKey, string> = {
-  noticing: '見立てる力',
-  coordinating: '調整する力',
-  prioritizing: '優先順位をつける力',
+  'noticing-changes': '変化への気づき',
+  'balancing-interests': '利害調整力',
+  'setting-priorities': '優先順位設定力',
 }
 
 /** 架空の問いの選択肢。どれもありうる考え方にする。 */
@@ -297,9 +288,9 @@ export function fakeDeepenContent(overrides: Partial<DeepenContent> = {}): Deepe
         id: 'online-secretary-schedule',
         name: '日程の調整',
         detail: '関わる人と連絡を取り合って、会う日時を決める',
-        ability: 'coordinating',
-        abilityName: '調整する力',
-        usable: { state: 'confirmed', quotes: FAKE_COORDINATING_QUOTES },
+        ability: 'balancing-interests',
+        abilityName: '利害調整力',
+        usable: { state: 'confirmed', quotes: FAKE_BALANCING_QUOTES },
         knowledge: ['表計算'],
         drafted: false,
       },
@@ -307,8 +298,8 @@ export function fakeDeepenContent(overrides: Partial<DeepenContent> = {}): Deepe
         id: 'online-secretary-travel',
         name: '出張や会食の手配',
         detail: '行き先と予算を聞いて、移動と店の候補をまとめる',
-        ability: 'noticing',
-        abilityName: '見立てる力',
+        ability: 'noticing-changes',
+        abilityName: '変化への気づき',
         usable: null,
         knowledge: [],
         drafted: false,
@@ -319,7 +310,7 @@ export function fakeDeepenContent(overrides: Partial<DeepenContent> = {}): Deepe
       {
         id: 'q1',
         situation: '3 人の会議の日程を決めてほしいと頼まれましたが、1 人から返事が来ません。',
-        abilityName: '調整する力',
+        abilityName: '利害調整力',
         choices: FAKE_DEEPEN_CHOICES,
         answer: null,
       },
@@ -344,9 +335,9 @@ export function fakeDeepen(overrides: Partial<Deepen> = {}): Deepen {
     content: null,
     retryPaused: false,
     abilities: [
-      { key: 'noticing', name: '見立てる力' },
-      { key: 'coordinating', name: '調整する力' },
-      { key: 'prioritizing', name: '優先順位をつける力' },
+      { key: 'noticing-changes', name: '変化への気づき' },
+      { key: 'balancing-interests', name: '利害調整力' },
+      { key: 'setting-priorities', name: '優先順位設定力' },
     ],
     ...overrides,
   }
@@ -354,23 +345,22 @@ export function fakeDeepen(overrides: Partial<Deepen> = {}): Deepen {
 
 /** 架空のレポートの中身。fakeProfile・fakeOptionCards・fakeDeepenContent と同じ記録で、「選ぶ」のオンライン秘書を選んで深めたもの。 */
 export function fakeReportContent(overrides: Partial<ReportContent> = {}): ReportContent {
-  const coordinating = { key: 'coordinating' as const, name: '調整する力', state: 'confirmed' as const, quotes: FAKE_COORDINATING_QUOTES }
+  const balancingInterests = { key: 'balancing-interests' as const, name: '利害調整力', state: 'confirmed' as const, quotes: FAKE_BALANCING_QUOTES }
   return {
     abilities: [
-      coordinating,
+      balancingInterests,
       {
-        key: 'prioritizing',
-        name: '優先順位をつける力',
+        key: 'setting-priorities',
+        name: '優先順位設定力',
         state: 'needsCheck',
         quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }],
       },
     ],
     notYet: {
-      notHeard: ['見立てる力'],
-      checking: ['優先順位をつける力'],
+      checking: ['優先順位設定力'],
       taskGaps: [
         { taskName: '日程の調整', abilityName: null, knowledge: ['表計算'] },
-        { taskName: '出張や会食の手配', abilityName: '見立てる力', knowledge: [] },
+        { taskName: '出張や会食の手配', abilityName: '変化への気づき', knowledge: [] },
       ],
       hasExcluded: false,
     },
@@ -388,7 +378,7 @@ export function fakeReportContent(overrides: Partial<ReportContent> = {}): Repor
       summary: '連絡や予定の段取りを、オンラインで手伝う仕事',
       tasks: ['日程の調整', '出張や会食の手配'],
       reason: '班の家族の都合を聞いて集合を決めた動きは、日程の調整に生かせそうです。',
-      ability: coordinating,
+      ability: balancingInterests,
       problem: null,
       outsideConditions: false,
       demandNotChecked: false,
@@ -444,7 +434,7 @@ export function fakeReport(overrides: Partial<Report> = {}): Report {
   }
 }
 
-/** 見立ての業務（「創る」と本人が書いた仕事のとき）。使える力は、fakeProfile の見えた力（調整する力）だけ。 */
+/** 見立ての業務（「創る」と本人が書いた仕事のとき）。使える力は、fakeProfile の見えた力（利害調整力）だけ。 */
 export function fakeDraftedTask(id: string, task: DeepenTaskRequest): DeepenTask {
   return {
     id,
@@ -452,7 +442,7 @@ export function fakeDraftedTask(id: string, task: DeepenTaskRequest): DeepenTask
     detail: task.detail,
     ability: task.ability,
     abilityName: FAKE_ABILITY_NAMES[task.ability],
-    usable: task.ability === 'coordinating' ? { state: 'confirmed', quotes: FAKE_COORDINATING_QUOTES } : null,
+    usable: task.ability === 'balancing-interests' ? { state: 'confirmed', quotes: FAKE_BALANCING_QUOTES } : null,
     knowledge: task.knowledge === '' ? [] : [task.knowledge],
     drafted: true,
   }

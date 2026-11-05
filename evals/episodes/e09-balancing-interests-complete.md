@@ -3,7 +3,8 @@ id: e09
 title: 自治会の掃除の日を入れ替える
 unit: validate
 expect: concreteEvent
-states: noticing=notYet, coordinating=confirmed, prioritizing=notYet
+states: balancing-interests=confirmed
+notConfirmed: noticing-changes, setting-priorities
 ---
 
 # e09 自治会の掃除の日を入れ替える
@@ -12,7 +13,7 @@ states: noticing=notYet, coordinating=confirmed, prioritizing=notYet
 
 ## どんな例か
 
-調整する力の 3 つの行動（都合の違う 2 者以上が関わる、本人から働きかける、代わりの案を出すか都合を合わせる）が、一つの出来事の中でそろう。根拠ありにし、本人の言葉を引けるかを見る。
+利害調整力の 3 つの行動（「関わる 2 者以上の、それぞれ違う都合をつかむ」「自分から働きかける」「代わりの案を出すか、双方の都合を合わせる」）が、一つの出来事の中でそろう。根拠ありにし、本人の言葉を引けるかを見る。
 
 ## 利用者の答え
 

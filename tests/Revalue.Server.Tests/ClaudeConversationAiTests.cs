@@ -220,30 +220,32 @@ public sealed class ClaudeConversationAiTests
         Assert.DoesNotContain("next_move", body.GetRawText());
     }
 
-    /// <summary>力をデータに出す前の reader.md の、力の表の部分（一字一句そのまま）。</summary>
-    private const string AbilityTableBeforeData = """
-        見る力は 3 つです。力ごとに、核となる行動を 3 つ決めています。
-
-        | 力 | `ability` | `action` 1 | `action` 2 | `action` 3 |
-        |---|---|---|---|---|
-        | 見立てる力 | `noticing` | 変化に自分で気づく | 判断の手がかりを挙げる | いつもの様子や前と比べる |
-        | 調整する力 | `coordinating` | 都合の違う 2 者以上が関わる | 本人から働きかける | 代わりの案を出すか、双方の都合を合わせる |
-        | 優先順位をつける力 | `prioritizing` | 全部はこなせないほど用事が重なる | 何を先にし、何を後に回すかを具体的に決める | 決めた理由や基準がある |
-        """;
-
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示の力の表は、判定に使う力からコードが作って差し込み、いまの表と一字一句同じ")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示の力の表は、話から確かめる 22 の力を辞書の順に持ち、準備中の力を持たない")]
     public void ReaderPromptInsertsAbilityTableFromData()
     {
         var file = PromptFiles.Read(PromptFiles.Reader);
         var prompt = PromptFiles.ReaderPrompt();
+        var table = PromptFiles.AbilityTable();
 
         // 差し込みの印は 1 か所だけで、力の id はファイルに書かない
         Assert.Single(file.Split(PromptFiles.AbilityTableMarker)[1..]);
-        Assert.DoesNotContain("`noticing`", file);
-
-        Assert.Equal(AbilityTableBeforeData, PromptFiles.AbilityTable());
-        Assert.Equal(file.Replace(PromptFiles.AbilityTableMarker, AbilityTableBeforeData, StringComparison.Ordinal), prompt);
+        Assert.DoesNotContain("`noticing-changes`", file);
+        Assert.Equal(file.Replace(PromptFiles.AbilityTableMarker, table, StringComparison.Ordinal), prompt);
         Assert.DoesNotContain("{{", prompt);
+
+        // 表の行は、話から確かめる力を辞書の順に。行動の欄は辞書の文
+        var rows = table.Split('\n').Where(l => l.StartsWith("| ", StringComparison.Ordinal)).Skip(1).ToList();
+        Assert.Equal(22, rows.Count);
+        Assert.Equal(
+            AbilityCatalog.Active.Select(a => $"| {AbilityCatalog.Name(a)} | `{a.Id}` |"),
+            rows.Select(r => r[..(r.IndexOf('`', r.IndexOf('`') + 1) + 3)]));
+        Assert.StartsWith(
+            $"| {AbilityCatalog.Name(TestAbilities.Summarizing)} | `summarizing` | {AbilityCatalog.ActionText(new ActionRef(TestAbilities.Summarizing, 1))} | " +
+            $"{AbilityCatalog.ActionText(new ActionRef(TestAbilities.Summarizing, 2))} |  |",
+            rows.Single(r => r.Contains("`summarizing`", StringComparison.Ordinal)));
+        Assert.All(
+            AbilityCatalog.Current.Entries.Where(e => !e.IsActive),
+            e => Assert.DoesNotContain($"`{e.Id}`", table, StringComparison.Ordinal));
 
         // 毎回同じ文字列（キャッシュが効く）
         Assert.Equal(prompt, PromptFiles.ReaderPrompt());
@@ -258,7 +260,7 @@ public sealed class ClaudeConversationAiTests
 
         var system = http.RequestBody.GetProperty("system");
         Assert.Equal(PromptFiles.ReaderPrompt(), system[0].GetProperty("text").GetString());
-        Assert.Contains("| 見立てる力 | `noticing` |", system[0].GetProperty("text").GetString());
+        Assert.Contains("| 変化への気づき | `noticing-changes` |", system[0].GetProperty("text").GetString());
     }
 
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 読み取りには、本人の答えに番号と答え方を付けた 1 つの文を渡し、スキーマに evidence を求める")]
@@ -298,7 +300,7 @@ public sealed class ClaudeConversationAiTests
         string[] fields = ["ability", "action", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer"];
         Assert.Equal(fields.Order(), item.GetProperty("required").EnumerateArray().Select(e => e.GetString()!).Order());
         var properties = item.GetProperty("properties");
-        Assert.Equal(["noticing", "coordinating", "prioritizing"], properties.GetProperty("ability").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal(AbilityCatalog.Active.Select(a => a.Id), properties.GetProperty("ability").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
         Assert.Equal("integer", properties.GetProperty("action").GetProperty("type").GetString());
         Assert.Equal("string", properties.GetProperty("quote").GetProperty("type").GetString());
         Assert.Equal("integer", properties.GetProperty("answer").GetProperty("type").GetString());
@@ -314,13 +316,13 @@ public sealed class ClaudeConversationAiTests
         const string json = """
             {"concreteEvent":true,"generalOnly":false,"dontKnow":false,"familyIllness":false,"distress":false,
              "evidence":[
-               {"ability":"coordinating","action":2,"quote":"二人に電話しました","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"balancing-interests","action":2,"quote":"二人に電話しました","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
                {"ability":"cooking","action":1,"quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
-               {"ability":"noticing","action":"3","quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
-               {"ability":"noticing","action":1,"answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
-               {"ability":"prioritizing","action":1.5,"quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"noticing-changes","action":"3","quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"noticing-changes","action":1,"answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
+               {"ability":"setting-priorities","action":1.5,"quote":"x","answer":1,"event":1,"general":false,"linkedQuote":"","linkedAnswer":0},
                "壊れた要素",
-               {"ability":"prioritizing","action":3,"quote":"ので","answer":2,"event":1,"general":true,"linkedQuote":"先に","linkedAnswer":1}
+               {"ability":"setting-priorities","action":3,"quote":"ので","answer":2,"event":1,"general":true,"linkedQuote":"先に","linkedAnswer":1}
              ]}
             """;
 
@@ -328,8 +330,8 @@ public sealed class ClaudeConversationAiTests
 
         Assert.Equal(
             [
-                new EvidenceCandidate(Ability.Coordinating, 2, "二人に電話しました", 1, 1, false, "", 0),
-                new EvidenceCandidate(Ability.Prioritizing, 3, "ので", 2, 1, true, "先に", 1),
+                new EvidenceCandidate(TestAbilities.BalancingInterests, 2, "二人に電話しました", 1, 1, false, "", 0),
+                new EvidenceCandidate(TestAbilities.SettingPriorities, 3, "ので", 2, 1, true, "先に", 1),
             ],
             reading.Candidates!);
 
@@ -342,7 +344,7 @@ public sealed class ClaudeConversationAiTests
     public async Task AskMissingActionPassesHint()
     {
         var (ai, http, _) = Create(HttpStatusCode.OK, Sse("end_turn", "はい"), "text/event-stream");
-        var target = new ActionRef(Ability.Coordinating, 3);
+        var target = new ActionRef(TestAbilities.BalancingInterests, 3);
 
         await Collect(ai.StreamReplyAsync(Conversation(), new NextMove(MoveKind.AskMissingAction, target), Ct));
 
@@ -356,7 +358,7 @@ public sealed class ClaudeConversationAiTests
         var system = body.GetProperty("system").GetRawText();
         Assert.DoesNotContain("<hint>" + AbilityText.Hint(target), system);
         Assert.DoesNotContain(AbilityText.Hint(target), system);
-        Assert.DoesNotContain("coordinating.3", body.GetRawText());
+        Assert.DoesNotContain("balancing-interests.3", body.GetRawText());
     }
 
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 読み取りが断られたら拒否、読めなければ失敗として知らせる")]
@@ -529,7 +531,7 @@ public sealed class ClaudeConversationAiTests
     {
         var reader = PromptFiles.ReaderPrompt();
 
-        foreach (var key in new[] { "noticing", "coordinating", "prioritizing", "evidence", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer" })
+        foreach (var key in new[] { "noticing-changes", "balancing-interests", "setting-priorities", "summarizing", "evidence", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer" })
         {
             Assert.Contains($"`{key}`", reader);
         }
@@ -545,18 +547,83 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("（訂正）", reader);
     }
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、優先順位をつける力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
-    public void ReaderDoesNotInferPrioritizingReason()
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、理由や基準のように本人の考えを示す行動を、本人が言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
+    public void ReaderDoesNotInferReasons()
     {
         var reader = PromptFiles.Read(PromptFiles.Reader);
         var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
-        var line = rules.Split('\n').Single(l => l.StartsWith("- 優先順位をつける力の 3", StringComparison.Ordinal));
+        var line = rules.Split('\n').Single(l => l.Contains("理由や基準", StringComparison.Ordinal));
 
-        Assert.Contains("理由や基準を言葉にしているときだけ根拠にする", line);
-        Assert.Contains("理由を推し量らない", line);
+        Assert.Contains("本人がそれを言葉にしているときだけ根拠にする", line);
+        Assert.Contains("推し量らない", line);
         // 台本（e19）の答えの言葉を、指示に写さない
         Assert.DoesNotContain("締め切り", line);
         Assert.DoesNotContain("サイト", line);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、気づく、思い浮かべる、つかむ、受け取るのような心の中の行動を、その中身を本人が話しているときだけ根拠にし、外から見える行動から推し量らないと書いている")]
+    public void ReaderDoesNotInferInnerActions()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.Contains("心の中", StringComparison.Ordinal));
+
+        Assert.All(new[] { "気づく", "思い浮かべる", "つかむ", "受け取る" }, verb => Assert.Contains(verb, line));
+        Assert.Contains("本人が話しているときだけ根拠にする", line);
+        Assert.Contains("推し量らない", line);
+        // 台本（e08）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("夕ごはん", line);
+        Assert.DoesNotContain("けんか", line);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、行動の文にある条件（いくつもの、変える、など）を本人の言葉が満たすときだけ根拠にすると書いている")]
+    public void ReaderChecksActionConditions()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.Contains("行動の文にある条件", StringComparison.Ordinal));
+
+        Assert.Contains("満たしているときだけ根拠にする", line);
+        Assert.Contains("いくつもの", line);
+        Assert.Contains("変える", line);
+        // 台本（e10、e15、e38）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("締め切り", line);
+        Assert.DoesNotContain("つまらない", line);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、本人が話した気づきの中身が行動の文の中身に当たるときだけ根拠にし、相手の事情から相手の様子への気づきを推し量らないと書いている")]
+    public void ReaderMatchesNoticedContent()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.Contains("気づきの中身", StringComparison.Ordinal));
+
+        Assert.Contains("行動の文に書いた中身に当たるときだけ", line);
+        Assert.Contains("相手の事情を話しただけなら", line);
+        // 台本（e21、e26）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("手がふさがって", line);
+        Assert.DoesNotContain("言葉が出てこない", line);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示に、力の数と、力の名前と行動の番号の決め打ちがない")]
+    public void ReaderHasNoHardcodedAbilities()
+    {
+        var file = PromptFiles.Read(PromptFiles.Reader);
+        var prompt = PromptFiles.ReaderPrompt();
+
+        Assert.DoesNotContain("見る力は", prompt);
+        Assert.DoesNotContain("3 つの行動", file);
+        // 表の外（差し込む前の指示）に、力の名前と「〜の 2（」の形の行動の番号を書かない
+        foreach (var entry in AbilityCatalog.Current.Entries)
+        {
+            Assert.DoesNotMatch($"{System.Text.RegularExpressions.Regex.Escape(entry.Name)}の ?[0-9]", file);
+            Assert.DoesNotContain($"`{entry.Id}`", file);
+        }
+
+        Assert.DoesNotMatch(@"の [0-9]（", file);
+        // 一つの句を切り分けない決まりは、行動の数に頼らない言い方で書く
+        Assert.Contains("すべての行動", file);
+        Assert.Contains("ほかの行動の引用をすべて含む引用は、コードが数えません", file);
     }
 
     [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 返事の指示は、本人がしたことを聞く一手で、移動の手段や持ち物の中身のような行動の細部を聞かないと書いている")]
@@ -567,7 +634,7 @@ public sealed class ClaudeConversationAiTests
         Assert.DoesNotContain("どうやって", line);
         Assert.Contains("行動の細部は聞かず", line);
         Assert.Contains("本人がしたことを聞く", line);
-        // どの力にも寄らない一手なので、優先順位をつける力の 2（先と後を決める）に寄った「決めたこと」を聞かせない
+        // どの力にも寄らない一手なので、優先順位設定力の 2（先と後を決める）に寄った「決めたこと」を聞かせない
         Assert.DoesNotContain("決めたこと", line);
     }
 

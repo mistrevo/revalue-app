@@ -10,7 +10,7 @@ public sealed class ReportItemTests
     private static ReportContent Content(string agency) =>
         new(
             [],
-            new ReportNotYet([], [], [], false),
+            new ReportNotYet([], [], false),
             new ReportRecords([], [], null, agency),
             new ReportChoice(null, null, null, null, [], null, null, null, false, false, false),
             null,

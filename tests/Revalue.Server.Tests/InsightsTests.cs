@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,35 +12,100 @@ namespace Revalue.Server.Tests;
 
 public sealed class InsightsTests
 {
-    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 話し終えた場面に、見えた力と根拠、もう少し聞かせてほしいこと（手がかり）、まだ聞けていない力が入る")]
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 話し終えた場面に、見えた力と根拠、もう少し聞かせてほしいこと（手がかり）が入り、まだ聞けていない力の一覧は入らない")]
     public async Task FinishedEpisodeHasInsights()
     {
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, [.. CoordinatingAll, Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして")]);
+        // もう少し聞かせてほしいことに出すのは、利害調整力と分類の違う変化への気づき（同じ分類の力は、そろっても見えた力に出ないので出さない）
+        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 2, "迎えの時間をずらして")]);
 
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
 
         var seen = Assert.Single(Array(insights, "seen"));
-        Assert.Equal("coordinating", seen.GetProperty("key").GetString());
-        Assert.Equal("調整する力", seen.GetProperty("name").GetString());
+        Assert.Equal("balancing-interests", seen.GetProperty("key").GetString());
+        Assert.Equal("利害調整力", seen.GetProperty("name").GetString());
         Assert.Equal(
             ["夫と母の予定がぶつかって", "二人に電話して", "迎えの時間をずらしてもらいました"],
             Array(seen, "quotes").Select(q => q.GetProperty("text").GetString()));
 
         var more = Assert.Single(Array(insights, "moreToHear"));
-        Assert.Equal("prioritizing", more.GetProperty("key").GetString());
-        Assert.Equal("優先順位をつける力", more.GetProperty("name").GetString());
+        Assert.Equal("noticing-changes", more.GetProperty("key").GetString());
+        Assert.Equal("変化への気づき", more.GetProperty("name").GetString());
         Assert.Equal(["迎えの時間をずらして"], Array(more, "quotes").Select(q => q.GetProperty("text").GetString()));
         Assert.Equal(
-            [AbilityText.Hint(new ActionRef(Ability.Prioritizing, 1)), AbilityText.Hint(new ActionRef(Ability.Prioritizing, 3))],
+            [AbilityText.Hint(new ActionRef(TestAbilities.NoticingChanges, 1)), AbilityText.Hint(new ActionRef(TestAbilities.NoticingChanges, 3))],
             Array(more, "hints").Select(h => h.GetString()));
 
-        var notYet = Assert.Single(Array(insights, "notYet"));
-        Assert.Equal("noticing", notYet.GetProperty("key").GetString());
-        Assert.Equal("見立てる力", notYet.GetProperty("name").GetString());
+        // 話から確かめる力が多いので、まだ聞けていない力の名前は並べない（4-rules.md の「画面での見せ方」）
+        Assert.Equal(["seen", "moreToHear", "canResume"], insights.EnumerateObject().Select(p => p.Name));
         Assert.True(insights.GetProperty("canResume").GetBoolean());
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 状況の行動の根拠だけの力は、もう少し聞かせてほしいことにも、見えた力の画面にも出さない")]
+    public async Task SituationOnlyAbilityIsNotShown()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, Candidate(TestAbilities.Resilience, 1, "夫と母の予定がぶつかって"));
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+        Assert.Empty(Array(insights, "seen"));
+        Assert.Empty(Array(insights, "moreToHear"));
+
+        // 見えた力の画面と履歴にも出ない。根拠は場面に残る
+        var abilities = await Json(await client.GetAsync("/api/abilities", Ct));
+        Assert.Empty(Array(abilities, "abilities"));
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Contains(saved.Evidence, e => e.Ability == TestAbilities.Resilience && e.Action == 1);
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 根拠の言葉に、その根拠の核となる行動の文が添えてある")]
+    public async Task QuotesHaveActionText()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 2, "迎えの時間をずらして")]);
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+
+        var seen = Assert.Single(Array(insights, "seen"));
+        Assert.Equal(
+            Enumerable.Range(1, 3).Select(n => AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, n))),
+            Array(seen, "quotes").Select(q => q.GetProperty("action").GetString()));
+        var more = Assert.Single(Array(insights, "moreToHear"));
+        Assert.Equal(
+            [AbilityCatalog.ActionText(new ActionRef(TestAbilities.NoticingChanges, 2))],
+            Array(more, "quotes").Select(q => q.GetProperty("action").GetString()));
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 見せない力の根拠も、場面にはそのまま残る")]
+    public async Task HiddenAbilityEvidenceStaysInEpisode()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        // 利害調整力（行動 3 つ）と段取り力（行動 2 つ）が同じ出来事でそろう。どちらも調整・実行・仕組み化
+        var id = await FinishedEpisode(client, ai,
+        [
+            .. BalancingInterestsAll,
+            Candidate(TestAbilities.PlanningSteps, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.PlanningSteps, 2, "迎えの時間をずらしてもらいました"),
+        ]);
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+
+        Assert.Equal(["balancing-interests"], Array(insights, "seen").Select(s => s.GetProperty("key").GetString()));
+        Assert.Empty(Array(insights, "moreToHear"));
+        Assert.DoesNotContain("planning-steps", insights.GetRawText(), StringComparison.Ordinal);
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Equal([1, 2], saved.Evidence.Where(e => e.Ability == TestAbilities.PlanningSteps).Select(e => e.Action).Order());
+        Assert.Equal(
+            AbilityState.Confirmed,
+            AbilityStates.Evaluate(saved.Evidence).Single(r => r.Ability == TestAbilities.PlanningSteps).State);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りが 3 つの行動に 1 文字の引用を返しても、根拠ありにしない")]
@@ -49,13 +115,13 @@ public sealed class InsightsTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await FinishedEpisode(client, ai,
-            Candidate(Ability.Prioritizing, 1, "て"), Candidate(Ability.Prioritizing, 2, "て"), Candidate(Ability.Prioritizing, 3, "て"));
+            Candidate(TestAbilities.SettingPriorities, 1, "て"), Candidate(TestAbilities.SettingPriorities, 2, "て"), Candidate(TestAbilities.SettingPriorities, 3, "て"));
 
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
 
         Assert.Empty(Array(insights, "seen"));
         Assert.Empty(Array(insights, "moreToHear"));
-        Assert.Contains(Array(insights, "notYet"), a => a.GetProperty("key").GetString() == "prioritizing");
+        Assert.False(insights.TryGetProperty("notYet", out _));
         Assert.Empty((await Saved(factory, "g-1", id)).Evidence);
     }
 
@@ -66,7 +132,7 @@ public sealed class InsightsTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
 
         Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("insights").ValueKind);
@@ -90,7 +156,7 @@ public sealed class InsightsTests
         Assert.True((await Saved(factory, "g-1", id)).ExcludedFromValidation);
 
         // 「続けて話す」で次の答えを送る。読み取りが根拠の候補を返しても、確かめのための問いは出さず、根拠も保存しない
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0]);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0]);
         await Send(client, id, CoordinatingAnswer);
 
         Assert.Equal(MoveKind.AskWhatYouDid, ai.Moves[^1]);
@@ -104,7 +170,7 @@ public sealed class InsightsTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll.Select(c => c with { General = true }).ToArray());
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll.Select(c => c with { General = true }).ToArray());
 
         var more = Assert.Single(Array((await GetEpisode(client, id)).GetProperty("insights"), "moreToHear"));
 
@@ -118,11 +184,11 @@ public sealed class InsightsTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0]);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0]);
         await Send(client, id, CoordinatingAnswer);
         ai.Reading = _ => ReadingWith(
-            CoordinatingAll[0],
-            new EvidenceCandidate(Ability.Coordinating, 2, "人に頼んだ", 2, 1, false, "二人に電話して", 1));
+            BalancingInterestsAll[0],
+            new EvidenceCandidate(TestAbilities.BalancingInterests, 2, "人に頼んだ", 2, 1, false, "二人に電話して", 1));
         await Send(client, id, "人に頼んだ", "choice");
         await Finish(client, id);
 
@@ -136,22 +202,28 @@ public sealed class InsightsTests
         Assert.Equal("二人に電話して", quotes[1].GetProperty("linkedText").GetString());
     }
 
-    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 一覧の canResume は、要確認の力がある話し終えた場面だけ true")]
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 一覧の canResume は、もう少し聞かせてほしいことに出した力がある話し終えた場面だけ true")]
     public async Task ListHasCanResume()
     {
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var confirmed = await FinishedEpisode(client, ai, CoordinatingAll);
+        var confirmed = await FinishedEpisode(client, ai, BalancingInterestsAll);
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
-        var partial = await FinishedEpisode(client, ai, CoordinatingAll[0]);
+        var partial = await FinishedEpisode(client, ai, BalancingInterestsAll[0]);
+        factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        // 利害調整力（行動 3 つ）がそろい、同じ分類の段取り力（行動 2 つ）は 1 つ。段取り力はそろっても見えた力に出せないので、続きでは聞かない
+        var hiddenOnly = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.PlanningSteps, 1, "二人に電話して")]);
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var talking = await Start(client);
 
         var list = await client.GetFromJsonAsync<JsonElement[]>("/api/episodes", Ct);
 
         var canResume = list!.ToDictionary(e => e.GetProperty("id").GetString()!, e => e.GetProperty("canResume").GetBoolean());
-        Assert.Equal(new Dictionary<string, bool> { [confirmed] = false, [partial] = true, [talking] = false }, canResume);
+        Assert.Equal(
+            new Dictionary<string, bool> { [confirmed] = false, [partial] = true, [hiddenOnly] = false, [talking] = false }, canResume);
+        Assert.False((await GetEpisode(client, hiddenOnly)).GetProperty("insights").GetProperty("canResume").GetBoolean());
+        Assert.Equal(HttpStatusCode.Conflict, (await Resume(client, hiddenOnly)).StatusCode);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りが出来事の番号を振り直しても、別の日の行動を同じ出来事としてそろえない")]
@@ -184,15 +256,15 @@ public sealed class InsightsTests
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
         Assert.Empty(Array(insights, "seen"));
         var more = Assert.Single(Array(insights, "moreToHear"));
-        Assert.Equal("prioritizing", more.GetProperty("key").GetString());
-        Assert.Equal([AbilityText.Hint(new ActionRef(Ability.Prioritizing, 1))], Array(more, "hints").Select(h => h.GetString()));
-        Assert.Equal(AbilityState.NeedsCheck, AbilityStates.Evaluate((await Saved(factory, "g-1", id)).Evidence).Single(r => r.Ability == Ability.Prioritizing).State);
+        Assert.Equal("setting-priorities", more.GetProperty("key").GetString());
+        Assert.Equal([AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1))], Array(more, "hints").Select(h => h.GetString()));
+        Assert.Equal(AbilityState.NeedsCheck, AbilityStates.Evaluate((await Saved(factory, "g-1", id)).Evidence).Single(r => r.Ability == TestAbilities.SettingPriorities).State);
 
         var abilities = await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct);
-        var prioritizing = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "prioritizing");
-        Assert.Equal("needsCheck", prioritizing.GetProperty("life").GetString());
+        var priorities = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "setting-priorities");
+        Assert.Equal("needsCheck", priorities.GetProperty("life").GetString());
 
         static EvidenceCandidate At(int action, string quote, int answer, int @event) =>
-            new(Ability.Prioritizing, action, quote, answer, @event, false, "", 0);
+            new(TestAbilities.SettingPriorities, action, quote, answer, @event, false, "", 0);
     }
 }

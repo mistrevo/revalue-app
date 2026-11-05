@@ -83,11 +83,11 @@ public static class ValidateTestKit
     public static EvidenceCandidate Candidate(Ability ability, int action, string quote, int answer = 1) =>
         new(ability, action, quote, answer, 1, false, "", 0);
 
-    public static readonly EvidenceCandidate[] CoordinatingAll =
+    public static readonly EvidenceCandidate[] BalancingInterestsAll =
     [
-        Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"),
-        Candidate(Ability.Coordinating, 2, "二人に電話して"),
-        Candidate(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました"),
+        Candidate(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって"),
+        Candidate(TestAbilities.BalancingInterests, 2, "二人に電話して"),
+        Candidate(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました"),
     ];
 
     public static async Task<EpisodeItem> Saved(RevalueFactory factory, string user, string id) =>

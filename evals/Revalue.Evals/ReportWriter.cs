@@ -135,6 +135,7 @@ public static class ReportWriter
         "read" => "読み取り",
         "reply" => "返事",
         "judge" => "判定役",
+        "evidenceJudge" => "根拠の判定役",
         "generic" => "汎用の AI",
         "genericJudge" => "汎用の AI の答えを読む判定役",
         "options" => "仕事の選択肢",
@@ -242,35 +243,52 @@ public static class ReportWriter
         return v.Reason.Length == 0 ? text : $"{text}。理由: {v.Reason}";
     }
 
-    /// <summary>確かめの例で、力ごとの期待した状態、最後の状態、見せる根拠を書く。汎用の AI の答えもここに載せる。</summary>
+    /// <summary>
+    /// 確かめの例で、台本に書いた力（狙った力と、根拠ありにしてはいけない力）の期待と最後の状態、見せる根拠を書く。
+    /// 台本に書いていない力は、未確認でなかったものだけを書く（話から確かめる力すべては並べない）。汎用の AI の答えもここに載せる。
+    /// </summary>
     private static void WriteStates(StringBuilder sb, EpisodeRun run)
     {
-        if (run.Script.States is not { } expected)
+        var script = run.Script;
+        if (script.Listed.Count == 0)
         {
             return;
         }
+
+        string ExpectedText(Ability ability) =>
+            script.States is { } states && states.TryGetValue(ability, out var state) ? EpisodeScript.StateName(state)
+            : script.NotConfirmed.Contains(ability) ? NotConfirmedLabel
+            : UnlistedLabel;
+
+        bool AsExpected(AbilityResult result) =>
+            script.States is { } states && states.TryGetValue(result.Ability, out var state) ? result.State == state
+            : script.NotConfirmed.Contains(result.Ability) ? result.State != AbilityState.Confirmed
+            : true;
 
         sb.AppendLine();
         sb.AppendLine("**力の状態**（状態の呼び名は評価のためだけに使い、画面には出さない）");
         sb.AppendLine();
         sb.AppendLine("| 力 | 期待 | 最後 | 訂正の前（期待） | 見せる根拠 |");
         sb.AppendLine("|---|---|---|---|---|");
-        foreach (var result in run.Final)
+        var rows = run.Final.Where(f => script.Listed.Contains(f.Ability) || f.State != AbilityState.NotYet);
+        foreach (var result in rows)
         {
-            var before = run.BeforeCorrection?.Single(b => b.Ability == result.Ability).State;
+            var before = run.BeforeCorrection?.FirstOrDefault(b => b.Ability == result.Ability)?.State;
             var beforeText = before is { } b2
-                ? $"{EpisodeScript.StateName(b2)}（{(run.Script.StatesBefore is { } sb2 ? EpisodeScript.StateName(sb2[result.Ability]) : "—")}）"
+                ? $"{EpisodeScript.StateName(b2)}（{(script.StatesBefore is { } sb2 && sb2.TryGetValue(result.Ability, out var e2) ? EpisodeScript.StateName(e2) : "—")}）"
                 : "—";
             var quotes = result.Shown.Count == 0
                 ? "—"
                 : string.Join("<br>", result.Shown.Select(e =>
                     $"{e.Action}: 「{Cell(e.Quote)}」" + (e.FromChoice ? $"（選んだ答え。結びついた言葉「{Cell(e.LinkedQuote ?? "")}」）" : "") +
                     (e.General ? "（一般論）" : "")));
-            var mark = result.State == expected[result.Ability] ? "" : " ×";
+            var mark = AsExpected(result) ? "" : " ×";
             sb.AppendLine(
-                $"| {AbilityText.Name(result.Ability)} | {EpisodeScript.StateName(expected[result.Ability])} | {EpisodeScript.StateName(result.State)}{mark} | " +
+                $"| {AbilityText.Name(result.Ability)} | {ExpectedText(result.Ability)} | {EpisodeScript.StateName(result.State)}{mark} | " +
                 $"{beforeText} | {quotes} |");
         }
+
+        WriteEvidenceJudgements(sb, run);
 
         if (run.Generic is not { } generic)
         {
@@ -284,7 +302,7 @@ public static class ReportWriter
         if (generic.Reading is { } reading)
         {
             sb.AppendLine();
-            foreach (var ability in reading.Abilities)
+            foreach (var ability in reading.Abilities.Where(a => script.Listed.Contains(a.Ability)))
             {
                 var quotes = ability.Quotes.Count == 0
                     ? "引用なし"
@@ -293,6 +311,61 @@ public static class ReportWriter
             }
         }
     }
+
+    /// <summary>
+    /// 画面に出す力と、根拠ありにした力ごとの根拠の判定役の答え（行動の文、引用、示しているか、同じ出来事か、理由）を書く。
+    /// 判定役が「示していない」とした引用と、画面に出さなかった力を、開発者が読んで確かめるため。
+    /// </summary>
+    private static void WriteEvidenceJudgements(StringBuilder sb, EpisodeRun run)
+    {
+        if (run.Showcase is { } showcase)
+        {
+            static string Names(IReadOnlyList<AbilityResult> results) =>
+                results.Count == 0 ? "なし" : string.Join("、", results.Select(r => AbilityText.Name(r.Ability)));
+
+            sb.AppendLine();
+            sb.AppendLine($"**画面に出す力**: 見えた力: {Names(showcase.Seen)}。もう少し聞かせてほしいこと: {Names(showcase.MoreToHear)}");
+        }
+
+        if (run.Judged.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("**根拠の判定役**（根拠ありにした力ごとに、引用が核となる行動を推し量らずに示しているか。× は褒めすぎと数える）");
+        sb.AppendLine();
+        foreach (var judged in run.Judged)
+        {
+            var result = judged.Result;
+            var shown = run.Showcase?.Seen.Any(r => r.Ability == result.Ability) == true ? "画面に出す" : "画面に出さない";
+            var head = $"- {AbilityText.Name(result.Ability)}（{shown}）: ";
+            if (judged.Verdict is not { } verdict)
+            {
+                sb.AppendLine(head + "判定役が答えられなかった ×（褒めすぎと数える）");
+                continue;
+            }
+
+            var reason = verdict.Reason.Length == 0 ? "" : $"。理由: {verdict.Reason}";
+            sb.AppendLine(head + $"同じ出来事 {(verdict.SameEvent ? "○" : "×")}{reason}");
+            for (var i = 0; i < result.Shown.Count; i++)
+            {
+                var evidence = result.Shown[i];
+                var mark = i < verdict.ActionsShown.Count
+                    ? verdict.ActionsShown[i] ? "示している" : "示していない ×"
+                    : "判定役の答えにない ×";
+                var linked = evidence.FromChoice ? $"（選んだ答え。結びついた言葉「{Cell(evidence.LinkedQuote ?? "")}」）" : "";
+                sb.AppendLine(
+                    $"  - {AbilityCatalog.ActionText(new ActionRef(result.Ability, evidence.Action))}: 「{Cell(evidence.Quote)}」{linked} → {mark}");
+            }
+        }
+    }
+
+    /// <summary>根拠ありにしてはいけない力の、期待の欄。</summary>
+    private const string NotConfirmedLabel = "根拠ありにしてはいけない";
+
+    /// <summary>台本に書いていない力の、期待の欄。</summary>
+    private const string UnlistedLabel = "—（台本に書いていない）";
 
     private static string Cell(string text) => text.ReplaceLineEndings(" ").Replace("|", "｜", StringComparison.Ordinal);
 

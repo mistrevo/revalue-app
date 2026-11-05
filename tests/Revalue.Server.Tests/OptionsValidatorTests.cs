@@ -17,28 +17,28 @@ public sealed class OptionsValidatorTests
 
     private static Evidence E(Ability ability, int action, string quote) => new(ability, action, quote, 1, 1, false, false, null);
 
-    private static readonly Evidence[] CoordinatingQuotes = [E(Ability.Coordinating, 1, Q1), E(Ability.Coordinating, 2, Q2)];
+    private static readonly Evidence[] CoordinatingQuotes = [E(TestAbilities.BalancingInterests, 1, Q1), E(TestAbilities.BalancingInterests, 2, Q2)];
 
     private static OptionsInputs Inputs(
         int hours = 10, Place place = Place.HomeOnly, TimeSlot[]? slots = null, Ability[]? excluded = null, Ability[]? usable = null) =>
         new(
             new ProfileConditions(slots ?? [TimeSlot.Daytime, TimeSlot.Evening], hours, place, 5),
             true,
-            (usable ?? [Ability.Coordinating]).Select(a => new UsableAbility(
-                a, AbilityState.NeedsCheck, a == Ability.Coordinating ? CoordinatingQuotes : [E(a, 1, "予定を見比べました")])).ToList(),
+            (usable ?? [TestAbilities.BalancingInterests]).Select(a => new UsableAbility(
+                a, AbilityState.NeedsCheck, a == TestAbilities.BalancingInterests ? CoordinatingQuotes : [E(a, 1, "予定を見比べました")])).ToList(),
             excluded ?? [],
             [],
             [],
             null);
 
-    private static ChooseDraft GoodChoose() => new(true, "online-secretary", ["online-secretary-schedule"], "coordinating", "話してくれた「班の 2 家族」への連絡を、日程の調整に生かせるかもしれません。");
+    private static ChooseDraft GoodChoose() => new(true, "online-secretary", ["online-secretary-schedule"], "balancing-interests", "話してくれた「班の 2 家族」への連絡を、日程の調整に生かせるかもしれません。");
 
     private static CombineDraft GoodCombine() =>
-        new(true, ["online-secretary-schedule", "recruiting-interview-schedule"], "予定をつなぐ人", "coordinating", "予定を合わせた経験を、二つの仕事に生かせるかもしれません。");
+        new(true, ["online-secretary-schedule", "recruiting-interview-schedule"], "予定をつなぐ人", "balancing-interests", "予定を合わせた経験を、二つの仕事に生かせるかもしれません。");
 
     private static CreateDraft GoodCreate() =>
         new(true, "近所の予定合わせ", "小さな子のいる家庭の", "習い事の送迎の都合が合わないこと", "送迎の予定を取りまとめて、組み合わせを提案する事業のアイデア",
-            "coordinating", [Q1], 5, "home", ["daytime"], "話してくれた「夫と母の予定がぶつかって」の場面の段取りが、生かせるかもしれません。");
+            "balancing-interests", [Q1], 5, "home", ["daytime"], "話してくれた「夫と母の予定がぶつかって」の場面の段取りが、生かせるかもしれません。");
 
     private static OptionsDraft Draft(ChooseDraft? choose = null, CombineDraft? combine = null, CreateDraft? create = null) =>
         new(choose ?? GoodChoose(), combine ?? GoodCombine(), create ?? GoodCreate());
@@ -73,7 +73,7 @@ public sealed class OptionsValidatorTests
         Assert.Equal("online-secretary-schedule", Assert.Single(choose.Tasks).TaskId);
         Assert.Equal([TimeSlot.Daytime, TimeSlot.Evening], choose.Tasks[0].TimeSlots);
         Assert.Equal(new WorkRange(3, 10, 15000, 80000), choose.Range);
-        Assert.Equal((Ability.Coordinating, AbilityState.NeedsCheck), (choose.Ability.Ability, choose.Ability.State));
+        Assert.Equal((TestAbilities.BalancingInterests, AbilityState.NeedsCheck), (choose.Ability.Ability, choose.Ability.State));
         Assert.Equal([Q1, Q2], choose.Ability.Quotes.Select(q => q.Quote));
         Assert.Empty(cards.Missing);
     }
@@ -96,8 +96,8 @@ public sealed class OptionsValidatorTests
     [Fact(DisplayName = "options-5（条件の範囲だけ）: 登録にあっても条件に合わない業務は出さない")]
     public void RegisteredButOutOfConditionsTaskIsRejected()
     {
-        var choose = new ChooseDraft(true, "accounting-clerk", ["accounting-cash"], "noticing", "見立ててきた経験が生かせるかもしれません。");
-        var inputs = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        var choose = new ChooseDraft(true, "accounting-clerk", ["accounting-cash"], "noticing-changes", "見立ててきた経験が生かせるかもしれません。");
+        var inputs = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges]);
 
         var (cards, rejections) = Build(Draft(choose: choose), inputs);
 
@@ -151,16 +151,16 @@ public sealed class OptionsValidatorTests
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 外した力、使えない力、業務と合わない力のカードは出さない")]
     public void AbilityMustBeUsableAndMatchTasks()
     {
-        AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "noticing" }));
+        AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "noticing-changes" }));
         AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "cooking" }));
-        AssertRejected(CardKind.Combine, "abilityNotUsable", Draft(combine: GoodCombine() with { Ability = "prioritizing" }));
-        AssertRejected(CardKind.Create, "abilityNotUsable", Draft(create: GoodCreate() with { Ability = "noticing" }));
+        AssertRejected(CardKind.Combine, "abilityNotUsable", Draft(combine: GoodCombine() with { Ability = "setting-priorities" }));
+        AssertRejected(CardKind.Create, "abilityNotUsable", Draft(create: GoodCreate() with { Ability = "noticing-changes" }));
         // 外した力は使える力に入らない
-        var excluded = Inputs(excluded: [Ability.Noticing], usable: [Ability.Coordinating]);
-        AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "noticing" }), excluded);
-        // 見立てる力は使えるが、日程の調整の業務の使う力は調整する力
-        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
-        AssertRejected(CardKind.Choose, "abilityNotInTasks", Draft(choose: GoodChoose() with { Ability = "noticing", Reason = "見立ててきた経験が生かせるかもしれません。" }), both);
+        var excluded = Inputs(excluded: [TestAbilities.NoticingChanges], usable: [TestAbilities.BalancingInterests]);
+        AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "noticing-changes" }), excluded);
+        // 変化への気づきは使えるが、日程の調整の業務の使う力は利害調整力
+        var both = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges]);
+        AssertRejected(CardKind.Choose, "abilityNotInTasks", Draft(choose: GoodChoose() with { Ability = "noticing-changes", Reason = "見立ててきた経験が生かせるかもしれません。" }), both);
     }
 
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が本人の根拠にないカードは出さない。根拠の言葉の一部を一字一句そのまま引くのはよい")]
@@ -179,9 +179,9 @@ public sealed class OptionsValidatorTests
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」が、カードに使った力でない力の根拠の言葉や、「創る」で引かなかった言葉を引いたカードは出さない")]
     public void BracketQuoteFromOtherEvidenceIsRejected()
     {
-        // 見立てる力の根拠「予定を見比べました」は、調整する力のカードの理由には引けない。あとでその場面を確かめに使わなくなっても、
-        // 調整する力のカードは見張られないまま、言葉が理由に残るため
-        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        // 変化への気づきの根拠「予定を見比べました」は、利害調整力のカードの理由には引けない。あとでその場面を確かめに使わなくなっても、
+        // 利害調整力のカードは見張られないまま、言葉が理由に残るため
+        var both = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges]);
         const string other = "話してくれた「予定を見比べました」ときの動き方を、生かせるかもしれません。";
         AssertRejected(CardKind.Choose, "bracketNotVerbatim", Draft(choose: GoodChoose() with { Reason = other }), both);
         AssertRejected(CardKind.Combine, "bracketNotVerbatim", Draft(combine: GoodCombine() with { Reason = other }), both);
@@ -212,7 +212,7 @@ public sealed class OptionsValidatorTests
         const string own = "素敵な会になったと言われました";
         var inputs = Inputs() with
         {
-            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, own)])],
+            Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(TestAbilities.BalancingInterests, 3, own)])],
         };
         var (cards, rejections) = Build(
             Draft(choose: GoodChoose() with { Reason = $"話してくれた「{own}」ときの動き方を、日程の調整に生かせるかもしれません。" }), inputs);
@@ -224,7 +224,7 @@ public sealed class OptionsValidatorTests
     public void OtherBracketKindsInReasonAreRejected()
     {
         // 括弧の種類を変えると、カードの力の根拠に限る照らし合わせを抜けて、ほかの力の言葉を引けてしまうため
-        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        var both = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges]);
         foreach (var reason in new[]
         {
             "話してくれた『予定を見比べました』ときの動き方を、生かせるかもしれません。",
@@ -241,7 +241,7 @@ public sealed class OptionsValidatorTests
     public void CopiedEvidenceIsRejected()
     {
         // 役割の名前と「創る」の文は、選んだあとで力を外したり場面を飛ばしたりしても案の中身として残るので、どの力の根拠も写させない
-        var both = Inputs(usable: [Ability.Coordinating, Ability.Noticing]);
+        var both = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges]);
         AssertRejected(CardKind.Create, "evidenceCopied", Draft(create: GoodCreate() with { Who = $"{Q1}困っている家庭の" }), both);
         AssertRejected(CardKind.Create, "evidenceCopied", Draft(create: GoodCreate() with { Trouble = "予定を見比べましたが決まらないこと" }), both);
         AssertRejected(CardKind.Create, "evidenceCopied", Draft(create: GoodCreate() with { Summary = $"{Q2}、という段取りを手伝う事業のアイデア" }), both);
@@ -297,7 +297,7 @@ public sealed class OptionsValidatorTests
         const string own = "優先順位を決めて、書類を先にしました";
         var inputs = Inputs() with
         {
-            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, own)])],
+            Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(TestAbilities.BalancingInterests, 3, own)])],
         };
         var (cards, rejections) = Build(
             Draft(choose: GoodChoose() with { Reason = $"話してくれた「{own}」ときの、優先順位の決め方を、日程の調整に生かせるかもしれません。" }), inputs);
@@ -366,10 +366,10 @@ public sealed class OptionsValidatorTests
     public void ExcludingUnusableAbilityKeepsBasis()
     {
         var inputs = Inputs();
-        // 見立てる力はまだ聞けていない（使える力の一覧にない）。外しても戻しても、AI を呼んで作り直す理由にならない
-        Assert.Equal(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(inputs with { Excluded = [Ability.Noticing] }));
+        // 変化への気づきはまだ聞けていない（使える力の一覧にない）。外しても戻しても、AI を呼んで作り直す理由にならない
+        Assert.Equal(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(inputs with { Excluded = [TestAbilities.NoticingChanges] }));
         // 使える力を外すと、使える力の一覧が変わるので指紋も変わる
-        Assert.NotEqual(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(Inputs(excluded: [Ability.Coordinating], usable: [])));
+        Assert.NotEqual(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(Inputs(excluded: [TestAbilities.BalancingInterests], usable: [])));
     }
 
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が、根拠の言葉の一部でも、空白と記号を除いて 4 文字に満たないカードは出さない")]
@@ -411,7 +411,7 @@ public sealed class OptionsValidatorTests
         const string own = "会費を 500 円ずつ集めました";
         var inputs = Inputs() with
         {
-            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, own)])],
+            Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(TestAbilities.BalancingInterests, 3, own)])],
         };
         var (cards, rejections) = Build(
             Draft(choose: GoodChoose() with { Reason = $"話してくれた「{own}」の動きを、日程の調整を円滑に進めるのに生かせるかもしれません。" }), inputs);
@@ -425,7 +425,7 @@ public sealed class OptionsValidatorTests
         AssertRejected(CardKind.Choose, "forbiddenWord", Draft(choose: GoodChoose() with { Reason = "あなたに向いている仕事は日程の調整です。" }));
         AssertRejected(CardKind.Combine, "forbiddenWord", Draft(combine: GoodCombine() with { RoleName = "適職の人" }));
 
-        var (cards, rejections) = Build(Draft(choose: GoodChoose() with { Reason = "優先順位をつける力が生かせます。" }));
+        var (cards, rejections) = Build(Draft(choose: GoodChoose() with { Reason = "優先順位設定力が生かせます。" }));
         Assert.Empty(rejections);
         Assert.NotNull(cards.Choose);
     }
@@ -451,7 +451,7 @@ public sealed class OptionsValidatorTests
         const string own = "いちばん先に母に電話しました";
         var inputs = Inputs() with
         {
-            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, own)])],
+            Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.NeedsCheck, [.. CoordinatingQuotes, E(TestAbilities.BalancingInterests, 3, own)])],
         };
         var (cards, rejections) = Build(
             Draft(choose: GoodChoose() with { Reason = $"話してくれた「{own}」の動きを、日程の調整に生かせるかもしれません。" }), inputs);
@@ -489,7 +489,7 @@ public sealed class OptionsValidatorTests
     [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 条件に収まる業務はあるが使える力を使う業務がないカードは、条件に合わないとは返さない")]
     public void CardsWithoutAbilityMatchAreNotNoFit()
     {
-        // 夜だけ、週 10 時間: 夜の業務（必要な情報をまとめる、帳簿の点検）はあるが、どちらも気づく力を使い、使えるのは調整する力だけ
+        // 夜だけ、週 10 時間: 夜の業務（必要な情報をまとめる、帳簿の点検）はあるが、どちらも気づく力を使い、使えるのは利害調整力だけ
         var night = Build(Draft(), Inputs(slots: [TimeSlot.Night]));
         Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoAbilityMatch), night.Cards.Missing);
         Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoAbilityMatch), night.Cards.Missing);
@@ -504,7 +504,7 @@ public sealed class OptionsValidatorTests
     [Fact(DisplayName = "options-4（創るは根拠を引けるときだけ）: 創らないと答えたら出さず、本人の話が足りないとは返さず、うまく作れなかったとして返す")]
     public void NotMadeCreateIsRejected()
     {
-        var (cards, rejections) = Build(Draft(create: new CreateDraft(false, "", "", "", "", "coordinating", [], 0, "home", [], "")));
+        var (cards, rejections) = Build(Draft(create: new CreateDraft(false, "", "", "", "", "balancing-interests", [], 0, "home", [], "")));
 
         Assert.Null(cards.Create);
         Assert.Equal([new MissingCard(CardKind.Create, MissingReason.Rejected)], cards.Missing);
@@ -562,7 +562,7 @@ public sealed class OptionsValidatorTests
     {
         var (cards, _) = Build(Draft());
 
-        var shown = OptionsValidator.ForDisplay(cards, Inputs(excluded: [Ability.Coordinating], usable: [Ability.Noticing]), Catalog);
+        var shown = OptionsValidator.ForDisplay(cards, Inputs(excluded: [TestAbilities.BalancingInterests], usable: [TestAbilities.NoticingChanges]), Catalog);
 
         Assert.Null(shown.Choose);
         Assert.Null(shown.Combine);
@@ -610,8 +610,8 @@ public sealed class OptionsValidatorTests
     {
         var (cards, _) = Build(Draft());
 
-        // 場面に力の確かめに使わない印が付き、調整する力がまだ聞けていない力に戻った
-        AssertAllChanged(OptionsValidator.ForDisplay(cards, Inputs(usable: [Ability.Noticing]), Catalog));
+        // 場面に力の確かめに使わない印が付き、利害調整力がまだ聞けていない力に戻った
+        AssertAllChanged(OptionsValidator.ForDisplay(cards, Inputs(usable: [TestAbilities.NoticingChanges]), Catalog));
     }
 
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 力の状態か根拠の言葉が、いまの記録と合わなくなったカードは出さない")]
@@ -620,13 +620,13 @@ public sealed class OptionsValidatorTests
         // 確かめ中、根拠の言葉は Q1 と Q2。創るは Q1 だけを引いた
         var (cards, _) = Build(Draft());
         OptionsInputs With(AbilityState state, params Evidence[] quotes) =>
-            Inputs() with { Abilities = [new UsableAbility(Ability.Coordinating, state, quotes)] };
+            Inputs() with { Abilities = [new UsableAbility(TestAbilities.BalancingInterests, state, quotes)] };
 
         // 状態が変わった（訂正で場面を読み直したときなど）
         AssertAllChanged(OptionsValidator.ForDisplay(
-            cards, With(AbilityState.Confirmed, [.. CoordinatingQuotes, E(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました")]), Catalog));
+            cards, With(AbilityState.Confirmed, [.. CoordinatingQuotes, E(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました")]), Catalog));
         // 状態は同じだが、根拠の言葉が別の場面のものに替わった（もとの場面に、確かめに使わない印が付いたときなど）
-        AssertAllChanged(OptionsValidator.ForDisplay(cards, With(AbilityState.NeedsCheck, E(Ability.Coordinating, 1, "予定を見比べました")), Catalog));
+        AssertAllChanged(OptionsValidator.ForDisplay(cards, With(AbilityState.NeedsCheck, E(TestAbilities.BalancingInterests, 1, "予定を見比べました")), Catalog));
         // 同じ言葉でも、選んだ答えの言葉になった
         AssertAllChanged(OptionsValidator.ForDisplay(
             cards,
@@ -634,14 +634,14 @@ public sealed class OptionsValidatorTests
             Catalog));
 
         // 創るが引いた言葉（Q1）がいまもあれば、創るは出す。選ぶと組み合わせるの根拠の言葉（Q1 と Q2）はもうそろっていない
-        var partly = OptionsValidator.ForDisplay(cards, With(AbilityState.NeedsCheck, CoordinatingQuotes[0], E(Ability.Coordinating, 2, "予定を見比べました")), Catalog);
+        var partly = OptionsValidator.ForDisplay(cards, With(AbilityState.NeedsCheck, CoordinatingQuotes[0], E(TestAbilities.BalancingInterests, 2, "予定を見比べました")), Catalog);
         Assert.Null(partly.Choose);
         Assert.Null(partly.Combine);
         Assert.Equal(cards.Create, partly.Create);
         Assert.Equal([new MissingCard(CardKind.Choose, MissingReason.Changed), new MissingCard(CardKind.Combine, MissingReason.Changed)], partly.Missing);
 
         // 外したら、記録が変わったより先に、外したとして返す
-        var excluded = OptionsValidator.ForDisplay(cards, Inputs(excluded: [Ability.Coordinating], usable: []), Catalog);
+        var excluded = OptionsValidator.ForDisplay(cards, Inputs(excluded: [TestAbilities.BalancingInterests], usable: []), Catalog);
         Assert.All(Enum.GetValues<CardKind>(), k => Assert.Contains(new MissingCard(k, MissingReason.Excluded), excluded.Missing));
     }
 
@@ -654,10 +654,10 @@ public sealed class OptionsValidatorTests
 
         foreach (var now in new[]
         {
-            inputs with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.Confirmed, CoordinatingQuotes)] },
-            inputs with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [E(Ability.Coordinating, 1, "予定を見比べました")])] },
-            inputs with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [CoordinatingQuotes[0] with { LinkedQuote = "母に電話しました", FromChoice = true }])] },
-            Inputs(usable: [Ability.Noticing]),
+            inputs with { Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, CoordinatingQuotes)] },
+            inputs with { Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.NeedsCheck, [E(TestAbilities.BalancingInterests, 1, "予定を見比べました")])] },
+            inputs with { Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.NeedsCheck, [CoordinatingQuotes[0] with { LinkedQuote = "母に電話しました", FromChoice = true }])] },
+            Inputs(usable: [TestAbilities.NoticingChanges]),
         })
         {
             Assert.Contains(OptionsValidator.ForDisplay(cards, now, Catalog).Missing, m => m.Reason == MissingReason.Changed);

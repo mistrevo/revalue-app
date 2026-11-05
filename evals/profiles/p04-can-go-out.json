@@ -1,11 +1,11 @@
 {
   "id": "p04-can-go-out",
-  "title": "外にも出られる。週 20 時間、日中。優先順位をつける力が見えた力",
+  "title": "外にも出られる。週 20 時間、日中。優先順位設定力が見えた力",
   "expect": "canGoOut",
   "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e10。",
   "abilities": [
     {
-      "ability": "prioritizing",
+      "ability": "setting-priorities",
       "state": "confirmed",
       "quotes": [
         {

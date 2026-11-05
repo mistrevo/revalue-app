@@ -54,12 +54,23 @@ public sealed class JobCatalogTests
     {
         var forbidden = ForbiddenWordList.Load();
 
-        Assert.Null(forbidden.FirstIn("優先順位をつける力が生かせます"));
+        Assert.Null(forbidden.FirstIn("優先順位設定力が生かせます"));
         Assert.Equal("順位", forbidden.FirstIn("順位をつけました"));
         Assert.Equal("あなたに向いている仕事は", forbidden.FirstIn("あなたに向いている仕事は経理です"));
     }
 
-    private static string Json(string occupationId = "o1", string taskId = "t1", int min = 3, int max = 10, string slots = "\"daytime\"", string ability = "coordinating")
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 12 の業務の使う力は、置き換え先の力の id になっている")]
+    public void TasksUseReplacementAbilities()
+    {
+        var catalog = JobCatalog.Load();
+
+        Assert.Equal(12, catalog.AllTasks.Count());
+        string[] replacements = ["noticing-changes", "balancing-interests", "setting-priorities"];
+        Assert.All(catalog.AllTasks, t => Assert.Contains(t.Ability.Id, replacements));
+        Assert.All(catalog.AllTasks, t => Assert.Contains(t.Ability, Revalue.Server.Features.Validate.AbilityCatalog.Active));
+    }
+
+    private static string Json(string occupationId = "o1", string taskId = "t1", int min = 3, int max = 10, string slots = "\"daytime\"", string ability = "balancing-interests")
         => $$"""
         {
           "source": { "text": "出典", "url": "https://example.com", "note": "注" },
@@ -78,12 +89,13 @@ public sealed class JobCatalogTests
     public void ParseReadsValidData() => Assert.Single(JobCatalog.Parse(Json()).Occupations);
 
     [Theory(DisplayName = "options-2（選ぶは登録した職種から）: 壊れたデータは読み込みで止める")]
-    [InlineData("same", "same", 3, 10, "\"daytime\"", "coordinating")]
-    [InlineData("o1", "t1", 11, 10, "\"daytime\"", "coordinating")]
-    [InlineData("o1", "t1", 0, 10, "\"daytime\"", "coordinating")]
-    [InlineData("o1", "t1", 3, 10, "", "coordinating")]
+    [InlineData("same", "same", 3, 10, "\"daytime\"", "balancing-interests")]
+    [InlineData("o1", "t1", 11, 10, "\"daytime\"", "balancing-interests")]
+    [InlineData("o1", "t1", 0, 10, "\"daytime\"", "balancing-interests")]
+    [InlineData("o1", "t1", 3, 10, "", "balancing-interests")]
     [InlineData("o1", "t1", 3, 10, "\"daytime\"", "cooking")]
-    [InlineData("o1", "t1", 3, 10, "\"noon\"", "coordinating")]
+    [InlineData("o1", "t1", 3, 10, "\"daytime\"", "coordinating")]
+    [InlineData("o1", "t1", 3, 10, "\"noon\"", "balancing-interests")]
     public void BrokenDataStopsLoading(string occupationId, string taskId, int min, int max, string slots, string ability) =>
         Assert.Throws<InvalidOperationException>(() => JobCatalog.Parse(Json(occupationId, taskId, min, max, slots, ability)));
 

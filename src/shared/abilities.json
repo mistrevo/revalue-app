@@ -1,56 +1,1595 @@
 {
   "categories": [
     { "id": "understand-people", "name": "人を理解する力" },
-    { "id": "communication", "name": "対話・コミュニケーション" },
+    { "id": "dialogue", "name": "対話・コミュニケーション" },
     { "id": "hr-organization", "name": "人事・組織" },
-    { "id": "analysis-judgment", "name": "問題発見・分析・判断" },
+    { "id": "problem-analysis", "name": "問題発見・分析・判断" },
     { "id": "coordination-execution", "name": "調整・実行・仕組み化" },
     { "id": "family-life", "name": "家庭・子育て・人間関係から見える力" },
-    { "id": "independent-work", "name": "フリーランス・独立の経験から見える力" },
-    { "id": "new-value", "name": "新しい価値を見つけ、創る力" },
+    { "id": "freelance", "name": "フリーランス・独立の経験から見える力" },
+    { "id": "value-creation", "name": "新しい価値の発見・創造" },
     { "id": "empathy-support", "name": "共感・安心・対人支援" },
     { "id": "inquiry-insight", "name": "問い・洞察" },
-    { "id": "execution-challenge", "name": "実行・挑戦" },
-    { "id": "negotiation", "name": "対人・交渉" }
+    { "id": "action-challenge", "name": "実行・挑戦" },
+    { "id": "interpersonal-negotiation", "name": "対人・交渉" }
   ],
   "abilities": [
     {
-      "id": "noticing",
-      "name": "見立てる力",
+      "id": "info-gathering",
+      "name": "情報収集力",
+      "category": "understand-people",
+      "reason": "相手が話しやすいように聞き方を選びながら、知りたいことを相手から聞き取る",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が話しやすい聞き方を選ぶ", "hint": "相手から話を聞くときに、聞き方で気をつけたこと",
+          "resumeQuestion": "その日、だれかから話を聞くときに、聞き方で気をつけたことはありましたか？" },
+        { "number": 2, "text": "知りたいことを相手から聞き取る", "hint": "知りたいことがあって、相手から聞き取ったこと",
+          "resumeQuestion": "その日、知りたいことがあって、だれかから聞き取ったことはありましたか？" }
+      ]
+    },
+    {
+      "id": "eliciting-true-feelings",
+      "name": "本音を引き出す力",
+      "category": "understand-people",
+      "reason": "最初の返事で切り上げずに尋ね続け、相手の思いや言いにくい事情まで聞く",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の最初の返事のあとも、続けて尋ねる", "hint": "相手の最初の返事のあとに、続けて尋ねたこと" },
+        { "number": 2, "text": "相手の思いや、言いにくい事情を聞く", "hint": "相手から聞いた、思いや言いにくい事情" }
+      ]
+    },
+    {
+      "id": "person-observation",
+      "name": "人物観察力",
+      "category": "understand-people",
+      "reason": "言葉だけで決めずに、相手のふだんの行動を見て、その人らしさをつかむ",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手のふだんの行動に目を向ける", "hint": "相手がふだんしていることで、目にしていたこと" },
+        { "number": 2, "text": "ふだんの行動から相手の特徴をつかむ", "hint": "相手のふだんの行動から、相手について思ったこと" }
+      ]
+    },
+    {
+      "id": "sensing-incongruity",
+      "name": "違和感察知力",
+      "category": "understand-people",
+      "reason": "相手の言うことと実際の行動を両方見て、小さな食い違いに自分で気づく",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の言葉と、実際の行動の両方を見る", "hint": "相手の言葉と、実際にしていることの両方が目に入ったこと",
+          "resumeQuestion": "その日、だれかの言葉と、実際にしていることの両方が目に入ったことはありましたか？" },
+        { "number": 2, "text": "言葉と行動が合わないことに、自分で気づく", "hint": "相手の言うこととすることが合わないと、自分で思ったこと",
+          "resumeQuestion": "その日、だれかの言うこととすることが合わないと思ったことはありましたか？" }
+      ]
+    },
+    {
+      "id": "behavioral-trait-analysis",
+      "name": "行動特性分析力",
+      "category": "understand-people",
+      "reason": "見た目や印象で決めずに、相手が実際にしたことをもとにその人を考える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の印象と、実際にしたことを分けて見る", "hint": "相手の印象と、実際に相手がしていたこと" },
+        { "number": 2, "text": "実際にしたことをもとに、相手のことを考える", "hint": "相手が実際にしたことから、相手について考えたこと" }
+      ]
+    },
+    {
+      "id": "understanding-motives",
+      "name": "動機理解力",
+      "category": "understand-people",
+      "reason": "相手が何をしたかだけでなく、なぜそうしたのかを尋ねたり考えたりする",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手のしたことを具体的に捉える", "hint": "相手が何をしたか" },
+        { "number": 2, "text": "相手の行動の理由を、尋ねたり考えたりする", "hint": "相手の行動の理由について、尋ねたことや考えたこと" }
+      ]
+    },
+    {
+      "id": "grasping-values",
+      "name": "価値観把握力",
+      "category": "understand-people",
+      "reason": "相手の言葉や選んだものから、その人が大切にしていることをつかむ",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の言葉や選んだものに目を向ける", "hint": "相手が言ったことや、選んだもの" },
+        { "number": 2, "text": "相手が大切にしていることを言葉にする", "hint": "相手が何を大切にしていると思ったか" }
+      ]
+    },
+    {
+      "id": "adjusting-interpersonal-distance",
+      "name": "対人距離調整力",
+      "category": "understand-people",
+      "reason": "相手との間柄を考えて、どこまで踏み込むかを加減する",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手との間柄を考える", "hint": "相手との間柄で、気にかけたこと" },
+        { "number": 2, "text": "どこまで踏み込むかを決めて、関わり方を変える", "hint": "相手にどこまで聞いたり関わったりするかを、どう決めたか" }
+      ]
+    },
+    {
+      "id": "nonverbal-observation",
+      "name": "非言語情報の観察力",
+      "category": "understand-people",
+      "reason": "言葉に加えて、表情やしぐさ、反応も相手を知る手がかりにする",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の表情やしぐさ、反応を見る", "hint": "相手の表情やしぐさ、反応で、目に入ったこと" },
+        { "number": 2, "text": "表情や反応から、相手の気持ちや考えを推し量る", "hint": "相手の表情や反応を見て、相手について思ったこと" }
+      ]
+    },
+    {
+      "id": "person-hypothesis-building",
+      "name": "人物理解の仮説構築力",
+      "category": "understand-people",
+      "reason": "相手のいくつもの行動を合わせて、どんな人かを仮に考えてみる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手のいくつかの行動を結びつける", "hint": "相手の行動のうち、結びつけて考えたいくつかのこと" },
+        { "number": 2, "text": "どんな人かを、決めつけずに仮に考える", "hint": "相手の行動から、こういう人かもしれないと考えたこと" }
+      ]
+    },
+    {
+      "id": "grasping-relationships",
+      "name": "関係性把握力",
+      "category": "understand-people",
+      "reason": "相手ひとりだけでなく、周りの人との関係や、その中で受け持っている役まで見る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手と周りの人との関係を捉える", "hint": "相手と、周りの人たちとの関係で気づいたこと" },
+        { "number": 2, "text": "相手が周りの中で受け持っている役割を捉える", "hint": "相手が家や集まりの中で、どんな役を受け持っていたか" }
+      ]
+    },
+    {
+      "id": "assessing-reliability",
+      "name": "信頼性の見極め力",
+      "category": "understand-people",
+      "reason": "相手を頼れるかを、約束を守ったかや、言うこととすることが前と変わらないかで見る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が約束を守ったかを見る", "hint": "相手との約束と、相手があとでしたこと" },
+        { "number": 2, "text": "相手の言うことやすることが、前と変わらないかを見る", "hint": "相手の言うことやすることを、前と比べたこと" }
+      ]
+    },
+    {
+      "id": "discovering-hidden-strengths",
+      "name": "潜在能力発見力",
+      "category": "understand-people",
+      "reason": "相手が当たり前のようにしていることの中から、その人の持ち味を見つける",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が当たり前にしていることに目を向ける", "hint": "相手がふだん何気なくしていたこと" },
+        { "number": 2, "text": "何気ない行動の中に、相手の持ち味を見つける", "hint": "相手の何気ない行動から、相手の持ち味だと思ったこと" }
+      ]
+    },
+    {
+      "id": "questioning-preconceptions",
+      "name": "先入観を問い直す力",
+      "category": "understand-people",
+      "reason": "肩書きや属性から思い込まず、相手が実際にどう動くかで確かめる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "肩書きや属性からの思い込みに気づく", "hint": "相手の肩書きや立場について、はじめに思っていたこと" },
+        { "number": 2, "text": "相手の実際の行動を見て確かめる", "hint": "相手の実際の行動を見て、確かめたこと" }
+      ]
+    },
+    {
+      "id": "sensing-relationship-risks",
+      "name": "対人リスク察知力",
+      "category": "understand-people",
+      "reason": "相手の対応の仕方から、この先の関係で困りそうなことを考える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の対応の仕方に目を向ける", "hint": "相手の対応で、気になったこと" },
+        { "number": 2, "text": "この先の関係で困りそうなことを考える", "hint": "相手の対応を見て、この先困りそうだと考えたこと" }
+      ]
+    },
+    {
+      "id": "summarizing",
+      "name": "要約力",
+      "category": "dialogue",
+      "reason": "相手の話をそのまま繰り返さず、意味をまとめ直して、自分の言葉で返す",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の話の要点をまとめる", "hint": "相手の話を聞いて、何が言いたいのかをまとめたこと",
+          "resumeQuestion": "その日、だれかの話を聞いて、何が言いたいのかをまとめたことはありましたか？" },
+        { "number": 2, "text": "相手の話を、自分の言葉で言い直して返す", "hint": "相手の話について、あなたの言葉で相手に返したこと",
+          "resumeQuestion": "その日、だれかの話を、あなたの言葉で言い直して返したことはありましたか？" }
+      ]
+    },
+    {
+      "id": "question-design",
+      "name": "質問設計力",
+      "category": "dialogue",
+      "reason": "ばくぜんとした聞き方では答えにくいと気づき、すぐ答えられる具体的な聞き方に変える",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が答えにくそうにしていることに気づく", "hint": "相手が答えにくそうにしていたこと",
+          "resumeQuestion": "その日、だれかに聞いてみて、相手が答えにくそうだったことはありましたか？" },
+        { "number": 2, "text": "すぐ答えられる具体的な聞き方に変える", "hint": "聞き方をどう言い換えて、相手に聞いたか",
+          "resumeQuestion": "その日、聞き方を言い換えて、もう一度聞いたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "active-listening",
+      "name": "傾聴力",
+      "category": "dialogue",
+      "reason": "すぐに助言せず、まず相手の話を聞いて、言いたいことをつかむ",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "助言より先に、相手の話を聞く", "hint": "相手が話しているあいだに、あなたがしていたこと",
+          "resumeQuestion": "その日、何か言う前に、まずだれかの話を聞いたことはありましたか？" },
+        { "number": 2, "text": "相手の言いたいことをつかむ", "hint": "相手の話を聞いて、相手が何を言いたいと受け取ったか",
+          "resumeQuestion": "その日、だれかの話を聞いて、何を言いたいのかを受け取ったことはありましたか？" }
+      ]
+    },
+    {
+      "id": "developing-conversation",
+      "name": "会話展開力",
+      "category": "dialogue",
+      "reason": "相手の答えから次に確かめたいことを見つけ、続けて尋ねる",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "相手の答えの中から、次に確かめたいことを見つける", "hint": "相手の答えを聞いて、次に知りたくなったこと" },
+        { "number": 2, "text": "相手の答えを受けて、続けて尋ねる", "hint": "相手の答えを受けて、続けて尋ねたこと" }
+      ]
+    },
+    {
+      "id": "helping-put-into-words",
+      "name": "言語化支援力",
+      "category": "dialogue",
+      "reason": "相手が言葉にしにくそうな考えを、相手にも通じる言葉にしてみて確かめる",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が言葉にしにくそうにしていることに気づく", "hint": "相手が言葉に詰まったり、言いよどんだりしていたこと",
+          "resumeQuestion": "その日、だれかが言葉に詰まったり、言いよどんだりしていたことはありましたか？" },
+        { "number": 2, "text": "相手の考えを言葉にしてみて、相手に確かめる", "hint": "相手の言いたいことを、どんな言葉にして相手に聞いてみたか",
+          "resumeQuestion": "その日、だれかの言いたいことをあなたが言葉にして、合っているか聞いてみたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "organizing-issues",
+      "name": "論点整理力",
+      "category": "dialogue",
+      "reason": "話が広がったときに、何についての話かをはっきりさせ、考えることを分けて並べる",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "話があちこちに広がっていることに気づく", "hint": "話し合いが、どんなふうに広がっていたか",
+          "resumeQuestion": "その日、話し合いが、あちこちに広がっていったことはありましたか？" },
+        { "number": 2, "text": "何について話しているのかをはっきりさせる", "hint": "話し合っていることを、あなたがどう言い表したか",
+          "resumeQuestion": "その日、何を話し合っているのかを、あなたが言い表したことはありましたか？" },
+        { "number": 3, "text": "考えることをいくつかに分けて並べる", "hint": "話し合うことを、どう分けたり並べたりしたか",
+          "resumeQuestion": "その日、話し合うことを、いくつかに分けたり並べたりしたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "aligning-understanding",
+      "name": "認識合わせ力",
+      "category": "dialogue",
+      "reason": "自分の受け取ったことをまとめて伝え、相手の受け取り方と食い違っていないかを確かめる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "自分の受け取ったことをまとめて相手に伝える", "hint": "相手の話をどう受け取ったかを、相手に伝えたこと" },
+        { "number": 2, "text": "相手の受け取り方と食い違っていないかを確かめる", "hint": "あなたと相手とで、受け取り方が違っていないか確かめたこと" }
+      ]
+    },
+    {
+      "id": "translating-explanations",
+      "name": "説明の翻訳力",
+      "category": "dialogue",
+      "reason": "相手に分かりにくい専門的な話に気づき、ふだんの言葉に置き換えて伝える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手にとって分かりにくい言葉や話に気づく", "hint": "相手にとって分かりにくそうだった言葉や話" },
+        { "number": 2, "text": "専門的な話を、ふだんの言葉に置き換えて伝える", "hint": "難しい言葉を、どんな言い方にして伝えたか" }
+      ]
+    },
+    {
+      "id": "structuring-dialogue",
+      "name": "対話の構造化力",
+      "category": "dialogue",
+      "reason": "何から聞くかの順番と、確かめておくことを決めてから、会話を進める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "何から聞くかの順番を決める", "hint": "相手に聞くことを、どんな順番で聞いたか" },
+        { "number": 2, "text": "確かめておくことを決めて聞く", "hint": "話の中で、確かめておこうと決めていたこと" }
+      ]
+    },
+    {
+      "id": "flexible-dialogue",
+      "name": "対話の柔軟性",
+      "category": "dialogue",
+      "reason": "相手の答え方を見て、それに合わせて聞き方を変える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の答え方の様子をつかむ", "hint": "相手がどんなふうに答えていたか" },
+        { "number": 2, "text": "相手の答え方に合わせて、聞き方を変える", "hint": "相手の答え方を見て、聞き方をどう変えたか" }
+      ]
+    },
+    {
+      "id": "giving-feedback",
+      "name": "フィードバック力",
+      "category": "dialogue",
+      "reason": "相手のした行動を具体的に挙げ、それにどんな意味があったかを添えて伝える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手のした行動を具体的に挙げて伝える", "hint": "相手のどの行動について、相手に伝えたか" },
+        { "number": 2, "text": "相手の行動の意味を添えて伝える", "hint": "相手の行動にどんな意味があったと、相手に伝えたか" }
+      ]
+    },
+    {
+      "id": "clarifying-opinions",
+      "name": "意見の明確化力",
+      "category": "dialogue",
+      "reason": "自分の考えを示し、その理由を、ほかの人もたどれる言葉にして伝える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "自分の考えや決めたことを示す", "hint": "あなたがどう考えたか、何に決めたか" },
+        { "number": 2, "text": "考えの理由を、ほかの人がたどれる言葉にして伝える", "hint": "考えの理由として、相手に伝えたこと" }
+      ]
+    },
+    {
+      "id": "handling-different-opinions",
+      "name": "異なる意見を扱う力",
+      "category": "dialogue",
+      "reason": "意見が違う相手について、そう考えるもとにある事情や前提まで整理する",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手と自分の意見の違いを捉える", "hint": "相手とあなたとで、意見が違っていたこと" },
+        { "number": 2, "text": "相手の意見のもとにある事情や前提を整理する", "hint": "相手の意見のもとにあると考えた、事情や前提" }
+      ]
+    },
+    {
+      "id": "easing-conversation-burden",
+      "name": "会話の負担を減らす力",
+      "category": "dialogue",
+      "reason": "相手が答えるのを大変そうにしているときに、短い問いや選べる形にして聞く",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "相手が答えるのを大変そうにしていることに気づく", "hint": "相手が答えるのを大変そうにしていたこと" },
+        { "number": 2, "text": "短い問いや、選べる形にして聞く", "hint": "聞き方を短くしたり、選べる形にしたりしたこと" }
+      ]
+    },
+    {
+      "id": "finding-issues-in-conversation",
+      "name": "対話からの課題発見力",
+      "category": "dialogue",
+      "reason": "何気ない会話の一言に目を留め、その奥にまだ表に出ていない困りごとを尋ねて探る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "何気ない会話の中の一言に目を留める", "hint": "何気ない話の中で、気になった相手の一言" },
+        { "number": 2, "text": "一言の奥にある困りごとを尋ねて探る", "hint": "気になった一言について、相手に尋ねたこと" }
+      ]
+    },
+    {
+      "id": "seeing-organizational-systems",
+      "name": "組織の仕組みを見る力",
+      "category": "hr-organization",
+      "reason": "一人に起きた問題をその人だけのこととせず、後ろにある決まりや仕事の流れから考える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "一人に起きた問題を具体的に捉える", "hint": "だれに、どんな困りごとが起きていたか" },
+        { "number": 2, "text": "問題を生んでいる決まりや仕事の流れを考える", "hint": "困りごとの後ろにあると考えた、決まりや仕事の流れ" }
+      ]
+    },
+    {
+      "id": "aptitude-analysis",
+      "name": "人材適性分析力",
+      "category": "hr-organization",
+      "reason": "人が実際にしたことを、仕事や役目に要ることと照らし合わせて見る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "人が実際にしたことを挙げる", "hint": "役目を頼もうと考えた人が、実際にしていたこと" },
+        { "number": 2, "text": "仕事や役目に要ることと照らし合わせる", "hint": "役目に要ることと、相手の行動を比べたこと" }
+      ]
+    },
+    {
+      "id": "defining-hiring-requirements",
+      "name": "採用要件定義力",
+      "category": "hr-organization",
+      "reason": "求める人の姿を、要る経験や具体的な行動に分けて書き出す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "求める人の姿を言葉にする", "hint": "どんな人に来てほしい、頼みたいと考えたか" },
+        { "number": 2, "text": "求める人の姿を、要る経験や行動に分けて挙げる", "hint": "求める人に要る経験や行動として、挙げたこと" }
+      ]
+    },
+    {
+      "id": "designing-evaluation-criteria",
+      "name": "評価基準設計力",
+      "category": "hr-organization",
+      "reason": "人の感覚で決まっていた見方を、行動や成果で確かめられる目安に置き換える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "人によって見方が分かれる、感覚だけの決め方に気づく", "hint": "人によって見方が分かれていた、決め方" },
+        { "number": 2, "text": "見る行動や成果を、目安として決める", "hint": "どんな行動や成果を目安にすることにしたか" }
+      ]
+    },
+    {
+      "id": "job-analysis",
+      "name": "職務分析力",
+      "category": "hr-organization",
+      "reason": "一つの仕事を中身の作業に分け、それぞれに要る力を挙げる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "一つの仕事や役目を、中身の作業に分ける", "hint": "一つの仕事や役目を、どんな作業に分けたか" },
+        { "number": 2, "text": "作業ごとに要る力を挙げる", "hint": "作業ごとに要ると考えた力" }
+      ]
+    },
+    {
+      "id": "clarifying-roles",
+      "name": "役割明確化力",
+      "category": "hr-organization",
+      "reason": "だれが何を受け持ち、だれが何を決めてよいかを、はっきり分ける",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "だれが何を受け持つかを分ける", "hint": "だれが何を受け持つかを、どう分けたか" },
+        { "number": 2, "text": "だれが何を決めてよいかをはっきりさせる", "hint": "だれが何を決めてよいかを、はっきりさせたこと" }
+      ]
+    },
+    {
+      "id": "structuring-organizational-issues",
+      "name": "組織課題の構造化力",
+      "category": "hr-organization",
+      "reason": "からみ合った組織の問題を、人・仕事の進め方・方針などの要素に分け、つながりを考える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "からみ合った問題を、人・仕事の進め方・お金や方針などの要素に分ける", "hint": "からみ合っていた問題を、どんなまとまりに分けたか" },
+        { "number": 2, "text": "問題の要素どうしのつながりを考える", "hint": "問題を分けたまとまりどうしが、どうつながっていると考えたか" }
+      ]
+    },
+    {
+      "id": "connecting-rules-and-practice",
+      "name": "制度と現場の接続力",
+      "category": "hr-organization",
+      "reason": "決まりや仕組みを、実際に使う人の毎日に当てはめて、無理なく回るかを考える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "決まりや仕組みを、実際に使う人の動きに当てはめる", "hint": "決まりや仕組みを、実際に使う人の毎日に当てはめて考えたこと" },
+        { "number": 2, "text": "実際に使うと困るところを挙げる", "hint": "決まりや仕組みを使うときに、困りそうだと考えたところ" }
+      ]
+    },
+    {
+      "id": "considering-fairness",
+      "name": "公平性を考える力",
+      "category": "hr-organization",
+      "reason": "印象や好みで扱いを変えず、だれにでも同じように使える決め方を決めて当てはめる",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "だれにでも同じように使える決め方を決める", "hint": "関わる人たちへの決め方を、何をもとに決めたか",
+          "resumeQuestion": "その日、だれにでも同じように使える決め方を決めたことはありましたか？" },
+        { "number": 2, "text": "決め方を、関わる人みんなに同じように当てはめる", "hint": "決めたやり方を、関わる人それぞれにどう当てはめたか",
+          "resumeQuestion": "その日、決めたやり方を、関わる人それぞれに同じように当てはめたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "finding-development-issues",
+      "name": "人材育成課題の発見力",
+      "category": "hr-organization",
+      "reason": "人がつまずいているときに、経験・教わり方・環境・役目に分けて理由を考える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "人がつまずいている様子を具体的に捉える", "hint": "だれが、どんなところでつまずいていたか" },
+        { "number": 2, "text": "経験、教わり方、まわりの環境、任された役目に分けて理由を考える", "hint": "つまずいている理由を、どんな面に分けて考えたか" }
+      ]
+    },
+    {
+      "id": "reading-organizational-culture",
+      "name": "組織文化の読み取り力",
+      "category": "hr-organization",
+      "reason": "会社や集まりが掲げていることと、実際にしていることとを見比べる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "会社や集まりが掲げていることを捉える", "hint": "会社や集まりが、大事にすると言っていたこと" },
+        { "number": 2, "text": "掲げていることと、実際にしていることを見比べる", "hint": "掲げていることと、実際にしていることを比べて、気づいたこと" }
+      ]
+    },
+    {
+      "id": "understanding-management-view",
+      "name": "経営者視点の理解力",
+      "category": "hr-organization",
+      "reason": "経営する人が優先していることと、お金や人手の限りをつかみ、それを踏まえて動く",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "経営する人が何を優先しているかを捉える", "hint": "経営する人や上の立場の人が、何を大事にしていたか" },
+        { "number": 2, "text": "お金や人手、時間の限りを捉える", "hint": "お金や人手、時間で、限りがあったこと" },
+        { "number": 3, "text": "経営の考えと限りを踏まえて、自分の動きや案を決める", "hint": "上の立場の人の考えや限りを踏まえて、決めたことや出した案" }
+      ]
+    },
+    {
+      "id": "prioritizing-hr-measures",
+      "name": "人事施策の優先順位設計力",
+      "category": "hr-organization",
+      "reason": "人や職場の課題をいくつも挙げて、どれから手をつけるかの順番を決める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "人や職場についての課題をいくつも挙げる", "hint": "人や職場について、抱えていた課題" },
+        { "number": 2, "text": "どの課題から手をつけるか、順番を決める", "hint": "どの課題から手をつけることにしたか" }
+      ]
+    },
+    {
+      "id": "ensuring-continuity",
+      "name": "組織の継続性を考える力",
+      "category": "hr-organization",
+      "reason": "一人に頼り切っているところに気づき、ほかの人でも回せるやり方に変える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "一人の人に頼り切っているところに気づく", "hint": "特定の人がいないと回らなかったこと" },
+        { "number": 2, "text": "ほかの人でもできるように、やり方を変える", "hint": "ほかの人でもできるように、変えたことや残したこと" }
+      ]
+    },
+    {
+      "id": "person-environment-fit",
+      "name": "人と組織の適合条件を考える力",
+      "category": "hr-organization",
+      "reason": "人のできることだけでなく、働く場の条件や周りの人との組み合わせまで考える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "人のできることを捉える", "hint": "相手ができることとして、挙げたこと" },
+        { "number": 2, "text": "できることと、働く場の条件や周りの人との組み合わせを考える", "hint": "相手と、働く場の条件や周りの人との組み合わせで考えたこと" }
+      ]
+    },
+    {
+      "id": "finding-root-issues",
+      "name": "本質的課題発見力",
+      "category": "problem-analysis",
+      "reason": "表に出た不満で止まらず、その後ろにある原因を尋ねたり調べたりして探る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "表に出ている不満や困りごとを捉える", "hint": "だれが、どんな不満を口にしていたか" },
+        { "number": 2, "text": "不満の後ろにある原因を、尋ねたり調べたりして探る", "hint": "不満の後ろにある原因について、尋ねたことや調べたこと" }
+      ]
+    },
+    {
+      "id": "cause-analysis",
+      "name": "原因分析力",
+      "category": "problem-analysis",
+      "reason": "困ったことが起きたときに、なぜそうなったかを自分で考え、起きたことと、それを生んだ条件やきっかけとを分けて捉える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "困ったことが起きたわけを、自分で考える", "hint": "困ったことが起きたときに、なぜそうなったと考えたか" },
+        { "number": 2, "text": "起きたことと、それを生んだ条件やきっかけを分けて挙げる", "hint": "困ったことが起きたときに、重なっていた条件やきっかけ" }
+      ]
+    },
+    {
+      "id": "hypothesis-thinking",
+      "name": "仮説思考力",
+      "category": "problem-analysis",
+      "reason": "原因の見当をひとまず仮に置き、試したり調べたりして確かめる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "原因の見当を、ひとまず仮に置く", "hint": "これが原因かもしれないと考えたこと" },
+        { "number": 2, "text": "仮に置いた原因が合っているかを、試したり調べたりして確かめる", "hint": "原因かもしれないと考えたことを、試したり調べたりしたこと" }
+      ]
+    },
+    {
+      "id": "selecting-information",
+      "name": "情報の取捨選択力",
+      "category": "problem-analysis",
+      "reason": "たくさんの情報から決めるのに要るものを選び、選んだ情報をもとに決める",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "たくさんの情報の中から、決めるのに要るものを選ぶ", "hint": "たくさんの情報の中から、何を選んで見たか" },
+        { "number": 2, "text": "選んだ情報をもとに決める", "hint": "選んだ情報をもとに、決めたこと" }
+      ]
+    },
+    {
+      "id": "comparative-analysis",
+      "name": "比較分析力",
+      "category": "problem-analysis",
+      "reason": "いくつかの選択肢を、値段や時間などの物差しを同じにして見比べる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "比べる選択肢をいくつか挙げる", "hint": "どんな選択肢を比べたか" },
+        { "number": 2, "text": "同じ物差しで、選択肢を見比べる", "hint": "選択肢を、何を同じにして見比べたか" }
+      ]
+    },
+    {
+      "id": "clarifying-criteria",
+      "name": "判断基準の明確化力",
+      "category": "problem-analysis",
+      "reason": "よい・よくないを分ける目安を言葉にし、それに当てはめて決める",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "よい・よくないを分ける目安を言葉にする", "hint": "何を目安にして、よい・よくないを分けたか" },
+        { "number": 2, "text": "言葉にした目安に当てはめて決める", "hint": "目安に当てはめて、決めたこと" }
+      ]
+    },
+    {
+      "id": "breaking-down-problems",
+      "name": "複雑な問題の分解力",
+      "category": "problem-analysis",
+      "reason": "大きすぎる課題を、一つずつ考えられる大きさに分ける",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "どこから考えればよいか迷うほど大きな課題を捉える", "hint": "大きすぎて、どこから考えればよいか迷った課題" },
+        { "number": 2, "text": "課題を、一つずつ考えられる大きさに分ける", "hint": "大きな課題を、どんなまとまりに分けたか" }
+      ]
+    },
+    {
+      "id": "separating-facts-and-interpretations",
+      "name": "事実と解釈の分離力",
+      "category": "problem-analysis",
+      "reason": "実際に起きたことと、それをどう受け止めたかを分けて捉える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "実際に起きたことを挙げる", "hint": "実際に見たり聞いたりしたこと" },
+        { "number": 2, "text": "受け止め方を、起きたこととは分けて言う", "hint": "起きたことと、それをどう受け止めたかを、分けて考えたこと" }
+      ]
+    },
+    {
+      "id": "evidence-based-judgment",
+      "name": "根拠に基づく判断力",
+      "category": "problem-analysis",
+      "reason": "印象で決めず、人の行動や資料を確かめて、それをもとに決める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "人の行動や資料を確かめる", "hint": "決める前に確かめた、人の行動や資料" },
+        { "number": 2, "text": "印象ではなく、確かめたことをもとに決める", "hint": "確かめたことをもとに、決めたこと" }
+      ]
+    },
+    {
+      "id": "finding-exceptions",
+      "name": "例外の発見力",
+      "category": "problem-analysis",
+      "reason": "いつもの決まりでは説明がつかない場合に気づく",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "いつもの決まりや考え方を捉える", "hint": "ふだんの決まりや、いつものやり方" },
+        { "number": 2, "text": "いつもの決まりに当てはまらない場合に気づく", "hint": "いつもの決まりでは当てはまらないと気づいたこと" }
+      ]
+    },
+    {
+      "id": "anticipating-risks",
+      "name": "リスク予測力",
+      "category": "problem-analysis",
+      "reason": "新しいことを始める前に、起こりそうな困りごとを挙げて備える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "始める前に、起こりそうな困りごとを挙げる", "hint": "始める前に、起こりそうだと考えた困りごと" },
+        { "number": 2, "text": "起こりそうな困りごとに備える手を打つ", "hint": "起こりそうな困りごとに備えて、前もってしたこと" }
+      ]
+    },
+    {
+      "id": "building-alternatives",
+      "name": "代替案構築力",
+      "category": "problem-analysis",
+      "reason": "目的は変えずに、そこへ向かう別のやり方を考える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "何のためにするのかをはっきりさせる", "hint": "何のためにしようとしていたか" },
+        { "number": 2, "text": "同じ目的のための別のやり方を出す", "hint": "同じ目的のために考えた、別のやり方" }
+      ]
+    },
+    {
+      "id": "decision-making",
+      "name": "意思決定力",
+      "category": "problem-analysis",
+      "reason": "すべてがそろうのを待たず、いま分かっていることと条件から、どうするかを決める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "いま分かっていることと条件を挙げる", "hint": "決めるときに分かっていたことや、限られていたこと" },
+        { "number": 2, "text": "分かっていることと条件をもとに、どうするかを決める", "hint": "どうすることに決めたか" }
+      ]
+    },
+    {
+      "id": "revising-plans",
+      "name": "方針修正力",
+      "category": "problem-analysis",
+      "reason": "案を試し、そこで分かったことを受けてやり方を変える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "案を一度試してみる", "hint": "まず試してみたこと" },
+        { "number": 2, "text": "試して分かったことを受けて、案を変える", "hint": "試してみて、やり方をどう変えたか" }
+      ]
+    },
+    {
+      "id": "separating-ends-and-means",
+      "name": "目的と手段を区別する力",
+      "category": "problem-analysis",
+      "reason": "目の前の作業より、何のためにするのかを先に考え、それに合わせてやり方を選ぶ",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "作業が何のためのものかを言葉にする", "hint": "作業を何のためにしていたか" },
+        { "number": 2, "text": "目的に照らして、やり方を選び直す", "hint": "目的に照らして、変えたり省いたりしたやり方" }
+      ]
+    },
+    {
+      "id": "balancing-interests",
+      "name": "利害調整力",
+      "category": "coordination-execution",
+      "reason": "関わる人たちの違う希望や都合を整理し、自分から働きかけて、折り合う形を探る",
+      "status": "active",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "関わる 2 者以上の、それぞれ違う都合をつかむ", "hint": "ほかに関わっていた人と、その人たちの都合",
+          "resumeQuestion": "その日、あなたのほかに、予定や都合が関わっていた人はいましたか？" },
+        { "number": 2, "text": "自分から働きかける", "hint": "あなたから声をかけたり、頼んだりしたこと",
+          "resumeQuestion": "その日、だれかに声をかけたり、頼んだりしたことはありましたか？" },
+        { "number": 3, "text": "代わりの案を出すか、双方の都合を合わせる", "hint": "みんなの都合を合わせたり、別の案を出したりしたこと",
+          "resumeQuestion": "その日、みんなの都合を合わせたり、別の案を出したりしたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "negotiation",
+      "name": "交渉力",
+      "category": "coordination-execution",
+      "reason": "自分の側の条件や代わりの案を示しながら、相手と話し合う",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "自分の側の条件を相手に示す", "hint": "相手に伝えた、あなたの側の条件" },
+        { "number": 2, "text": "代わりの案を出して、相手と話し合う", "hint": "相手と話すときに出した、別の案" }
+      ]
+    },
+    {
+      "id": "planning-steps",
+      "name": "段取り力",
+      "category": "coordination-execution",
+      "reason": "目指すことのために要る作業を洗い出し、どの順で進めるかを組み立てる",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "目指すことのために要る作業を洗い出す", "hint": "目指すことのために、やることとして挙げた作業",
+          "resumeQuestion": "その日、目指すことのために、やることを挙げたことはありましたか？" },
+        { "number": 2, "text": "どの順で進めるかを決める", "hint": "やることを、どんな順番で進めることにしたか",
+          "resumeQuestion": "その日、やることを、どんな順番で進めるか決めたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "setting-priorities",
+      "name": "優先順位設定力",
+      "category": "coordination-execution",
+      "reason": "用事が重なったときに、先にすることと後に回すことを、理由をもって選ぶ",
+      "status": "active",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "situation": true, "text": "全部はこなせないほど用事が重なる", "hint": "その日に重なっていた用事",
+          "resumeQuestion": "その日、重なっていた用事はありましたか？" },
+        { "number": 2, "text": "何を先にし、何を後に回すかを具体的に決める", "hint": "何を先にして、何を後に回したか",
+          "resumeQuestion": "その日の用事の中で、先にしたことや、後に回したことはありましたか？" },
+        { "number": 3, "text": "決めた理由や基準がある", "hint": "先にすること、後に回すことを、どう考えて決めたか",
+          "resumeQuestion": "その日、どれを先にするか決めるときに、気にしていたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "designing-work",
+      "name": "業務設計力",
+      "category": "coordination-execution",
+      "reason": "特定の人のやり方まかせになっている仕事を、手順や受け持ちに分けて整える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "特定の人のやり方まかせになっている仕事を捉える", "hint": "特定の人しかやり方を知らなかった仕事" },
+        { "number": 2, "text": "仕事を、手順や受け持ちに分けて整える", "hint": "仕事を、どんな手順や受け持ちに分けたか" }
+      ]
+    },
+    {
+      "id": "improving-work",
+      "name": "業務改善力",
+      "category": "coordination-execution",
+      "reason": "いつものやり方の中のむだな手間や二度手間に気づき、省いたりまとめたりする",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "いつものやり方の中の、むだな手間や二度手間に気づく", "hint": "いつものやり方で、むだだと思った手間や、二度していたこと",
+          "resumeQuestion": "その日、いつものやり方の中で、むだだと思った手間や、二度していたことはありましたか？" },
+        { "number": 2, "text": "手間を省いたりまとめたりして、やり方を変える", "hint": "手間を、どう省いたりまとめたりしたか",
+          "resumeQuestion": "その日、手間を省いたりまとめたりして、やり方を変えたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "standardization",
+      "name": "標準化力",
+      "category": "coordination-execution",
+      "reason": "人によって違うやり方を、みんなで使える一つの手順にまとめる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "人によってやり方が違うことに気づく", "hint": "人によってやり方が違っていたこと" },
+        { "number": 2, "text": "みんなで使える一つの手順にまとめる", "hint": "違うやり方を、どんな手順にまとめたか" }
+      ]
+    },
+    {
+      "id": "designing-handovers",
+      "name": "引継ぎ設計力",
+      "category": "coordination-execution",
+      "reason": "受け持つ人が替わっても回るように、次の人に要ることを考えて残す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "次に受け持つ人に要ることを挙げる", "hint": "次に受け持つ人が知っておくとよいと考えたこと" },
+        { "number": 2, "text": "次の人に要ることを、書いたり伝えたりして残す", "hint": "次の人のために、どんな形で残したか" }
+      ]
+    },
+    {
+      "id": "choosing-tools",
+      "name": "ツール活用設計力",
+      "category": "coordination-execution",
+      "reason": "何のために使うかに合わせて、アプリや道具を使い分ける",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "道具を何のために使うのかを考える", "hint": "道具やアプリを、何のために使おうとしたか" },
+        { "number": 2, "text": "目的に合わせて、道具やアプリを使い分ける", "hint": "目的ごとに、どの道具やアプリを使ったか" }
+      ]
+    },
+    {
+      "id": "driving-projects",
+      "name": "プロジェクト推進力",
+      "category": "coordination-execution",
+      "reason": "関わる人への確認や、進み具合の見直しを重ねながら、計画を進める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "関わる人に確認や相談をする", "hint": "関わる人に、確認したことや相談したこと" },
+        { "number": 2, "text": "計画の進み具合を確かめる", "hint": "計画の進み具合を、どう確かめたか" }
+      ]
+    },
+    {
+      "id": "managing-deadlines",
+      "name": "期限管理力",
+      "category": "coordination-execution",
+      "reason": "いくつもの用事の締め切りをつかみ、それに合わせて取りかかる順番や日を決める",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "いくつもの用事の締め切りをつかむ", "hint": "抱えていた用事ごとの締め切り",
+          "resumeQuestion": "その日、抱えていた用事の中に、締め切りのあるものはありましたか？" },
+        { "number": 2, "text": "締め切りに合わせて、取りかかる順番や日を決める", "hint": "締め切りを見て、取りかかる順番や日を決めたこと",
+          "resumeQuestion": "その日、締め切りを見て、いつ何に取りかかるかを決めたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "allocating-resources",
+      "name": "資源配分力",
+      "category": "coordination-execution",
+      "reason": "限られた時間や人手、お金を、何にどれだけ使うかを割り振る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "使える時間や人手、お金の限りをつかむ", "hint": "使える時間や人手、お金が、どれだけあったか" },
+        { "number": 2, "text": "限られた時間や人手、お金を、何にどれだけ使うかを割り振る", "hint": "限られた時間や人手、お金を、何にどう割り振ったか" }
+      ]
+    },
+    {
+      "id": "self-direction",
+      "name": "自走力",
+      "category": "coordination-execution",
+      "reason": "目的から要ることを自分で考え、自分から取りかかる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "目的から、何をするかを自分で考える", "hint": "何のために、何をすると考えたか" },
+        { "number": 2, "text": "考えたことに、自分から取りかかる", "hint": "自分から取りかかったこと" }
+      ]
+    },
+    {
+      "id": "checking-feasibility",
+      "name": "実行可能性の検証力",
+      "category": "coordination-execution",
+      "reason": "新しいやり方が実際の場で使えるかを、かかる手間や負担まで確かめる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "実際に使う場面で、試したり当てはめたりする", "hint": "実際に使う場面で、試してみたこと" },
+        { "number": 2, "text": "使う人にかかる手間や負担を確かめる", "hint": "使う人にかかる手間や負担について、確かめたこと" }
+      ]
+    },
+    {
+      "id": "continuous-improvement",
+      "name": "継続改善力",
+      "category": "coordination-execution",
+      "reason": "使う人の反応や困りごとを受けて直し、直したあとも様子を見て直し続ける",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "使う人の反応や困りごとを集める", "hint": "使う人から聞いた声や、見つかった困りごと" },
+        { "number": 2, "text": "反応や困りごとを受けて直す", "hint": "使う人の声や困りごとを受けて、直したこと" },
+        { "number": 3, "text": "直したあとも反応を見て、また直す", "hint": "直したあとに、もう一度見直したこと" }
+      ]
+    },
+    {
+      "id": "coordinating-daily-life",
+      "name": "生活全体の調整力",
       "category": "family-life",
-      "reason": "変化に自分で気づき、手がかりを挙げて、いつもと比べる",
-      "status": "active",
+      "reason": "家族の予定と仕事の予定をまとめて見て、一日や一週間の流れに組み立てる",
+      "status": "preparing",
       "needsReview": false,
       "actions": [
-        { "number": 1, "text": "変化に自分で気づく", "hint": "いつもと違うことに、自分で気づいたこと" },
-        { "number": 2, "text": "判断の手がかりを挙げる", "hint": "何を見たり聞いたりして、いつもと違うと思ったか" },
-        { "number": 3, "text": "いつもの様子や前と比べる", "hint": "いつもの様子や、前のときと比べたこと" }
+        { "number": 1, "text": "家族や仕事のいくつもの予定をつかむ", "hint": "家族や仕事で、重なっていた予定" },
+        { "number": 2, "text": "予定を組み合わせて、一日や一週間の流れを組み立てる", "hint": "家族や仕事の予定を、どう組み合わせて流れにしたか" }
       ]
     },
     {
-      "id": "coordinating",
-      "name": "調整する力",
-      "category": "coordination-execution",
-      "reason": "都合の違う人たちのあいだで、自分から働きかけ、都合を合わせたり別の案を出したりする",
+      "id": "noticing-changes",
+      "name": "変化への気づき",
+      "category": "family-life",
+      "reason": "様子や反応がいつもと違うことに自分で気づき、何を見てそう思ったかを、いつもと比べて捉える",
       "status": "active",
       "needsReview": false,
       "actions": [
-        { "number": 1, "text": "都合の違う 2 者以上が関わる", "hint": "ほかに関わっていた人と、その人たちの都合" },
-        { "number": 2, "text": "本人から働きかける", "hint": "あなたから声をかけたり、頼んだりしたこと" },
-        { "number": 3, "text": "代わりの案を出すか、双方の都合を合わせる", "hint": "みんなの都合を合わせたり、別の案を出したりしたこと" }
+        { "number": 1, "text": "変化に自分で気づく", "hint": "いつもと違うことに、自分で気づいたこと",
+          "resumeQuestion": "その日、いつもと違うと気づいたことはありましたか？" },
+        { "number": 2, "text": "判断の手がかりを挙げる", "hint": "何を見たり聞いたりして、いつもと違うと思ったか",
+          "resumeQuestion": "その日、いつもと違うと思ったことがあれば、そのとき目に入ったことや耳にしたことはありましたか？" },
+        { "number": 3, "text": "いつもの様子や前と比べる", "hint": "いつもの様子や、前のときと比べたこと",
+          "resumeQuestion": "その日の様子を、いつもや前のときと比べたことはありましたか？" }
       ]
     },
     {
-      "id": "prioritizing",
-      "name": "優先順位をつける力",
-      "category": "coordination-execution",
-      "reason": "用事が重なったとき、理由をもって、何を先にし何を後に回すかを決める",
+      "id": "adapting-explanations",
+      "name": "相手に応じた説明力",
+      "category": "family-life",
+      "reason": "子どもか大人かなど、相手が分かることに合わせて、使う言葉や話の運び方を変える",
       "status": "active",
       "needsReview": false,
       "actions": [
-        { "number": 1, "text": "全部はこなせないほど用事が重なる", "hint": "その日に重なっていた用事" },
-        { "number": 2, "text": "何を先にし、何を後に回すかを具体的に決める", "hint": "何を先にして、何を後に回したか" },
-        { "number": 3, "text": "決めた理由や基準がある", "hint": "先にすること、後に回すことを、どう考えて決めたか" }
+        { "number": 1, "text": "説明する相手の年齢や、知っていることを考える", "hint": "説明するときに、相手の年齢や、どこまで知っているかを気にしたこと",
+          "resumeQuestion": "その日、だれかに説明するときに、相手の年齢や、どこまで知っているかを気にしたことはありましたか？" },
+        { "number": 2, "text": "相手に合わせて、使う言葉や話の運び方を変える", "hint": "相手に合わせて、使う言葉や話の運び方をどう変えたか",
+          "resumeQuestion": "その日、相手に合わせて、使う言葉や話の運び方を変えたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "supporting-learning",
+      "name": "学習支援力",
+      "category": "family-life",
+      "reason": "相手がどこまで分かっていて、どこでつまずいているかに合わせて、説明を変える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手がどこでつまずいているかをつかむ", "hint": "相手がどこで分からなくなっていたか" },
+        { "number": 2, "text": "つまずきに合わせて、説明の仕方を変える", "hint": "相手のつまずきを見て、説明をどう変えたか" }
+      ]
+    },
+    {
+      "id": "setting-boundaries",
+      "name": "対人関係の境界設定力",
+      "category": "family-life",
+      "reason": "相手の事情に気を配りながらも、自分にできることとできないことは分けて伝える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の事情に気を配る", "hint": "相手の事情について、気にかけたこと" },
+        { "number": 2, "text": "自分にできることと、できないことを分けて伝える", "hint": "あなたにできること、できないことを、相手にどう伝えたか" }
+      ]
+    },
+    {
+      "id": "observing-group-relations",
+      "name": "集団内の関係観察力",
+      "category": "family-life",
+      "reason": "保護者の集まりなどで、人どうしの役割やつながりをつかむ",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "集まりの中で、だれがどんな役をしているかを捉える", "hint": "集まりの中で、だれがどんな役をしていたか" },
+        { "number": 2, "text": "人どうしのつながりや距離感を捉える", "hint": "集まりの人どうしの、つながりや距離感で気づいたこと" }
+      ]
+    },
+    {
+      "id": "understanding-individual-differences",
+      "name": "個人差の理解力",
+      "category": "family-life",
+      "reason": "同じ場にいても人によって考え方が違うことに気づき、違いに合わせて関わり方を変える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "同じ場にいる人たちの、考え方や受け止め方の違いに気づく", "hint": "同じ場にいた人たちの間で、考え方や受け止め方が違っていたこと" },
+        { "number": 2, "text": "考え方の違いに合わせて、関わり方を変える", "hint": "人による考え方の違いを見て、関わり方をどう変えたか" }
+      ]
+    },
+    {
+      "id": "balancing-care-and-work",
+      "name": "ケアと仕事の両立設計力",
+      "category": "family-life",
+      "reason": "家庭の条件をはっきりさせ、その条件の中で続けられる働き方を組み立てる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "働き方を考えるうえで外せない家庭の条件をはっきりさせる", "hint": "働き方を考えるときに外せなかった、家庭の条件" },
+        { "number": 2, "text": "家庭の条件の中で続けられる働き方を組み立てる", "hint": "家庭の条件の中で続けられるように考えた働き方" }
+      ]
+    },
+    {
+      "id": "handling-schedule-changes",
+      "name": "予定変更への対応力",
+      "category": "family-life",
+      "reason": "急に予定が変わったときに、関わる人へ連絡し、あとの予定を組み直す",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "situation": true, "text": "急に予定が変わる", "hint": "急に変わった予定",
+          "resumeQuestion": "その日、急に変わった予定はありましたか？" },
+        { "number": 2, "text": "関わる人に連絡する", "hint": "予定が変わって、だれかに連絡したこと",
+          "resumeQuestion": "その日、予定が変わって、だれかに連絡したことはありましたか？" },
+        { "number": 3, "text": "変更に合わせて、あとの予定を組み直す", "hint": "急な変更のあとの予定を、どう組み直したか",
+          "resumeQuestion": "その日、急な変更のあとの予定を、組み直したことはありましたか？" }
+      ]
+    },
+    {
+      "id": "thinking-long-term-growth",
+      "name": "長期的な成長を考える力",
+      "category": "family-life",
+      "reason": "いますぐ得られることと、先々の成長の両方を考え合わせて、どうするかを決める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "いますぐ得られることを考える", "hint": "その場ですぐに得られることとして、考えたこと" },
+        { "number": 2, "text": "この先の成長を考える", "hint": "相手や自分の、この先の成長について考えたこと" },
+        { "number": 3, "text": "目の前のことと先々のことを考え合わせて、どうするかを決める", "hint": "目の前のことと先々のことを考えて、決めたこと" }
+      ]
+    },
+    {
+      "id": "self-determination",
+      "name": "自己決定力",
+      "category": "freelance",
+      "reason": "自分が大事にしたいことをもとに、働き方や仕事の相手を自分で選ぶ",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "自分が大事にしたいことを言葉にする", "hint": "働き方を選ぶときに、あなたが大事にしたいと考えたこと" },
+        { "number": 2, "text": "大事にしたいことをもとに、働き方や仕事の相手を選ぶ", "hint": "大事にしたいことをもとに、選んだ働き方や仕事の相手" }
+      ]
+    },
+    {
+      "id": "choosing-clients",
+      "name": "顧客選定力",
+      "category": "freelance",
+      "reason": "お金の条件だけでなく、相手の仕事への向き合い方や約束の守り方も見て、仕事の相手を選ぶ",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の仕事への向き合い方や、約束の守り方を見る", "hint": "仕事の相手について、お金のほかに見ていたこと" },
+        { "number": 2, "text": "お金の条件とあわせて、引き受けるかを決める", "hint": "仕事を引き受けるかどうかを、何をもとに決めたか" }
+      ]
+    },
+    {
+      "id": "cross-domain-expertise",
+      "name": "専門性の横断活用力",
+      "category": "freelance",
+      "reason": "人事やお金、決まりごとなど、いくつかの分野の知識を組み合わせて使う",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "いくつかの分野の知識を持ち出す", "hint": "困りごとに向き合うときに使った、いくつかの分野の知識" },
+        { "number": 2, "text": "分野の違う知識を結びつけて、一つの困りごとに当てはめる", "hint": "分野の違う知識を、どう組み合わせて使ったか" }
+      ]
+    },
+    {
+      "id": "adapting-to-new-fields",
+      "name": "新しい業界への適応力",
+      "category": "freelance",
+      "reason": "初めての業界の仕事を知ろうとし、これまでの経験をどう使えるかを考える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "初めての場の仕事の中身を、調べたり聞いたりして知る", "hint": "初めての場の仕事について、調べたことや聞いたこと" },
+        { "number": 2, "text": "これまでの経験を新しい場でどう使えるかを考える", "hint": "これまでの経験を、新しい場でどう使おうと考えたか" }
+      ]
+    },
+    {
+      "id": "self-learning",
+      "name": "自己学習力",
+      "category": "freelance",
+      "reason": "要る知識を自分で見つけ、学ぶ方法を考えて学ぶ",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "自分に要る知識をはっきりさせる", "hint": "知っておく必要があると思った知識" },
+        { "number": 2, "text": "学ぶ方法を自分で考えて学ぶ", "hint": "要る知識を、どうやって学んだか" }
+      ]
+    },
+    {
+      "id": "judging-contracts",
+      "name": "契約関係の判断力",
+      "category": "freelance",
+      "reason": "仕事の範囲や責任、条件を確かめて、その仕事を続けるかを決める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "仕事の範囲や責任、条件を確かめる", "hint": "仕事の範囲や責任、条件について、確かめたこと" },
+        { "number": 2, "text": "範囲や責任、条件をもとに、続けるかどうかを決める", "hint": "仕事を続けるかどうかを、どう決めたか" }
+      ]
+    },
+    {
+      "id": "independent-proposals",
+      "name": "独立した立場での提言力",
+      "category": "freelance",
+      "reason": "これまでの慣わしにとらわれずに、引っかかるところを挙げて、変える案を示す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "当たり前になっているやり方の、引っかかるところを挙げる", "hint": "当たり前になっていたやり方で、引っかかったこと" },
+        { "number": 2, "text": "やり方を変える案を相手に示す", "hint": "相手に示した、やり方を変える案" }
+      ]
+    },
+    {
+      "id": "designing-revenue-models",
+      "name": "収益構造を考える力",
+      "category": "freelance",
+      "reason": "時間で受け取る今の形の限りに気づき、時間に縛られない価値の届け方を考える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "働いた時間で受け取る今の形の限りに気づく", "hint": "働いた時間で受け取る今の形について、気になったこと" },
+        { "number": 2, "text": "時間に縛られない価値の届け方を考える", "hint": "働いた時間のほかの形で、価値を届ける方法として考えたこと" }
+      ]
+    },
+    {
+      "id": "protecting-own-time",
+      "name": "自分の時間を守る力",
+      "category": "freelance",
+      "reason": "暮らしや仕事の条件をはっきりさせ、それに合うように相手と取り決める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "自分の暮らしや仕事の条件をはっきりさせる", "hint": "引き受ける前に、はっきりさせた暮らしや仕事の条件" },
+        { "number": 2, "text": "自分の条件に合うように、相手と取り決める", "hint": "自分の条件に合うように、相手と取り決めたこと" }
+      ]
+    },
+    {
+      "id": "rebuilding-career",
+      "name": "キャリア再構築力",
+      "category": "freelance",
+      "reason": "会社員のころにしてきたことを挙げ直し、新しい仕事の形に組み替える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "前の仕事でしてきたことを挙げる", "hint": "前の仕事でしてきたこととして、挙げたこと" },
+        { "number": 2, "text": "前の経験を、新しい仕事の形に組み替える", "hint": "前の経験を、新しい仕事にどう組み替えたか" }
+      ]
+    },
+    {
+      "id": "finding-social-issues",
+      "name": "社会課題発見力",
+      "category": "value-creation",
+      "reason": "自分の経験した困りごとから、その後ろにある世の中の仕組みの問題を探る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "自分が経験した困りごとを挙げる", "hint": "あなたが経験した困りごと" },
+        { "number": 2, "text": "困りごとを生んでいる世の中の仕組みを考える", "hint": "困りごとの後ろにあると考えた、世の中の仕組み" }
+      ]
+    },
+    {
+      "id": "envisioning",
+      "name": "構想力",
+      "category": "value-creation",
+      "reason": "まだ世の中にない仕組みを思い描き、だれが使って、その人の何が変わるかを考える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "まだ世の中にない仕組みやサービスを思い描く", "hint": "あったらいいと思い描いた、サービスや仕組み" },
+        { "number": 2, "text": "思い描いたサービスをだれが使うのかを考える", "hint": "思い描いたサービスを、だれが使うと考えたか" },
+        { "number": 3, "text": "使った人の暮らしがどう変わるかを考える", "hint": "思い描いたサービスを使った人に、どんな変化があると考えたか" }
+      ]
+    },
+    {
+      "id": "reframing-experience",
+      "name": "経験の価値転換力",
+      "category": "value-creation",
+      "reason": "暮らしの中の経験を、別の場面でも使えるものとして捉え直す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "暮らしの中でしてきたことを挙げる", "hint": "暮らしの中でしてきたこととして、挙げたこと" },
+        { "number": 2, "text": "暮らしの経験を、ほかの場面で生かせる形に言い換える", "hint": "暮らしの経験を、ほかのどんな場面で使えると考えたか" }
+      ]
+    },
+    {
+      "id": "user-centered-design",
+      "name": "利用者視点の設計力",
+      "category": "value-creation",
+      "reason": "使う人が迷うところや手間に感じるところをつかみ、それを減らす形に作る",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "使う人が迷うところや手間に感じるところをつかむ", "hint": "使う人が迷ったり、手間に感じたりしていたところ" },
+        { "number": 2, "text": "迷いや手間を減らす形に作ったり直したりする", "hint": "迷いや手間を減らすために、作ったり直したりしたこと" }
+      ]
+    },
+    {
+      "id": "widening-possibilities",
+      "name": "可能性を広げる力",
+      "category": "value-creation",
+      "reason": "これまでの仕事の形にとどまらず、別の道をいくつも挙げて並べて考える",
+      "status": "preparing",
+      "needsReview": true,
+      "actions": [
+        { "number": 1, "text": "これまでの仕事のほかに、別の道をいくつか挙げる", "hint": "これまでの仕事のほかに、考えた道" },
+        { "number": 2, "text": "挙げた道を並べて比べる", "hint": "いくつか考えた道を、どう比べたか" }
+      ]
+    },
+    {
+      "id": "empathy",
+      "name": "共感力",
+      "category": "empathy-support",
+      "reason": "相手の置かれた立場や事情を思い浮かべて、その気持ちがどこから来るのかを考える",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の置かれた立場や事情を思い浮かべる", "hint": "相手の置かれていた立場や事情",
+          "resumeQuestion": "その日、だれかの置かれた立場や事情を、思い浮かべたことはありましたか？" },
+        { "number": 2, "text": "相手の気持ちのわけを考えたり、尋ねたりする", "hint": "相手の気持ちのわけについて、考えたことや尋ねたこと",
+          "resumeQuestion": "その日、だれかの気持ちのわけを思ったり、尋ねたりしたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "easing-anxiety",
+      "name": "不安軽減力",
+      "category": "empathy-support",
+      "reason": "相手が何に不安を感じているかを聞き取り、要る情報やこの先の見通しを整えて伝える",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が何を心配しているかを聞き取る", "hint": "相手から聞いた、心配していること",
+          "resumeQuestion": "その日、だれかから、心配していることを聞いたことはありましたか？" },
+        { "number": 2, "text": "要る情報や、この先の見通しを整えて伝える", "hint": "相手に伝えた、情報やこの先の見通し",
+          "resumeQuestion": "その日、心配しているだれかに、要る情報やこの先の見通しを伝えたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "creating-psychological-safety",
+      "name": "心理的安全性をつくる力",
+      "category": "empathy-support",
+      "reason": "すぐに打ち消したり良し悪しを言ったりせず、話してくれたことを受け止めて、話しやすい間柄をつくる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の話を、すぐに打ち消したり良し悪しを言ったりせずに聞く", "hint": "相手の話を聞いているときに、気をつけていたこと" },
+        { "number": 2, "text": "話してくれたことを受け止める言葉を返す", "hint": "相手の話に、どんな言葉を返したか" }
+      ]
+    },
+    {
+      "id": "sensing-emotions",
+      "name": "感情察知力",
+      "category": "empathy-support",
+      "reason": "相手の言葉や反応の変わり目から、どんな気持ちかもしれないと気づく",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の言葉や反応の変わり目に気づく", "hint": "相手の言葉や反応で、変わったと思ったこと" },
+        { "number": 2, "text": "相手の気持ちを、決めつけずに思い浮かべる", "hint": "相手がどんな気持ちかもしれないと考えたか" }
+      ]
+    },
+    {
+      "id": "reassuring-explanations",
+      "name": "安心感を与える説明力",
+      "category": "empathy-support",
+      "reason": "こみいった状況を整理して、この先どうなるかを相手に伝える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "こみいった状況を整理する", "hint": "こみいっていた状況を、どう整理したか" },
+        { "number": 2, "text": "この先どうなるかの見通しを、相手に伝える", "hint": "この先の流れについて、相手に伝えたこと" }
+      ]
+    },
+    {
+      "id": "helping-express-feelings",
+      "name": "感情の言語化支援力",
+      "category": "empathy-support",
+      "reason": "まだまとまらない相手の気持ちを、決めつけずに言葉にしてみて、相手に確かめる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手の気持ちを、言葉にしてみる", "hint": "相手の気持ちを、どんな言葉にしてみたか" },
+        { "number": 2, "text": "言葉にした気持ちが合っているかを、相手に確かめる", "hint": "あなたが言葉にした気持ちを、相手に確かめたこと" }
+      ]
+    },
+    {
+      "id": "acceptance",
+      "name": "受容力",
+      "category": "empathy-support",
+      "reason": "自分とは違う考えや気持ちを、すぐに打ち消さずに受け止める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "自分と違う考えや気持ちを、相手から聞く", "hint": "相手の考えや気持ちで、あなたとは違うと思ったこと" },
+        { "number": 2, "text": "違う考えや気持ちを、すぐに打ち消さずに受け止める", "hint": "自分とは違う考えや気持ちに、どう応えたか" }
+      ]
+    },
+    {
+      "id": "building-trust",
+      "name": "信頼関係構築力",
+      "category": "empathy-support",
+      "reason": "約束したことをそのとおりにし、相手への対応を変えずに続ける",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手と約束したことを、そのとおりにする", "hint": "相手と約束したことと、あとでしたこと" },
+        { "number": 2, "text": "相手への対応を、前と変えずに続ける", "hint": "相手に、前と同じように続けていた対応" }
+      ]
+    },
+    {
+      "id": "building-self-efficacy",
+      "name": "自己効力感を高める力",
+      "category": "empathy-support",
+      "reason": "相手が実際にしたことを具体的に挙げて伝え、相手が自分の力を感じられるようにする",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が実際にしたことを、具体的に挙げる", "hint": "相手が実際にしたことで、あなたが目にしたこと" },
+        { "number": 2, "text": "相手のしたことを、言葉にして相手に伝える", "hint": "相手のしたことについて、相手に伝えた言葉" }
+      ]
+    },
+    {
+      "id": "respecting-autonomy",
+      "name": "相手の主体性を尊重する力",
+      "category": "empathy-support",
+      "reason": "答えをこちらで決めてしまわず、選べる道を示して、相手が自分で選ぶのを支える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "答えを決めて渡さず、選べる道を示す", "hint": "相手に示した、選べる道や考え方" },
+        { "number": 2, "text": "相手が自分で選ぶのを待つ", "hint": "どうするかを、相手にどう任せたか" }
+      ]
+    },
+    {
+      "id": "probing-questions",
+      "name": "突っ込み力",
+      "category": "inquiry-insight",
+      "reason": "話のあいまいなところや食い違いに気づき、相手を責めない言い方で、肝心なところを尋ねる",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "話のあいまいなところや食い違いに気づく", "hint": "相手の話で、はっきりしないところや、合わないと思ったところ" },
+        { "number": 2, "text": "相手を責めない言い方で、肝心な点を尋ねる", "hint": "はっきりしないところを、相手にどんな言い方で尋ねたか" }
+      ]
+    },
+    {
+      "id": "digging-deeper",
+      "name": "深掘り力",
+      "category": "inquiry-insight",
+      "reason": "最初の答えで切り上げず、具体的な例、話の背景、考えや決めたことの理由を順に尋ねる",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "最初の答えに続けて、具体的な例を尋ねる", "hint": "相手の最初の答えのあとに、具体的な例として尋ねたこと",
+          "resumeQuestion": "その日、だれかの最初の答えのあとに、具体的な例を尋ねたことはありましたか？" },
+        { "number": 2, "text": "話の背景を尋ねる", "hint": "相手の話の背景について、尋ねたこと",
+          "resumeQuestion": "その日、だれかの話の背景を尋ねたことはありましたか？" },
+        { "number": 3, "text": "相手の考えや決めたことの理由を尋ねる", "hint": "相手の考えや決めたことの理由について、尋ねたこと",
+          "resumeQuestion": "その日、だれかの考えや、決めたことの理由を尋ねたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "questioning-premises",
+      "name": "前提を疑う力",
+      "category": "inquiry-insight",
+      "reason": "当たり前とされている決まりや説明のもとにある考えを確かめ、別の見方を示す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "当たり前とされている決まりや説明の、もとにある考えを確かめる", "hint": "当たり前とされていた決まりや説明について、確かめたこと" },
+        { "number": 2, "text": "決まりや説明に対して、別の見方を示す", "hint": "当たり前とされていた決まりや説明に対して、示した別の見方" }
+      ]
+    },
+    {
+      "id": "articulating-contradictions",
+      "name": "矛盾の言語化力",
+      "category": "inquiry-insight",
+      "reason": "説明と実際の行動が合わないところを、例を挙げて言葉にする",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "説明と実際の行動が合わないところに気づく", "hint": "説明されたことと、実際にされていたことで、合わないと思ったこと" },
+        { "number": 2, "text": "例を挙げて、合わないところを言葉にして示す", "hint": "説明と行動が合わないところを、どんな例を挙げて言い表したか" }
+      ]
+    },
+    {
+      "id": "seeing-it-through",
+      "name": "走破力",
+      "category": "action-challenge",
+      "reason": "困りごとが続いても目的を手放さず、続けるために要る工程を進める",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "situation": true, "text": "途中で困りごとが続けて起きる", "hint": "途中で、続けて起きた困りごと",
+          "resumeQuestion": "その日、途中で、困りごとが続けて起きたことはありましたか？" },
+        { "number": 2, "text": "続ける目的がある", "hint": "何のために続けようとしたか",
+          "resumeQuestion": "その日、続けようとしたときに、気にかけていた人やことはありましたか？" },
+        { "number": 3, "text": "続けるために要る工程を進める", "hint": "続けるために、次にしたこと",
+          "resumeQuestion": "その日、続けるために、次に進めたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "following-through-despite-objections",
+      "name": "反対意見を受けても遂行する力",
+      "category": "action-challenge",
+      "reason": "反対の意見を受けてもその中身を考え、方針を説明したり変えたりしながら、決めたことを進める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "反対の意見を聞いて、中身を考える", "hint": "受けた反対の意見について、考えたこと" },
+        { "number": 2, "text": "方針を説明したり、必要に応じて変えたりする", "hint": "反対した人に、方針をどう説明したり、変えたりしたか" },
+        { "number": 3, "text": "決めたことに取りかかり、進める", "hint": "反対の意見を受けたあとに、進めたこと" }
+      ]
+    },
+    {
+      "id": "persistence",
+      "name": "粘り強さ",
+      "category": "action-challenge",
+      "reason": "一度で片づかない課題に、やり方を変えながら何度も取り組む",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "一度で片づかない課題に、もう一度取り組む", "hint": "一度では片づかず、もう一度取り組んだこと",
+          "resumeQuestion": "その日、一度では片づかず、もう一度取り組んだことはありましたか？" },
+        { "number": 2, "text": "やり方を変えて試す", "hint": "二度目からのやり方を、どう変えたか",
+          "resumeQuestion": "その日、二度目に、やり方を変えて試したことはありましたか？" }
+      ]
+    },
+    {
+      "id": "finding-breakthroughs",
+      "name": "突破口発見力",
+      "category": "action-challenge",
+      "reason": "行き詰まったときに、縛りになっていることを捉え直して、手をつけられる入口を探す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "行き詰まったときに、縛りになっていることを挙げる", "hint": "行き詰まったときに、縛りになっていたこと" },
+        { "number": 2, "text": "縛りになっていることを、別の見方で捉え直す", "hint": "縛りになっていたことを、別の見方でどう捉え直したか" },
+        { "number": 3, "text": "手をつけられそうな入口を探す", "hint": "手をつけられそうだと思った、最初の入口" }
+      ]
+    },
+    {
+      "id": "getting-started",
+      "name": "着手力",
+      "category": "action-challenge",
+      "reason": "準備がそろうのを待たずに、まず小さな一歩を決めて動き出す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "準備がそろう前に、まず踏み出す小さな一歩を決める", "hint": "準備がそろう前に決めた、小さな一歩" },
+        { "number": 2, "text": "決めた小さな一歩に、実際に取りかかる", "hint": "小さな一歩として、実際にしたこと" }
+      ]
+    },
+    {
+      "id": "switching-to-action",
+      "name": "行動への切替力",
+      "category": "action-challenge",
+      "reason": "考えるのをやめて動く時を自分で決め、手を動かし始める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "考えるのをやめて動く時を決める", "hint": "考えるのをやめて動こうと決めた、きっかけ" },
+        { "number": 2, "text": "実際に動き始める", "hint": "考えるのをやめて、実際にしたこと" }
+      ]
+    },
+    {
+      "id": "resilience",
+      "name": "回復力",
+      "category": "action-challenge",
+      "reason": "思うようにいかなかったり途中で止まったりしたあとに、状況を整理し直して、次の行動を始める",
+      "status": "active",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "situation": true, "text": "思うようにいかなかったり、途中で止まったりする", "hint": "思うようにいかなかったことや、途中で止まったこと",
+          "resumeQuestion": "その日、思うようにいかなかったことや、途中で止まったことはありましたか？" },
+        { "number": 2, "text": "いったん止まったあとに、状況を整理し直す", "hint": "思うようにいかなかったり止まったりしたあとに、状況をどう整理したか",
+          "resumeQuestion": "その日、思うようにいかなかったことがあれば、そのあとに、どうなっているかを整理したことはありましたか？" },
+        { "number": 3, "text": "次にすることを決めて、また動き出す", "hint": "もう一度動き出すために、したこと",
+          "resumeQuestion": "その日、もう一度動き出すためにしたことはありましたか？" }
+      ]
+    },
+    {
+      "id": "handling-uncertainty",
+      "name": "不確実性への対応力",
+      "category": "action-challenge",
+      "reason": "先が読めないときに、ひとまずの見込みを立て、小さく試して確かめながら進める",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "先が読めない中で、ひとまずの見込みを立てる", "hint": "先が分からない中で、ひとまず立てた見込み" },
+        { "number": 2, "text": "小さく試して確かめながら進める", "hint": "見込みを確かめるために、小さく試したこと" }
+      ]
+    },
+    {
+      "id": "constructive-objection",
+      "name": "建設的な異議申立て力",
+      "category": "interpersonal-negotiation",
+      "reason": "相手との間柄に気を配りながら、理由や事実を示して、言うべき反対を伝える",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手との間柄に気を配った言い方を選ぶ", "hint": "相手に反対を伝えるときに、言い方で気をつけたこと" },
+        { "number": 2, "text": "理由や事実を示して、反対の考えを伝える", "hint": "反対を伝えるときに示した、理由や事実" }
+      ]
+    },
+    {
+      "id": "sorting-objections",
+      "name": "反対意見の整理力",
+      "category": "interpersonal-negotiation",
+      "reason": "反対の理由を、心配・思い違い・考え方の違いに分けて、それぞれに合った応じ方をする",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "反対の理由を、心配・思い違い・考え方の違いに分ける", "hint": "反対の理由を、どんな種類に分けたか" },
+        { "number": 2, "text": "分けた理由ごとに、応じ方を変える", "hint": "心配、思い違い、考え方の違いに、それぞれどう応じたか" }
+      ]
+    },
+    {
+      "id": "involving-others",
+      "name": "巻き込み力",
+      "category": "interpersonal-negotiation",
+      "reason": "何のためにするのかを伝え、関わる人が自分で選んで加われる形を用意する",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "何のためにするのかを、関わる人に伝える", "hint": "関わる人に伝えた、取り組みの目的" },
+        { "number": 2, "text": "相手が自分で選んで加われる形を用意する", "hint": "相手が自分で選んで加われるように、用意したこと" }
+      ]
+    },
+    {
+      "id": "building-persuasive-cases",
+      "name": "説得材料構成力",
+      "category": "interpersonal-negotiation",
+      "reason": "相手の気がかりに沿って、理由や事実、選べる案をそろえて話す",
+      "status": "preparing",
+      "needsReview": false,
+      "actions": [
+        { "number": 1, "text": "相手が気にかけていることをつかむ", "hint": "相手が心配したり、気にかけたりしていたこと" },
+        { "number": 2, "text": "相手の気がかりに沿って、理由や事実、選べる案をそろえて話す", "hint": "相手の気がかりに沿って示した、理由や事実、案" }
       ]
     }
   ]

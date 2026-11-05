@@ -3,7 +3,8 @@ id: e13
 title: いつも家族の予定を合わせている
 unit: validate
 expect: generalOnly
-states: noticing=notYet, coordinating=needsCheck, prioritizing=notYet
+states: balancing-interests=needsCheck
+notConfirmed: *
 ---
 
 # e13 いつも家族の予定を合わせている
@@ -12,7 +13,7 @@ states: noticing=notYet, coordinating=needsCheck, prioritizing=notYet
 
 ## どんな例か
 
-「いつも家族の予定を合わせている」のような一般論だけを話し、具体的な出来事を話さない。調整する力にあたる話はあるが、一般論なので根拠ありにしない（要確認）。具体的な出来事を一つ聞けるかを見る。
+「いつも家族の予定を合わせている」のような一般論だけを話し、具体的な出来事を話さない。利害調整力にあたる話はあるが、一般論なので根拠ありにしない（要確認）。具体的な出来事を一つ聞けるかを見る。
 
 ## 利用者の答え
 

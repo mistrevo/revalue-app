@@ -3,7 +3,7 @@ id: e16
 title: 選んだ答えだけで話す
 unit: validate
 expect: choiceOnly
-states: noticing=notYet, coordinating=notYet, prioritizing=notYet
+notConfirmed: *
 ---
 
 # e16 選んだ答えだけで話す
@@ -12,7 +12,7 @@ states: noticing=notYet, coordinating=notYet, prioritizing=notYet
 
 ## どんな例か
 
-自分では書かず、毎回、選択肢を選んで答える。選んだ文は、調整する力や優先順位をつける力の行動に聞こえるが、本人が話したほかの事実と結びつかないので、根拠にしない（どの力も未確認のまま）かを見る。
+自分では書かず、毎回、選択肢を選んで答える。選んだ文は、利害調整力や優先順位設定力の行動に聞こえるが、本人が話したほかの事実と結びつかないので、根拠にしない（どの力も未確認のまま）かを見る。
 
 ## 利用者の答え
 

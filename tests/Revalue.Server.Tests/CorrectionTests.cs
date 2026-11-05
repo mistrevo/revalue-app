@@ -13,11 +13,11 @@ public sealed class CorrectionTests
 {
     private const string CorrectionText = "電話をしたのは私ではなく、夫でした。";
 
-    /// <summary>訂正の前は調整する力の 3 つ、訂正のあとは 2 つの候補を返す読み取り。</summary>
+    /// <summary>訂正の前は利害調整力の 3 つ、訂正のあとは 2 つの候補を返す読み取り。</summary>
     private static TurnReading ReadBeforeAndAfterCorrection(IReadOnlyList<Turn> turns) =>
         turns[^1].AnswerKind == AnswerKind.Correction
-            ? ReadingWith(CoordinatingAll[0], CoordinatingAll[2])
-            : ReadingWith(CoordinatingAll);
+            ? ReadingWith(BalancingInterestsAll[0], BalancingInterestsAll[2])
+            : ReadingWith(BalancingInterestsAll);
 
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 訂正を送ると読み直し、状態が変わった力の履歴に correction が残る")]
     public async Task CorrectionRereadsAndRecordsHistory()
@@ -44,10 +44,10 @@ public sealed class CorrectionTests
         var insights = episode.GetProperty("insights");
         Assert.Empty(Array(insights, "seen"));
         var more = Assert.Single(Array(insights, "moreToHear"));
-        Assert.Equal("coordinating", more.GetProperty("key").GetString());
+        Assert.Equal("balancing-interests", more.GetProperty("key").GetString());
         // 訂正で打ち消された行動（本人から電話をかけたこと）は、訂正のターンに印を残し、手がかりとして聞き直さない。
         // 足りないのがその行動だけなら、手がかりは出さない
-        Assert.Equal(["coordinating.2"], Array(last, "withdrawn").Select(w => w.GetString()));
+        Assert.Equal(["balancing-interests.2"], Array(last, "withdrawn").Select(w => w.GetString()));
         Assert.Empty(Array(more, "hints"));
         Assert.True(insights.GetProperty("canResume").GetBoolean());
 
@@ -58,7 +58,7 @@ public sealed class CorrectionTests
         var abilities = await Json(await client.GetAsync("/api/abilities", Ct));
         var change = abilities.GetProperty("history")[0];
         Assert.Equal("correction", change.GetProperty("reason").GetString());
-        Assert.Equal("coordinating", change.GetProperty("key").GetString());
+        Assert.Equal("balancing-interests", change.GetProperty("key").GetString());
         Assert.Equal("confirmed", change.GetProperty("from").GetString());
         Assert.Equal("needsCheck", change.GetProperty("to").GetString());
         Assert.Equal(id, change.GetProperty("episodeId").GetString());
@@ -78,9 +78,9 @@ public sealed class CorrectionTests
         Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, CorrectionText)).StatusCode);
 
         var abilities = await Json(await client.GetAsync("/api/abilities", Ct));
-        var coordinating = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "coordinating");
-        Assert.Equal("needsCheck", coordinating.GetProperty("life").GetString());
-        Assert.Empty(Array(coordinating, "hints"));
+        var balancing = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "balancing-interests");
+        Assert.Equal("needsCheck", balancing.GetProperty("life").GetString());
+        Assert.Empty(Array(balancing, "hints"));
 
         // 足りない行動がほかになければ、続きは手がかりを添えない問いで始める
         var resumed = await Resume(client, id);
@@ -90,9 +90,9 @@ public sealed class CorrectionTests
         Assert.EndsWith(AbilityText.ResumeOpenAsk, question.GetProperty("text").GetString(), StringComparison.Ordinal);
 
         // 続きの中で、読み取りが同じ出来事の行動 1 と 3 を返しても、打ち消された行動 2 は聞き返さない
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[2]);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0], BalancingInterestsAll[2]);
         await Send(client, id, "少し覚えています");
-        Assert.DoesNotContain(ai.NextMoves, m => m.Target == new ActionRef(Ability.Coordinating, 2));
+        Assert.DoesNotContain(ai.NextMoves, m => m.Target == new ActionRef(TestAbilities.BalancingInterests, 2));
     }
 
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 訂正で打ち消された行動が、足りない行動のうち一部なら、ほかの足りない行動の手がかりは出す")]
@@ -102,23 +102,23 @@ public sealed class CorrectionTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        // 訂正の前は調整する力の 1 と 2、訂正のあとは 1 だけ
+        // 訂正の前は利害調整力の 1 と 2、訂正のあとは 1 だけ
         ai.Reading = turns => turns[^1].AnswerKind == AnswerKind.Correction
-            ? ReadingWith(CoordinatingAll[0])
-            : ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+            ? ReadingWith(BalancingInterestsAll[0])
+            : ReadingWith(BalancingInterestsAll[0], BalancingInterestsAll[1]);
         await Send(client, id, CoordinatingAnswer);
         await Finish(client, id);
 
         var episode = await Json(await Correct(client, id, CorrectionText));
 
-        Assert.Equal(["coordinating.2"], Array(Array(episode, "turns")[^1], "withdrawn").Select(w => w.GetString()));
+        Assert.Equal(["balancing-interests.2"], Array(Array(episode, "turns")[^1], "withdrawn").Select(w => w.GetString()));
         var more = Assert.Single(Array(episode.GetProperty("insights"), "moreToHear"));
-        Assert.Equal([AbilityText.Hint(new ActionRef(Ability.Coordinating, 3))], Array(more, "hints").Select(h => h.GetString()));
+        Assert.Equal([AbilityText.Hint(new ActionRef(TestAbilities.BalancingInterests, 3))], Array(more, "hints").Select(h => h.GetString()));
         // 区切る前の最後の問いに答えていないと、その行動は続きの最初の問いで聞かない。聞ける形にするため、聞いた記録を外す
         await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
             TestUsers.Key("g-1"), id, e => e with { Turns = [.. e.Turns.Select(t => t with { Target = null })] }, Ct);
         var question = Array(await Json(await Resume(client, id)), "turns")[^1];
-        Assert.Equal("coordinating.3", question.GetProperty("target").GetString());
+        Assert.Equal("balancing-interests.3", question.GetProperty("target").GetString());
     }
 
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 打ち消された行動がない訂正では、訂正のターンに印を残さない")]
@@ -127,8 +127,8 @@ public sealed class CorrectionTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll[0]);
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll[0]);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0], BalancingInterestsAll[1]);
 
         var episode = await Json(await Correct(client, id, "二人に電話したのは私です。"));
 
@@ -143,9 +143,9 @@ public sealed class CorrectionTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var store = factory.Services.GetRequiredService<IDataStore>();
-        var excluded = await FinishedEpisode(client, ai, CoordinatingAll);
+        var excluded = await FinishedEpisode(client, ai, BalancingInterestsAll);
         await store.TryUpdateAsync<EpisodeItem>(TestUsers.Key("g-1"), excluded, e => e with { ExcludedFromValidation = true }, Ct);
-        var finished = await FinishedEpisode(client, ai, CoordinatingAll);
+        var finished = await FinishedEpisode(client, ai, BalancingInterestsAll);
         var talking = await Start(client);
         var before = await StoredContent(store);
         Assert.Contains(before, j => j.Contains("\"type\":\"episode\"", StringComparison.Ordinal));
@@ -192,7 +192,7 @@ public sealed class CorrectionTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll);
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll);
         var before = await Saved(factory, "g-1", id);
         ai.FailNextRead = kind;
 
@@ -215,9 +215,9 @@ public sealed class CorrectionTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll);
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll);
         var before = await Saved(factory, "g-1", id);
-        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, [Candidate(Ability.Noticing, 1, "眠れなくて")]);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, [Candidate(TestAbilities.NoticingChanges, 1, "眠れなくて")]);
 
         var response = await Correct(client, id, "最近ずっと眠れなくて、つらいです。");
 
@@ -238,30 +238,52 @@ public sealed class CorrectionTests
 
         // 場面を確かめに使わなくなったことを、訂正とは別の理由で履歴に残す（validate-8 の「なぜ」を取り違えない）
         var change = (await Json(await client.GetAsync("/api/abilities", Ct))).GetProperty("history")[0];
-        Assert.Equal("coordinating", change.GetProperty("key").GetString());
+        Assert.Equal("balancing-interests", change.GetProperty("key").GetString());
         Assert.Equal("setAside", change.GetProperty("reason").GetString());
         Assert.Equal("confirmed", change.GetProperty("from").GetString());
         Assert.Equal("notYet", change.GetProperty("to").GetString());
     }
 
-    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 話している途中にサインが出て場面を確かめに使わなくなったら、履歴の理由は setAside")]
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 続きを話している途中にサインが出て場面を確かめに使わなくなったら、履歴の理由は setAside")]
     public async Task DistressWhileTalkingRecordsSetAside()
     {
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        // 話し終えた場面で利害調整力の 2 つを見せ（もう少し聞かせてほしいこと）、続きで 3 つ目を話す
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll[0], BalancingInterestsAll[1]);
+        Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
 
         await Send(client, id, "最近ずっと眠れなくて、つらいです。");
 
+        // 続きのあいだの読み取りは力の本に入れていないので、下がるのは話し終えたときに見せた状態から
         var history = Array(await Json(await client.GetAsync("/api/abilities", Ct)), "history");
         Assert.Equal(
-            [("coordinating", "setAside", "confirmed", "notYet"), ("coordinating", "talk", "notYet", "confirmed")],
+            [("balancing-interests", "setAside", "needsCheck", "notYet"), ("balancing-interests", "talk", "notYet", "needsCheck")],
             history.Select(h => (
                 h.GetProperty("key").GetString(), h.GetProperty("reason").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString())));
+    }
+
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 一度も話し終えていない場面でサインが出ても、何も見せていないので、力の履歴は残らない")]
+    public async Task DistressInFirstTalkLeavesNoHistory()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
+        await Send(client, id, CoordinatingAnswer);
+        ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
+
+        await Send(client, id, "最近ずっと眠れなくて、つらいです。");
+        await Finish(client, id);
+
+        var dto = await Json(await client.GetAsync("/api/abilities", Ct));
+        Assert.Empty(Array(dto, "abilities"));
+        Assert.Empty(Array(dto, "history"));
     }
 
     [Fact(DisplayName = "foundation-6（使いすぎを穏やかに止める）: 訂正にも送信回数の上限が効く")]
@@ -270,7 +292,7 @@ public sealed class CorrectionTests
         var (factory, ai) = Create(baseFactory: new RevalueFactory().WithSetting("Limits:MessagesPerDay", "2"));
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll);
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll);
 
         var second = await Correct(client, id, CorrectionText);
         var third = await Correct(client, id, CorrectionText);
@@ -285,8 +307,8 @@ public sealed class CorrectionTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll);
-        ai.Reading = _ => ReadingWith(Candidate(Ability.Coordinating, 2, "目印の訂正ことば", answer: 2));
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll);
+        ai.Reading = _ => ReadingWith(Candidate(TestAbilities.BalancingInterests, 2, "目印の訂正ことば", answer: 2));
 
         Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, "目印の訂正ことばです。")).StatusCode);
         ai.FailNextRead = ConversationAiException.Failure;

@@ -56,14 +56,21 @@ public sealed record EpisodeRun(EpisodeScript Script, IReadOnlyList<ReplyRecord>
 
     /// <summary>同じやりとりを汎用の AI に渡した結果。比べないときは null。</summary>
     public GenericResult? Generic { get; init; }
+
+    /// <summary>最後の状態で根拠ありにした力ごとの、根拠の判定役の答え（辞書の順）。確かめの例（unit: validate）だけ。</summary>
+    public IReadOnlyList<EvidenceJudgement> Judged { get; init; } = [];
+
+    /// <summary>場面を最後まで流したあと、この話から画面に出す力（製品と同じ <see cref="AbilityShowcase.Of"/>）。</summary>
+    public EpisodeShowcase? Showcase { get; init; }
 }
 
 /// <summary>
 /// 台本どおりに会話を流す。1 往復の中身（読み取り → 次の一手 → 返事 → 本文と選択肢に分ける、失敗の扱い）は、
 /// 製品と同じ <see cref="TalkRound"/> を呼ぶ。訂正は、製品と同じ <see cref="CorrectionRound"/> を呼ぶ。
 /// ここで持つのは、台本の読み方、記録、判定役の呼び出しだけ。保存はしない。
+/// 確かめの例（unit: validate）では、最後の状態で根拠ありにした力ごとに、根拠の判定役（<see cref="IEvidenceJudge"/>）が引用を見る。
 /// </summary>
-public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenWords forbidden)
+public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenWords forbidden, IEvidenceJudge evidenceJudge)
 {
     public async Task<EpisodeRun> RunAsync(EpisodeScript script, CancellationToken ct)
     {
@@ -218,10 +225,23 @@ public sealed class EvalRunner(IConversationAi ai, IReplyJudge judge, ForbiddenW
             evidence = outcome.Evidence;
         }
 
+        var final = AbilityStates.Evaluate(evidence);
+        var judged = new List<EvidenceJudgement>();
+        if (script.Unit == "validate")
+        {
+            var transcript = ClaudeEvidenceJudge.Transcript(turns);
+            foreach (var confirmed in final.Where(f => f.State == AbilityState.Confirmed))
+            {
+                judged.Add(new EvidenceJudgement(confirmed, await evidenceJudge.JudgeAsync(transcript, confirmed, ct)));
+            }
+        }
+
         return new EpisodeRun(script, replies, supportShown, error)
         {
             Turns = turns,
-            Final = AbilityStates.Evaluate(evidence),
+            Final = final,
+            Judged = judged,
+            Showcase = AbilityShowcase.Of(turns, evidence),
             BeforeCorrection = beforeCorrection,
             Corrections = corrections,
             Candidates = candidates,

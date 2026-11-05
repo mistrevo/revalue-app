@@ -3,7 +3,8 @@ id: e08
 title: 子どもの帰りの様子に気づく
 unit: validate
 expect: concreteEvent
-states: noticing=confirmed, coordinating=notYet, prioritizing=notYet
+states: noticing-changes=confirmed
+notConfirmed: balancing-interests, setting-priorities
 ---
 
 # e08 子どもの帰りの様子に気づく
@@ -12,7 +13,7 @@ states: noticing=confirmed, coordinating=notYet, prioritizing=notYet
 
 ## どんな例か
 
-見立てる力の 3 つの行動（変化に自分で気づく、手がかりを挙げる、いつもの様子と比べる）が、一つの出来事の中でそろう。根拠ありにし、本人の言葉を引けるかを見る。
+変化への気づきの 3 つの行動（「変化に自分で気づく」「判断の手がかりを挙げる」「いつもの様子や前と比べる」）が、一つの出来事の中でそろう。根拠ありにし、本人の言葉を引けるかを見る。
 
 ## 利用者の答え
 

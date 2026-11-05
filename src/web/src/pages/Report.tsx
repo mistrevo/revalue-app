@@ -140,7 +140,7 @@ export function Report() {
 
           <div className="mt-6 flex flex-col gap-4">
             <AbilitiesSection abilities={data.content.abilities} excluded={data.content.abilitiesExcluded} />
-            <NotYetSection notYet={data.content.notYet} />
+            <NotYetSection notYet={data.content.notYet} hasAbilities={data.content.abilities.length > 0} />
             <RecordsSection records={data.content.records} />
             <ChoiceSection choice={data.content.choice} busy={busy} failed={holdFailed} onHold={hold} />
             <ThinkingSection thinking={data.content.thinking} hasChoice={chosen(data.content.choice)} />
@@ -211,7 +211,7 @@ function AbilityCard({ ability, showState }: { ability: ReportAbility; showState
         </span>
         {showState && <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.report.abilityStates[ability.state]}</span>}
       </p>
-      <QuoteList quotes={ability.quotes} />
+      <QuoteList quotes={ability.quotes} paired={ability.state === 'confirmed'} />
     </article>
   )
 }
@@ -251,10 +251,12 @@ function AbilitiesSection({ abilities, excluded }: { abilities: ReportAbility[];
   )
 }
 
-/** まだ確かめていないことの中身（いまの版）。 */
-function NotYetBody({ notYet }: { notYet: ReportNotYet }) {
+/**
+ * まだ確かめていないこと。まだ聞けていない力の名前は並べず、代わりの一文を添える（00-common.md の「言葉」）。
+ * 確かめた力の欄に力があるときは「ほかの力も」、ないときは「話を重ねると」の一文にする（話す画面の見えたことと同じ分け方）。
+ */
+function NotYetBody({ notYet, hasAbilities }: { notYet: ReportNotYet; hasAbilities: boolean }) {
   const items = [
-    ...(notYet.notHeard.length > 0 ? [copy.report.notHeard.replace('{names}', notYet.notHeard.join('、'))] : []),
     ...(notYet.checking.length > 0 ? [copy.report.checking.replace('{names}', notYet.checking.join('、'))] : []),
     ...notYet.taskGaps.flatMap((gap) => [
       ...(gap.abilityName ? [copy.report.taskAbility.replace('{task}', gap.taskName).replace('{name}', gap.abilityName)] : []),
@@ -275,7 +277,7 @@ function NotYetBody({ notYet }: { notYet: ReportNotYet }) {
         </ul>
       )}
       {notYet.hasExcluded && <Note>{copy.profile.excludedNote}</Note>}
-      {(notYet.notHeard.length > 0 || notYet.checking.length > 0) && <Note>{copy.insights.notYetNote}</Note>}
+      <Note>{hasAbilities ? copy.insights.moreNote : copy.insights.nothingYetNote}</Note>
       <Note>{copy.deepen.workNote}</Note>
     </>
   )
@@ -303,10 +305,10 @@ function SnapshotNotYet({ notYet }: { notYet: ReportSnapshotNotYet }) {
   )
 }
 
-function NotYetSection({ notYet }: { notYet: ReportNotYet }) {
+function NotYetSection({ notYet, hasAbilities }: { notYet: ReportNotYet; hasAbilities: boolean }) {
   return (
     <Section title={copy.report.sections.notYet}>
-      <NotYetBody notYet={notYet} />
+      <NotYetBody notYet={notYet} hasAbilities={hasAbilities} />
       <EditLink to="/abilities" label={copy.report.edit.notYet} />
     </Section>
   )

@@ -28,11 +28,11 @@ public sealed class ReportApiTests
         return new Kit(factory, ai);
     }
 
-    /// <summary>話し終えた場面（調整する力が見えた力）と、週 10 時間・日中と夕方・家だけの条件がある人。</summary>
+    /// <summary>話し終えた場面（利害調整力が見えた力）と、週 10 時間・日中と夕方・家だけの条件がある人。</summary>
     private static async Task<HttpClient> Ready(Kit kit, string user)
     {
         var client = await Consenting(kit.Factory, user);
-        await FinishedEpisode(client, kit.Ai, CoordinatingAll);
+        await FinishedEpisode(client, kit.Ai, BalancingInterestsAll);
         await PutOk(client, "/api/profile/conditions", new { timeSlots = new[] { "daytime", "evening" }, hoursPerWeek = 10, place = "homeOnly", monthlyIncome = 5 });
         return client;
     }
@@ -98,13 +98,11 @@ public sealed class ReportApiTests
         var first = await Get(client);
         Assert.True(first.GetProperty("ready").GetBoolean());
         var content = first.GetProperty("content");
-        Assert.Equal(["coordinating"], AbilityKeys(content.GetProperty("abilities")));
+        Assert.Equal(["balancing-interests"], AbilityKeys(content.GetProperty("abilities")));
         var ability = content.GetProperty("abilities")[0];
-        Assert.Equal((AbilityText.Name(Ability.Coordinating), "confirmed"), (ability.GetProperty("name").GetString(), ability.GetProperty("state").GetString()));
+        Assert.Equal((AbilityText.Name(TestAbilities.BalancingInterests), "confirmed"), (ability.GetProperty("name").GetString(), ability.GetProperty("state").GetString()));
         Assert.Contains(Array(ability, "quotes"), q => q.GetProperty("text").GetString() == "夫と母の予定がぶつかって");
-        Assert.Equal(
-            [AbilityText.Name(Ability.Noticing), AbilityText.Name(Ability.Prioritizing)],
-            Array(content.GetProperty("notYet"), "notHeard").Select(n => n.GetString()));
+        Assert.False(content.GetProperty("notYet").TryGetProperty("notHeard", out _));
         Assert.Equal(JsonValueKind.Null, content.GetProperty("choice").GetProperty("kind").ValueKind);
         Assert.Equal(JsonValueKind.Null, content.GetProperty("thinking").ValueKind);
         Assert.Equal(JsonValueKind.Null, content.GetProperty("steps").ValueKind);
@@ -125,6 +123,29 @@ public sealed class ReportApiTests
         Assert.Equal(2, Number(again));
         Assert.Equal(1, await Reached(client));
         Assert.Equal(2, (await Stored(kit, "r-2"))!.Versions.Count);
+    }
+
+    [Fact(DisplayName = "report-1（一つにまとめて示す）: 確かめた力の欄は見せた力だけで、まだ確かめていないことに、まだ聞けていない力の名前を並べない")]
+    public async Task ReportShowsOnlyShownAbilities()
+    {
+        var kit = Setup();
+        var client = await Consenting(kit.Factory, "r-30");
+        // 利害調整力（行動 3 つ）と段取り力（行動 2 つ）が同じ出来事でそろう。同じ分類なので、見せるのは利害調整力だけ
+        await FinishedEpisode(client, kit.Ai,
+        [
+            .. BalancingInterestsAll,
+            Candidate(TestAbilities.PlanningSteps, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.PlanningSteps, 2, "迎えの時間をずらしてもらいました"),
+        ]);
+        await PutOk(client, "/api/profile/conditions", new { timeSlots = new[] { "daytime", "evening" }, hoursPerWeek = 10, place = "homeOnly", monthlyIncome = 5 });
+
+        var content = (await Get(client)).GetProperty("content");
+
+        Assert.Equal(["balancing-interests"], AbilityKeys(content.GetProperty("abilities")));
+        var notYet = content.GetProperty("notYet");
+        Assert.Equal(["checking", "taskGaps", "hasExcluded"], notYet.EnumerateObject().Select(p => p.Name));
+        Assert.Empty(Array(notYet, "checking"));
+        Assert.DoesNotContain("planning-steps", content.GetRawText(), StringComparison.Ordinal);
     }
 
     [Theory(DisplayName = "report-1（一つにまとめて示す）: カードを選ばずに保留したときと、自分で書いた仕事を選んだときも、開くと「可能性レポートまで進んだ人」を 1 回だけ数える")]
@@ -163,20 +184,24 @@ public sealed class ReportApiTests
         var client = await Consenting(kit.Factory, "r-skip-resume");
 
         // 話し終えた場面が 1 つだけだと、続きを話しているあいだはレポートを開けない（07-report.md の「進める条件」）。場面を 2 つにする
-        await FinishedEpisode(client, kit.Ai, CoordinatingAll);
-        var id = await FinishedEpisode(client, kit.Ai, Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"));
+        await FinishedEpisode(client, kit.Ai, BalancingInterestsAll);
+        var id = await FinishedEpisode(client, kit.Ai, Candidate(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって"));
         Assert.Equal(1, Number(await Get(client)));
 
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(HttpStatusCode.OK, (await Resume(client, id)).StatusCode);
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
-        kit.Ai.Reading = _ => ReadingWith(Candidate(Ability.Noticing, 1, "夫と母の予定がぶつかっていた"));
+        kit.Ai.Reading = _ => ReadingWith(Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかっていた"));
         await Send(client, id, CoordinatingAnswer);
+        // 続きのあいだの読み取りは、話し終えるまで見せないので、レポートにも出ない。版を作るために、続きのあいだに 5 つの記録を変える
+        await PutPreferences(client, "家でできる");
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var during = await Get(client);
         Assert.Equal(2, Number(during));
-        Assert.Contains("noticing", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
+        Assert.DoesNotContain("noticing-changes", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
 
+        // 5 つの記録を戻してから飛ばす
+        await PutOk(client, "/api/profile/preferences", new { entries = System.Array.Empty<object>() });
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
         var after = await Get(client);
@@ -184,7 +209,7 @@ public sealed class ReportApiTests
         // 続きを話す前の中身は第 1 版と同じなので、版は増やさない。続きのあいだに作った第 2 版は残さない
         Assert.Equal(1, Number(after));
         Assert.Empty(Array(after, "previous"));
-        Assert.DoesNotContain("noticing", AbilityKeys(after.GetProperty("current").GetProperty("snapshot").GetProperty("abilities")));
+        Assert.DoesNotContain("noticing-changes", AbilityKeys(after.GetProperty("current").GetProperty("snapshot").GetProperty("abilities")));
         Assert.Equal([1], (await Stored(kit, "r-skip-resume"))!.Versions.Select(v => v.Number));
     }
 
@@ -193,8 +218,8 @@ public sealed class ReportApiTests
     {
         var kit = Setup();
         var client = await Consenting(kit.Factory, "r-skip-resume-again");
-        await FinishedEpisode(client, kit.Ai, CoordinatingAll);
-        var id = await FinishedEpisode(client, kit.Ai, Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"));
+        await FinishedEpisode(client, kit.Ai, BalancingInterestsAll);
+        var id = await FinishedEpisode(client, kit.Ai, Candidate(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって"));
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(1, Number(await Get(client)));
         var first = (await Stored(kit, "r-skip-resume-again"))!.Versions.Single();
@@ -228,13 +253,17 @@ public sealed class ReportApiTests
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var id = await Start(client);
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
-        kit.Ai.Reading = _ => ReadingWith(Candidate(Ability.Noticing, 1, "夫と母の予定がぶつかっていた"));
+        kit.Ai.Reading = _ => ReadingWith(Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかっていた"));
         await Send(client, id, CoordinatingAnswer);
+        // 話している途中の読み取りは、話し終えるまで見せないので、レポートにも出ない。版を作るために、話している途中に 5 つの記録を変える
+        await PutPreferences(client, "家でできる", "週に 2 日");
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var during = await Get(client);
         Assert.Equal(3, Number(during));
-        Assert.Contains("noticing", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
+        Assert.DoesNotContain("noticing-changes", AbilityKeys(during.GetProperty("content").GetProperty("abilities")));
 
+        // 5 つの記録を戻してから飛ばす
+        await PutPreferences(client, "家でできる");
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
         var after = await Get(client);
@@ -243,7 +272,7 @@ public sealed class ReportApiTests
         Assert.Equal([1], Array(after, "previous").Select(v => v.GetProperty("number").GetInt32()));
         Assert.All(
             Array(after, "previous").Append(after.GetProperty("current")),
-            v => Assert.DoesNotContain("noticing", AbilityKeys(v.GetProperty("snapshot").GetProperty("abilities"))));
+            v => Assert.DoesNotContain("noticing-changes", AbilityKeys(v.GetProperty("snapshot").GetProperty("abilities"))));
     }
 
     [Fact(DisplayName = "report-3（版を残す）: 中身が変わったら版が増え、変わった欄を返す")]
@@ -298,7 +327,7 @@ public sealed class ReportApiTests
         Assert.Contains(Array(content.GetProperty("abilities")[0], "quotes"), q => q.GetProperty("text").GetString() == quote);
         var reason = content.GetProperty("choice").GetProperty("reason").GetString()!;
         Assert.Contains(quote, reason, StringComparison.Ordinal);
-        Assert.Equal("coordinating", content.GetProperty("choice").GetProperty("ability").GetProperty("key").GetString());
+        Assert.Equal("balancing-interests", content.GetProperty("choice").GetProperty("ability").GetProperty("key").GetString());
 
         var raw = new List<string>();
         await foreach (var json in kit.Factory.Services.GetRequiredService<IDataStore>().DumpRawJsonAsync(Ct))
@@ -323,7 +352,7 @@ public sealed class ReportApiTests
         {
             var snapshot = version.GetProperty("snapshot");
             var ability = Assert.Single(Array(snapshot, "abilities"));
-            Assert.Equal("coordinating", ability.GetProperty("key").GetString());
+            Assert.Equal("balancing-interests", ability.GetProperty("key").GetString());
             Assert.False(ability.TryGetProperty("state", out _));
             Assert.False(ability.TryGetProperty("quotes", out _));
             Assert.False(snapshot.GetProperty("choice").TryGetProperty("reason", out _));
@@ -343,25 +372,26 @@ public sealed class ReportApiTests
     {
         var kit = Setup();
         var client = await Ready(kit, "r-6");
-        Assert.Equal(["coordinating"], AbilityKeys((await Get(client)).GetProperty("content").GetProperty("abilities")));
+        Assert.Equal(["balancing-interests"], AbilityKeys((await Get(client)).GetProperty("content").GetProperty("abilities")));
 
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/prioritizing/exclude", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
+        // 本人に見せていない力は外せない
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/abilities/setting-priorities/exclude", null, Ct)).StatusCode);
         var dto = await Get(client);
 
         Assert.Empty(AbilityKeys(dto.GetProperty("content").GetProperty("abilities")));
         foreach (var version in Array(dto, "previous"))
         {
             var snapshot = version.GetProperty("snapshot");
-            Assert.DoesNotContain("coordinating", AbilityKeys(snapshot.GetProperty("abilities")));
+            Assert.DoesNotContain("balancing-interests", AbilityKeys(snapshot.GetProperty("abilities")));
             // 前の版のまだ確かめていないことには、力の名前の行がない（力の状態を表すので）
             Assert.False(snapshot.GetProperty("notYet").TryGetProperty("notHeard", out _));
         }
 
         // 戻せば、前の版にもまた出る（前の版は名前を残している）
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/restore", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct)).StatusCode);
         var restored = await Get(client);
-        Assert.Contains(Array(restored, "previous"), v => AbilityKeys(v.GetProperty("snapshot").GetProperty("abilities")).Contains("coordinating"));
+        Assert.Contains(Array(restored, "previous"), v => AbilityKeys(v.GetProperty("snapshot").GetProperty("abilities")).Contains("balancing-interests"));
     }
 
     [Fact(DisplayName = "report-3（版を残す）: 版は新しいものから 10 まで残し、番号は通し番号のまま")]
@@ -404,12 +434,13 @@ public sealed class ReportApiTests
         var client = await Ready(kit, "r-9");
         await Get(client);
 
-        await FinishedEpisode(client, kit.Ai, Candidate(Ability.Noticing, 1, "夫と母の予定がぶつかっていた"));
+        await FinishedEpisode(client, kit.Ai, Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかっていた"));
         var dto = await Get(client);
 
         Assert.Equal(2, Number(dto));
         Assert.Contains("abilities", Changed(dto.GetProperty("current")));
-        Assert.Equal(["noticing", "coordinating"], AbilityKeys(dto.GetProperty("content").GetProperty("abilities")));
+        // 並びは辞書の順（利害調整力が変化への気づきより前）
+        Assert.Equal(["balancing-interests", "noticing-changes"], AbilityKeys(dto.GetProperty("content").GetProperty("abilities")));
 
         // 話しても中身が変わらなければ、版は増やさない
         Assert.Equal(2, Number(await Get(client)));
@@ -467,12 +498,12 @@ public sealed class ReportApiTests
         var before = await Get(client);
         Assert.False(before.GetProperty("content").GetProperty("abilitiesExcluded").GetBoolean());
 
-        // 根拠のない力（欄に出ていない力）を外しただけでは添えない。欄が空の理由は外したことではないため
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/prioritizing/exclude", null, Ct)).StatusCode);
+        // 根拠のない力（欄に出ていない力）は、本人に見せていないので外せず、添えもしない。欄が空の理由は外したことではないため
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/abilities/setting-priorities/exclude", null, Ct)).StatusCode);
         Assert.False((await Get(client)).GetProperty("content").GetProperty("abilitiesExcluded").GetBoolean());
 
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
         var after = await Get(client);
 
         var content = after.GetProperty("content");

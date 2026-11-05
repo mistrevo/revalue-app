@@ -7,21 +7,11 @@ namespace Revalue.Server.Features.Validate;
 /// <summary>
 /// 見る力。能力辞書（<see cref="AbilityCatalog"/>。<c>src/shared/abilities.json</c>）の力の id で表す。JSON では id の文字列。
 /// 並びは辞書の順（表示と、同じ数のときの選び方に使う）。辞書にない id（古いデータなど）も値としては持てるが、
-/// 判定に使う力（<see cref="AbilityCatalog.Active"/>）にないので、どこでも数えない。
+/// 話から確かめる力（<see cref="AbilityCatalog.Active"/>）にないので、どこでも数えない。力の id はコードに決め打ちしない。
 /// </summary>
 [JsonConverter(typeof(AbilityJsonConverter))]
 public readonly record struct Ability(string Id) : IComparable<Ability>
 {
-    // 移る間だけ残す決め打ちの力。辞書の力に置き換えるときに消す
-    /// <summary>見立てる力。</summary>
-    public static readonly Ability Noticing = new("noticing");
-
-    /// <summary>調整する力。</summary>
-    public static readonly Ability Coordinating = new("coordinating");
-
-    /// <summary>優先順位をつける力。</summary>
-    public static readonly Ability Prioritizing = new("prioritizing");
-
     public int CompareTo(Ability other)
     {
         var byOrder = AbilityCatalog.Current.OrderOf(this).CompareTo(AbilityCatalog.Current.OrderOf(other));
@@ -64,18 +54,18 @@ public enum AbilityState
     [JsonStringEnumMemberName("needsCheck")]
     NeedsCheck,
 
-    /// <summary>根拠あり: 同じ出来事の中で、一般論でない根拠が 3 つの行動すべてにそろった。</summary>
+    /// <summary>根拠あり: 同じ出来事の中で、一般論でない根拠がその力のすべての行動にそろった。</summary>
     [JsonStringEnumMemberName("confirmed")]
     Confirmed,
 }
 
-/// <summary>核となる行動の一つ。<see cref="Number"/> は 1 から、その力の行動の数まで。文字にすると <c>coordinating.3</c> の形。</summary>
+/// <summary>核となる行動の一つ。<see cref="Number"/> は 1 から、その力の行動の数まで。文字にすると <c>balancing-interests.3</c> の形。</summary>
 public sealed record ActionRef(Ability Ability, int Number)
 {
     public static string Key(Ability ability) => ability.Id;
 
     /// <summary>
-    /// <c>noticing</c> などの id を、判定に使う力にする。辞書にない id と準備中の力は false。大文字と小文字は区別する。
+    /// <c>noticing-changes</c> などの id を、話から確かめる力にする。辞書にない id と準備中の力は false。大文字と小文字は区別する。
     /// AI の答えや送られた値の力の id は、ここで確かめる。
     /// </summary>
     public static bool TryParseAbility(string? key, out Ability ability)
@@ -90,7 +80,7 @@ public sealed record ActionRef(Ability Ability, int Number)
         return false;
     }
 
-    /// <summary><c>coordinating.3</c> の形を読む。形が違う、判定に使う力でない、番号が 1〜行動の数でなければ null。</summary>
+    /// <summary><c>balancing-interests.3</c> の形を読む。形が違う、判定に使う力でない、番号が 1〜行動の数でなければ null。</summary>
     public static ActionRef? Parse(string? text)
     {
         var dot = text?.IndexOf('.') ?? -1;

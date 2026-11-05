@@ -19,18 +19,23 @@ public sealed class ScriptedConversationAi : IConversationAi
     private static readonly string[] IllnessMarkers = ["病院", "熱", "入院", "病気", "通院"];
     private static readonly string[] GeneralMarkers = ["いつも", "毎日"];
 
+    // 手元で動かすための偽物なので、能力辞書の置き換え先の 3 つの力の id を使う
+    private static readonly Ability NoticingChanges = new("noticing-changes");
+    private static readonly Ability BalancingInterests = new("balancing-interests");
+    private static readonly Ability SettingPriorities = new("setting-priorities");
+
     /// <summary>根拠の候補を返す目印の言葉と、その行動。</summary>
     private static readonly (string[] Markers, Ability Ability, int Action)[] ActionMarkers =
     [
-        (["いつもと違う", "気づ"], Ability.Noticing, 1),
-        (["様子", "顔色"], Ability.Noticing, 2),
-        (["前は", "いつもは"], Ability.Noticing, 3),
-        (["都合"], Ability.Coordinating, 1),
-        (["頼", "お願い", "声をかけ"], Ability.Coordinating, 2),
-        (["代わり", "合わせ"], Ability.Coordinating, 3),
-        (["重な"], Ability.Prioritizing, 1),
-        (["先に", "後回し"], Ability.Prioritizing, 2),
-        (["だから", "ので"], Ability.Prioritizing, 3),
+        (["いつもと違う", "気づ"], NoticingChanges, 1),
+        (["様子", "顔色"], NoticingChanges, 2),
+        (["前は", "いつもは"], NoticingChanges, 3),
+        (["都合"], BalancingInterests, 1),
+        (["頼", "お願い", "声をかけ"], BalancingInterests, 2),
+        (["代わり", "合わせ"], BalancingInterests, 3),
+        (["重な"], SettingPriorities, 1),
+        (["先に", "後回し"], SettingPriorities, 2),
+        (["だから", "ので"], SettingPriorities, 3),
     ];
 
     public Task<TurnReading> ReadAsync(IReadOnlyList<Turn> turns, CancellationToken ct)

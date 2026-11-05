@@ -6,8 +6,13 @@ namespace Revalue.Server.Features.Validate;
 /// <summary>力をまとめる分類。</summary>
 public sealed record AbilityCategory(string Id, string Name);
 
-/// <summary>核となる行動の一つ。<see cref="Number"/> は 1 から順。<see cref="Hint"/> は、足りない行動を聞くときに聞き手へ渡す言葉。</summary>
-public sealed record AbilityActionEntry(int Number, string Text, string Hint);
+/// <summary>
+/// 核となる行動の一つ。<see cref="Number"/> は 1 から順。<see cref="Hint"/> は、足りない行動を聞くときに聞き手へ渡す言葉。
+/// <see cref="ResumeQuestion"/> は、続きを話すときにその行動を聞く問い。話から確かめる力の行動にだけあり、準備中の力では null。
+/// <see cref="Situation"/> は、本人の行動ではなく、その日の状況を表す行動（用事が重なる、など）の印。見えた力では行動の文を出さない
+/// （03-validate.md の「話し終えたとき」。Claude の判断）。
+/// </summary>
+public sealed record AbilityActionEntry(int Number, string Text, string Hint, string? ResumeQuestion, bool Situation = false);
 
 /// <summary>辞書の力一つ。<see cref="Status"/> は <c>active</c>（判定に使う）か <c>preparing</c>（準備中）。</summary>
 public sealed record AbilityEntry(
@@ -22,7 +27,7 @@ public sealed record AbilityEntry(
 }
 
 /// <summary>
-/// 能力辞書（<c>src/shared/abilities.json</c>）。力の名前、分類、核となる行動の文と手がかりを、データから返す。
+/// 能力辞書（<c>src/shared/abilities.json</c>）。力の名前、分類、核となる行動の文と手がかり、続きの問いを、データから返す。
 /// 埋め込みのリソースから一度だけ読み、形が崩れていれば起動時に止める（<see cref="Load"/>）。
 /// 並びはデータの順で、表示と、同じ数のときの選び方に使う。
 /// </summary>
@@ -66,6 +71,12 @@ public sealed partial class AbilityCatalog
     /// <summary>判定に使う力。<see cref="AbilityCatalog"/> の順。</summary>
     public static IReadOnlyList<Ability> Active => Current.ActiveAbilities;
 
+    /// <summary>
+    /// 話から確かめる力か。辞書にない力（保存データの古い id など）と準備中の力は false。
+    /// 保存データから来る力の名前を引く前に、これで除く（00-common.md の「力」）。
+    /// </summary>
+    public static bool IsActive(Ability ability) => Find(ability.Id) is { IsActive: true };
+
     /// <summary>id の力。辞書になければ null。大文字と小文字は区別する。</summary>
     public static AbilityEntry? Find(string? id) => Current.FindEntry(id);
 
@@ -81,8 +92,21 @@ public sealed partial class AbilityCatalog
     /// <summary>核となる行動の文。辞書にない力か、行動の数を超える番号なら <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string ActionText(ActionRef action) => ActionOf(action).Text;
 
+    /// <summary>本人の行動ではない、状況の行動か（<see cref="AbilityActionEntry.Situation"/>）。辞書にない力や番号なら false。</summary>
+    public static bool IsSituation(ActionRef action)
+    {
+        var actions = Find(action.Ability.Id)?.Actions;
+        return actions is not null && action.Number >= 1 && action.Number <= actions.Count && actions[action.Number - 1].Situation;
+    }
+
     /// <summary>行動の手がかり。辞書にない力か、行動の数を超える番号なら <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string Hint(ActionRef action) => ActionOf(action).Hint;
+
+    /// <summary>
+    /// 続きを話すときに、その行動を聞く問い。辞書にない力、行動の数を超える番号、問いのない行動（準備中の力）なら <see cref="ArgumentOutOfRangeException"/>。
+    /// </summary>
+    public static string ResumeQuestion(ActionRef action) =>
+        ActionOf(action).ResumeQuestion ?? throw new ArgumentOutOfRangeException(nameof(action));
 
     private static AbilityEntry EntryOf(Ability ability) =>
         Find(ability.Id) ?? throw new ArgumentOutOfRangeException(nameof(ability));
@@ -105,7 +129,8 @@ public sealed partial class AbilityCatalog
 
     /// <summary>
     /// 辞書の JSON を読む。核となる行動が 2〜3 つでない力、番号が 1 から順でない行動、空の名前・文・手がかり、
-    /// id の重なり、ない分類、知らない状態、英語の小文字とハイフンでない id は <see cref="InvalidOperationException"/> で止める。
+    /// id の重なり、ない分類、知らない状態、英語の小文字とハイフンでない id、話から確かめる力が 1 つもない辞書、
+    /// 話から確かめる力の行動に続きの問いがない辞書、行動がすべて状況の行動の力は <see cref="InvalidOperationException"/> で止める。
     /// </summary>
     public static AbilityCatalog Load(string json)
     {
@@ -159,11 +184,27 @@ public sealed partial class AbilityCatalog
                 {
                     throw new InvalidOperationException($"abilities.json: {a.Id} has a broken action {i + 1}.");
                 }
+
+                if (a.Status == AbilityEntry.ActiveStatus && string.IsNullOrWhiteSpace(actions[i].ResumeQuestion))
+                {
+                    throw new InvalidOperationException($"abilities.json: {a.Id} needs a resume question for action {i + 1}.");
+                }
+            }
+
+            if (actions.All(x => x.Situation))
+            {
+                throw new InvalidOperationException($"abilities.json: {a.Id} needs at least one action that is not a situation.");
             }
 
             entries.Add(new AbilityEntry(
                 a.Id!, a.Name!, a.Category, a.Reason!, a.Status!, a.NeedsReview,
-                [.. actions.Select(x => new AbilityActionEntry(x.Number, x.Text!, x.Hint!))]));
+                [.. actions.Select(x => new AbilityActionEntry(
+                    x.Number, x.Text!, x.Hint!, string.IsNullOrWhiteSpace(x.ResumeQuestion) ? null : x.ResumeQuestion, x.Situation))]));
+        }
+
+        if (!entries.Any(e => e.IsActive))
+        {
+            throw new InvalidOperationException("abilities.json has no active ability.");
         }
 
         return new AbilityCatalog([.. categories.Select(c => new AbilityCategory(c.Id!, c.Name!))], entries);
@@ -183,5 +224,5 @@ public sealed partial class AbilityCatalog
     private sealed record AbilityData(
         string? Id, string? Name, string? Category, string? Reason, string? Status, bool NeedsReview, List<ActionData>? Actions);
 
-    private sealed record ActionData(int Number, string? Text, string? Hint);
+    private sealed record ActionData(int Number, string? Text, string? Hint, string? ResumeQuestion, bool Situation);
 }

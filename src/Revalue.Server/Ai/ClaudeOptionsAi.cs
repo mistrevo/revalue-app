@@ -106,7 +106,8 @@ public sealed class ClaudeOptionsAi(
         var sb = new StringBuilder();
 
         sb.Append("<abilities>\n");
-        foreach (var ability in inputs.Abilities)
+        // 辞書の話から確かめる力でない力（保存データの古い id など）は、名前を引かずに渡さない
+        foreach (var ability in inputs.Abilities.Where(a => AbilityCatalog.IsActive(a.Ability)))
         {
             sb.Append("- key: ").Append(ActionRef.Key(ability.Ability)).Append('\n');
             sb.Append("  名前: ").Append(AbilityText.Name(ability.Ability)).Append('\n');
@@ -151,7 +152,11 @@ public sealed class ClaudeOptionsAi(
                 sb.Append("- 業務 id: ").Append(task.Id).Append('\n');
                 sb.Append("  名前: ").Append(task.Name).Append('\n');
                 sb.Append("  中身: ").Append(task.Detail).Append('\n');
-                sb.Append("  使う力: ").Append(ActionRef.Key(task.Ability)).Append('（').Append(AbilityText.Name(task.Ability)).Append("）\n");
+                if (AbilityText.NameOrNull(task.Ability) is { } abilityName)
+                {
+                    sb.Append("  使う力: ").Append(ActionRef.Key(task.Ability)).Append('（').Append(abilityName).Append("）\n");
+                }
+
                 sb.Append("  週あたりの時間: ").Append(task.HoursPerWeek.Min).Append(" 時間から ").Append(task.HoursPerWeek.Max).Append(" 時間まで\n");
                 var slots = inputs.Conditions is { } conditions ? ConditionFit.UsableSlots(task, conditions) : task.TimeSlots;
                 sb.Append("  時間帯: ").Append(string.Join("、", slots.Select(SlotKey))).Append('\n');

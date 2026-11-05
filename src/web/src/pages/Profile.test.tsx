@@ -180,13 +180,25 @@ describe('Profile', () => {
     expect(await within(agency).findByRole('button', { name: copy.profile.write })).toBeInTheDocument()
   })
 
+  it('profile-2（できることは根拠とつなぐ）: 見えた力に、行動の文と本人の言葉を組にして出す', async () => {
+    installFakeApi({ loggedIn: true, consented: true, profile: answeredProfile() })
+    renderApp('/profile')
+
+    const canDo = await screen.findByRole('region', { name: copy.profile.canDoTitle })
+    const seen = within(canDo).getByRole('group', { name: copy.profile.seenTitle })
+    const item = within(seen).getByText('「班の 2 家族の都合を聞きました」').closest('li')!
+    expect(within(item).getByText('関わる 2 者以上の、それぞれ違う都合をつかむ')).toBeInTheDocument()
+    const checking = within(canDo).getByRole('group', { name: copy.profile.checkingTitle })
+    expect(checking.querySelector('li .block')).toBeNull()
+  })
+
   it('profile-2（できることは根拠とつなぐ）: できることに、見えた力と確かめ中の力を分けて、根拠の言葉と一緒に出す', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, profile: answeredProfile() })
     renderApp('/profile')
 
     const canDo = await screen.findByRole('region', { name: copy.profile.canDoTitle })
     const seen = within(canDo).getByRole('group', { name: copy.profile.seenTitle })
-    expect(within(seen).getByRole('heading', { name: '調整する力' })).toBeInTheDocument()
+    expect(within(seen).getByRole('heading', { name: '利害調整力' })).toBeInTheDocument()
     expect(within(seen).getByText('「班の 2 家族の都合を聞きました」')).toBeInTheDocument()
     expect(within(seen).getByText('「私から声をかけた」')).toBeInTheDocument()
     expect(within(seen).getByText(copy.insights.chosen)).toBeInTheDocument()
@@ -194,12 +206,12 @@ describe('Profile', () => {
     expect(within(seen).getByRole('link', { name: copy.profile.openEpisode })).toHaveAttribute('href', '/talk/episode-1')
 
     const checking = within(canDo).getByRole('group', { name: copy.profile.checkingTitle })
-    expect(within(checking).getByRole('heading', { name: '優先順位をつける力' })).toBeInTheDocument()
+    expect(within(checking).getByRole('heading', { name: '優先順位設定力' })).toBeInTheDocument()
     expect(within(checking).getByText('「先に書類を仕上げました」')).toBeInTheDocument()
-    expect(within(seen).queryByText('優先順位をつける力')).not.toBeInTheDocument()
+    expect(within(seen).queryByText('優先順位設定力')).not.toBeInTheDocument()
 
     // まだ聞けていない力は出さない
-    expect(within(canDo).queryByText('見立てる力')).not.toBeInTheDocument()
+    expect(within(canDo).queryByText('変化への気づき')).not.toBeInTheDocument()
     expect(within(canDo).getByRole('link', { name: copy.profile.openAbilities })).toHaveAttribute('href', '/abilities')
     expect(within(canDo).queryByText(copy.profile.excludedNote)).not.toBeInTheDocument()
     expect(api.calls.filter((c) => c.method !== 'GET')).toEqual([])
@@ -427,7 +439,7 @@ describe('Profile', () => {
       const { unmount } = renderApp('/profile')
       await screen.findByRole('region', { name: copy.profile.canDoTitle })
 
-      // 「優先順位をつける力」は PRD が決めた力の名前。使わない言葉の「順位」は人や仕事の順位づけのことなので、この言葉だけ除いて見る
+      // 「優先順位設定力」は PRD が決めた力の名前。使わない言葉の「順位」は人や仕事の順位づけのことなので、この言葉だけ除いて見る
       const text = (document.body.textContent ?? '').replaceAll('優先順位', '')
       for (const word of ['根拠あり', '要確認', '未確認', ...forbiddenWords]) {
         expect(text).not.toContain(word)

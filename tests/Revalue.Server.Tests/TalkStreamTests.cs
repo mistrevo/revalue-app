@@ -645,7 +645,7 @@ public sealed class TalkStreamTests
 
         var script = new Revalue.Evals.EpisodeScript("e99", "試しの例", "discover", "distress", answers.Select(a => new Revalue.Evals.ScriptedAnswer(a, false)).ToList());
         var forbidden = Revalue.Evals.ForbiddenWords.Load(Path.Combine(AppContext.BaseDirectory, "forbidden-words.json"));
-        var run = await new Revalue.Evals.EvalRunner(ai, new Revalue.Evals.DryRunJudge(), forbidden).RunAsync(script, Ct);
+        var run = await new Revalue.Evals.EvalRunner(ai, new Revalue.Evals.DryRunJudge(), forbidden, new Revalue.Evals.DryRunEvidenceJudge()).RunAsync(script, Ct);
         var evaluated = run.Replies.Select(r => $"{TalkStream.MoveName(r.Move)} | {r.Body} | {string.Join(" / ", r.Choices)}").ToList();
 
         Assert.Equal(["askWhatYouDid", "askEasierScene", "askConcreteEvent", "returnFromIllness", "distress"], product.Select(p => p.Split(" | ")[0]));
@@ -668,20 +668,20 @@ public sealed class TalkStreamTests
         var (factory, ai) = Create();
         await using var _f = factory;
         ai.Reading = _ => ReadingWith(
-            Candidate(Ability.Coordinating, 1, "夫と母の予定がぶつかって"),
-            Candidate(Ability.Coordinating, 2, "二人に電話しました"));
+            Candidate(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.BalancingInterests, 2, "二人に電話しました"));
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
 
         var events = await SendAndRead(client, id, "昨日は夫と母の予定がぶつかっていたので、二人に電話しました。");
 
         Assert.Equal("askMissingAction", events.Single(e => e.Event == "done").Data.GetProperty("move").GetString());
-        var target = new ActionRef(Ability.Coordinating, 3);
+        var target = new ActionRef(TestAbilities.BalancingInterests, 3);
         Assert.Equal(new NextMove(MoveKind.AskMissingAction, target), ai.NextMoves[^1]);
 
         var saved = await Saved(factory, "g-1", id);
         Assert.Equal("askMissingAction", saved.Turns[2].Move);
-        Assert.Equal("coordinating.3", saved.Turns[2].Target);
+        Assert.Equal("balancing-interests.3", saved.Turns[2].Target);
         Assert.Null(saved.Turns[1].Target);
         Assert.Equal(2, saved.Evidence.Count);
     }
@@ -692,9 +692,9 @@ public sealed class TalkStreamTests
         var (factory, ai) = Create();
         await using var _f = factory;
         ai.Reading = _ => ReadingWith(
-            Candidate(Ability.Noticing, 1, "顔色がいつもと違う"),
-            Candidate(Ability.Noticing, 2, "熱っぽい様子だった"),
-            Candidate(Ability.Noticing, 3, "その日の朝"));
+            Candidate(TestAbilities.NoticingChanges, 1, "顔色がいつもと違う"),
+            Candidate(TestAbilities.NoticingChanges, 2, "熱っぽい様子だった"),
+            Candidate(TestAbilities.NoticingChanges, 3, "その日の朝"));
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
 
@@ -715,15 +715,15 @@ public sealed class TalkStreamTests
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
 
-        ai.Reading = _ => ReadingWith(Candidate(Ability.Prioritizing, 1, "用事が三つ重なって", answer: 1));
+        ai.Reading = _ => ReadingWith(Candidate(TestAbilities.SettingPriorities, 1, "用事が三つ重なって", answer: 1));
         await SendAndRead(client, id, "朝、用事が三つ重なっていました。");
-        ai.Reading = _ => ReadingWith(Candidate(Ability.Prioritizing, 2, "病院を先に", answer: 2));
+        ai.Reading = _ => ReadingWith(Candidate(TestAbilities.SettingPriorities, 2, "病院を先に", answer: 2));
         await SendAndRead(client, id, "病院を先にして、買い物は後にしました。");
 
         var saved = await Saved(factory, "g-1", id);
         Assert.Equal([1, 2], saved.Evidence.Select(e => e.Action));
         Assert.Equal("用事が三つ重なって", saved.Evidence[0].Quote);
-        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 3)), ai.NextMoves[^1]);
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.SettingPriorities, 3)), ai.NextMoves[^1]);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: つらい状態のサインの往復では根拠を保存しない")]
@@ -733,7 +733,7 @@ public sealed class TalkStreamTests
         await using var _f = factory;
         ai.Reading = _ => new TurnReading(
             new HashSet<AnswerSignal> { AnswerSignal.Distress, AnswerSignal.ConcreteEvent },
-            [Candidate(Ability.Noticing, 1, "いつもと違う")]);
+            [Candidate(TestAbilities.NoticingChanges, 1, "いつもと違う")]);
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
 

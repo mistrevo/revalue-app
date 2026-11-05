@@ -76,10 +76,10 @@ public sealed class OptionsEvalTests
     {
         var c = Case("p01-coordinating-seen");
         var conditions = c.Inputs.Conditions!;
-        var ability = new CardAbility(Ability.Coordinating, AbilityState.Confirmed, c.Inputs.Abilities[0].Quotes);
+        var ability = new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, c.Inputs.Abilities[0].Quotes);
         // 照らし合わせを通らずに作ったカード（週 99 時間、外に出る、本人の根拠にない引用）
         var create = new CreateCard("題", "誰の", "困りごと", "中身", 99, TaskPlace.Out, conditions.TimeSlots, "理由です。「本人が言っていない言葉」",
-            ability with { Quotes = [new Evidence(Ability.Coordinating, 1, "本人が言っていない言葉", 1, 1, false, false, null)] });
+            ability with { Quotes = [new Evidence(TestAbilities.BalancingInterests, 1, "本人が言っていない言葉", 1, 1, false, false, null)] });
 
         var check = OptionsEval.CheckShown(create, c.Inputs, Catalog, Forbidden());
 
@@ -92,7 +92,7 @@ public sealed class OptionsEvalTests
     public void RecountsAssertiveWords()
     {
         var c = Case("p01-coordinating-seen");
-        var ability = new CardAbility(Ability.Coordinating, AbilityState.Confirmed, c.Inputs.Abilities[0].Quotes);
+        var ability = new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, c.Inputs.Abilities[0].Quotes);
         var quote = c.Inputs.Abilities[0].Quotes[0].Quote;
         var choose = new ChooseCard(
             "online-secretary", "オンライン秘書", "要約", [], new WorkRange(3, 10, 1, 2), $"話してくれた「{quote}」の動きは、日程の調整にぴったりです。", ability);

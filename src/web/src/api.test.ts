@@ -203,13 +203,13 @@ describe('api', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('/api/abilities')
 
     mockFetch(jsonResponse(200, body))
-    await excludeAbility('coordinating')
+    await excludeAbility('balancing-interests')
     const exclude = vi.mocked(fetch).mock.calls[0]
-    expect(exclude[0]).toBe('/api/abilities/coordinating/exclude')
+    expect(exclude[0]).toBe('/api/abilities/balancing-interests/exclude')
     expect(exclude[1]?.method).toBe('POST')
 
     mockFetch(jsonResponse(200, body))
-    await restoreAbility('coordinating')
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/abilities/coordinating/restore')
+    await restoreAbility('balancing-interests')
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/abilities/balancing-interests/restore')
   })
 })

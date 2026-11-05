@@ -12,7 +12,8 @@ public sealed record ScriptedAnswer(string Text, bool IsChoice, bool IsCorrectio
 /// 架空エピソード 1 件（evals/episodes/*.md）。
 /// 先頭の --- で囲んだところに id、title、unit、expect を書き、「## 利用者の答え」の下に 1 行 1 ターンで答えを並べる。
 /// 選択肢で答える行は「[選択]」で始め、訂正の行は「[訂正]」で始める。訂正の行は、ほかの答えのあとにだけ置ける。
-/// 03 validate（確かめる）の例は、states（最後に期待する状態）、statesBefore（最初の訂正の直前に期待する状態）、ask（聞き返してほしい行動）も書く。
+/// 03 validate（確かめる）の例は、states（狙った力の、最後に期待する状態）、notConfirmed（根拠ありにしてはいけない力）、
+/// statesBefore（最初の訂正の直前に期待する、狙った力の状態）、ask（聞き返してほしい行動）も書く。話から確かめる力すべての状態は書かない。
 /// </summary>
 /// <param name="Expect">どんな例か。concreteEvent、dontKnow、generalOnly、familyIllness、distress、choiceOnly など。</param>
 public sealed record EpisodeScript(string Id, string Title, string Unit, string Expect, IReadOnlyList<ScriptedAnswer> Answers)
@@ -21,11 +22,25 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
     public const string ChoiceMarker = "[選択]";
     public const string CorrectionMarker = "[訂正]";
 
-    /// <summary>場面を最後まで流したあとに期待する、力ごとの状態。3 つの力すべてを持つ。確かめの例でなければ null。</summary>
+    /// <summary>場面を最後まで流したあとに期待する、狙った力の状態（1 つ以上）。書いていなければ null。</summary>
     public IReadOnlyDictionary<Ability, AbilityState>? States { get; init; }
 
-    /// <summary>最初の訂正の直前に期待する状態。訂正のある例だけ。</summary>
+    /// <summary>最初の訂正の直前に期待する、狙った力の状態。訂正のある例だけ。</summary>
     public IReadOnlyDictionary<Ability, AbilityState>? StatesBefore { get; init; }
+
+    /// <summary>
+    /// 根拠ありにしてはいけない力。書いていなければ空。<c>*</c> は、話から確かめるすべての力から、<see cref="States"/> で confirmed の力を除いたもの。
+    /// </summary>
+    public IReadOnlySet<Ability> NotConfirmed { get; init; } = new HashSet<Ability>();
+
+    /// <summary>台本に書いた力（<see cref="States"/> のキーと <see cref="NotConfirmed"/>）。評価はこの力だけを数える。</summary>
+    public IReadOnlySet<Ability> Listed => (States?.Keys ?? []).Concat(NotConfirmed).ToHashSet();
+
+    /// <summary>
+    /// 根拠ありになったら褒めすぎと数える力。<see cref="States"/> で confirmed でない力と、<see cref="NotConfirmed"/> の力。
+    /// </summary>
+    public IReadOnlySet<Ability> MustNotConfirm =>
+        (States ?? new Dictionary<Ability, AbilityState>()).Where(s => s.Value != AbilityState.Confirmed).Select(s => s.Key).Concat(NotConfirmed).ToHashSet();
 
     /// <summary>一部だけそろった例で、聞き返してほしい行動。</summary>
     public ActionRef? Ask { get; init; }
@@ -111,17 +126,61 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
             throw new FormatException($"エピソード {id} が [訂正] から始まっています。訂正は答えのあとに置きます。");
         }
 
-        return new EpisodeScript(id, Required("title"), fields.GetValueOrDefault("unit", "discover"), Required("expect"), answers)
+        var unit = fields.GetValueOrDefault("unit", "discover");
+        var parsedStates = fields.TryGetValue("states", out var states) ? ParseStates(id, states) : null;
+        var notConfirmed = fields.TryGetValue("notConfirmed", out var notText) ? ParseNotConfirmed(id, notText, parsedStates) : null;
+        if (unit == "validate" && parsedStates is null && notConfirmed is null)
         {
-            States = fields.TryGetValue("states", out var states) ? ParseStates(id, states) : null,
+            throw new FormatException($"エピソード {id} は確かめの例なので、states（狙った力の期待する状態）か notConfirmed（根拠ありにしてはいけない力）を書きます。");
+        }
+
+        return new EpisodeScript(id, Required("title"), unit, Required("expect"), answers)
+        {
+            States = parsedStates,
             StatesBefore = fields.TryGetValue("statesBefore", out var before) ? ParseStates(id, before) : null,
+            NotConfirmed = notConfirmed ?? new HashSet<Ability>(),
             Ask = fields.TryGetValue("ask", out var ask)
-                ? ActionRef.Parse(ask) ?? throw new FormatException($"エピソード {id} の ask「{ask}」を読めません。coordinating.3 の形で書きます。")
+                ? ActionRef.Parse(ask) ?? throw new FormatException($"エピソード {id} の ask「{ask}」を読めません。balancing-interests.3 の形で書きます。")
                 : null,
         };
     }
 
-    /// <summary><c>noticing=notYet, coordinating=confirmed, prioritizing=notYet</c> の形を読む。判定に使う力すべてを書く。力の id は能力辞書（abilities.json）で確かめる。</summary>
+    /// <summary>
+    /// <c>noticing-changes, setting-priorities</c> の形か、<c>*</c> を読む。<c>*</c> は、話から確かめるすべての力から、states で confirmed の力を除いたもの。
+    /// 知らない力、同じ力の重なり、states で confirmed の力は読めない。
+    /// </summary>
+    private static HashSet<Ability> ParseNotConfirmed(string id, string text, IReadOnlyDictionary<Ability, AbilityState>? states)
+    {
+        bool IsConfirmed(Ability a) => states is not null && states.TryGetValue(a, out var s) && s == AbilityState.Confirmed;
+
+        if (text.Trim() == "*")
+        {
+            return AbilityCatalog.Active.Where(a => !IsConfirmed(a)).ToHashSet();
+        }
+
+        var abilities = new HashSet<Ability>();
+        foreach (var part in text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!ActionRef.TryParseAbility(part, out var ability))
+            {
+                throw new FormatException($"エピソード {id} の notConfirmed の力「{part}」を読めません。話から確かめる力の id を書きます。");
+            }
+
+            if (!abilities.Add(ability))
+            {
+                throw new FormatException($"エピソード {id} の notConfirmed に、{part} が 2 回書いてあります。");
+            }
+
+            if (IsConfirmed(ability))
+            {
+                throw new FormatException($"エピソード {id} で、{part} が states では confirmed なのに、notConfirmed にも書いてあります。");
+            }
+        }
+
+        return abilities.Count > 0 ? abilities : throw new FormatException($"エピソード {id} の notConfirmed に力がありません。");
+    }
+
+    /// <summary><c>balancing-interests=confirmed</c> の形を読む。狙った力だけを書く（1 つ以上）。力の id は能力辞書（abilities.json）で確かめる。</summary>
     private static Dictionary<Ability, AbilityState> ParseStates(string id, string text)
     {
         var states = new Dictionary<Ability, AbilityState>();
@@ -130,7 +189,7 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
             var pair = part.Split('=', StringSplitOptions.TrimEntries);
             if (pair.Length != 2 || !ActionRef.TryParseAbility(pair[0], out var ability) || !TryParseState(pair[1], out var state))
             {
-                throw new FormatException($"エピソード {id} の状態「{part}」を読めません。noticing=confirmed の形で書きます。");
+                throw new FormatException($"エピソード {id} の状態「{part}」を読めません。balancing-interests=confirmed の形で書きます。");
             }
 
             if (!states.TryAdd(ability, state))
@@ -139,12 +198,7 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
             }
         }
 
-        if (states.Count != AbilityCatalog.Active.Count)
-        {
-            throw new FormatException($"エピソード {id} の状態には、判定に使う力すべて（{AbilityCatalog.Active.Count} つ）を書きます。");
-        }
-
-        return states;
+        return states.Count > 0 ? states : throw new FormatException($"エピソード {id} の状態に力がありません。");
     }
 
     private static bool TryParseState(string text, out AbilityState state)

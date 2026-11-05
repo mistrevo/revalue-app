@@ -201,8 +201,9 @@ public static class NextMovePolicy
     /// <summary>
     /// 足りない行動を一つ選ぶ。いまの答えが具体的な出来事でなく、いまの答えから一般論でない根拠も見つからなければ選ばない
     /// （一般論だけには具体的な出来事を聞く（validate-10）。分からない・何もないには答えやすい場面を聞き、問い詰めない）。
-    /// いまの出来事の中で 3 つそろっていない力のうち、行動の多い力（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
-    /// <see cref="AbilityStates.AskOrder"/> の順に見て、聞いた回数が上限に届いていないもの。場面全体ですでに根拠ありの力は聞かない。
+    /// いまの出来事の中で行動がすべてはそろっていない力のうち、行動の多い力（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
+    /// <see cref="AbilityStates.AskOrder"/> の順に見て、聞いた回数が上限に届いていないもの。場面全体ですでに根拠ありの力と、
+    /// そろっても見えた力に出せない力（<see cref="AbilityShowcase.CouldBeSeen"/>）は聞かない。
     /// 一度聞き返した力（<see cref="ValidationContext.Focus"/>）があれば、その場面ではその力だけを聞く。その力が根拠ありになるか、
     /// いまの出来事にその力の根拠がないか、聞ける行動がなくなったら、ほかの力の足りない行動は聞かない
     /// （revisit-4（いまの話を聞き切る）。一つの場面で力をまたいで問いを重ねず、本人の話を聞き切るため）。
@@ -230,7 +231,8 @@ public static class NextMovePolicy
         }
 
         // 場面全体ですでに根拠ありの力は聞かない。新しい読み取りが同じ出来事の行動を落としても、本人はもう話している
-        var confirmed = AbilityStates.Evaluate(validation.Evidence)
+        var results = AbilityStates.Evaluate(validation.Evidence);
+        var confirmed = results
             .Where(r => r.State == AbilityState.Confirmed)
             .Select(r => r.Ability)
             .ToHashSet();
@@ -246,6 +248,8 @@ public static class NextMovePolicy
             .GroupBy(e => e.Ability)
             .Select(g => (Ability: g.Key, Actions: AbilityStates.Counted(g).Select(e => e.Action).ToHashSet()))
             .Where(c => c.Actions.Count < AbilityCatalog.ActionCount(c.Ability))
+            // そろっても見えた力に出せない力（同じ分類で行動の多い力がそろっているなど）は聞かない。答えても本人には何も見えず、往復の上限も減るため
+            .Where(c => AbilityShowcase.CouldBeSeen(c.Ability, results))
             .OrderByDescending(c => c.Actions.Count)
             .ThenBy(c => c.Ability);
 

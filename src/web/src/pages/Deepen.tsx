@@ -51,7 +51,8 @@ const FIELD_CLASS =
 const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4'
 
 function toRequest(task: DeepenTask): DeepenTaskRequest {
-  return { name: task.name, detail: task.detail, ability: task.ability, knowledge: task.knowledge.join('、') }
+  // 力が辞書にない業務（ability が null）は、直す欄で力を選び直してもらう
+  return { name: task.name, detail: task.detail, ability: task.ability ?? '', knowledge: task.knowledge.join('、') }
 }
 
 /**
@@ -353,18 +354,34 @@ function TasksSection({
   // 裏側が返した力の一覧を辞書の順に出す。一覧にない力が付いた業務があれば、その力も選べるように足す
   const options: DeepenAbility[] = [...abilities]
   for (const t of tasks) {
-    if (!options.some((o) => o.key === t.ability)) options.push({ key: t.ability, name: t.abilityName })
+    if (t.ability !== null && t.abilityName !== null && !options.some((o) => o.key === t.ability)) {
+      options.push({ key: t.ability, name: t.abilityName })
+    }
   }
   const current = tasks.map(toRequest)
+  // 使う力が読めない業務（辞書から消えた力）を残したまま送ると、一覧ごと断られる。送らずにわけを伝え、その業務の直す欄へ導く
+  const [missingNotice, setMissingNotice] = useState<string | null>(null)
 
   async function save(next: DeepenTaskRequest[]) {
-    if (await onSave(next)) setEditing(null)
+    const missing = next.findIndex((t) => t.ability === '')
+    if (missing >= 0) {
+      const index = current.indexOf(next[missing])
+      setMissingNotice(copy.deepen.taskAbilityMissing.replace('{text}', next[missing].name))
+      // 書きかけの欄があれば閉じずに残す（書いたものを消さないため）
+      if (editing === null && index >= 0) setEditing(index)
+      return
+    }
+    if (await onSave(next)) {
+      setEditing(null)
+      setMissingNotice(null)
+    }
   }
 
   return (
     <Section title={copy.deepen.tasksTitle}>
       {editable && <p className="-mt-2 text-sm text-muted-foreground">{copy.deepen.draftedTitle}</p>}
       {tasksRejected && <p className="text-sm leading-relaxed">{copy.deepen.tasksRejected}</p>}
+      {missingNotice && <p className="text-sm leading-relaxed">{missingNotice}</p>}
 
       {tasks.length > 0 && (
         <ul className="flex flex-col gap-3">
@@ -437,7 +454,8 @@ function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
   const id = useId()
   const knowledge = task.knowledge.filter((k) => k.trim() !== '')
   const notYet = [
-    ...(task.usable ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]),
+    // 力の名前がない業務（力が辞書にない）は、まだ確かめていない力の行を出さない
+    ...(task.usable || task.abilityName === null ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]),
     ...(knowledge.length > 0 ? [copy.deepen.knowledgeLine.replace('{items}', knowledge.join('、'))] : []),
   ]
   return (
@@ -455,7 +473,7 @@ function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
             <span className="font-semibold">{task.abilityName}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.deepen.abilityStates[task.usable.state]}</span>
           </p>
-          <QuoteList quotes={task.usable.quotes} />
+          <QuoteList quotes={task.usable.quotes} paired={task.usable.state === 'confirmed'} />
         </div>
       )}
       {notYet.length > 0 && (

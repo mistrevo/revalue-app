@@ -12,19 +12,37 @@ namespace Revalue.Server.Features.Validate;
 /// <summary>
 /// 根拠の本人の言葉。画面にそのまま出すので、何番目の答えかではなく引用の文字列を返す。
 /// 選んだ答え（<paramref name="FromChoice"/>）では、<paramref name="LinkedText"/> に結びついた本人の言葉が入る。
+/// <paramref name="Action"/> は、その根拠の核となる行動の文（能力辞書の共通の文）。本人の言葉と組にして、なぜその力なのかを伝える
+/// （4-rules.md の「画面での見せ方」）。辞書の話から確かめる力でない、番号が行動の数を超える、本人の行動ではない状況の行動
+/// （<see cref="AbilityCatalog.IsSituation"/>）なら null。うまくいかなかった状況を、本人の力の見出しとして本人の言葉に付けないため（Claude の判断）。
 /// </summary>
-public sealed record QuoteDto(string Text, bool FromChoice, string? LinkedText)
+public sealed record QuoteDto(string Text, bool FromChoice, string? LinkedText, string? Action)
 {
     public static IReadOnlyList<QuoteDto> From(IEnumerable<Evidence> evidence) =>
-        evidence.Select(e => new QuoteDto(e.Quote, e.FromChoice, e.LinkedQuote)).ToList();
+        evidence.Select(e => new QuoteDto(e.Quote, e.FromChoice, e.LinkedQuote, ActionTextOrNull(e))).ToList();
+
+    private static string? ActionTextOrNull(Evidence e) =>
+        AbilityCatalog.IsActive(e.Ability) && e.Action >= 1 && e.Action <= AbilityCatalog.ActionCount(e.Ability)
+            && !AbilityCatalog.IsSituation(new ActionRef(e.Ability, e.Action))
+            ? AbilityCatalog.ActionText(new ActionRef(e.Ability, e.Action))
+            : null;
 }
 
 /// <summary>
 /// 見えた力の 1 つ。<paramref name="Life"/> は生活の中での状態、<paramref name="Work"/> は仕事での状態で、いまはいつも "notChecked"
-/// （validate-9（生活での根拠と仕事での発揮を分ける））。
+/// （validate-9（生活での根拠と仕事での発揮を分ける））。<paramref name="CanTellMore"/> は、根拠の場面の「もう少し聞かせてほしいこと」に
+/// いまも出している確かめ中の力か。false の確かめ中の力には、手がかりも、続きを話せるという言葉も出さない（<see cref="AbilityView.CanTellMore"/>）。
 /// </summary>
 public sealed record AbilityDto(
-    string Key, string Name, AbilityState Life, IReadOnlyList<QuoteDto> Quotes, string? EpisodeId, IReadOnlyList<string> Hints, string Work, bool Excluded);
+    string Key,
+    string Name,
+    AbilityState Life,
+    IReadOnlyList<QuoteDto> Quotes,
+    string? EpisodeId,
+    IReadOnlyList<string> Hints,
+    string Work,
+    bool Excluded,
+    bool CanTellMore);
 
 public sealed record AbilityChangeDto(
     DateTimeOffset At, string Key, string Name, AbilityState From, AbilityState To, ChangeReason Reason, string? EpisodeId);
@@ -38,12 +56,11 @@ public sealed record SeenAbilityDto(string Key, string Name, IReadOnlyList<Quote
 /// <summary>「もう少し聞かせてほしいこと」の 1 つ（要確認）。<paramref name="Hints"/> は足りない行動の手がかり。</summary>
 public sealed record MoreToHearDto(string Key, string Name, IReadOnlyList<QuoteDto> Quotes, IReadOnlyList<string> Hints);
 
-/// <summary>「まだ聞けていない力」の 1 つ（未確認）。名前だけ。</summary>
-public sealed record AbilityNameDto(string Key, string Name);
-
-/// <summary>話し終えた場面から見えたこと（validate-7（見えた力と、もう少し聞きたいことを示す））。</summary>
-public sealed record EpisodeInsightsDto(
-    IReadOnlyList<SeenAbilityDto> Seen, IReadOnlyList<MoreToHearDto> MoreToHear, IReadOnlyList<AbilityNameDto> NotYet, bool CanResume);
+/// <summary>
+/// 話し終えた場面から見えたこと（validate-7（見えた力と、もう少し聞きたいことを示す））。見せる力は <see cref="AbilityShowcase"/> で絞る。
+/// まだ聞けていない力の一覧は返さない（4-rules.md の「画面での見せ方」）。
+/// </summary>
+public sealed record EpisodeInsightsDto(IReadOnlyList<SeenAbilityDto> Seen, IReadOnlyList<MoreToHearDto> MoreToHear, bool CanResume);
 
 /// <summary>訂正を送る API の本文。</summary>
 public sealed record CorrectionRequest(string? Text);
@@ -54,7 +71,7 @@ public static class EpisodeInsights
     /// <summary>続きの問いのターンの一手の名前。</summary>
     public const string ResumeMove = "resume";
 
-    /// <summary>話し終えた場面で、力の確かめに使わない印がないときだけ返す。ほかは null。</summary>
+    /// <summary>話し終えた場面で、力の確かめに使わない印がないときだけ返す。ほかは null。見せる力だけを入れる（<see cref="AbilityShowcase.Of"/>）。</summary>
     public static EpisodeInsightsDto? From(EpisodeItem episode)
     {
         if (!IsCheckable(episode))
@@ -62,19 +79,19 @@ public static class EpisodeInsights
             return null;
         }
 
-        var results = AbilityStates.Evaluate(episode.Evidence);
+        var showcase = Showcase(episode);
         return new EpisodeInsightsDto(
-            results.Where(r => r.State == AbilityState.Confirmed)
+            showcase.Seen
                 .Select(r => new SeenAbilityDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability), QuoteDto.From(r.Shown)))
                 .ToList(),
-            results.Where(r => r.State == AbilityState.NeedsCheck)
+            showcase.MoreToHear
                 .Select(r => new MoreToHearDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability), QuoteDto.From(r.Shown), Hints(episode, r)))
-                .ToList(),
-            results.Where(r => r.State == AbilityState.NotYet)
-                .Select(r => new AbilityNameDto(ActionRef.Key(r.Ability), AbilityText.Name(r.Ability)))
                 .ToList(),
             CanResume(episode));
     }
+
+    /// <summary>この場面から見せる力（<see cref="AbilityShowcase.Of"/>）。</summary>
+    public static EpisodeShowcase Showcase(EpisodeItem episode) => AbilityShowcase.Of(episode.Turns, episode.Evidence);
 
     /// <summary>
     /// 要確認の力の、足りない行動の手がかり（「もう少し聞かせてほしいこと」と、見えた力の画面の確かめ中）。
@@ -98,28 +115,29 @@ public static class EpisodeInsights
             .ToList();
     }
 
-    /// <summary>続きを話せるか: 話し終えた、印がない、要確認の力が 1 つ以上ある。</summary>
+    /// <summary>
+    /// 続きを話せるか: 話し終えた、印がない、「もう少し聞かせてほしいこと」に出した力が 1 つ以上ある。
+    /// 要確認でも、そろって見えた力に出せない力しかない場面は、続きで聞く力がないので続きを話せない（<see cref="AbilityShowcase.CouldBeSeen"/>）。
+    /// </summary>
     public static bool CanResume(EpisodeItem episode) =>
-        IsCheckable(episode) && AbilityStates.Evaluate(episode.Evidence).Any(r => r.State == AbilityState.NeedsCheck);
+        IsCheckable(episode) && Showcase(episode).MoreToHear.Count > 0;
 
     /// <summary>根拠が一般論だけの要確認の力か。一般論だけでは、どの日のことかが決まらないので、足りない行動は聞かず、具体的な出来事を一つ聞く。</summary>
     public static bool IsGeneralOnly(AbilityResult result) =>
         result.State == AbilityState.NeedsCheck && result.Shown.Count > 0 && result.Shown.All(e => e.General);
 
     /// <summary>
-    /// 続きの問いで聞く行動。根拠が一般論だけの力は除く（指せる「その日」がないため）。
-    /// 要確認の力のうち行動の多いもの（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
-    /// <see cref="AbilityStates.AskOrder"/> の順に見て、この場面で聞いた回数が上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）に届いていないもの。
+    /// 続きの問いで聞く行動。「もう少し聞かせてほしいこと」に出した力（<see cref="AbilityShowcase.Of"/> の <c>MoreToHear</c>）だけを、その順に見る。
+    /// 本人に見せていない力の行動は聞かない。根拠が一般論だけの力は除く（指せる「その日」がないため）。
+    /// 力ごとに足りない行動を <see cref="AbilityStates.AskOrder"/> の順に見て、この場面で聞いた回数が上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）に届いていないもの。
     /// 訂正で打ち消された行動は、上限に届いたものとして数える（<see cref="ValidationContext.From"/>）。なければ null（手がかりを添えずに聞く）。
     /// </summary>
     public static ActionRef? ResumeTarget(EpisodeItem episode)
     {
         var asked = ValidationContext.From(episode.Turns, episode.Evidence).AskedCounts;
         var unanswered = ActionRef.Parse(UnansweredQuestion(episode)?.Target);
-        return AbilityStates.Evaluate(episode.Evidence)
-            .Where(r => r.State == AbilityState.NeedsCheck && !IsGeneralOnly(r))
-            .OrderByDescending(r => r.Shown.Count)
-            .ThenBy(r => r.Ability)
+        return Showcase(episode).MoreToHear
+            .Where(r => !IsGeneralOnly(r))
             .SelectMany(r => AbilityStates.AskOrder(r.Ability, r.Missing, episode.Evidence))
             .FirstOrDefault(a => asked.GetValueOrDefault(a) < NextMovePolicy.MaxAskPerAction && a != unanswered);
     }
@@ -132,16 +150,16 @@ public static class EpisodeInsights
         episode.Turns.LastOrDefault(t => t.AnswerKind != AnswerKind.Correction) is { Role: TurnRoles.Assistant } last ? last : null;
 
     /// <summary>
-    /// 続きの最初の問いで映し返す本人の言葉（03-validate.md の「続きを話す」）。聞く力の見せる根拠（聞く行動がなければ、要確認の力すべての見せる根拠）のうち、
+    /// 続きの最初の問いで映し返す本人の言葉（03-validate.md の「続きを話す」）。聞く力の見せる根拠（聞く行動がなければ、
+    /// 「もう少し聞かせてほしいこと」に出した力すべての見せる根拠）のうち、
     /// 一般論でないものを先に、いちばん短いもの（同じ長さなら、力と行動の順で前のもの）。選んだ答えの根拠なら、選んだ文ではなく結びついた本人の言葉。
     /// 短いものを選ぶのは、受け止めと問いのあいだに挟んでも読みやすくするため（Claude の判断）。根拠がなければ null。
     /// </summary>
     public static string? ResumeMirrorQuote(EpisodeItem episode, ActionRef? target)
     {
-        var results = AbilityStates.Evaluate(episode.Evidence);
         var shown = target is null
-            ? results.Where(r => r.State == AbilityState.NeedsCheck).SelectMany(r => r.Shown)
-            : results.Single(r => r.Ability == target.Ability).Shown;
+            ? Showcase(episode).MoreToHear.SelectMany(r => r.Shown)
+            : AbilityStates.Evaluate(episode.Evidence).Single(r => r.Ability == target.Ability).Shown;
         return shown
             .Select(e => (e.General, Text: e.FromChoice ? e.LinkedQuote : e.Quote))
             .Where(x => !string.IsNullOrWhiteSpace(x.Text))
@@ -155,7 +173,7 @@ public static class EpisodeInsights
     /// 続きを話す場面を作る（まだ保存しない）。続きを話せない場面なら null。
     /// 最初の問いは、受け止めの一文、本人の言葉の映し返し、問い一つの順（<see cref="AbilityText.ResumeOpening"/>）。
     /// 聞ける足りない行動がない（どれも 2 回聞いた、訂正で打ち消された）ときは、手がかりを添えない問いで始める。
-    /// 要確認の力がどれも一般論だけのときは、「その日」を前提にせず、最近の一日を一つ聞く（validate-10。Claude の判断）。
+    /// 「もう少し聞かせてほしいこと」に出した力がどれも一般論だけのときは、「その日」を前提にせず、最近の一日を一つ聞く（validate-10。Claude の判断）。
     /// </summary>
     public static EpisodeItem? Reopen(EpisodeItem episode, DateTimeOffset now)
     {
@@ -178,8 +196,7 @@ public static class EpisodeInsights
         }
 
         var target = ResumeTarget(episode);
-        var generalOnly = target is null
-            && AbilityStates.Evaluate(episode.Evidence).Where(r => r.State == AbilityState.NeedsCheck).All(IsGeneralOnly);
+        var generalOnly = target is null && Showcase(episode).MoreToHear.All(IsGeneralOnly);
         var question = new Turn
         {
             Role = TurnRoles.Assistant,
@@ -393,9 +410,12 @@ public static class ValidateEndpoints
             return Problems.Create(StatusCodes.Status404NotFound, Problems.NotFound, "Not found.");
         }
 
+        // 本人に見せた力か、外した力の一覧にある力だけを受け付ける。見ていない力は外せないため（validate-12）
         var userKey = http.User.GetUserKey()!;
         var book = await AbilityBook.SetExcludedAsync(store, userKey, ability, excluded, time, ct);
-        return TypedResults.Ok(await DtoAsync(store, userKey, book, ct));
+        return book is null
+            ? Problems.Create(StatusCodes.Status404NotFound, Problems.NotFound, "Not found.")
+            : TypedResults.Ok(await DtoAsync(store, userKey, book, ct));
     }
 
     private static async Task<AbilitiesDto> DtoAsync(IDataStore store, string userKey, AbilityBookItem? book, CancellationToken ct)
@@ -410,10 +430,13 @@ public static class ValidateEndpoints
                 v.EpisodeId,
                 v.Hints,
                 WorkNotChecked,
-                v.Excluded))
+                v.Excluded,
+                v.CanTellMore))
             .ToList();
+        // 辞書の話から確かめる力でない行（保存データの古い id など）は、名前を引く前に除く
         var history = (book?.History ?? [])
             .Reverse()
+            .Where(h => AbilityCatalog.IsActive(h.Ability))
             .Select(h => new AbilityChangeDto(h.At, ActionRef.Key(h.Ability), AbilityText.Name(h.Ability), h.From, h.To, h.Reason, h.EpisodeId))
             .ToList();
         return new AbilitiesDto(abilities, history);

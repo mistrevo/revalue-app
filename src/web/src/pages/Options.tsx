@@ -611,7 +611,7 @@ function Reason({ reason, ability }: { reason: string | null; ability: CardAbili
           <span className="font-semibold">{ability.name}</span>
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.options.abilityStates[ability.state]}</span>
         </p>
-        <QuoteList quotes={ability.quotes} />
+        <QuoteList quotes={ability.quotes} paired={ability.state === 'confirmed'} />
       </div>
     </div>
   )

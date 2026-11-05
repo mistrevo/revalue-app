@@ -46,7 +46,7 @@ public sealed class EvalsTests
     private static readonly ScriptedAnswer Choice = new("", true);
 
     private static Task<EpisodeRun> Run(FakeConversationAi ai, EpisodeScript script) =>
-        new EvalRunner(ai, new DryRunJudge(), Forbidden()).RunAsync(script, Ct);
+        new EvalRunner(ai, new DryRunJudge(), Forbidden(), new DryRunEvidenceJudge()).RunAsync(script, Ct);
 
     [Fact(DisplayName = "評価: 架空エピソードの Markdown から、id、まとまり、expect、答えを読む")]
     public void ParsesEpisodeMarkdown()
@@ -90,14 +90,14 @@ public sealed class EvalsTests
         Assert.All(scripts, s => Assert.InRange(s.Answers.Count, 1, NextMovePolicy.MaxUserTurns));
     }
 
-    [Fact(DisplayName = "discover-3（選んでも書いてもよい）: リポジトリの e20 は、最初の問いで「思うようにいかなかった日」を選び、そのあと出来事を書く")]
+    [Fact(DisplayName = "discover-3（選んでも書いてもよい）: リポジトリの e20 は、最初の問いで「思いどおりにいかなかった日」を選び、そのあと出来事を書く")]
     public void RepositoryEpisodeChoosesUnexpectedDay()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
         var script = Assert.Single(EpisodeScript.LoadAll(dir, "discover"), s => s.Id == "e20");
 
         // 最初の問いの選択肢を、言葉で指して選ぶ（validate-5（選んだだけでは根拠にしない）の入口）
-        Assert.Equal(new ScriptedAnswer("思うようにいかなかった日", true), script.Answers[0]);
+        Assert.Equal(new ScriptedAnswer("思いどおりにいかなかった日", true), script.Answers[0]);
         Assert.Contains(script.Answers[0].Text, DiscoverText.OpeningChoices);
         Assert.All(script.Answers.Skip(1), a => Assert.False(a.IsChoice));
         // 選んだ人だけでなく、うまくいかなかったと書いた人にも、わけを問い詰めないかを見る
@@ -239,8 +239,8 @@ public sealed class EvalsTests
     public async Task CountsFailureProbing()
     {
         var probing = new FixedJudge(AllGood with { NoFailureProbe = false, Reason = "なぜうまくいかなかったのかを聞いている" });
-        var run = await new EvalRunner(new FakeConversationAi(), probing, Forbidden())
-            .RunAsync(Script("concreteEvent", new ScriptedAnswer("思うようにいかなかった日", true), Free("公園に行けませんでした。")), Ct);
+        var run = await new EvalRunner(new FakeConversationAi(), probing, Forbidden(), new DryRunEvidenceJudge())
+            .RunAsync(Script("concreteEvent", new ScriptedAnswer("思いどおりにいかなかった日", true), Free("公園に行けませんでした。")), Ct);
         var summary = EvalSummary.From([run]);
 
         var item = Assert.Single(summary.Reference, i => i.Name.Contains("うまくいかなかったわけを問い詰めていない"));
@@ -258,7 +258,7 @@ public sealed class EvalsTests
         };
         var judge = new FixedJudge(AllGood with { SingleQuestion = false, Reason = "誰に頼んだかと、どう分けたかを一度に聞いている" });
 
-        var run = await new EvalRunner(ai, judge, Forbidden()).RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
+        var run = await new EvalRunner(ai, judge, Forbidden(), new DryRunEvidenceJudge()).RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
         var summary = EvalSummary.From([run]);
 
         Assert.All(run.Replies, r => Assert.Equal(1, r.Questions));
@@ -297,7 +297,7 @@ public sealed class EvalsTests
     public async Task JudgeSeesOverPraiseAndDismissal()
     {
         var verdict = AllGood with { NoOverPraise = false, NoDismissal = false, Reason = "特別なことではないかもしれませんが、と値打ちを下げている" };
-        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden())
+        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden(), new DryRunEvidenceJudge())
             .RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
 
         var summary = EvalSummary.From([run]);
@@ -318,7 +318,7 @@ public sealed class EvalsTests
     public async Task JudgeSeesReflectionAndTraitLabels()
     {
         var verdict = AllGood with { ReflectedActions = false, NoTraitLabel = false, Reason = "段取りが得意なんですね、と力を言い当てている" };
-        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden())
+        var run = await new EvalRunner(new FakeConversationAi(), new FixedJudge(verdict), Forbidden(), new DryRunEvidenceJudge())
             .RunAsync(Script("concreteEvent", Free("買い物に行きました。"), Free("スーパーです。")), Ct);
 
         var summary = EvalSummary.From([run]);
@@ -338,7 +338,7 @@ public sealed class EvalsTests
     public async Task JudgeReceivesChoices()
     {
         var judge = new RecordingJudge();
-        await new EvalRunner(new FakeConversationAi(), judge, Forbidden()).RunAsync(Script("concreteEvent", Free("買い物に行きました。")), Ct);
+        await new EvalRunner(new FakeConversationAi(), judge, Forbidden(), new DryRunEvidenceJudge()).RunAsync(Script("concreteEvent", Free("買い物に行きました。")), Ct);
 
         var choices = Assert.Single(judge.Choices);
         Assert.Equal(FakeConversationAi.DefaultChoices, choices);
@@ -408,9 +408,10 @@ public sealed class EvalsTests
         title: 確かめの試しの例
         unit: validate
         expect: correction
-        states: noticing=notYet, coordinating=needsCheck, prioritizing=notYet
-        statesBefore: noticing=notYet, coordinating=confirmed, prioritizing=notYet
-        ask: coordinating.3
+        states: balancing-interests=needsCheck
+        notConfirmed: noticing-changes, setting-priorities
+        statesBefore: balancing-interests=confirmed
+        ask: balancing-interests.3
         ---
 
         ## 利用者の答え
@@ -422,18 +423,19 @@ public sealed class EvalsTests
         """;
 
     private static EpisodeScript ValidateScript(
-        string states, string? statesBefore = null, string? ask = null, params ScriptedAnswer[] answers)
+        string states, string? statesBefore = null, string? ask = null, string? notConfirmed = null, params ScriptedAnswer[] answers)
     {
         var header = $"---\nid: e98\ntitle: 試しの例\nunit: validate\nexpect: concreteEvent\nstates: {states}\n" +
+            (notConfirmed is null ? "" : $"notConfirmed: {notConfirmed}\n") +
             (statesBefore is null ? "" : $"statesBefore: {statesBefore}\n") + (ask is null ? "" : $"ask: {ask}\n") + "---\n\n## 利用者の答え\n\n- 仮の答え\n";
         return EpisodeScript.Parse(header) with { Answers = answers };
     }
 
     private static ScriptedAnswer Correction(string text) => new(text, false, IsCorrection: true);
 
-    /// <summary>本人の 1 番目の答えから、調整する力の行動の根拠の候補を返す読み取り。</summary>
+    /// <summary>本人の 1 番目の答えから、利害調整力の行動の根拠の候補を返す読み取り。</summary>
     /// <summary>
-    /// 最初の答えから、調整する力の行動ごとに別々の部分を引く読み取り。行動 1〜3 は <see cref="CoordinatingParts"/> の順。
+    /// 最初の答えから、利害調整力の行動ごとに別々の部分を引く読み取り。行動 1〜3 は <see cref="CoordinatingParts"/> の順。
     /// 最初の答えにその部分がなければ（台本が別の答えなら）、答え全体を引く。
     /// </summary>
     private static Func<IReadOnlyList<Turn>, TurnReading> CoordinatingFromFirstAnswer(params int[] actions) => turns =>
@@ -444,7 +446,7 @@ public sealed class EvalsTests
             actions.Select(a =>
             {
                 var part = CoordinatingParts[a - 1];
-                return new EvidenceCandidate(Ability.Coordinating, a, first.Contains(part, StringComparison.Ordinal) ? part : first, 1, 1, false, "", 0);
+                return new EvidenceCandidate(TestAbilities.BalancingInterests, a, first.Contains(part, StringComparison.Ordinal) ? part : first, 1, 1, false, "", 0);
             }).ToList());
     };
 
@@ -466,18 +468,46 @@ public sealed class EvalsTests
                 new ScriptedAnswer("声をかけたのは私ではなく、夫でした", false, IsCorrection: true),
             ],
             script.Answers);
-        Assert.Equal(AbilityState.NeedsCheck, script.States![Ability.Coordinating]);
-        Assert.Equal(AbilityState.NotYet, script.States[Ability.Noticing]);
-        Assert.Equal(AbilityState.Confirmed, script.StatesBefore![Ability.Coordinating]);
-        Assert.Equal(new ActionRef(Ability.Coordinating, 3), script.Ask);
+        Assert.Equal(AbilityState.NeedsCheck, Assert.Single(script.States!, s => s.Key == TestAbilities.BalancingInterests).Value);
+        Assert.Equal(new HashSet<Ability> { TestAbilities.NoticingChanges, TestAbilities.SettingPriorities }, script.NotConfirmed);
+        Assert.Equal(AbilityState.Confirmed, script.StatesBefore![TestAbilities.BalancingInterests]);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), script.Ask);
     }
 
-    [Theory(DisplayName = "評価: states に知らない力や状態がある、力が欠けている、ask の形が違う、訂正のあとに答えがある例は読めない")]
-    [InlineData("states: noticing=notYet, coordinating=great, prioritizing=notYet", false)]
-    [InlineData("states: noticing=notYet, cooking=confirmed, prioritizing=notYet", false)]
-    [InlineData("states: noticing=notYet, coordinating=confirmed", false)]
-    [InlineData("states: noticing=notYet, coordinating=confirmed, prioritizing=notYet\nask: coordinating.4", false)]
-    [InlineData("states: noticing=notYet, coordinating=confirmed, prioritizing=notYet", true)]
+    [Fact(DisplayName = "評価: 確かめの例の前書きは、狙った力の期待する状態と、根拠ありにしてはいけない力を読む")]
+    public void ParsesTargetedStatesAndNotConfirmed()
+    {
+        static EpisodeScript Parse(string fields) =>
+            EpisodeScript.Parse($"---\nid: e98\ntitle: 試し\nunit: validate\nexpect: concreteEvent\n{fields}\n---\n\n## 利用者の答え\n\n- 昨日のこと\n");
+
+        var one = Parse("states: balancing-interests=needsCheck");
+        Assert.Equal(new Dictionary<Ability, AbilityState> { [TestAbilities.BalancingInterests] = AbilityState.NeedsCheck }, one.States);
+        Assert.Empty(one.NotConfirmed);
+        Assert.Equal([TestAbilities.BalancingInterests], one.Listed);
+
+        var two = Parse("states: balancing-interests=confirmed\nnotConfirmed: noticing-changes, setting-priorities");
+        Assert.Equal(AbilityState.Confirmed, Assert.Single(two.States!).Value);
+        Assert.Equal(new HashSet<Ability> { TestAbilities.NoticingChanges, TestAbilities.SettingPriorities }, two.NotConfirmed);
+        Assert.Equal(new HashSet<Ability> { TestAbilities.NoticingChanges, TestAbilities.BalancingInterests, TestAbilities.SettingPriorities }, two.Listed);
+
+        // * は、話から確かめるすべての力から、states で confirmed の力を除いたもの
+        var all = Parse("states: noticing-changes=confirmed, balancing-interests=needsCheck\nnotConfirmed: *");
+        Assert.Equal(AbilityCatalog.Active.Where(a => a != TestAbilities.NoticingChanges).ToHashSet(), all.NotConfirmed);
+        var onlyAll = Parse("notConfirmed: *");
+        Assert.Null(onlyAll.States);
+        Assert.Equal(AbilityCatalog.Active.ToHashSet(), onlyAll.NotConfirmed);
+    }
+
+    [Theory(DisplayName = "評価: 知らない力、同じ力の重なり、confirmed と notConfirmed の重なり、states も notConfirmed もない確かめの例は読めない")]
+    [InlineData("states: balancing-interests=great", false)]
+    [InlineData("states: cooking=confirmed", false)]
+    [InlineData("states: balancing-interests=confirmed\nnotConfirmed: cooking", false)]
+    [InlineData("states: balancing-interests=confirmed, balancing-interests=needsCheck", false)]
+    [InlineData("states: balancing-interests=confirmed\nnotConfirmed: noticing-changes, noticing-changes", false)]
+    [InlineData("states: balancing-interests=confirmed\nnotConfirmed: noticing-changes, balancing-interests", false)]
+    [InlineData("statesBefore: balancing-interests=confirmed", false)]
+    [InlineData("states: balancing-interests=confirmed\nask: balancing-interests.4", false)]
+    [InlineData("states: balancing-interests=confirmed", true)]
     public void InvalidValidateFieldsAreRejected(string fields, bool answerAfterCorrection)
     {
         var answers = answerAfterCorrection ? "- 昨日のこと\n- [訂正] 違いました\n- そのあとの答え\n" : "- 昨日のこと\n";
@@ -497,27 +527,62 @@ public sealed class EvalsTests
         Assert.Equal(AnswerKind.Choice, run.Turns.Single(t => t.Role == TurnRoles.User).AnswerKind);
     }
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、期待が confirmed でない力を Confirmed にした数を褒めすぎとして数え、1 件でも合格にしない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、期待が confirmed でない狙った力と、根拠ありにしてはいけない力を Confirmed にした数を褒めすぎとして数え、1 件でも合格にしない")]
     public async Task OverPraiseFails()
     {
-        var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
-        var script = ValidateScript("noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: Free(CoordinatingAnswer));
+        // 狙った力（needsCheck）を根拠ありにした例と、根拠ありにしてはいけない力を根拠ありにした例
+        var targeted = await Run(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer)));
+        var listed = await Run(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("noticing-changes=needsCheck", notConfirmed: "balancing-interests", answers: Free(CoordinatingAnswer)));
+        var summary = EvalSummary.From([targeted, listed]);
 
-        var run = await Run(ai, script);
-        var summary = EvalSummary.From([run]);
-
-        Assert.Equal(AbilityState.Confirmed, run.Final.Single(r => r.Ability == Ability.Coordinating).State);
+        Assert.Equal(AbilityState.Confirmed, targeted.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
+        Assert.Equal(AbilityState.Confirmed, listed.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
         var gate = Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
-        Assert.Equal((1, 3), (gate.Count, gate.Total));
+        Assert.Equal((2, 4), (gate.Count, gate.Total));
         Assert.True(gate.CountsViolations);
         Assert.False(summary.Passed);
+
+        var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [listed], summary, new UsageMeter());
+        Assert.Contains("根拠ありにしてはいけない", report);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、台本に書いていない力を機械の褒めすぎには数えず、根拠の判定役が見る")]
+    public async Task UnlistedAbilityIsNotOverPraise()
+    {
+        var run = await Run(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("noticing-changes=needsCheck", notConfirmed: "setting-priorities", answers: Free(CoordinatingAnswer)));
+        var summary = EvalSummary.From([run]);
+
+        Assert.Equal(AbilityState.Confirmed, run.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
+        // 台本に書いた 2 つの力と、判定役が見た根拠ありの力（判定役はすべての行動を示していると答える）
+        var gate = Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
+        Assert.Equal((0, 3), (gate.Count, gate.Total));
+        var expected = Assert.Single(summary.Reference, i => i.Name.Contains("最後の状態が期待どおりだった力"));
+        Assert.Equal(1, expected.Total);
+
+        // 判定役が示していない行動があると答えれば、台本に書いていない力でも褒めすぎに数える
+        var judged = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
+            ValidateScript("noticing-changes=needsCheck", notConfirmed: "setting-priorities", answers: Free(CoordinatingAnswer)),
+            new FixedEvidenceJudge(_ => new EvidenceVerdict([true, false, true], true, "")));
+        Assert.Equal(1, OverPraiseGate(EvalSummary.From([judged])).Count);
+
+        // 結果のファイルには、台本に書いていない力でも、未確認でなかった力は書く。話から確かめる力をすべては並べない
+        var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
+        Assert.Contains($"| {AbilityText.Name(TestAbilities.BalancingInterests)} | —（台本に書いていない） |", report);
+        Assert.Contains($"| {AbilityText.Name(TestAbilities.SettingPriorities)} | 根拠ありにしてはいけない |", report);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、そろっている例で Confirmed にした割合を数え、期待どおりなら合格にする")]
     public async Task ConfirmedAsExpectedPasses()
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
-        var script = ValidateScript("noticing=notYet, coordinating=confirmed, prioritizing=notYet", answers: Free(CoordinatingAnswer));
+        var script = ValidateScript("balancing-interests=confirmed", notConfirmed: "noticing-changes, setting-priorities", answers: Free(CoordinatingAnswer));
 
         var summary = EvalSummary.From([await Run(ai, script)]);
 
@@ -532,19 +597,19 @@ public sealed class EvalsTests
     public async Task AskMissingActionIsCounted()
     {
         var script = ValidateScript(
-            "noticing=notYet, coordinating=needsCheck, prioritizing=notYet", ask: "coordinating.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", ask: "balancing-interests.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
         var judge = new RecordingJudge();
 
-        var good = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden()).RunAsync(script, Ct);
+        var good = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden(), new DryRunEvidenceJudge()).RunAsync(script, Ct);
         var bad = await new EvalRunner(
-                new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, new FixedJudge(AllGood with { MissingOnly = false }), Forbidden())
+                new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, new FixedJudge(AllGood with { MissingOnly = false }), Forbidden(), new DryRunEvidenceJudge())
             .RunAsync(script, Ct);
 
         var reply = Assert.Single(good.Replies);
         Assert.Equal(MoveKind.AskMissingAction, reply.Move);
-        Assert.Equal(new ActionRef(Ability.Coordinating, 3), reply.Target);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), reply.Target);
         // 判定役には、聞いてよい行動の手がかりを渡す
-        Assert.Equal(AbilityText.Hint(new ActionRef(Ability.Coordinating, 3)), Assert.Single(judge.Hints));
+        Assert.Equal(AbilityText.Hint(new ActionRef(TestAbilities.BalancingInterests, 3)), Assert.Single(judge.Hints));
 
         var passed = Assert.Single(EvalSummary.From([good]).Gated, i => i.Name.Contains("足りない行動だけを聞き返した"));
         Assert.Equal((1, 1), (passed.Count, passed.Total));
@@ -554,10 +619,31 @@ public sealed class EvalsTests
         Assert.False(failed.Passed);
     }
 
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 評価は、足りない行動を聞いても、一つの問いに二つのことを入れた聞き返しは、足りない行動だけを聞き返した例に数えない")]
+    public async Task AskMissingActionWithTwoQuestionsIsNotCounted()
+    {
+        var script = ValidateScript(
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", ask: "balancing-interests.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
+        // 手がかりの行動についてだけ聞いているが、一度に二つのことを聞いている
+        var judge = new FixedJudge(AllGood with { SingleQuestion = false, Reason = "だれの都合を合わせたかと、どう合わせたかを一度に聞いている" });
+
+        var run = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden(), new DryRunEvidenceJudge())
+            .RunAsync(script, Ct);
+
+        var reply = Assert.Single(run.Replies);
+        Assert.Equal(MoveKind.AskMissingAction, reply.Move);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), reply.Target);
+        Assert.True(reply.Verdict!.MissingOnly);
+        var summary = EvalSummary.From([run]);
+        var gate = Assert.Single(summary.Gated, i => i.Name.Contains("足りない行動だけを聞き返した"));
+        Assert.Equal((0, 1), (gate.Count, gate.Total));
+        Assert.False(summary.Passed);
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 判定役には、足りない行動を聞く一手のときだけ手がかりを渡す")]
     public void JudgeMessageHasHint()
     {
-        var hint = AbilityText.Hint(new ActionRef(Ability.Prioritizing, 3));
+        var hint = AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3));
 
         var withHint = ClaudeJudge.UserMessage([], MoveKind.AskMissingAction, hint, "本文です。", []);
         var without = ClaudeJudge.UserMessage([], MoveKind.AskWhatYouDid, null, "本文です。", []);
@@ -569,7 +655,7 @@ public sealed class EvalsTests
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 評価は、最後の根拠の引用が本人の答えに一字一句含まれるかを数え直す")]
     public void QuotesAreRecounted()
     {
-        var script = ValidateScript("noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: Free("朝 8 時に家を出ました。"));
+        var script = ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", answers: Free("朝 8 時に家を出ました。"));
         var turns = new List<Turn>
         {
             new() { Role = TurnRoles.Assistant, Text = DiscoverText.Opening, At = DateTimeOffset.UnixEpoch },
@@ -578,7 +664,7 @@ public sealed class EvalsTests
         EpisodeRun RunWith(string quote) => new(script, [], false, null)
         {
             Turns = turns,
-            Final = AbilityStates.Evaluate([new Evidence(Ability.Coordinating, 1, quote, 1, 1, false, false, null)]),
+            Final = AbilityStates.Evaluate([new Evidence(TestAbilities.BalancingInterests, 1, quote, 1, 1, false, false, null)]),
         };
 
         var exact = EvalSummary.From([RunWith("8 時に家を出ました")]);
@@ -600,15 +686,15 @@ public sealed class EvalsTests
             Reading = turns => new TurnReading(
                 new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent },
                 turns[^1].AnswerKind == AnswerKind.Correction
-                    ? [new EvidenceCandidate(Ability.Coordinating, 1, "夫と", 1, 1, false, "", 0)]
+                    ? [new EvidenceCandidate(TestAbilities.BalancingInterests, 1, "夫と", 1, 1, false, "", 0)]
                     :
                     [
-                        new EvidenceCandidate(Ability.Coordinating, 1, "て", 1, 1, false, "", 0),
-                        new EvidenceCandidate(Ability.Coordinating, 2, "私から声をかけて", 1, 1, false, "", 0),
+                        new EvidenceCandidate(TestAbilities.BalancingInterests, 1, "て", 1, 1, false, "", 0),
+                        new EvidenceCandidate(TestAbilities.BalancingInterests, 2, "私から声をかけて", 1, 1, false, "", 0),
                     ]),
         };
         var script = ValidateScript(
-            "noticing=notYet, coordinating=notYet, prioritizing=notYet", answers: [Free(CoordinatingAnswer), Correction("夫と義母に電話したのは私です")]);
+            "balancing-interests=notYet", notConfirmed: "*", answers: [Free(CoordinatingAnswer), Correction("夫と義母に電話したのは私です")]);
 
         var run = await Run(ai, script);
         var summary = EvalSummary.From([run]);
@@ -632,16 +718,16 @@ public sealed class EvalsTests
                 turns[^1].AnswerKind == AnswerKind.Correction ? [1, 3] : [1, 2, 3])(turns),
         };
         var script = ValidateScript(
-            "noticing=notYet, coordinating=needsCheck, prioritizing=notYet",
-            statesBefore: "noticing=notYet, coordinating=confirmed, prioritizing=notYet",
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities",
+            statesBefore: "balancing-interests=confirmed",
             answers: [Free(CoordinatingAnswer), Correction("声をかけたのは私ではなく、夫でした")]);
 
         var run = await Run(ai, script);
         var summary = EvalSummary.From([run]);
 
         Assert.Null(run.Error);
-        Assert.Equal(AbilityState.Confirmed, run.BeforeCorrection!.Single(r => r.Ability == Ability.Coordinating).State);
-        Assert.Equal(AbilityState.NeedsCheck, run.Final.Single(r => r.Ability == Ability.Coordinating).State);
+        Assert.Equal(AbilityState.Confirmed, run.BeforeCorrection!.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
+        Assert.Equal(AbilityState.NeedsCheck, run.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
         var correction = Assert.Single(run.Corrections);
         Assert.Equal("声をかけたのは私ではなく、夫でした", correction.Text);
         Assert.Equal(AnswerKind.Correction, run.Turns[^1].AnswerKind);
@@ -662,7 +748,7 @@ public sealed class EvalsTests
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
         var script = ValidateScript(
-            "noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: [Free(CoordinatingAnswer), Correction("違いました")]);
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", answers: [Free(CoordinatingAnswer), Correction("違いました")]);
         // 1 往復目の返事のあと（次の読み取り = 訂正の読み取り）で失敗させる
         ai.BeforeReply = () =>
         {
@@ -670,23 +756,218 @@ public sealed class EvalsTests
             return Task.CompletedTask;
         };
 
-        var run = await new EvalRunner(ai, new DryRunJudge(), Forbidden()).RunAsync(script, Ct);
+        var run = await new EvalRunner(ai, new DryRunJudge(), Forbidden(), new DryRunEvidenceJudge()).RunAsync(script, Ct);
 
         Assert.Equal("訂正の読み取りで failure", run.Error);
         Assert.False(EvalSummary.From([run]).Passed);
     }
 
-    [Fact(DisplayName = "評価: 汎用の AI との比較は、挙げた力と引用の違いを同じ物差しで数え、合格の線には入れない")]
+    // ---- 根拠の判定役（根拠ありにした力ごとに、引用が行動を示しているか） ----
+
+    /// <summary>決まった答えを返し、渡された会話と力を覚える根拠の判定役。</summary>
+    private sealed class FixedEvidenceJudge(Func<AbilityResult, EvidenceVerdict?> verdict) : IEvidenceJudge
+    {
+        public List<(string Transcript, AbilityResult Confirmed)> Calls { get; } = [];
+
+        public Task<EvidenceVerdict?> JudgeAsync(string transcript, AbilityResult confirmed, CancellationToken ct)
+        {
+            Calls.Add((transcript, confirmed));
+            return Task.FromResult(verdict(confirmed));
+        }
+    }
+
+    private static EvidenceVerdict AllShown(AbilityResult result) => new(result.Shown.Select(_ => true).ToList(), true, "");
+
+    private static Task<EpisodeRun> RunJudged(FakeConversationAi ai, EpisodeScript script, IEvidenceJudge evidenceJudge) =>
+        new EvalRunner(ai, new DryRunJudge(), Forbidden(), evidenceJudge).RunAsync(script, Ct);
+
+    private static SummaryItem OverPraiseGate(EvalSummary summary) => Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、根拠ありにした力ごとに、判定役へ会話と行動の文と引用を渡し、示していない行動があれば褒めすぎに数える")]
+    public async Task EvidenceJudgeCountsUnshownAction()
+    {
+        var judge = new FixedEvidenceJudge(_ => new EvidenceVerdict([true, false, true], true, "声をかけたのが本人か分からない"));
+        var script = ValidateScript("balancing-interests=confirmed", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
+
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script, judge);
+        var summary = EvalSummary.From([run]);
+
+        var call = Assert.Single(judge.Calls);
+        Assert.Equal(TestAbilities.BalancingInterests, call.Confirmed.Ability);
+        Assert.Equal(AbilityState.Confirmed, call.Confirmed.State);
+        // 本人の答えに番号を振った会話（読み取りと同じ形）
+        Assert.Contains($"[答え 1]（自由に書いた）{CoordinatingAnswer}", call.Transcript);
+        // 判定役への文には、力の名前と理由、行動ごとの行動の文と引用が入る
+        var message = ClaudeEvidenceJudge.UserMessage(call.Transcript, call.Confirmed);
+        Assert.Contains(call.Transcript, message);
+        Assert.Contains(AbilityText.Name(TestAbilities.BalancingInterests), message);
+        Assert.Contains(AbilityCatalog.Find(TestAbilities.BalancingInterests.Id)!.Reason, message);
+        for (var n = 1; n <= 3; n++)
+        {
+            Assert.Contains(AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, n)), message);
+            Assert.Contains($"「{CoordinatingParts[n - 1]}」", message);
+        }
+
+        var judged = Assert.Single(run.Judged);
+        Assert.False(judged.Passed);
+        // 機械で見る力（noticing-changes）と、判定役が見た力（balancing-interests）
+        Assert.Equal((1, 2), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.False(summary.Passed);
+        var byJudge = Assert.Single(summary.Reference, i => i.Name.Contains("褒めすぎのうち、判定役"));
+        Assert.Equal((1, 1), (byJudge.Count, byJudge.Total));
+        var byMachine = Assert.Single(summary.Reference, i => i.Name.Contains("褒めすぎのうち、機械"));
+        Assert.Equal((0, 1), (byMachine.Count, byMachine.Total));
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 判定役が別の出来事の話だと答えた力と、判定役が答えられなかった力も、褒めすぎに数える")]
+    public async Task EvidenceJudgeCountsOtherEventAndNoAnswer()
+    {
+        var script = ValidateScript("balancing-interests=confirmed", answers: Free(CoordinatingAnswer));
+        var otherEvent = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script,
+            new FixedEvidenceJudge(r => AllShown(r) with { SameEvent = false, Reason = "都合を聞いたのは別の日" }));
+        var noAnswer = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script, new FixedEvidenceJudge(_ => null));
+
+        var summary = EvalSummary.From([otherEvent, noAnswer]);
+
+        Assert.Equal((2, 2), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.False(summary.Passed);
+        // 判定役の答えの行動の数が、根拠の行動の数と合わないときも、示していないとみなす
+        var shortVerdict = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script,
+            new FixedEvidenceJudge(_ => new EvidenceVerdict([true, true], true, "")));
+        Assert.False(Assert.Single(shortVerdict.Judged).Passed);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 根拠の判定役の答えに、行動の番号が欠けているか重なっていれば、答えられなかったとみなす")]
+    public void EvidenceJudgeAnswerNeedsEveryActionOnce()
+    {
+        const string good = """{"actions":[{"number":2,"shown":false},{"number":1,"shown":true},{"number":3,"shown":true}],"sameEvent":true,"reason":"r"}""";
+        const string missing = """{"actions":[{"number":1,"shown":true},{"number":3,"shown":true}],"sameEvent":true,"reason":""}""";
+        const string duplicated = """{"actions":[{"number":1,"shown":true},{"number":1,"shown":true},{"number":2,"shown":true}],"sameEvent":true,"reason":""}""";
+
+        var verdict = ClaudeEvidenceJudge.Parse(good, 3);
+        Assert.NotNull(verdict);
+        Assert.Equal([true, false, true], verdict.ActionsShown);
+        Assert.True(verdict.SameEvent);
+        Assert.Equal("r", verdict.Reason);
+        Assert.Null(ClaudeEvidenceJudge.Parse(missing, 3));
+        Assert.Null(ClaudeEvidenceJudge.Parse(duplicated, 3));
+        Assert.Null(ClaudeEvidenceJudge.Parse("{}", 3));
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 機械の褒めすぎと判定役の褒めすぎが同じ力なら、1 件と数える")]
+    public async Task OverPraiseByMachineAndJudgeIsCountedOnce()
+    {
+        // 狙った力は needsCheck のはずなのに根拠ありになり、判定役も示していない行動を見つけた
+        var script = ValidateScript("balancing-interests=needsCheck", answers: Free(CoordinatingAnswer));
+        var run = await RunJudged(
+            new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script,
+            new FixedEvidenceJudge(_ => new EvidenceVerdict([true, true, false], true, "合わせたとは言っていない")));
+
+        var summary = EvalSummary.From([run]);
+
+        Assert.Equal((1, 1), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.False(summary.Passed);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 判定役がすべての行動を示していると答えた力は、褒めすぎに数えない")]
+    public async Task AllShownIsNotOverPraise()
+    {
+        var script = ValidateScript("balancing-interests=confirmed", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) }, script, new FixedEvidenceJudge(AllShown));
+
+        var summary = EvalSummary.From([run]);
+
+        Assert.True(Assert.Single(run.Judged).Passed);
+        Assert.Equal((0, 2), (OverPraiseGate(summary).Count, OverPraiseGate(summary).Total));
+        Assert.True(summary.Passed);
+    }
+
+    private const string PlanningAnswer = "夫と義母の都合を聞いて、私から声をかけて、日を入れ替えて合わせました。そのあと、やることを紙に書き出して、掃除の順番を決めました。";
+
+    /// <summary>最初の答えから、利害調整力の 3 つと段取り力の 2 つを、同じ出来事の根拠として返す読み取り（同じ分類の力が 2 つ根拠ありになる）。</summary>
+    private static TurnReading CoordinatingAndPlanning(IReadOnlyList<Turn> turns) => new(
+        new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent },
+        [
+            .. CoordinatingParts.Select((part, i) => new EvidenceCandidate(TestAbilities.BalancingInterests, i + 1, part, 1, 1, false, "", 0)),
+            new EvidenceCandidate(TestAbilities.PlanningSteps, 1, "やることを紙に書き出して", 1, 1, false, "", 0),
+            new EvidenceCandidate(TestAbilities.PlanningSteps, 2, "掃除の順番を決めました", 1, 1, false, "", 0),
+        ]);
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 評価は、一つの話から画面に出す力を記録し、分類ごとに 2 つ以上出した話の数を参考の数字に残す")]
+    public async Task ShowcaseIsRecorded()
+    {
+        var judge = new FixedEvidenceJudge(AllShown);
+        var script = ValidateScript("balancing-interests=confirmed", answers: Free(PlanningAnswer));
+
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingAndPlanning }, script, judge);
+        var summary = EvalSummary.From([run]);
+
+        // 根拠ありの力はすべて判定役が見る。画面に出すのは、同じ分類で行動の多い利害調整力だけ
+        Assert.Equal([TestAbilities.BalancingInterests, TestAbilities.PlanningSteps], judge.Calls.Select(c => c.Confirmed.Ability).Order());
+        Assert.NotNull(run.Showcase);
+        Assert.Equal([TestAbilities.BalancingInterests], run.Showcase.Seen.Select(r => r.Ability));
+        var crowded = Assert.Single(summary.Reference, i => i.Name.Contains("分類ごとに 2 つ以上"));
+        Assert.Equal((0, 1), (crowded.Count, crowded.Total));
+        Assert.True(crowded.CountsViolations);
+        Assert.Null(crowded.Passed);
+        var seen = Assert.Single(summary.Reference, i => i.Name.Contains("根拠ありにした力のうち、画面に出した力"));
+        Assert.Equal((1, 2), (seen.Count, seen.Total));
+        var moreToHear = Assert.Single(summary.Reference, i => i.Name.Contains("もう少し聞かせてほしいことが 3 つ以上"));
+        Assert.Equal((0, 1), (moreToHear.Count, moreToHear.Total));
+    }
+
+    [Fact(DisplayName = "評価: 根拠の判定役の指示に、判定役の答えの項目がすべて書いてあり、答えの型は力の数で大きくならない")]
+    public void EvidenceJudgePromptListsEveryField()
+    {
+        var prompt = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "judges", "evidence.md"));
+        var schema = System.Text.Json.JsonSerializer.Serialize(ClaudeEvidenceJudge.Schema());
+
+        Assert.Equal(["actions", "number", "shown", "sameEvent", "reason"], ClaudeEvidenceJudge.Fields);
+        Assert.All(ClaudeEvidenceJudge.Fields, field =>
+        {
+            Assert.Contains($"`{field}`", prompt);
+            Assert.Contains($"\"{field}\"", schema);
+        });
+        // 力ごとの欄を持たない
+        Assert.All(AbilityCatalog.Active, a => Assert.DoesNotContain($"\"{a.Id}\"", schema));
+    }
+
+    [Fact(DisplayName = "評価: 結果のファイルに、根拠ありにした力ごとの行動の文、引用、判定役の答えと、画面に出す力を書く")]
+    public async Task ReportHasEvidenceJudgementAndShowcase()
+    {
+        var judge = new FixedEvidenceJudge(r => r.Ability == TestAbilities.BalancingInterests
+            ? new EvidenceVerdict([true, false, true], true, "声をかけたのが本人か分からない")
+            : null);
+        var script = ValidateScript("balancing-interests=confirmed", answers: Free(PlanningAnswer));
+        var run = await RunJudged(new FakeConversationAi { Reading = CoordinatingAndPlanning }, script, judge);
+
+        var report = ReportWriter.Write(
+            new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-05T12:00:00+09:00")), [run], EvalSummary.From([run]),
+            new UsageMeter());
+
+        Assert.Contains("根拠の判定役", report);
+        Assert.Contains($"{AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, 2))}: 「私から声をかけて」 → 示していない ×", report);
+        Assert.Contains($"{AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, 1))}: 「夫と義母の都合を聞いて」 → 示している", report);
+        Assert.Contains("声をかけたのが本人か分からない", report);
+        Assert.Contains($"{AbilityText.Name(TestAbilities.PlanningSteps)}（画面に出さない）: 判定役が答えられなかった", report);
+        Assert.Contains($"見えた力: {AbilityText.Name(TestAbilities.BalancingInterests)}", report);
+    }
+
+    [Fact(DisplayName = "評価: 汎用の AI との比較は、台本に書いた力だけを数え、挙げた力と引用の違いを同じ物差しで数え、合格の線には入れない")]
     public async Task GenericComparisonIsCounted()
     {
-        var script = ValidateScript("noticing=notYet, coordinating=needsCheck, prioritizing=notYet", answers: Free(CoordinatingAnswer));
+        var script = ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
         var run = await Run(new FakeConversationAi(), script);
         var assistant = new FakeGenericAssistant("あなたの強みは調整力です。「都合をうかがった」と話しています。");
+        // 台本に書いていない優先順位設定力は、挙げていても、引用が一字一句でなくても数えない
         var reader = new FakeGenericReader(new GenericReading(
             [
-                new GenericAbility(Ability.Noticing, true, []),
-                new GenericAbility(Ability.Coordinating, true, ["「都合を聞いて」", "都合をうかがった"]),
-                new GenericAbility(Ability.Prioritizing, false, []),
+                new GenericAbility(TestAbilities.NoticingChanges, true, []),
+                new GenericAbility(TestAbilities.BalancingInterests, true, ["「都合を聞いて」", "都合をうかがった"]),
+                new GenericAbility(TestAbilities.SettingPriorities, true, ["朝ごはんを先にした"]),
             ],
             ""));
 
@@ -699,9 +980,11 @@ public sealed class EvalsTests
         Assert.Contains(CoordinatingAnswer, assistant.Prompt);
         Assert.Contains(CoordinatingAnswer, reader.Transcript);
         Assert.Equal(assistant.Answer, reader.Answer);
+        // 答えを読む判定役には、台本に書いた力だけを辞書の順で渡す
+        Assert.Equal(script.Listed.Order(), reader.Abilities);
 
         var praise = Assert.Single(summary.Reference, i => i.Name.Contains("汎用の AI") && i.Name.Contains("褒めすぎ"));
-        Assert.Equal((2, 3), (praise.Count, praise.Total));
+        Assert.Equal((2, 2), (praise.Count, praise.Total));
         var quotes = Assert.Single(summary.Reference, i => i.Name.Contains("汎用の AI") && i.Name.Contains("引用"));
         Assert.Equal((1, 2), (quotes.Count, quotes.Total));
         Assert.True(summary.Passed);
@@ -709,6 +992,7 @@ public sealed class EvalsTests
         var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [withGeneric], summary, new UsageMeter());
         Assert.Contains("## 汎用の AI との比較", report);
         Assert.Contains(assistant.Answer, report);
+        Assert.DoesNotContain("朝ごはんを先にした", report);
     }
 
     /// <summary>決まった答えを返す汎用の AI。受け取った問いを覚える。</summary>
@@ -732,42 +1016,281 @@ public sealed class EvalsTests
 
         public string Answer { get; private set; } = "";
 
-        public Task<GenericReading?> ReadAsync(string transcript, string answer, CancellationToken ct)
+        public IReadOnlyList<Ability> Abilities { get; private set; } = [];
+
+        public Task<GenericReading?> ReadAsync(string transcript, string answer, IReadOnlyList<Ability> abilities, CancellationToken ct)
         {
             Transcript = transcript;
             Answer = answer;
+            Abilities = abilities;
             return Task.FromResult<GenericReading?>(reading);
         }
     }
 
-    [Fact(DisplayName = "評価: リポジトリの確かめの例 12 件が読め、どれも期待する状態を 3 つの力すべてに持ち、すべて架空と書いてある")]
+    [Fact(DisplayName = "評価: 汎用の AI の答えを読む判定役には、台本に書いた力だけを、名前と核となる行動の文と一緒に渡す")]
+    public void GenericReaderReceivesListedAbilities()
+    {
+        IReadOnlyList<Ability> listed = [TestAbilities.BalancingInterests, TestAbilities.Summarizing];
+
+        var message = ClaudeGenericReader.UserMessage("利用者: 昨日のこと", "強みは調整力です。", listed);
+
+        Assert.Contains("<conversation>\n利用者: 昨日のこと\n</conversation>", message);
+        Assert.Contains("<answer>\n強みは調整力です。\n</answer>", message);
+        foreach (var ability in listed)
+        {
+            Assert.Contains($"`{ability.Id}`（{AbilityText.Name(ability)}）", message);
+            for (var n = 1; n <= AbilityCatalog.ActionCount(ability); n++)
+            {
+                Assert.Contains(AbilityCatalog.ActionText(new ActionRef(ability, n)), message);
+            }
+        }
+
+        Assert.DoesNotContain(AbilityText.Name(TestAbilities.SettingPriorities), message);
+        Assert.DoesNotContain(TestAbilities.SettingPriorities.Id, message);
+
+        // 判定役の指示（キャッシュの効くシステムの指示）には、力を決め打ちしない
+        var prompt = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "judges", "generic.md"));
+        Assert.All(AbilityCatalog.Active, a => Assert.DoesNotContain(a.Id, prompt));
+        Assert.Contains("`<abilities>`", prompt);
+        Assert.All(["named", "ability", "quotes", "reason"], field => Assert.Contains($"`{field}`", prompt));
+    }
+
+    [Fact(DisplayName = "評価: 汎用の AI の答えを読む判定役の答えの型は、挙げた力の配列で、力の数で欄が増えない")]
+    public void GenericReaderSchemaDoesNotGrowWithAbilities()
+    {
+        var one = ClaudeGenericReader.Schema([TestAbilities.BalancingInterests]);
+        var all = ClaudeGenericReader.Schema(AbilityCatalog.Active);
+
+        Assert.Equal(["named", "reason"], all["properties"].EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(["named", "reason"], one["properties"].EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        var item = all["properties"].GetProperty("named").GetProperty("items");
+        Assert.Equal(["ability", "quotes"], item.GetProperty("properties").EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        // 力は、渡した力の id の enum で選ぶ
+        Assert.Equal(
+            AbilityCatalog.Active.Select(a => a.Id),
+            item.GetProperty("properties").GetProperty("ability").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal(
+            [TestAbilities.BalancingInterests.Id],
+            one["properties"].GetProperty("named").GetProperty("items").GetProperty("properties").GetProperty("ability").GetProperty("enum")
+                .EnumerateArray().Select(e => e.GetString()));
+    }
+
+    [Fact(DisplayName = "評価: 汎用の AI の答えを読む判定役の答えで、渡していない力と同じ力の重なりは読めなかったと数え、配列にない力は挙げていないものとして読む")]
+    public async Task GenericReaderAnswerIsChecked()
+    {
+        IReadOnlyList<Ability> listed = [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges];
+
+        var reading = ClaudeGenericReader.Parse(
+            """{"named":[{"ability":"balancing-interests","quotes":["都合を聞いて"]}],"reason":"r"}""", listed);
+        Assert.NotNull(reading);
+        Assert.Equal(listed, reading.Abilities.Select(a => a.Ability));
+        Assert.True(reading.Abilities[0].Named);
+        Assert.Equal(["都合を聞いて"], reading.Abilities[0].Quotes);
+        Assert.False(reading.Abilities[1].Named);
+        Assert.Empty(reading.Abilities[1].Quotes);
+        Assert.Equal("r", reading.Reason);
+
+        Assert.Null(ClaudeGenericReader.Parse(
+            """{"named":[{"ability":"balancing-interests","quotes":[]},{"ability":"balancing-interests","quotes":[]}],"reason":""}""", listed));
+        Assert.Null(ClaudeGenericReader.Parse("""{"named":[{"ability":"setting-priorities","quotes":[]}],"reason":""}""", listed));
+
+        // 読めなかった答えは、汎用の AI との比較で「答えを得られなかった例」に数える
+        var script = ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
+        var run = await Run(new FakeConversationAi(), script);
+        var generic = await new GenericComparison(new FakeGenericAssistant("強みは調整力です。"), new FakeGenericReader(null!)).RunAsync(run, Ct);
+        Assert.Equal("判定役が答えを読めなかった", generic.Error);
+        var unavailable = Assert.Single(EvalSummary.From([run with { Generic = generic }]).Reference, i => i.Name.Contains("答えを得られなかった"));
+        Assert.Equal((1, 1), (unavailable.Count, unavailable.Total));
+    }
+
+    [Fact(DisplayName = "評価: リポジトリの確かめの例がすべて読め、どれも狙った力か根拠ありにしてはいけない力を持ち、すべて架空と書いてある")]
     public void RepositoryValidateEpisodesParse()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
         var scripts = EpisodeScript.LoadAll(dir, "validate");
 
-        Assert.Equal(["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19"], scripts.Select(s => s.Id));
+        Assert.Equal(
+            ["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19", .. ConfirmedScriptIds, .. PartialScriptIds, SimilarScriptId],
+            scripts.Select(s => s.Id));
         Assert.All(scripts, s =>
         {
-            Assert.NotNull(s.States);
-            Assert.Equal(3, s.States.Count);
+            Assert.NotEmpty(s.Listed);
+            // 似た力が並ぶ台本だけ、同じ分類の 2 つの力を狙う
+            Assert.True(s.States is null || s.States.Count == (s.Id == SimilarScriptId ? 2 : 1), $"{s.Id} の states は狙った力だけ");
             Assert.InRange(s.Answers.Count(a => !a.IsCorrection), 4, 7);
         });
-        Assert.Equal(new ActionRef(Ability.Coordinating, 3), scripts.Single(s => s.Id == "e11").Ask);
-        Assert.Equal(new ActionRef(Ability.Prioritizing, 3), scripts.Single(s => s.Id == "e12").Ask);
+        // どの力も根拠ありにしてはいけない話は、notConfirmed: *
+        Assert.Null(scripts.Single(s => s.Id == "e16").States);
+        Assert.Equal(AbilityCatalog.Active.ToHashSet(), scripts.Single(s => s.Id == "e16").NotConfirmed);
+        Assert.Equal(AbilityCatalog.Active.ToHashSet(), scripts.Single(s => s.Id == "e13").NotConfirmed);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), scripts.Single(s => s.Id == "e11").Ask);
+        Assert.Equal(new ActionRef(TestAbilities.SettingPriorities, 3), scripts.Single(s => s.Id == "e12").Ask);
         // validate-1（すべてそろったときだけ根拠あり）: 期限を確かめた事実だけでは、決めた理由として根拠にしない
         var checkedDeadline = scripts.Single(s => s.Id == "e19");
-        Assert.Equal(new ActionRef(Ability.Prioritizing, 3), checkedDeadline.Ask);
-        Assert.Equal(AbilityState.NeedsCheck, checkedDeadline.States![Ability.Prioritizing]);
+        Assert.Equal(new ActionRef(TestAbilities.SettingPriorities, 3), checkedDeadline.Ask);
+        Assert.Equal(AbilityState.NeedsCheck, checkedDeadline.States![TestAbilities.SettingPriorities]);
         Assert.All(scripts.Single(s => s.Id == "e16").Answers, a => Assert.True(a.IsChoice));
         Assert.Contains(scripts.Single(s => s.Id == "e17").Answers, a => a.IsChoice && a.Text.Length > 0);
         var correction = scripts.Single(s => s.Id == "e18");
-        Assert.Equal(AbilityState.Confirmed, correction.StatesBefore![Ability.Coordinating]);
-        Assert.Equal(AbilityState.NeedsCheck, correction.States![Ability.Coordinating]);
+        Assert.Equal(AbilityState.Confirmed, correction.StatesBefore![TestAbilities.BalancingInterests]);
+        Assert.Equal(AbilityState.NeedsCheck, correction.States![TestAbilities.BalancingInterests]);
         Assert.Contains(correction.Answers, a => a.IsCorrection);
         foreach (var file in Directory.GetFiles(dir, "e*.md").Where(f => int.Parse(Path.GetFileName(f)[1..3], System.Globalization.CultureInfo.InvariantCulture) >= 8))
         {
             Assert.Contains("すべて架空", File.ReadAllText(file));
         }
+    }
+
+    // 根拠ありになる台本（話から確かめる力ごとに 1 本）。準備中の力の番号（e29、e30）は空けておく
+    private static readonly string[] ConfirmedScriptIds =
+    [
+        "e21", "e22", "e23", "e24", "e25", "e26", "e27", "e28",
+        "e31", "e32", "e33", "e34", "e35", "e36", "e37", "e38", "e39", "e40", "e41",
+    ];
+
+    // 分類ごとの一部だけそろう台本。仮説思考力の台本の番号（e45）は、力が準備中なので空けておく。調整・実行・仕組み化は e11、e12、e19 がある
+    private static readonly string[] PartialScriptIds = ["e42", "e43", "e44", "e46", "e47", "e48", "e49"];
+
+    private const string SimilarScriptId = "e50";
+
+    private static IReadOnlyList<EpisodeScript> ValidateScripts() =>
+        EpisodeScript.LoadAll(Path.Combine(AppContext.BaseDirectory, "episodes"), "validate");
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 話から確かめる力それぞれに、根拠ありになる台本が 1 本以上ある")]
+    public void EveryActiveAbilityHasConfirmedScript()
+    {
+        var scripts = ValidateScripts();
+
+        foreach (var ability in AbilityCatalog.Active)
+        {
+            Assert.True(
+                scripts.Any(s => s.States is { } states && states.TryGetValue(ability, out var state) && state == AbilityState.Confirmed),
+                $"{AbilityText.Name(ability)} の根拠ありになる台本がない");
+        }
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 話から確かめる力のある分類それぞれに、一部だけそろう台本（ask あり）が 1 本以上ある")]
+    public void EveryActiveCategoryHasPartialScript()
+    {
+        var scripts = ValidateScripts();
+        var categories = AbilityCatalog.Active.Select(AbilityCatalog.Category).Distinct().ToList();
+
+        Assert.NotEmpty(categories);
+        foreach (var category in categories)
+        {
+            Assert.True(
+                scripts.Any(s => s.Ask is { } ask && AbilityCatalog.Category(ask.Ability) == category && s.States![ask.Ability] == AbilityState.NeedsCheck),
+                $"分類 {category} の、一部だけそろう台本がない");
+        }
+    }
+
+    // 手がかりを一つの問いになる形に直した行動（情報収集力 2、違和感察知力 1、相手に応じた説明力 1、予定変更への対応力 2、期限管理力 1・2、論点整理力 2）。
+    // 直した手がかりで聞き返せるかを、本物の AI の評価で確かめるために、どれかを聞き返す台本を置く
+    private static readonly ActionRef[] RewordedHintActions =
+    [
+        new(new Ability("info-gathering"), 2),
+        new(new Ability("sensing-incongruity"), 1),
+        new(new Ability("adapting-explanations"), 1),
+        new(new Ability("handling-schedule-changes"), 2),
+        new(new Ability("managing-deadlines"), 1),
+        new(new Ability("managing-deadlines"), 2),
+        new(new Ability("organizing-issues"), 2),
+    ];
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 手がかりを一つの問いになる形に直した行動のどれかを聞き返す、一部だけそろう台本が 1 本以上ある")]
+    public void SomePartialScriptAsksRewordedHint()
+    {
+        Assert.All(RewordedHintActions, a => Assert.InRange(a.Number, 1, AbilityCatalog.ActionCount(a.Ability)));
+
+        var scripts = ValidateScripts().Where(s => s.Ask is { } ask && RewordedHintActions.Contains(ask)).ToList();
+
+        Assert.NotEmpty(scripts);
+        Assert.All(scripts, s => Assert.Equal(AbilityState.NeedsCheck, s.States![s.Ask!.Ability]));
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 同じ分類の 2 つの力が根拠ありになる台本が 1 本以上ある")]
+    public void SomeScriptHasTwoConfirmedAbilitiesInOneCategory()
+    {
+        var similar = ValidateScripts().Where(s => s.States is { } states
+            && states.Where(p => p.Value == AbilityState.Confirmed).GroupBy(p => AbilityCatalog.Category(p.Key)).Any(g => g.Count() >= 2)).ToList();
+
+        var script = Assert.Single(similar);
+        Assert.Equal(SimilarScriptId, script.Id);
+        Assert.Equal(new HashSet<Ability> { new("summarizing"), new("active-listening") }, script.States!.Keys.ToHashSet());
+    }
+
+    [Fact(DisplayName = "評価: リポジトリの確かめの例の ask の行動は、states で needsCheck の力のもので、行動の番号がその力にある")]
+    public void RepositoryAskTargetsNeedsCheckAbility()
+    {
+        var withAsk = ValidateScripts().Where(s => s.Ask is not null).ToList();
+
+        Assert.True(withAsk.Count >= 3 + PartialScriptIds.Length);
+        Assert.All(withAsk, s =>
+        {
+            Assert.Equal(AbilityState.NeedsCheck, s.States![s.Ask!.Ability]);
+            Assert.InRange(s.Ask.Number, 1, AbilityCatalog.ActionCount(s.Ask.Ability));
+            Assert.Contains(s.Ask.Ability, AbilityCatalog.Active);
+        });
+        Assert.Equal(PartialScriptIds, withAsk.Select(s => s.Id).Where(PartialScriptIds.Contains));
+    }
+
+    [Fact(DisplayName = "評価: 台本の答えに、狙った力の核となる行動の文と手がかりを、そのまま写していない")]
+    public void ScriptAnswersDoNotCopyActionTextOrHint()
+    {
+        foreach (var script in ValidateScripts().Where(s => s.States is not null))
+        {
+            var answers = string.Concat(script.Answers.Select(a => a.Text));
+            foreach (var ability in script.States!.Keys.Where(AbilityCatalog.IsActive))
+            {
+                for (var n = 1; n <= AbilityCatalog.ActionCount(ability); n++)
+                {
+                    var action = new ActionRef(ability, n);
+                    Assert.DoesNotContain(AbilityCatalog.ActionText(action), answers);
+                    Assert.DoesNotContain(AbilityCatalog.Hint(action), answers);
+                }
+            }
+        }
+    }
+
+    // 足りない行動の手がかりになる話をどの答えでもしていないかは、言い換えまでは機械で見分けられないので、台本のレビューで見る
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 一部だけそろう台本は、狙った力を一つだけ要確認と書き、ask の力とファイル名がそろい、自由に書いた答えだけで話す")]
+    public void PartialScriptsTargetOneNeedsCheckAbility()
+    {
+        var scripts = ValidateScripts().Where(s => PartialScriptIds.Contains(s.Id)).ToList();
+
+        Assert.Equal(PartialScriptIds, scripts.Select(s => s.Id));
+        Assert.All(scripts, s =>
+        {
+            Assert.Equal("concreteEvent", s.Expect);
+            var target = Assert.Single(s.States!);
+            Assert.Equal(AbilityState.NeedsCheck, target.Value);
+            Assert.NotNull(s.Ask);
+            Assert.Equal(target.Key, s.Ask!.Ability);
+            Assert.DoesNotContain(target.Key, s.NotConfirmed);
+            Assert.Single(Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "episodes"), $"{s.Id}-{s.Ask.Ability.Id}-partial.md"));
+            Assert.All(s.Answers, a => Assert.False(a.IsChoice || a.IsCorrection));
+        });
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: リポジトリの根拠ありになる台本は、話から確かめる力を一つだけ根拠ありと書き、力ごとに 1 本で、ファイル名にその力の id がある")]
+    public void RepositoryConfirmedEpisodesTargetOneActiveAbility()
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
+        var scripts = EpisodeScript.LoadAll(dir, "validate").Where(s => ConfirmedScriptIds.Contains(s.Id)).ToList();
+
+        Assert.Equal(ConfirmedScriptIds, scripts.Select(s => s.Id));
+        var targets = scripts.Select(s =>
+        {
+            Assert.Equal("concreteEvent", s.Expect);
+            Assert.Null(s.Ask);
+            var target = Assert.Single(s.States!);
+            Assert.Equal(AbilityState.Confirmed, target.Value);
+            Assert.Contains(target.Key, AbilityCatalog.Active);
+            Assert.DoesNotContain(target.Key, s.NotConfirmed);
+            Assert.All(s.Answers, a => Assert.False(a.IsChoice || a.IsCorrection));
+            Assert.Single(Directory.GetFiles(dir, $"{s.Id}-{target.Key.Id}.md"));
+            return target.Key;
+        }).ToList();
+        Assert.Equal(targets.Count, targets.Distinct().Count());
     }
 }

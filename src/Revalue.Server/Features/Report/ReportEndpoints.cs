@@ -15,9 +15,9 @@ public sealed record ReportAbilityDto(string Key, string Name, AbilityState Stat
 /// <summary>業務 1 つで、まだ確かめていないこと。<paramref name="AbilityName"/> は、まだ確かめていない力の名前（なければ null）。</summary>
 public sealed record ReportTaskGapDto(string TaskName, string? AbilityName, IReadOnlyList<string> Knowledge);
 
-/// <summary>まだ確かめていないこと。力は名前で返す。</summary>
+/// <summary>まだ確かめていないこと。力は名前で返す。まだ聞けていない力の名前は返さない。</summary>
 public sealed record ReportNotYetDto(
-    IReadOnlyList<string> NotHeard, IReadOnlyList<string> Checking, IReadOnlyList<ReportTaskGapDto> TaskGaps, bool HasExcluded);
+    IReadOnlyList<string> Checking, IReadOnlyList<ReportTaskGapDto> TaskGaps, bool HasExcluded);
 
 /// <summary>5 つの記録（できることは確かめた力の欄と同じなので返さない）。</summary>
 public sealed record ReportRecordsDto(
@@ -116,7 +116,7 @@ public static class ReportEndpoints
 
     private static ReportContentDto ContentDto(ReportContent content, bool abilitiesExcluded) =>
         new(
-            content.Abilities.Select(AbilityDto).ToList(),
+            content.Abilities.Where(a => AbilityCatalog.IsActive(a.Ability)).Select(AbilityDto).ToList(),
             abilitiesExcluded,
             NotYetDto(content.NotYet),
             RecordsDto(content.Records),
@@ -126,8 +126,9 @@ public static class ReportEndpoints
                 content.Choice.Title,
                 content.Choice.Summary,
                 content.Choice.Tasks,
-                content.Choice.Reason,
-                content.Choice.Ability is { } a ? AbilityDto(a) : null,
+                // 選んだ案の力が辞書の話から確かめる力でなければ（保存データの古い id など）、理由と力を出さない
+                content.Choice.Ability is { } shown && !AbilityCatalog.IsActive(shown.Ability) ? null : content.Choice.Reason,
+                content.Choice.Ability is { } a && AbilityCatalog.IsActive(a.Ability) ? AbilityDto(a) : null,
                 content.Choice.Problem,
                 content.Choice.OutsideConditions,
                 content.Choice.DemandNotChecked,
@@ -143,7 +144,8 @@ public static class ReportEndpoints
             version.At,
             version.Changed,
             new ReportSnapshotDto(
-                snapshot.Abilities.Select(a => new ReportSnapshotAbilityDto(ActionRef.Key(a), AbilityText.Name(a))).ToList(),
+                // 辞書の話から確かめる力でない力（前の版の古い id など）は、名前を引く前に除く
+                snapshot.Abilities.Where(AbilityCatalog.IsActive).Select(a => new ReportSnapshotAbilityDto(ActionRef.Key(a), AbilityText.Name(a))).ToList(),
                 snapshot.NotYet,
                 RecordsDto(snapshot.Records),
                 snapshot.Choice,
@@ -156,9 +158,9 @@ public static class ReportEndpoints
 
     private static ReportNotYetDto NotYetDto(ReportNotYet notYet) =>
         new(
-            notYet.NotHeard.Select(AbilityText.Name).ToList(),
-            notYet.Checking.Select(AbilityText.Name).ToList(),
-            notYet.TaskGaps.Select(g => new ReportTaskGapDto(g.TaskName, g.Ability is { } a ? AbilityText.Name(a) : null, g.Knowledge)).ToList(),
+            notYet.Checking.Where(AbilityCatalog.IsActive).Select(AbilityText.Name).ToList(),
+            // 業務の力が辞書の話から確かめる力でなければ、名前なしにする
+            notYet.TaskGaps.Select(g => new ReportTaskGapDto(g.TaskName, g.Ability is { } a ? AbilityText.NameOrNull(a) : null, g.Knowledge)).ToList(),
             notYet.HasExcluded);
 
     private static ReportRecordsDto RecordsDto(ReportRecords records) =>

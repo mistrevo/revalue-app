@@ -47,12 +47,12 @@ public sealed class DeepenApiTests
     private static Kit Setup()
     {
         var ai = new FakeConversationAi();
-        // 組み合わせるは、日程の調整（調整する力）と帳簿の確かめ（見立てる力）にする
+        // 組み合わせるは、日程の調整（利害調整力）と帳簿の確かめ（変化への気づき）にする
         var options = new FakeOptionsAi
         {
             Change = d => d with
             {
-                Combine = d.Combine with { Made = true, TaskIds = ["online-secretary-schedule", "accounting-check"], Ability = "coordinating" },
+                Combine = d.Combine with { Made = true, TaskIds = ["online-secretary-schedule", "accounting-check"], Ability = "balancing-interests" },
             },
         };
         var deepen = new FakeDeepenAi();
@@ -65,11 +65,11 @@ public sealed class DeepenApiTests
         return new Kit(factory, ai, options, deepen);
     }
 
-    /// <summary>話し終えた場面（調整する力が見えた力）、週 10 時間・日中と夕方・家だけで、仕事のカードを作った人。</summary>
+    /// <summary>話し終えた場面（利害調整力が見えた力）、週 10 時間・日中と夕方・家だけで、仕事のカードを作った人。</summary>
     private static async Task<HttpClient> Ready(Kit kit, string user)
     {
         var client = await Consenting(kit.Factory, user);
-        await FinishedEpisode(client, kit.Ai, CoordinatingAll);
+        await FinishedEpisode(client, kit.Ai, BalancingInterestsAll);
         await PutConditions(client, Conditions(10));
         var generated = await client.PostAsync("/api/options", null, Ct);
         Assert.Equal(HttpStatusCode.OK, generated.StatusCode);
@@ -181,16 +181,16 @@ public sealed class DeepenApiTests
         Assert.Equal(0, kit.Deepen.Calls);
     }
 
-    [Fact]
+    [Fact(DisplayName = "deepen-2（業務ごとに照らす）: GET /api/deepen は、話から確かめる力の一覧を辞書の順で返す")]
     public async Task DeepenReturnsActiveAbilitiesFromCatalog()
     {
         var kit = Setup();
         var client = await Ready(kit, "d-abilities");
 
-        // 選んだ案がなくても、業務の見立てで選べる力は辞書の判定に使う力と同じ順で返す
+        // 選んだ案がなくても、業務の見立てで選べる力は辞書の話から確かめる力と同じ順で返す
         var dto = await Get(client);
         var returned = dto.GetProperty("abilities").EnumerateArray()
-            .Select(a => (a.GetProperty("key").GetString(), a.GetProperty("name").GetString()))
+            .Select(a => (a.GetProperty("key").GetString()!, a.GetProperty("name").GetString()!))
             .ToList();
         var expected = AbilityCatalog.Active.Select(a => (a.Id, AbilityCatalog.Name(a))).ToList();
         Assert.Equal(expected, returned);
@@ -220,7 +220,7 @@ public sealed class DeepenApiTests
         var question = Assert.Single(Array(content, "questions"));
         Assert.Equal("q1", question.GetProperty("id").GetString());
         Assert.Equal(3, Array(question, "choices").Length);
-        Assert.Equal(AbilityText.Name(Ability.Coordinating), question.GetProperty("abilityName").GetString());
+        Assert.Equal(AbilityText.Name(TestAbilities.BalancingInterests), question.GetProperty("abilityName").GetString());
         Assert.Equal(JsonValueKind.Null, question.GetProperty("answer").ValueKind);
         Assert.Equal([("s1", true, false), ("s2", true, false), ("s3", true, false)], Steps(dto));
         Assert.Equal(sends + 1, await Sends(kit.Factory, "d-2"));
@@ -277,7 +277,7 @@ public sealed class DeepenApiTests
         var first = await Generate(client);
         var seen = GeneratedAt(first);
         var choice = Array(Array(Content(first), "questions")[0], "choices")[0].GetString();
-        var task = new { name = "架空の業務", detail = "", ability = "noticing", knowledge = "" };
+        var task = new { name = "架空の業務", detail = "", ability = "noticing-changes", knowledge = "" };
 
         // ほかのタブで「選ぶ」を選んで深め、また「創る」を選んで深め直した（A2）
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));
@@ -322,14 +322,14 @@ public sealed class DeepenApiTests
 
         Assert.Equal(2, tasks.Length);
         var schedule = tasks[0];
-        Assert.Equal(("coordinating", AbilityText.Name(Ability.Coordinating)), (schedule.GetProperty("ability").GetString(), schedule.GetProperty("abilityName").GetString()));
+        Assert.Equal(("balancing-interests", AbilityText.Name(TestAbilities.BalancingInterests)), (schedule.GetProperty("ability").GetString(), schedule.GetProperty("abilityName").GetString()));
         var usable = schedule.GetProperty("usable");
         Assert.Equal("confirmed", usable.GetProperty("state").GetString());
-        Assert.Equal(CoordinatingAll.Select(c => c.Quote), Array(usable, "quotes").Select(q => q.GetProperty("text").GetString()));
+        Assert.Equal(BalancingInterestsAll.Select(c => c.Quote), Array(usable, "quotes").Select(q => q.GetProperty("text").GetString()));
         Assert.Equal(["オンラインの予定表"], Array(schedule, "knowledge").Select(k => k.GetString()));
 
         var check = tasks[1];
-        Assert.Equal("noticing", check.GetProperty("ability").GetString());
+        Assert.Equal("noticing-changes", check.GetProperty("ability").GetString());
         Assert.Equal(JsonValueKind.Null, check.GetProperty("usable").ValueKind);
         Assert.Equal(["簿記の基礎", "会計ソフト"], Array(check, "knowledge").Select(k => k.GetString()));
     }
@@ -350,9 +350,9 @@ public sealed class DeepenApiTests
 
         var replaced = await PutTasks(client,
         [
-            new { name = "架空の業務 a", detail = "架空の中身", ability = "noticing", knowledge = "表計算" },
-            new { name = "架空の業務 b", detail = "", ability = "coordinating", knowledge = "" },
-            new { name = "  架空の業務 c  ", detail = (string?)null, ability = "prioritizing", knowledge = (string?)null },
+            new { name = "架空の業務 a", detail = "架空の中身", ability = "noticing-changes", knowledge = "表計算" },
+            new { name = "架空の業務 b", detail = "", ability = "balancing-interests", knowledge = "" },
+            new { name = "  架空の業務 c  ", detail = (string?)null, ability = "setting-priorities", knowledge = (string?)null },
         ]);
         Assert.Equal(HttpStatusCode.OK, replaced.StatusCode);
         var tasks = Array(Content(await Get(client)), "tasks");
@@ -364,13 +364,13 @@ public sealed class DeepenApiTests
         Assert.Equal("confirmed", tasks[1].GetProperty("usable").GetProperty("state").GetString());
         Assert.False(Content(await Get(client)).GetProperty("tasksRejected").GetBoolean());
 
-        var task = new { name = "架空の業務", detail = "", ability = "noticing", knowledge = "" };
-        await AssertProblem(await PutTasks(client, [new { name = "  ", detail = "", ability = "noticing", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
+        var task = new { name = "架空の業務", detail = "", ability = "noticing-changes", knowledge = "" };
+        await AssertProblem(await PutTasks(client, [new { name = "  ", detail = "", ability = "noticing-changes", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
         await AssertProblem(await PutTasks(client, [task, task, task, task, task, task]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
         await AssertProblem(await PutTasks(client, [new { name = "架空の業務", detail = "", ability = "cooking", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
-        await AssertProblem(await PutTasks(client, [new { name = new string('あ', 31), detail = "", ability = "noticing", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
-        await AssertProblem(await PutTasks(client, [new { name = "架空", detail = new string('あ', 81), ability = "noticing", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
-        await AssertProblem(await PutTasks(client, [new { name = "架空", detail = "", ability = "noticing", knowledge = new string('あ', 61) }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
+        await AssertProblem(await PutTasks(client, [new { name = new string('あ', 31), detail = "", ability = "noticing-changes", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
+        await AssertProblem(await PutTasks(client, [new { name = "架空", detail = new string('あ', 81), ability = "noticing-changes", knowledge = "" }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
+        await AssertProblem(await PutTasks(client, [new { name = "架空", detail = "", ability = "noticing-changes", knowledge = new string('あ', 61) }]), HttpStatusCode.BadRequest, "/problems/invalid-deepen");
         Assert.Equal(3, Array(Content(await Get(client)), "tasks").Length);
 
         // 見立ての業務をすべて消しても、あとから足せる
@@ -501,7 +501,7 @@ public sealed class DeepenApiTests
         var kit = Setup();
         // 確かめ中の力（核となる行動が 2 つ）だけの人
         var client = await Consenting(kit.Factory, "d-10");
-        await FinishedEpisode(client, kit.Ai, CoordinatingAll[..2]);
+        await FinishedEpisode(client, kit.Ai, BalancingInterestsAll[..2]);
         await PutConditions(client, Conditions(10));
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/options", null, Ct)).StatusCode);
         await ChooseCard(client, "choose");
@@ -512,8 +512,8 @@ public sealed class DeepenApiTests
         var bookBefore = JsonSerializer.Serialize(await store.GetAsync<AbilityBookItem>(TestUsers.Key("d-10"), AbilityBookItem.ItemId, Ct));
         var episodesBefore = JsonSerializer.Serialize(await store.ListByTypeAsync<Revalue.Server.Features.Discover.EpisodeItem>(TestUsers.Key("d-10"), Revalue.Server.Features.Discover.EpisodeItem.ItemType, Ct));
 
-        // 調整する力の残りの行動を思わせる答えを書いても
-        Assert.Equal(HttpStatusCode.OK, (await PutAnswer(client, "q1", CoordinatingAll[2].Quote, false)).StatusCode);
+        // 利害調整力の残りの行動を思わせる答えを書いても
+        Assert.Equal(HttpStatusCode.OK, (await PutAnswer(client, "q1", BalancingInterestsAll[2].Quote, false)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await PutAnswer(client, "q1", ScriptedDeepenAi.Choices[2], true)).StatusCode);
 
         Assert.Equal(abilitiesBefore, (await Json(await client.GetAsync("/api/abilities", Ct))).GetRawText());
@@ -588,7 +588,7 @@ public sealed class DeepenApiTests
         var kit = Setup();
         kit.Deepen.Change = d => d with
         {
-            Tasks = [new TaskDraft("業務の目印-1a2b", "中身の目印", "coordinating", ""), new TaskDraft("業務の目印-3c4d", "", "noticing", "")],
+            Tasks = [new TaskDraft("業務の目印-1a2b", "中身の目印", "balancing-interests", ""), new TaskDraft("業務の目印-3c4d", "", "noticing-changes", "")],
             Questions = [d.Questions[0] with { Situation = "問いの目印-5e6f、どうしますか？" }],
         };
         var client = await Ready(kit, "d-12");
@@ -596,7 +596,7 @@ public sealed class DeepenApiTests
         await Generate(client);
         await PutAnswer(client, "q1", "答えの目印-9c0d", false);
         await PutSteps(client, ["s1"], ["一歩の目印-1e2f"]);
-        await PutTasks(client, [new { name = "直した業務の目印", detail = "", ability = "noticing", knowledge = "" }]);
+        await PutTasks(client, [new { name = "直した業務の目印", detail = "", ability = "noticing-changes", knowledge = "" }]);
         await ChooseCard(client, "choose");
         kit.Deepen.Fail = ConversationAiException.Failure;
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/api/deepen", null, Ct)).StatusCode);

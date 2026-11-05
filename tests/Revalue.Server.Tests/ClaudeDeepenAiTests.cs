@@ -35,12 +35,12 @@ public sealed class ClaudeDeepenAiTests
     {
         tasks = new[]
         {
-            new { name = "架空の業務 1", detail = "架空の中身 1", ability = "coordinating", knowledge = "表計算" },
-            new { name = "架空の業務 2", detail = "", ability = "prioritizing", knowledge = "" },
+            new { name = "架空の業務 1", detail = "架空の中身 1", ability = "balancing-interests", knowledge = "表計算" },
+            new { name = "架空の業務 2", detail = "", ability = "setting-priorities", knowledge = "" },
         },
         questions = new[]
         {
-            new { situation = "架空の場面", ability = "coordinating", choices = new[] { "架空の考え方 a", "架空の考え方 b", "架空の考え方 c" } },
+            new { situation = "架空の場面", ability = "balancing-interests", choices = new[] { "架空の考え方 a", "架空の考え方 b", "架空の考え方 c" } },
         },
         steps = new[]
         {
@@ -118,8 +118,8 @@ public sealed class ClaudeDeepenAiTests
         {
             Abilities =
             [
-                new UsableAbility(Ability.Coordinating, AbilityState.Confirmed, [E(Ability.Coordinating, 1, Q1), E(Ability.Coordinating, 2, Q2)]),
-                new UsableAbility(Ability.Noticing, AbilityState.NeedsCheck, [E(Ability.Noticing, 1, "予定を見比べました")]),
+                new UsableAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1), E(TestAbilities.BalancingInterests, 2, Q2)]),
+                new UsableAbility(TestAbilities.NoticingChanges, AbilityState.NeedsCheck, [E(TestAbilities.NoticingChanges, 1, "予定を見比べました")]),
             ],
         };
 
@@ -167,12 +167,12 @@ public sealed class ClaudeDeepenAiTests
         var task = Catalog.FindTask("online-secretary-schedule")!;
         Assert.Contains(task.Name, choose);
         Assert.Contains(task.Detail, choose);
-        Assert.Contains("coordinating", choose);
+        Assert.Contains("balancing-interests", choose);
 
         var combine = Section(ClaudeDeepenAi.Brief(Target(Options(CombineChoice())), RecordInputs()), "target");
         Assert.Contains("予定をつなぐ人", combine);
         Assert.Contains(Catalog.FindTask("accounting-check")!.Name, combine);
-        Assert.Contains("noticing", combine);
+        Assert.Contains("noticing-changes", combine);
 
         var card = Card();
         var create = Section(ClaudeDeepenAi.Brief(Target(Options(CreateChoice())), RecordInputs()), "target");
@@ -248,7 +248,7 @@ public sealed class ClaudeDeepenAiTests
             return item.GetProperty("properties");
         }
 
-        string[] abilities = ["noticing", "coordinating", "prioritizing"];
+        var abilities = AbilityCatalog.Active.Select(a => a.Id).ToArray();
         var tasks = Item(schema, "tasks", ["name", "detail", "ability", "knowledge"]);
         Assert.Equal(abilities, tasks.GetProperty("ability").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
         var questions = Item(schema, "questions", ["situation", "ability", "choices"]);
@@ -266,10 +266,10 @@ public sealed class ClaudeDeepenAiTests
         var draft = ClaudeDeepenAi.ParseDraft(DraftJson("架空の一歩-a"));
 
         Assert.Equal(
-            [new TaskDraft("架空の業務 1", "架空の中身 1", "coordinating", "表計算"), new TaskDraft("架空の業務 2", "", "prioritizing", "")],
+            [new TaskDraft("架空の業務 1", "架空の中身 1", "balancing-interests", "表計算"), new TaskDraft("架空の業務 2", "", "setting-priorities", "")],
             draft.Tasks);
         var question = Assert.Single(draft.Questions);
-        Assert.Equal(("架空の場面", "coordinating"), (question.Situation, question.Ability));
+        Assert.Equal(("架空の場面", "balancing-interests"), (question.Situation, question.Ability));
         Assert.Equal(["架空の考え方 a", "架空の考え方 b", "架空の考え方 c"], question.Choices);
         Assert.Equal(
             [new StepDraft("架空の一歩-a", 1, "home", true), new StepDraft("架空の一歩 2", 2, "out", false), new StepDraft("架空の一歩 3", 3, "home", false)],

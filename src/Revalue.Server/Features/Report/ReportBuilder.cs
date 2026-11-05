@@ -92,7 +92,6 @@ public static class ReportBuilder
     private static ReportNotYet NotYet(
         IReadOnlyList<AbilityView> views, DeepenTarget? target, DeepenContent? deepened, OptionsInputs inputs)
     {
-        var notHeard = views.Where(v => !v.Excluded && v.State == AbilityState.NotYet).Select(v => v.Ability).ToList();
         var checking = views.Where(v => !v.Excluded && v.State == AbilityState.NeedsCheck).Select(v => v.Ability).ToList();
 
         // 業務は、いまの選んだ案のものだけ。「創る」と本人が書いた仕事の見立ての業務は、深めた中身があるときだけ（保留中とまだ選んでいないときは空）
@@ -126,7 +125,7 @@ public static class ReportBuilder
             }
         }
 
-        return new ReportNotYet(notHeard, checking, gaps, hasExcluded);
+        return new ReportNotYet(checking, gaps, hasExcluded);
     }
 
     private static ReportChoice Choice(OptionsItem? options, OptionsInputs inputs, JobCatalog catalog)
