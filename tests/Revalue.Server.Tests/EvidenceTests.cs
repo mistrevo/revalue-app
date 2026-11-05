@@ -79,6 +79,26 @@ public sealed class EvidenceTests
         Assert.Single(EvidenceChecker.Check(turns, [Candidate(quote)]));
     }
 
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 準備中の力と、行動の数を超える番号の根拠は、照らし合わせで捨てる")]
+    public void PreparingAbilityAndActionBeyondCountAreDropped()
+    {
+        IReadOnlyList<Turn> turns = [Asked("昨日はどうでしたか？"), Answered("先生の話を三つにまとめて、つまり来週までですねと返しました")];
+        const string quote = "先生の話を三つにまとめて";
+
+        var kept = EvidenceChecker.Check(turns,
+        [
+            // 準備中の力（辞書にはあるが、話から確かめない）
+            Candidate(quote, ability: new Ability("coordinating-daily-life"), action: 1),
+            // 行動が 2 つの力の 3 番
+            Candidate(quote, ability: TestAbilities.Summarizing, action: 3),
+            // 辞書から消えた力
+            Candidate(quote, ability: TestAbilities.Old("noticing"), action: 1),
+        ]);
+
+        Assert.Empty(kept);
+        Assert.Single(EvidenceChecker.Check(turns, [Candidate(quote, ability: TestAbilities.Summarizing, action: 2)]));
+    }
+
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 空白と記号を除いて 4 文字に満たない引用は、本人の答えに含まれていても捨てる")]
     public void TooShortQuoteIsDropped()
     {

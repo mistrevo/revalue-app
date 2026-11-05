@@ -226,7 +226,7 @@ ask: prioritizing.3
   - 理由や基準、目的のように、本人の考えを示す行動: 本人がそれを言葉にしているときだけ根拠にする。期限を確かめた、調べた、のような事実から理由を推し量らない（いまの優先順位をつける力 3 の決まりを、どの力にも当てはまる形にする。例の文は e19 と違う言葉のまま）
   - 一つの句の切り分け: 「たとえば「歯医者に電話して、予約を夕方に変えてもらった」は、自分から働きかけた行動と、代わりの案を出した行動の根拠にはなるが、関わる人たちのそれぞれ違う都合をつかんだ行動の根拠にはならない。ほかの行動の引用をすべて含む引用は、コードが数えません」
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `AbilityStatesTests`
     - `validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力は、一つの出来事の中で 2 つそろったときだけ根拠ありになる`
     - `validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力で、一方の引用がもう一方の引用をすべて含むときは、含むほうを数えない`（同じ行動に含まない別の根拠があれば、そちらで根拠あり）
@@ -242,10 +242,10 @@ ask: prioritizing.3
   - `ClaudeConversationAiTests`（手順 2 の「改訂前の reader.md と一字一句同じ」テストを置き換える）
     - `validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示の力の表は、話から確かめる 24 の力を辞書の順に持ち、準備中の力を持たない`
     - `validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示に、力の数と、力の名前と行動の番号の決め打ちがない` — 「見る力は」を含まない。表の外に、どの力の名前も「〜の 2（」「〜の 3（」の形もない
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityStatesTests|FullyQualifiedName~NextMovePolicyTests|FullyQualifiedName~EvidenceTests|FullyQualifiedName~ResumeTests|FullyQualifiedName~ClaudeConversationAiTests"`
-- [ ] **Step 3: 直す**。判定と次の一手のコードは、テストが通らないところだけ直す
-- [ ] **Step 4: 確かめる** — `dotnet test`
-- [ ] **Step 5: コミット**（「辞書の力に置き換える: 行動が 2〜3 つの力で判定と次の一手を確かめ、読み取りの指示から力の決め打ちを外す（validate-1（すべてそろったときだけ根拠あり）、validate-2（足りない行動だけ聞き返す）、revisit-4（いまの話を聞き切る））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityStatesTests|FullyQualifiedName~NextMovePolicyTests|FullyQualifiedName~EvidenceTests|FullyQualifiedName~ResumeTests|FullyQualifiedName~ClaudeConversationAiTests"`
+- [x] **Step 3: 直す**。判定と次の一手のコードは、テストが通らないところだけ直す
+- [x] **Step 4: 確かめる** — `dotnet test`
+- [x] **Step 5: コミット**（「辞書の力に置き換える: 行動が 2〜3 つの力で判定と次の一手を確かめ、読み取りの指示から力の決め打ちを外す（validate-1（すべてそろったときだけ根拠あり）、validate-2（足りない行動だけ聞き返す）、revisit-4（いまの話を聞き切る））」）
 
 ### Task 4: 辞書から消えた力の id を持つ保存データで、API を落とさない
 

@@ -178,6 +178,87 @@ public sealed class AbilityStatesTests
         Assert.Equal(2, Assert.Single(tie.Shown).Event);
     }
 
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力は、一つの出来事の中で 2 つそろったときだけ根拠ありになる")]
+    public void TwoActionAbilityConfirmsWithBoth()
+    {
+        var both = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.Summarizing, 1, 1, quote: "先生の話を三つにまとめて"),
+            E(TestAbilities.Summarizing, 2, 1, answer: 2, quote: "つまり来週までに出すのですね、と返しました"),
+        ]), TestAbilities.Summarizing);
+        Assert.Equal(AbilityState.Confirmed, both.State);
+        Assert.Equal([1, 2], both.Shown.Select(e => e.Action));
+        Assert.Empty(both.Missing);
+
+        var one = Of(AbilityStates.Evaluate([E(TestAbilities.Summarizing, 1, 1, quote: "先生の話を三つにまとめて")]), TestAbilities.Summarizing);
+        Assert.Equal(AbilityState.NeedsCheck, one.State);
+        Assert.Equal([2], one.Missing);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力で、一方の引用がもう一方の引用をすべて含むときは、含むほうを数えない")]
+    public void TwoActionAbilityIgnoresContainingQuote()
+    {
+        var covered = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.Summarizing, 1, 1, quote: "先生の話をまとめて、つまりこういうことですねと返しました"),
+            E(TestAbilities.Summarizing, 2, 1, quote: "つまりこういうことですねと返しました"),
+        ]), TestAbilities.Summarizing);
+        Assert.Equal(AbilityState.NeedsCheck, covered.State);
+        Assert.Equal([2], covered.Shown.Select(e => e.Action));
+        Assert.Equal([1], covered.Missing);
+
+        // 含むほうの行動に、もう一方を含まない別の根拠があれば、そちらで根拠ありにする
+        var alternative = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.Summarizing, 1, 1, answer: 1, quote: "先生の話をまとめて、つまりこういうことですねと返しました"),
+            E(TestAbilities.Summarizing, 1, 1, answer: 2, quote: "要点を紙に三つ書き出しました"),
+            E(TestAbilities.Summarizing, 2, 1, answer: 1, quote: "つまりこういうことですねと返しました"),
+        ]), TestAbilities.Summarizing);
+        Assert.Equal(AbilityState.Confirmed, alternative.State);
+        Assert.Equal("要点を紙に三つ書き出しました", alternative.Shown[0].Quote);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力で、同じ引用を 2 つの行動に当てても根拠ありにしない")]
+    public void TwoActionAbilitySameQuoteDoesNotConfirm()
+    {
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.ActiveListening, 1, 1, quote: "最後まで黙って話を聞きました"),
+            E(TestAbilities.ActiveListening, 2, 1, quote: "最後まで黙って話を聞きました"),
+        ]), TestAbilities.ActiveListening);
+
+        Assert.Equal(AbilityState.NeedsCheck, result.State);
+        Assert.Single(result.Shown);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力で、別々の出来事に 1 つずつ出たときは要確認のまま")]
+    public void TwoActionAbilitySplitAcrossEventsNeedsCheck()
+    {
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.PlanningSteps, 1, 1, quote: "やることを紙に書き出しました"),
+            E(TestAbilities.PlanningSteps, 2, 2, answer: 2, quote: "洗濯を先にする順番にしました"),
+        ]), TestAbilities.PlanningSteps);
+
+        Assert.Equal(AbilityState.NeedsCheck, result.State);
+        Assert.Single(result.Shown);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 行動が 3 つの力では、ほかの 2 つの引用をすべて含む引用だけを数えない")]
+    public void ThreeActionAbilityIgnoresOnlyQuoteCoveringBothOthers()
+    {
+        // 1 の引用が 2 の引用だけを含む（3 は含まない）なら、数える
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(TestAbilities.BalancingInterests, 1, 1, quote: "夫と母の予定がぶつかって、私から電話して"),
+            E(TestAbilities.BalancingInterests, 2, 1, quote: "私から電話して"),
+            E(TestAbilities.BalancingInterests, 3, 1, answer: 2, quote: "迎えの時間をずらしてもらいました"),
+        ]), TestAbilities.BalancingInterests);
+
+        Assert.Equal(AbilityState.Confirmed, result.State);
+        Assert.Equal([1, 2, 3], result.Shown.Select(e => e.Action));
+    }
+
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 根拠がなければ NotYet、話から確かめる力は辞書の順")]
     public void NoEvidenceIsNotYetInOrder()
     {

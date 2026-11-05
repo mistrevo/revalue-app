@@ -8,7 +8,7 @@ public sealed record AbilityResult(Ability Ability, AbilityState State, IReadOnl
 /// <summary>場面の根拠から、力ごとの状態を決める（03-validate.md の「力の状態」）。</summary>
 public static class AbilityStates
 {
-    /// <summary>判定に使う力を <see cref="AbilityCatalog"/> の順で返す。</summary>
+    /// <summary>話から確かめる力を <see cref="AbilityCatalog"/> の順で返す。</summary>
     public static IReadOnlyList<AbilityResult> Evaluate(IReadOnlyList<Evidence> evidence) =>
         AbilityCatalog.Active.Select(a => EvaluateOne(a, evidence.Where(e => e.Ability == a).ToList())).ToList();
 
@@ -42,7 +42,7 @@ public static class AbilityStates
             return new AbilityResult(ability, AbilityState.NeedsCheck, best.Shown, MissingOf(ability, best.Shown));
         }
 
-        // 一般論の根拠だけ。3 つあっても根拠ありにしない（validate-10）
+        // 一般論の根拠だけ。すべての行動にあっても根拠ありにしない（validate-10）
         var general = OnePerAction(evidence);
         return new AbilityResult(ability, AbilityState.NeedsCheck, general, MissingOf(ability, general));
     }
@@ -61,9 +61,9 @@ public static class AbilityStates
 
     /// <summary>
     /// 一つの出来事の根拠のうち、数える根拠。行動ごとに 1 つ（答えの番号が小さいもの）を、行動の番号の順に。
-    /// ただし 3 つの行動の引用が、そのうち 1 つの引用の中にすべて収まるときは、ほかの 2 つを含む引用を数えない。
-    /// 同じ行動に、ほかの 2 つを含まない別の根拠があれば、そちらを数える。
-    /// 読み取りの AI が一つの句を切り分けて 3 つの行動に当てると、行動がそろっていないのに根拠ありになるため（validate-1。Claude の判断）。
+    /// ただしすべての行動がそろったときは、ほかの行動の引用をすべて含む引用を数えない。行動が 2 つなら、もう一方の引用を含む引用（同じ引用も含む）。
+    /// 同じ行動に、ほかの行動の引用をすべては含まない別の根拠があれば、そちらを数える。
+    /// 読み取りの AI が一つの句を切り分けてすべての行動に当てると、行動がそろっていないのに根拠ありになるため（validate-1。Claude の判断）。
     /// 次の一手（<see cref="Discover.NextMovePolicy"/>）も、この数え方で足りない行動を決める。
     /// </summary>
     public static IReadOnlyList<Evidence> Counted(IEnumerable<Evidence> evidence)

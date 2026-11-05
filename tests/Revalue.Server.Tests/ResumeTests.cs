@@ -49,6 +49,27 @@ public sealed class ResumeTests
         Assert.Equal(6, (await Saved(factory, "g-1", id)).Turns.Count);
     }
 
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 行動が 2 つの力の続きは、辞書の続きの問いで始まる")]
+    public async Task ResumeTwoActionAbilityUsesCatalogQuestion()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-2a");
+        // 要約力（行動 2 つ）の 1 だけがそろった場面
+        var id = await FinishedEpisode(client, ai, Candidate(TestAbilities.Summarizing, 1, "夫と母の予定がぶつかって"));
+        await factory.Services.GetRequiredService<IDataStore>().TryUpdateAsync<EpisodeItem>(
+            TestUsers.Key("g-2a"), id, e => e with { Turns = [.. e.Turns.Select(t => t with { Target = null })] }, Ct);
+
+        var episode = await Json(await Resume(client, id));
+
+        var question = Array(episode, "turns")[^1];
+        var target = new ActionRef(TestAbilities.Summarizing, 2);
+        Assert.Equal(
+            AbilityText.ResumeLead + "前に「夫と母の予定がぶつかって」と話してくれましたね。" + AbilityCatalog.ResumeQuestion(target),
+            question.GetProperty("text").GetString());
+        Assert.Equal("summarizing.2", question.GetProperty("target").GetString());
+    }
+
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いと同じ行動は、続きの最初の問いで聞かない")]
     public async Task ResumeDoesNotAskUnansweredAction()
     {

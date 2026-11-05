@@ -420,6 +420,50 @@ public sealed class NextMovePolicyTests
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
     }
 
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 行動が 2 つの力で 1 つそろったら、もう 1 つの行動を聞く")]
+    public void TwoActionAbilityAsksTheOther()
+    {
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.Summarizing, 2)),
+            NextMovePolicy.Decide(Concrete, 1, Context(1, [E(TestAbilities.Summarizing, 1)])));
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.Summarizing, 1)),
+            NextMovePolicy.Decide(Concrete, 1, Context(1, [E(TestAbilities.Summarizing, 2)])));
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 行動が 2 つの力が 2 つそろったら、その力は聞かない")]
+    public void TwoActionAbilityConfirmedIsNotAsked()
+    {
+        Assert.Equal(
+            new NextMove(MoveKind.AskWhatYouDid),
+            NextMovePolicy.Decide(Concrete, 1, Context(1, [E(TestAbilities.Summarizing, 1), E(TestAbilities.Summarizing, 2)])));
+
+        // そろった 2 つの力ではなく、要確認の力の足りない行動を聞く
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.NoticingChanges, 2)),
+            NextMovePolicy.Decide(
+                Concrete, 1,
+                Context(1, [E(TestAbilities.Summarizing, 1), E(TestAbilities.Summarizing, 2), E(TestAbilities.NoticingChanges, 1)])));
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 行動が 2 つの力と 3 つの力が同じ出来事にあっても、聞き返した力だけを聞く")]
+    public void FocusOnTwoActionAbilityAmongThreeActionAbility()
+    {
+        // 行動が 2 つの力（聞き返した力）は 1 つ、行動が 3 つの力は 2 つそろっている
+        var evidence = new[] { E(TestAbilities.ActiveListening, 1), E(TestAbilities.BalancingInterests, 1), E(TestAbilities.BalancingInterests, 2) };
+        var focused = Focused(TestAbilities.ActiveListening, 2, evidence, (new ActionRef(TestAbilities.ActiveListening, 2), 1));
+
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.ActiveListening, 2)),
+            NextMovePolicy.Decide(Concrete, 2, focused));
+
+        // 行動が 3 つの力に絞ったときも、行動が 2 つの力は聞かない
+        var other = Focused(TestAbilities.BalancingInterests, 2, evidence, (new ActionRef(TestAbilities.BalancingInterests, 3), 1));
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.BalancingInterests, 3)),
+            NextMovePolicy.Decide(Concrete, 2, other));
+    }
+
     [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: まだ聞き返していない場面では、いまの決め方で一つ選ぶ")]
     public void NoFocusKeepsMostCompleteFirst()
     {

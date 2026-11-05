@@ -531,7 +531,7 @@ public sealed class ClaudeConversationAiTests
     {
         var reader = PromptFiles.ReaderPrompt();
 
-        foreach (var key in new[] { "noticing-changes", "balancing-interests", "setting-priorities", "evidence", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer" })
+        foreach (var key in new[] { "noticing-changes", "balancing-interests", "setting-priorities", "summarizing", "evidence", "quote", "answer", "event", "general", "linkedQuote", "linkedAnswer" })
         {
             Assert.Contains($"`{key}`", reader);
         }
@@ -547,18 +547,39 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("（訂正）", reader);
     }
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、優先順位設定力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
-    public void ReaderDoesNotInferPrioritizingReason()
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、理由や基準のように本人の考えを示す行動を、本人が言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
+    public void ReaderDoesNotInferReasons()
     {
         var reader = PromptFiles.Read(PromptFiles.Reader);
         var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
-        var line = rules.Split('\n').Single(l => l.StartsWith("- 優先順位設定力の 3", StringComparison.Ordinal));
+        var line = rules.Split('\n').Single(l => l.Contains("理由や基準", StringComparison.Ordinal));
 
-        Assert.Contains("理由や基準を言葉にしているときだけ根拠にする", line);
-        Assert.Contains("理由を推し量らない", line);
+        Assert.Contains("本人がそれを言葉にしているときだけ根拠にする", line);
+        Assert.Contains("推し量らない", line);
         // 台本（e19）の答えの言葉を、指示に写さない
         Assert.DoesNotContain("締め切り", line);
         Assert.DoesNotContain("サイト", line);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示に、力の数と、力の名前と行動の番号の決め打ちがない")]
+    public void ReaderHasNoHardcodedAbilities()
+    {
+        var file = PromptFiles.Read(PromptFiles.Reader);
+        var prompt = PromptFiles.ReaderPrompt();
+
+        Assert.DoesNotContain("見る力は", prompt);
+        Assert.DoesNotContain("3 つの行動", file);
+        // 表の外（差し込む前の指示）に、力の名前と「〜の 2（」の形の行動の番号を書かない
+        foreach (var entry in AbilityCatalog.Current.Entries)
+        {
+            Assert.DoesNotMatch($"{System.Text.RegularExpressions.Regex.Escape(entry.Name)}の ?[0-9]", file);
+            Assert.DoesNotContain($"`{entry.Id}`", file);
+        }
+
+        Assert.DoesNotMatch(@"の [0-9]（", file);
+        // 一つの句を切り分けない決まりは、行動の数に頼らない言い方で書く
+        Assert.Contains("すべての行動", file);
+        Assert.Contains("ほかの行動の引用をすべて含む引用は、コードが数えません", file);
     }
 
     [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 返事の指示は、本人がしたことを聞く一手で、移動の手段や持ち物の中身のような行動の細部を聞かないと書いている")]
