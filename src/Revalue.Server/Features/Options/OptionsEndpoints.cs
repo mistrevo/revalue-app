@@ -12,9 +12,9 @@ using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Options;
 
-/// <summary>カードの業務。<paramref name="Ability"/> は使う力の key。</summary>
+/// <summary>カードの業務。<paramref name="Ability"/> は使う力の key。辞書の話から確かめる力でなければ（保存データの古い id など）null。</summary>
 public sealed record CardTaskDto(
-    string Id, string OccupationName, string Name, string Detail, string Ability, IReadOnlyList<TimeSlot> TimeSlots, TaskPlace Place);
+    string Id, string OccupationName, string Name, string Detail, string? Ability, IReadOnlyList<TimeSlot> TimeSlots, TaskPlace Place);
 
 /// <summary>カードの理由に使った力。<paramref name="State"/> は "confirmed" か "needsCheck"。</summary>
 public sealed record CardAbilityDto(string Key, string Name, AbilityState State, IReadOnlyList<QuoteDto> Quotes);
@@ -455,16 +455,20 @@ public static class OptionsEndpoints
         new(ActionRef.Key(ability.Ability), AbilityText.Name(ability.Ability), ability.State, QuoteDto.From(ability.Quotes));
 
     private static CardTaskDto TaskDto(CardTask task) =>
-        new(task.TaskId, task.OccupationName, task.Name, task.Detail, ActionRef.Key(task.Ability), task.TimeSlots, task.Place);
+        new(task.TaskId, task.OccupationName, task.Name, task.Detail, AbilityCatalog.IsActive(task.Ability) ? ActionRef.Key(task.Ability) : null, task.TimeSlots, task.Place);
+
+    // カードの力が辞書の話から確かめる力でなければ（保存データの古い id など）、理由と力を出さない（名前を引く前に除く）
+    private static bool ShowsReason(CardAbility ability, bool withReason) => withReason && AbilityCatalog.IsActive(ability.Ability);
 
     private static ChooseCardDto ChooseDto(ChooseCard card, bool withReason = true) =>
         new(card.OccupationName, card.Summary, card.Tasks.Select(TaskDto).ToList(), card.Range,
-            withReason ? card.Reason : null, withReason ? AbilityDto(card.Ability) : null);
+            ShowsReason(card.Ability, withReason) ? card.Reason : null, ShowsReason(card.Ability, withReason) ? AbilityDto(card.Ability) : null);
 
     private static CombineCardDto CombineDto(CombineCard card, bool withReason = true) =>
-        new(card.RoleName, card.Tasks.Select(TaskDto).ToList(), card.Range, withReason ? card.Reason : null, withReason ? AbilityDto(card.Ability) : null);
+        new(card.RoleName, card.Tasks.Select(TaskDto).ToList(), card.Range,
+            ShowsReason(card.Ability, withReason) ? card.Reason : null, ShowsReason(card.Ability, withReason) ? AbilityDto(card.Ability) : null);
 
     private static CreateCardDto CreateDto(CreateCard card, bool withReason = true) =>
         new(card.Title, card.Who, card.Trouble, card.Summary, card.HoursPerWeek, card.Place, card.TimeSlots,
-            withReason ? card.Reason : null, withReason ? AbilityDto(card.Ability) : null);
+            ShowsReason(card.Ability, withReason) ? card.Reason : null, ShowsReason(card.Ability, withReason) ? AbilityDto(card.Ability) : null);
 }

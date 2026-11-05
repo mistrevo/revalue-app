@@ -15,6 +15,7 @@ import {
   type FakeCall,
 } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
+import type { DeepenTask } from '@/api'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -321,6 +322,31 @@ describe('Deepen', () => {
     for (const word of ['根拠あり', '要確認', '未確認']) {
       expect(document.body.textContent).not.toContain(word)
     }
+  })
+
+  it('deepen-2（業務ごとに照らす）: 力の名前のない業務も出し、「まだ確かめていません」の行を出さない', async () => {
+    // 業務の力が辞書から消えていると、裏側は力の id と名前を null で返す
+    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'coordinating', knowledge: '表計算' }), ability: null, abilityName: null, usable: null }
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      deepen: { ...ownWithDrafts(), content: fakeDeepenContent({ tasks: [legacy] }) },
+    })
+    renderApp('/deepen')
+
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    const task = within(tasks).getByRole('article', { name: '昔の見立ての業務' })
+    expect(task).toHaveTextContent('前に作った業務')
+    expect(within(task).queryByText(copy.deepen.usableTitle)).not.toBeInTheDocument()
+    expect(task.textContent).not.toContain(copy.deepen.abilityNotYet.split('{name}')[0])
+    expect(task.textContent).not.toContain('null')
+    // 知識や道具は、まだ確かめていないこととして出す
+    expect(task).toHaveTextContent('表計算')
+
+    // 直す欄では、力を選び直してもらう（選ぶまで保存できない）
+    await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.editLabel.replace('{text}', '昔の見立ての業務') }))
+    const select = within(tasks).getByLabelText(copy.deepen.taskAbilityLabel) as HTMLSelectElement
+    expect(select.value).toBe('')
   })
 
   it('deepen-2（業務ごとに照らす）: 見立ての業務は「AI の見立て（直せます）」と示し、直す・消す・足すができる', async () => {

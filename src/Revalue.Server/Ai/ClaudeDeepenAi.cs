@@ -108,7 +108,12 @@ public sealed class ClaudeDeepenAi(
                 {
                     sb.Append("- 名前: ").Append(task.Name).Append('\n');
                     sb.Append("  中身: ").Append(task.Detail).Append('\n');
-                    sb.Append("  使う力: ").Append(ActionRef.Key(task.Ability)).Append('（').Append(AbilityText.Name(task.Ability)).Append("）\n");
+                    // 辞書の話から確かめる力でない力（保存データの古い id など）は、名前を引かずに書かない
+                    if (AbilityText.NameOrNull(task.Ability) is { } abilityName)
+                    {
+                        sb.Append("  使う力: ").Append(ActionRef.Key(task.Ability)).Append('（').Append(abilityName).Append("）\n");
+                    }
+
                     sb.Append("  要る知識や道具: ").Append(task.Knowledge.Count == 0 ? "なし" : string.Join("、", task.Knowledge)).Append('\n');
                 }
 

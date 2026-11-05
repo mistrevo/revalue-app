@@ -408,13 +408,13 @@ export type CardKind = 'choose' | 'combine' | 'create'
 export type MissingReason = 'noFit' | 'noAbilityMatch' | 'rejected' | 'excluded' | 'changed'
 export type TaskPlace = 'home' | 'out'
 
-/** カードの業務。ability は使う力の key。timeSlots は本人の時間帯に入るもの。 */
+/** カードの業務。ability は使う力の key（辞書の話から確かめる力でなければ null）。timeSlots は本人の時間帯に入るもの。 */
 export type CardTask = {
   id: string
   occupationName: string
   name: string
   detail: string
-  ability: AbilityKey
+  ability: AbilityKey | null
   timeSlots: TimeSlot[]
   place: TaskPlace
 }
@@ -552,13 +552,16 @@ export type TargetKind = CardKind | 'own'
 /** 選んだ案。outsideConditions は、選んだカードがいまの条件に収まらなくなったか（本人が書いた仕事はいつも false）。 */
 export type DeepenTarget = { kind: TargetKind; title: string; outsideConditions: boolean }
 
-/** 業務 1 つの照らし合わせ。usable がなければ、その業務で使う力はまだ確かめていない。drafted は AI の見立て（本人が直せる）。 */
+/**
+ * 業務 1 つの照らし合わせ。usable がなければ、その業務で使う力はまだ確かめていない。drafted は AI の見立て（本人が直せる）。
+ * 業務の力が辞書の話から確かめる力でなければ（保存データの古い id など）、ability と abilityName は null。
+ */
 export type DeepenTask = {
   id: string | null
   name: string
   detail: string
-  ability: AbilityKey
-  abilityName: string
+  ability: AbilityKey | null
+  abilityName: string | null
   usable: { state: 'confirmed' | 'needsCheck'; quotes: Quote[] } | null
   knowledge: string[]
   drafted: boolean
@@ -567,7 +570,7 @@ export type DeepenTask = {
 export type DeepenAnswer = { text: string; fromChoice: boolean }
 
 /** 仮の場面の問い。答えは考え方として残し、力の確かめには使わない。 */
-export type DeepenQuestion = { id: string; situation: string; abilityName: string; choices: string[]; answer: DeepenAnswer | null }
+export type DeepenQuestion = { id: string; situation: string; abilityName: string | null; choices: string[]; answer: DeepenAnswer | null }
 
 /** 一歩の候補。fits が false のものは、選んだあとで条件が変わって収まらなくなった候補（選んでいたものだけが来る）。 */
 export type DeepenStep = { id: string; text: string; hours: number; place: TaskPlace; demandCheck: boolean; fits: boolean; chosen: boolean }

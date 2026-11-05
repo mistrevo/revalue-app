@@ -74,7 +74,8 @@ public static class OptionsInputsReader
             profile?.Conditions,
             episodes.Any(e => e.Status == EpisodeStatus.Finished),
             abilities,
-            book?.Excluded.Order().ToList() ?? [],
+            // 辞書の話から確かめる力でない力（保存データの古い id など）は、外した力として数えない
+            book?.Excluded.Where(AbilityCatalog.IsActive).Order().ToList() ?? [],
             profile?.Preferences.Select(p => p.Text).ToList() ?? [],
             profile?.Wants.Select(p => p.Text).ToList() ?? [],
             profile?.Agency)

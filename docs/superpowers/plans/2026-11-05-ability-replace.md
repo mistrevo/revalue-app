@@ -269,7 +269,7 @@ ask: prioritizing.3
 - Produces: 深めるの `TaskLightDto.AbilityKey` と `AbilityName`、`QuestionDto.AbilityName` を null にできる形（`api.ts` も合わせる）
 - Consumes: Task 2 の `TestAbilities.Old("noticing")`（古い id は `new Ability("noticing")` で作る）
 
-- [ ] **Step 1: 失敗するテストを書く**（`LegacyAbilityDataTests.cs`。データの置き場に直接、古い id を持つ項目を置いてから API を呼ぶ）
+- [x] **Step 1: 失敗するテストを書く**（`LegacyAbilityDataTests.cs`。データの置き場に直接、古い id を持つ項目を置いてから API を呼ぶ）
   - `validate-1（すべてそろったときだけ根拠あり）: 辞書から消えた力の id を持つ保存データがあっても、どの API も 500 にならない` — 置くもの: 話し終えた場面（古い id の根拠、`Target` が `noticing.2` の問い、`Withdrawn` が `coordinating.1` の訂正）、力の本（古い id の状態、外した力、履歴）、カードと選んだ案（古い id の力）、深めるの中身（古い id の業務と問い）、レポートの版（古い id の力）。呼ぶもの: `GET /api/abilities`、`GET /api/episodes`、`GET /api/episodes/{id}`、`POST /api/episodes/{id}/resume`、`GET /api/profile`、`GET /api/options`、`GET /api/deepen`、`GET /api/report`、`GET /api/next-step`。どれも 200（続きを話せない場面なら 409）
   - `validate-1（すべてそろったときだけ根拠あり）: 辞書から消えた力の根拠と履歴は数えず、応答に古い id も名前も入らない。話した中身は残る`
   - `validate-12（本人が見立てを外せる）: 辞書から消えた力の id を外す・戻すと 404`
@@ -278,10 +278,10 @@ ask: prioritizing.3
   - `options-8（理由は本人の言葉とつなぐ）: カードと選んだ案の力が辞書から消えていたら、理由と力を出さない`
   - `DeepenApiTests` の `DeepenReturnsActiveAbilitiesFromCatalog` に `DisplayName = "deepen-2（業務ごとに照らす）: GET /api/deepen は、話から確かめる力の一覧を辞書の順で返す"` を付ける
   - `Deepen.test.tsx`: `deepen-2（業務ごとに照らす）: 力の名前のない業務も出し、「まだ確かめていません」の行を出さない`
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~LegacyAbilityDataTests`（500 が出ることを見る）
-- [ ] **Step 3: 名前を引く所をすべて直す** — `git grep -n "AbilityText.Name\|AbilityCatalog.Name" src` で洗い出し、保存データから来る力を名前に変える所は、どれも先に `IsActive` で除くか名前なしにする
-- [ ] **Step 4: 確かめる** — `dotnet test`、`npm --prefix src/web test`
-- [ ] **Step 5: コミット**（「辞書の力に置き換える: 辞書から消えた力の id を持つ保存データで API を落とさない（validate-1（すべてそろったときだけ根拠あり）、deepen-2（業務ごとに照らす）、report-3（版を残す））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter FullyQualifiedName~LegacyAbilityDataTests`（500 が出ることを見る）
+- [x] **Step 3: 名前を引く所をすべて直す** — `git grep -n "AbilityText.Name\|AbilityCatalog.Name" src` で洗い出し、保存データから来る力を名前に変える所は、どれも先に `IsActive` で除くか名前なしにする
+- [x] **Step 4: 確かめる** — `dotnet test`、`npm --prefix src/web test`
+- [x] **Step 5: コミット**（「辞書の力に置き換える: 辞書から消えた力の id を持つ保存データで API を落とさない（validate-1（すべてそろったときだけ根拠あり）、deepen-2（業務ごとに照らす）、report-3（版を残す））」）
 
 ## まとまり B: 見せる力を絞る（heavy）
 

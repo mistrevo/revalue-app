@@ -412,8 +412,10 @@ public static class ValidateEndpoints
                 WorkNotChecked,
                 v.Excluded))
             .ToList();
+        // 辞書の話から確かめる力でない行（保存データの古い id など）は、名前を引く前に除く
         var history = (book?.History ?? [])
             .Reverse()
+            .Where(h => AbilityCatalog.IsActive(h.Ability))
             .Select(h => new AbilityChangeDto(h.At, ActionRef.Key(h.Ability), AbilityText.Name(h.Ability), h.From, h.To, h.Reason, h.EpisodeId))
             .ToList();
         return new AbilitiesDto(abilities, history);

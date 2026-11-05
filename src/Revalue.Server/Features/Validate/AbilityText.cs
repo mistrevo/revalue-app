@@ -41,6 +41,9 @@ public static class AbilityText
     /// <summary>力の名前（能力辞書の名前）。辞書にない力なら <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string Name(Ability ability) => AbilityCatalog.Name(ability);
 
+    /// <summary>話から確かめる力の名前。辞書にない力（保存データの古い id など）と準備中の力は null（例外にしない）。</summary>
+    public static string? NameOrNull(Ability ability) => AbilityCatalog.IsActive(ability) ? AbilityCatalog.Name(ability) : null;
+
     /// <summary>行動の手がかり（能力辞書の手がかり）。辞書にない力か、番号が 1〜行動の数でなければ <see cref="ArgumentOutOfRangeException"/>。</summary>
     public static string Hint(ActionRef action) => AbilityCatalog.Hint(action);
 

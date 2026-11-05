@@ -29,11 +29,24 @@ public sealed record EpisodeDto(
         e.Status,
         e.StartedAt,
         e.FinishedAt,
-        e.Turns,
+        [.. e.Turns.Select(WithoutUnknownActions)],
         e.Turns.LastOrDefault() is { Role: TurnRoles.Assistant } last && last.Move == TalkStream.MoveName(MoveKind.Distress)
             ? SupportNotice.Distress
             : null,
         EpisodeInsights.From(e));
+
+    /// <summary>
+    /// 聞いた行動の印と、訂正で打ち消された印のうち、辞書の話から確かめる力の行動でないもの（保存データの古い id など）を、返す前に外す。
+    /// 保存したデータは変えない（00-common.md の「力」）。
+    /// </summary>
+    private static Turn WithoutUnknownActions(Turn turn)
+    {
+        var target = turn.Target is not null && ActionRef.Parse(turn.Target) is null ? null : turn.Target;
+        var withdrawn = turn.Withdrawn?.Where(w => ActionRef.Parse(w) is not null).ToList();
+        return target == turn.Target && (withdrawn is null || withdrawn.Count == turn.Withdrawn!.Count)
+            ? turn
+            : turn with { Target = target, Withdrawn = withdrawn is { Count: > 0 } ? withdrawn : null };
+    }
 }
 
 /// <summary>一覧の 1 件。<c>CanResume</c> は、続きを話せる場面か（03-validate.md の「続きを話す」）。</summary>

@@ -51,7 +51,8 @@ const FIELD_CLASS =
 const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4'
 
 function toRequest(task: DeepenTask): DeepenTaskRequest {
-  return { name: task.name, detail: task.detail, ability: task.ability, knowledge: task.knowledge.join('、') }
+  // 力が辞書にない業務（ability が null）は、直す欄で力を選び直してもらう
+  return { name: task.name, detail: task.detail, ability: task.ability ?? '', knowledge: task.knowledge.join('、') }
 }
 
 /**
@@ -353,7 +354,9 @@ function TasksSection({
   // 裏側が返した力の一覧を辞書の順に出す。一覧にない力が付いた業務があれば、その力も選べるように足す
   const options: DeepenAbility[] = [...abilities]
   for (const t of tasks) {
-    if (!options.some((o) => o.key === t.ability)) options.push({ key: t.ability, name: t.abilityName })
+    if (t.ability !== null && t.abilityName !== null && !options.some((o) => o.key === t.ability)) {
+      options.push({ key: t.ability, name: t.abilityName })
+    }
   }
   const current = tasks.map(toRequest)
 
@@ -437,7 +440,8 @@ function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
   const id = useId()
   const knowledge = task.knowledge.filter((k) => k.trim() !== '')
   const notYet = [
-    ...(task.usable ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]),
+    // 力の名前がない業務（力が辞書にない）は、まだ確かめていない力の行を出さない
+    ...(task.usable || task.abilityName === null ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]),
     ...(knowledge.length > 0 ? [copy.deepen.knowledgeLine.replace('{items}', knowledge.join('、'))] : []),
   ]
   return (

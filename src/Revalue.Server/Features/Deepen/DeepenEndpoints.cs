@@ -18,13 +18,18 @@ public sealed record DeepenTargetDto(TargetKind Kind, string Title, bool Outside
 /// <summary>使える力。<paramref name="State"/> は "confirmed" か "needsCheck"。</summary>
 public sealed record UsableDto(AbilityState State, IReadOnlyList<QuoteDto> Quotes);
 
-/// <summary>業務 1 つの照らし合わせ。<paramref name="Ability"/> は使う力の key。<paramref name="Usable"/> がなければ、まだ確かめていない力。</summary>
+/// <summary>
+/// 業務 1 つの照らし合わせ。<paramref name="Ability"/> は使う力の key。<paramref name="Usable"/> がなければ、まだ確かめていない力。
+/// 使う力が辞書の話から確かめる力でなければ（保存データの古い id など）、<paramref name="Ability"/> と <paramref name="AbilityName"/> は null で、
+/// 使えるところとしても示さない（00-common.md の「力」）。
+/// </summary>
 public sealed record TaskLightDto(
-    string? Id, string Name, string Detail, string Ability, string AbilityName, UsableDto? Usable, IReadOnlyList<string> Knowledge, bool Drafted);
+    string? Id, string Name, string Detail, string? Ability, string? AbilityName, UsableDto? Usable, IReadOnlyList<string> Knowledge, bool Drafted);
 
 public sealed record AnswerDto(string Text, bool FromChoice);
 
-public sealed record QuestionDto(string Id, string Situation, string AbilityName, IReadOnlyList<string> Choices, AnswerDto? Answer);
+/// <summary>問い 1 つ。問いの力が辞書の話から確かめる力でなければ（保存データの古い id など）、<paramref name="AbilityName"/> は null。</summary>
+public sealed record QuestionDto(string Id, string Situation, string? AbilityName, IReadOnlyList<string> Choices, AnswerDto? Answer);
 
 /// <summary>画面に出す一歩の候補。<paramref name="Fits"/> が false のものは、選んだあとで条件が変わって収まらなくなった候補。</summary>
 public sealed record StepDto(string Id, string Text, int Hours, TaskPlace Place, bool DemandCheck, bool Fits, bool Chosen);
@@ -449,9 +454,9 @@ public static class DeepenEndpoints
                 t.Id,
                 t.Name,
                 t.Detail,
-                ActionRef.Key(t.Ability),
-                AbilityText.Name(t.Ability),
-                t.Usable is { } u ? new UsableDto(u.State, QuoteDto.From(u.Quotes)) : null,
+                AbilityCatalog.IsActive(t.Ability) ? ActionRef.Key(t.Ability) : null,
+                AbilityText.NameOrNull(t.Ability),
+                AbilityCatalog.IsActive(t.Ability) && t.Usable is { } u ? new UsableDto(u.State, QuoteDto.From(u.Quotes)) : null,
                 t.Knowledge,
                 t.Drafted))
             .ToList();
@@ -459,7 +464,7 @@ public static class DeepenEndpoints
             .Select(q => new QuestionDto(
                 q.Id,
                 q.Situation,
-                AbilityText.Name(q.Ability),
+                AbilityText.NameOrNull(q.Ability),
                 q.Choices,
                 item.Answers.FirstOrDefault(a => a.QuestionId == q.Id) is { } a ? new AnswerDto(a.Text, a.FromChoice) : null))
             .ToList();

@@ -69,6 +69,12 @@ public sealed partial class AbilityCatalog
     /// <summary>判定に使う力。<see cref="AbilityCatalog"/> の順。</summary>
     public static IReadOnlyList<Ability> Active => Current.ActiveAbilities;
 
+    /// <summary>
+    /// 話から確かめる力か。辞書にない力（保存データの古い id など）と準備中の力は false。
+    /// 保存データから来る力の名前を引く前に、これで除く（00-common.md の「力」）。
+    /// </summary>
+    public static bool IsActive(Ability ability) => Find(ability.Id) is { IsActive: true };
+
     /// <summary>id の力。辞書になければ null。大文字と小文字は区別する。</summary>
     public static AbilityEntry? Find(string? id) => Current.FindEntry(id);
 

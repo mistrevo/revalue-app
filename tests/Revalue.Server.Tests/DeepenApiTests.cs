@@ -181,13 +181,13 @@ public sealed class DeepenApiTests
         Assert.Equal(0, kit.Deepen.Calls);
     }
 
-    [Fact]
+    [Fact(DisplayName = "deepen-2（業務ごとに照らす）: GET /api/deepen は、話から確かめる力の一覧を辞書の順で返す")]
     public async Task DeepenReturnsActiveAbilitiesFromCatalog()
     {
         var kit = Setup();
         var client = await Ready(kit, "d-abilities");
 
-        // 選んだ案がなくても、業務の見立てで選べる力は辞書の判定に使う力と同じ順で返す
+        // 選んだ案がなくても、業務の見立てで選べる力は辞書の話から確かめる力と同じ順で返す
         var dto = await Get(client);
         var returned = dto.GetProperty("abilities").EnumerateArray()
             .Select(a => (a.GetProperty("key").GetString(), a.GetProperty("name").GetString()))
