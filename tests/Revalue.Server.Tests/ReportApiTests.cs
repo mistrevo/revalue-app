@@ -375,7 +375,8 @@ public sealed class ReportApiTests
         Assert.Equal(["balancing-interests"], AbilityKeys((await Get(client)).GetProperty("content").GetProperty("abilities")));
 
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/setting-priorities/exclude", null, Ct)).StatusCode);
+        // 本人に見せていない力は外せない
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/abilities/setting-priorities/exclude", null, Ct)).StatusCode);
         var dto = await Get(client);
 
         Assert.Empty(AbilityKeys(dto.GetProperty("content").GetProperty("abilities")));
@@ -497,8 +498,8 @@ public sealed class ReportApiTests
         var before = await Get(client);
         Assert.False(before.GetProperty("content").GetProperty("abilitiesExcluded").GetBoolean());
 
-        // 根拠のない力（欄に出ていない力）を外しただけでは添えない。欄が空の理由は外したことではないため
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/setting-priorities/exclude", null, Ct)).StatusCode);
+        // 根拠のない力（欄に出ていない力）は、本人に見せていないので外せず、添えもしない。欄が空の理由は外したことではないため
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/abilities/setting-priorities/exclude", null, Ct)).StatusCode);
         Assert.False((await Get(client)).GetProperty("content").GetProperty("abilitiesExcluded").GetBoolean());
 
         kit.Factory.Clock.Advance(TimeSpan.FromMinutes(1));

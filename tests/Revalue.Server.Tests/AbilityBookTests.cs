@@ -264,6 +264,8 @@ public sealed class AbilityBookTests
     {
         var (store, clock) = Create();
         await Consent(store);
+        // 外す・戻すは本人に見せた力だけなので、変化への気づきを見せた場面を置く
+        await SaveEpisode(store, clock.GetUtcNow(), [E(TestAbilities.NoticingChanges, 1, "顔色がいつもと違うと気づきました")]);
         for (var i = 0; i < 60; i++)
         {
             await AbilityBook.SetExcludedAsync(store, User, TestAbilities.NoticingChanges, excluded: true, clock, Ct);
@@ -288,13 +290,53 @@ public sealed class AbilityBookTests
         var book = await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: true, clock, Ct);
         book = await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: true, clock, Ct);
 
+        Assert.NotNull(book);
         Assert.Contains(TestAbilities.BalancingInterests, book.Excluded);
         var exclude = Assert.Single(book.History, h => h.Reason == ChangeReason.Exclude);
         Assert.Equal((AbilityState.Confirmed, AbilityState.Confirmed), (exclude.From, exclude.To));
 
         book = await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: false, clock, Ct);
+        Assert.NotNull(book);
         Assert.DoesNotContain(TestAbilities.BalancingInterests, book.Excluded);
         Assert.Single(book.History, h => h.Reason == ChangeReason.Restore);
+    }
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 外す・戻すは、見せた力か外した力だけを受け付け、見せていない力には何も書かない。外した力は、見せなくなっても戻せる")]
+    public async Task OnlyShownOrExcludedAbilitiesCanBeToggled()
+    {
+        var (store, clock) = Create();
+        await Consent(store);
+
+        // 場面がなければ、どの力も本人に見せていない
+        Assert.Null(await AbilityBook.SetExcludedAsync(store, User, TestAbilities.Empathy, excluded: true, clock, Ct));
+        Assert.Null(await AbilityBook.SetExcludedAsync(store, User, TestAbilities.Empathy, excluded: false, clock, Ct));
+        var book = await store.GetAsync<AbilityBookItem>(User, AbilityBookItem.ItemId, Ct);
+        Assert.Empty(book?.Excluded ?? []);
+        Assert.Empty(book?.History ?? []);
+
+        // 利害調整力（行動 3 つ）と段取り力（行動 2 つ）が同じ出来事でそろうと、段取り力は見せない。見せていない段取り力は外せない
+        var episode = await SaveEpisode(store, clock.GetUtcNow(),
+        [
+            .. BalancingInterestsAll,
+            E(TestAbilities.PlanningSteps, 1, "買うものを書き出しました"),
+            E(TestAbilities.PlanningSteps, 2, "スーパーを先に回る順にしました"),
+        ]);
+        await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, episode.Id, clock, Ct);
+        Assert.Null(await AbilityBook.SetExcludedAsync(store, User, TestAbilities.PlanningSteps, excluded: true, clock, Ct));
+
+        // 見せた力は外せる。外していない力を戻しても、何も変わらない
+        book = (await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: false, clock, Ct))!;
+        Assert.DoesNotContain(book.History, h => h.Reason is ChangeReason.Exclude or ChangeReason.Restore);
+        book = (await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: true, clock, Ct))!;
+        Assert.Equal([TestAbilities.BalancingInterests], book.Excluded);
+        Assert.DoesNotContain(book.History, h => h.Ability == TestAbilities.PlanningSteps);
+
+        // 場面がなくなって見せなくなった力も、外した力の一覧にあれば戻せる
+        await store.DeleteAsync(User, episode.Id, Ct);
+        await AbilityBook.RecomputeAsync(store, User, ChangeReason.Skip, episode.Id, clock, Ct);
+        book = (await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: false, clock, Ct))!;
+        Assert.Empty(book.Excluded);
+        Assert.Equal(ChangeReason.Restore, book.History[^1].Reason);
     }
 
     [Fact(DisplayName = "foundation-3（いつでも全部消せる）: 全部消したあとは、力の状態の本を作り直さない")]

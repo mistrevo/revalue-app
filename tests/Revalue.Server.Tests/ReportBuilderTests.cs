@@ -196,8 +196,7 @@ public sealed class ReportBuilderTests
     {
         var kit = await Recorded();
         await SetChoice(kit, ChooseConfirmed());
-        await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.BalancingInterests, true, kit.Clock, Ct);
-        await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.SettingPriorities, true, kit.Clock, Ct);
+        Assert.NotNull(await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.BalancingInterests, true, kit.Clock, Ct));
 
         var content = await Build(kit);
 

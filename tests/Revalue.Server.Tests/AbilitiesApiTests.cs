@@ -311,6 +311,41 @@ public sealed class AbilitiesApiTests
         Assert.Equal("exclude", dto.GetProperty("history")[1].GetProperty("reason").GetString());
     }
 
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 本人に見せていない力は、外す・戻すと 404 で、見えた力の画面にも履歴にも出ない")]
+    public async Task UnshownAbilityCannotBeExcluded()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+
+        // 場面のない人は、どの力も見ていない
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/abilities/empathy/exclude", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/abilities/empathy/restore", null, Ct)).StatusCode);
+        var empty = await Abilities(client);
+        Assert.Empty(empty.GetProperty("abilities").EnumerateArray());
+        Assert.Empty(empty.GetProperty("history").EnumerateArray());
+
+        // 利害調整力と同じ分類で隠れた段取り力も、外せない
+        var id = await Start(client);
+        ai.Reading = _ => ReadingWith(
+        [
+            .. BalancingInterestsAll,
+            Candidate(TestAbilities.PlanningSteps, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.PlanningSteps, 2, "迎えの時間をずらしてもらいました"),
+        ]);
+        await Send(client, id, CoordinatingAnswer);
+        await ValidateTestKit.Finish(client, id);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/abilities/planning-steps/exclude", null, Ct)).StatusCode);
+
+        // 見せた力を、外していないのに戻しても、何も変わらない
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct)).StatusCode);
+
+        var dto = await Abilities(client);
+        Assert.Equal(["balancing-interests"], dto.GetProperty("history").EnumerateArray().Select(h => h.GetProperty("key").GetString()));
+        Assert.DoesNotContain("planning-steps", dto.GetRawText(), StringComparison.Ordinal);
+        Assert.DoesNotContain("empathy", dto.GetRawText(), StringComparison.Ordinal);
+    }
+
     [Theory(DisplayName = "validate-12（本人が見立てを外せる）: 知らない力の名前は 404")]
     [InlineData("/api/abilities/listening/exclude")]
     [InlineData("/api/abilities/Noticing/exclude")]
@@ -473,7 +508,19 @@ public sealed class AbilitiesApiTests
         await SeedTalkingEra(factory, "g-1",
             (TestAbilities.BalancingInterests, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, id),
             (TestAbilities.BalancingInterests, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.SetAside, id));
-        await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
+        // 話している途中の読み取りで力の本を動かしていた前の保存では、見えた力の画面にいつも力が並び、サインのあとにも外せた。
+        // いまは見せていない力を外せないので、その外した行と外した力の一覧を、前の保存のまま直接置く
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var seeded = (await store.GetAsync<AbilityBookItem>(TestUsers.Key("g-1"), AbilityBookItem.ItemId, Ct))!;
+        await store.UpsertAsync(seeded with
+        {
+            Excluded = [TestAbilities.BalancingInterests],
+            History =
+            [
+                .. seeded.History,
+                new AbilityChange(factory.Clock.GetUtcNow(), TestAbilities.BalancingInterests, AbilityState.NotYet, AbilityState.NotYet, ChangeReason.Exclude, null),
+            ],
+        }, Ct);
 
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
 

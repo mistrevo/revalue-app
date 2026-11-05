@@ -67,7 +67,8 @@ public sealed class LegacyAbilityDataTests
         await Ok(client.PutAsJsonAsync("/api/options/choice", new { kind = "card", card = "create", generatedAt }, Ct));
         await Ok(client.PostAsync("/api/deepen", null, Ct));
         await Ok(client.GetAsync("/api/report", Ct));
-        await Ok(client.PostAsync("/api/abilities/setting-priorities/exclude", null, Ct));
+        // 外す力は、本人に見せた力（もう少し聞かせてほしいことに出した変化への気づき）
+        await Ok(client.PostAsync("/api/abilities/noticing-changes/exclude", null, Ct));
 
         var store = kit.Factory.Services.GetRequiredService<IDataStore>();
         var key = TestUsers.Key(user);

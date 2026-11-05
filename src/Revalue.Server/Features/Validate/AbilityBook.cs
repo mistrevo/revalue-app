@@ -217,9 +217,12 @@ public static class AbilityBook
 
     /// <summary>
     /// 力を外す（<paramref name="excluded"/> が true）か戻す。変わったときだけ履歴に残す。From と To はそのときの状態。
+    /// 受け付けるのは、本人に見せた力（<see cref="View"/>）か、外した力の一覧にある力だけ。ほかの力なら何も書かずに null を返す。
+    /// 本人が見ていない力は外せず、見えた力の画面と履歴に出さないため（validate-12（本人が見立てを外せる）。Claude の判断）。
+    /// 外した力の一覧にある力は、場面がなくなるなどで見せなくなっても戻せる。
     /// 本がまだなければ、先に場面から計算し直して作る。
     /// </summary>
-    public static async Task<AbilityBookItem> SetExcludedAsync(
+    public static async Task<AbilityBookItem?> SetExcludedAsync(
         IDataStore store, string userKey, Ability ability, bool excluded, TimeProvider time, CancellationToken ct)
     {
         for (var attempt = 0; attempt < DataStoreExtensions.MaxUpdateAttempts; attempt++)
@@ -232,6 +235,12 @@ public static class AbilityBook
             }
 
             var book = read.Item;
+            if (!book.Excluded.Contains(ability)
+                && !View(await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct), book).Any(v => v.Ability == ability))
+            {
+                return null;
+            }
+
             if (book.Excluded.Contains(ability) == excluded)
             {
                 return book;

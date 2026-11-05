@@ -401,9 +401,12 @@ public static class ValidateEndpoints
             return Problems.Create(StatusCodes.Status404NotFound, Problems.NotFound, "Not found.");
         }
 
+        // 本人に見せた力か、外した力の一覧にある力だけを受け付ける。見ていない力は外せないため（validate-12）
         var userKey = http.User.GetUserKey()!;
         var book = await AbilityBook.SetExcludedAsync(store, userKey, ability, excluded, time, ct);
-        return TypedResults.Ok(await DtoAsync(store, userKey, book, ct));
+        return book is null
+            ? Problems.Create(StatusCodes.Status404NotFound, Problems.NotFound, "Not found.")
+            : TypedResults.Ok(await DtoAsync(store, userKey, book, ct));
     }
 
     private static async Task<AbilitiesDto> DtoAsync(IDataStore store, string userKey, AbilityBookItem? book, CancellationToken ct)
