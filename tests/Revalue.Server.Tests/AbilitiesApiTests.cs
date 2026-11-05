@@ -84,14 +84,14 @@ public sealed class AbilitiesApiTests
 
         Assert.Equal(["balancing-interests", "noticing-changes"],
             dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
-        var coordinating = Ability(dto, "balancing-interests");
-        Assert.Equal("利害調整力", coordinating.GetProperty("name").GetString());
-        Assert.Equal("confirmed", coordinating.GetProperty("life").GetString());
-        Assert.Equal("notChecked", coordinating.GetProperty("work").GetString());
-        Assert.Equal(id, coordinating.GetProperty("episodeId").GetString());
-        Assert.Equal(3, coordinating.GetProperty("quotes").GetArrayLength());
-        Assert.Equal(0, coordinating.GetProperty("hints").GetArrayLength());
-        Assert.False(coordinating.GetProperty("excluded").GetBoolean());
+        var balancing = Ability(dto, "balancing-interests");
+        Assert.Equal("利害調整力", balancing.GetProperty("name").GetString());
+        Assert.Equal("confirmed", balancing.GetProperty("life").GetString());
+        Assert.Equal("notChecked", balancing.GetProperty("work").GetString());
+        Assert.Equal(id, balancing.GetProperty("episodeId").GetString());
+        Assert.Equal(3, balancing.GetProperty("quotes").GetArrayLength());
+        Assert.Equal(0, balancing.GetProperty("hints").GetArrayLength());
+        Assert.False(balancing.GetProperty("excluded").GetBoolean());
 
         var noticingChanges = Ability(dto, "noticing-changes");
         Assert.Equal("needsCheck", noticingChanges.GetProperty("life").GetString());
@@ -185,7 +185,8 @@ public sealed class AbilitiesApiTests
     private static TurnReading FirstSwapReading(IReadOnlyList<Turn> _) => ReadingWith(
         Candidate(TestAbilities.ActiveListening, 1, "先に最後まで話を聞いて"),
         Candidate(TestAbilities.ActiveListening, 2, "けんかしたのがつらかったんだと分かりました"),
-        Candidate(TestAbilities.SettingPriorities, 1, "用事が三つ重なっていて"),
+        // 優先順位設定力は、本人の行動（先にすること）を 1 つだけ。行動 1（用事が重なる）は状況の行動なので、それだけでは見せる力にならない
+        Candidate(TestAbilities.SettingPriorities, 2, "先に最後まで話を聞いて"),
         Candidate(TestAbilities.NoticingChanges, 1, "顔色がいつもと違って"));
 
     private static TurnReading SecondSwapReading(IReadOnlyList<Turn> _) => ReadingWith(

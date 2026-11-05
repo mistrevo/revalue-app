@@ -246,8 +246,8 @@ public sealed class EvidenceTests
             EvidenceSet.Merge([monday, thursday2, thursday3], [thursdayAgain2, thursdayAgain3]));
 
         // 力が違えば、同じ言葉でも含まれるとはみなさない
-        var coordinating = first with { Ability = TestAbilities.BalancingInterests };
-        Assert.Equal([coordinating, monday], EvidenceSet.Merge([coordinating], [monday]));
+        var balancing = first with { Ability = TestAbilities.BalancingInterests };
+        Assert.Equal([balancing, monday], EvidenceSet.Merge([balancing], [monday]));
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 番号を振り直す読み取りを重ねても、別の日の行動はそろわない")]

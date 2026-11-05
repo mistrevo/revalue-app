@@ -32,6 +32,9 @@ public static class TestAbilities
     /// <summary>共感力（行動 2 つ。分類は共感・安心・対人支援）。</summary>
     public static readonly Ability Empathy = new("empathy");
 
+    /// <summary>回復力（行動 3 つ。行動 1 は状況の行動）。</summary>
+    public static readonly Ability Resilience = new("resilience");
+
     /// <summary>粘り強さ（行動 2 つ。分類は実行・挑戦）。</summary>
     public static readonly Ability Persistence = new("persistence");
 

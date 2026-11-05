@@ -189,11 +189,11 @@ public sealed class AbilityBookTests
         var book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, newestPartial.Id, clock, Ct);
         var view = AbilityBook.View([older, newerConfirmed, newestPartial], book);
 
-        var coordinating = view.Single(v => v.Ability == TestAbilities.BalancingInterests);
-        Assert.Equal(AbilityState.Confirmed, coordinating.State);
-        Assert.Equal(newerConfirmed.Id, coordinating.EpisodeId);
-        Assert.Equal(["姉と兄の都合が合わず", "私から姉に連絡して", "週末に二人がそろう日を決めました"], coordinating.Shown.Select(e => e.Quote));
-        Assert.Empty(coordinating.Hints);
+        var balancing = view.Single(v => v.Ability == TestAbilities.BalancingInterests);
+        Assert.Equal(AbilityState.Confirmed, balancing.State);
+        Assert.Equal(newerConfirmed.Id, balancing.EpisodeId);
+        Assert.Equal(["姉と兄の都合が合わず", "私から姉に連絡して", "週末に二人がそろう日を決めました"], balancing.Shown.Select(e => e.Quote));
+        Assert.Empty(balancing.Hints);
         Assert.Equal(AbilityState.Confirmed, book.StateOf(TestAbilities.BalancingInterests));
     }
 
@@ -206,11 +206,11 @@ public sealed class AbilityBookTests
 
         var view = AbilityBook.View([episode], null);
 
-        var prioritizing = view.Single(v => v.Ability == TestAbilities.SettingPriorities);
-        Assert.Equal(AbilityState.NeedsCheck, prioritizing.State);
+        var priorities = view.Single(v => v.Ability == TestAbilities.SettingPriorities);
+        Assert.Equal(AbilityState.NeedsCheck, priorities.State);
         Assert.Equal(
             [AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1)), AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3))],
-            prioritizing.Hints);
+            priorities.Hints);
         // 見せた力だけを返す（まだ聞けていない力は並べない）
         Assert.Equal([TestAbilities.SettingPriorities], view.Select(v => v.Ability));
         Assert.All(view, v => Assert.False(v.Excluded));

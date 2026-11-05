@@ -43,6 +43,25 @@ public sealed class InsightsTests
         Assert.True(insights.GetProperty("canResume").GetBoolean());
     }
 
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 状況の行動の根拠だけの力は、もう少し聞かせてほしいことにも、見えた力の画面にも出さない")]
+    public async Task SituationOnlyAbilityIsNotShown()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai, Candidate(TestAbilities.Resilience, 1, "夫と母の予定がぶつかって"));
+
+        var insights = (await GetEpisode(client, id)).GetProperty("insights");
+        Assert.Empty(Array(insights, "seen"));
+        Assert.Empty(Array(insights, "moreToHear"));
+
+        // 見えた力の画面と履歴にも出ない。根拠は場面に残る
+        var abilities = await Json(await client.GetAsync("/api/abilities", Ct));
+        Assert.Empty(Array(abilities, "abilities"));
+        var saved = await Saved(factory, "g-1", id);
+        Assert.Contains(saved.Evidence, e => e.Ability == TestAbilities.Resilience && e.Action == 1);
+    }
+
     [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 根拠の言葉に、その根拠の核となる行動の文が添えてある")]
     public async Task QuotesHaveActionText()
     {
@@ -242,8 +261,8 @@ public sealed class InsightsTests
         Assert.Equal(AbilityState.NeedsCheck, AbilityStates.Evaluate((await Saved(factory, "g-1", id)).Evidence).Single(r => r.Ability == TestAbilities.SettingPriorities).State);
 
         var abilities = await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct);
-        var prioritizing = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "setting-priorities");
-        Assert.Equal("needsCheck", prioritizing.GetProperty("life").GetString());
+        var priorities = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "setting-priorities");
+        Assert.Equal("needsCheck", priorities.GetProperty("life").GetString());
 
         static EvidenceCandidate At(int action, string quote, int answer, int @event) =>
             new(TestAbilities.SettingPriorities, action, quote, answer, @event, false, "", 0);

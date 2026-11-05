@@ -387,7 +387,7 @@ public sealed class ProfileApiTests
         var (factory, ai) = Create();
         var client = await Consenting(factory, "g-13");
         var first = await FinishedEpisode(client, ai, BalancingInterestsAll);
-        await FinishedEpisode(client, ai, Candidate(TestAbilities.SettingPriorities, 1, "迎えの時間をずらして"));
+        await FinishedEpisode(client, ai, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間をずらして"));
 
         var canDo = (await Get(client)).GetProperty("canDo");
         var seen = ValidateTestKit.Array(canDo, "seen");

@@ -403,7 +403,7 @@ export const copy = {
     knowledgeLine: '要る知識や道具（{items}）',
     taskNeedName: '業務の名前と、この業務で使う力を選ぶと、保存できます。',
     // 業務の一覧は丸ごと保存するので、使う力が読めなくなった業務（辞書から消えた力）があると、ほかの業務も保存できない。先にその業務へ導く（Claude の判断）
-    taskAbilityMissing: '先に「{text}」の使う力を選び直してください。選び直すと、ほかの業務も保存できます。',
+    taskAbilityMissing: '力の一覧が新しくなったので、「{text}」で使う力を、もう一度選んでください。選ぶと、ほかの業務も保存できます。',
     edit: '直す',
     remove: '消す',
     editLabel: '「{text}」を直す',
@@ -485,7 +485,7 @@ export const copy = {
     snapshotAbilities: 'その時点で並んでいた力（見えた力と、確かめ中の力）',
     // 「ない」を本人の力に向けない。何が入るかと、次にできることだけを伝える（Claude の判断）
     noAbilities: '話した出来事から見えた力を、ここに並べます。別の一日のことも、ホームから話せます。',
-    checking: '確かめ中の力: {names}（もう少し聞かせてほしいことがあります）',
+    checking: '確かめ中の力: {names}',
     taskAbility: '{task}: {name}は、まだ確かめていません',
     taskKnowledge: '{task}: 要る知識や道具（{items}）',
     canDoTitle: 'できること',

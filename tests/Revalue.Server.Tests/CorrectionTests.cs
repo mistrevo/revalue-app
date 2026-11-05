@@ -78,9 +78,9 @@ public sealed class CorrectionTests
         Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, CorrectionText)).StatusCode);
 
         var abilities = await Json(await client.GetAsync("/api/abilities", Ct));
-        var coordinating = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "balancing-interests");
-        Assert.Equal("needsCheck", coordinating.GetProperty("life").GetString());
-        Assert.Empty(Array(coordinating, "hints"));
+        var balancing = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "balancing-interests");
+        Assert.Equal("needsCheck", balancing.GetProperty("life").GetString());
+        Assert.Empty(Array(balancing, "hints"));
 
         // 足りない行動がほかになければ、続きは手がかりを添えない問いで始める
         var resumed = await Resume(client, id);

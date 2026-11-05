@@ -20,11 +20,11 @@ public sealed class AbilityStatesTests
             E(TestAbilities.BalancingInterests, 3, 1, answer: 3),
         ]);
 
-        var coordinating = Of(results, TestAbilities.BalancingInterests);
-        Assert.Equal(AbilityState.Confirmed, coordinating.State);
-        Assert.Empty(coordinating.Missing);
-        Assert.Equal([1, 2, 3], coordinating.Shown.Select(e => e.Action));
-        Assert.Equal("早いほう", coordinating.Shown[1].Quote);
+        var balancing = Of(results, TestAbilities.BalancingInterests);
+        Assert.Equal(AbilityState.Confirmed, balancing.State);
+        Assert.Empty(balancing.Missing);
+        Assert.Equal([1, 2, 3], balancing.Shown.Select(e => e.Action));
+        Assert.Equal("早いほう", balancing.Shown[1].Quote);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 3 つの行動の引用が 1 つの引用の中にすべて収まるときは、ほかの 2 つを含む引用を数えず、根拠ありにしない")]
@@ -37,10 +37,10 @@ public sealed class AbilityStatesTests
             E(TestAbilities.BalancingInterests, 3, 1, quote: "予約を夕方に変えてもらい"),
         ]);
 
-        var coordinating = Of(results, TestAbilities.BalancingInterests);
-        Assert.Equal(AbilityState.NeedsCheck, coordinating.State);
-        Assert.Equal([2, 3], coordinating.Shown.Select(e => e.Action));
-        Assert.Equal([1], coordinating.Missing);
+        var balancing = Of(results, TestAbilities.BalancingInterests);
+        Assert.Equal(AbilityState.NeedsCheck, balancing.State);
+        Assert.Equal([2, 3], balancing.Shown.Select(e => e.Action));
+        Assert.Equal([1], balancing.Missing);
 
         // 3 つが同じ引用でも、根拠ありにしない
         var same = Of(AbilityStates.Evaluate(
@@ -63,9 +63,9 @@ public sealed class AbilityStatesTests
             E(TestAbilities.BalancingInterests, 3, 1, answer: 1, quote: "予約を夕方に変えてもらい"),
         ]);
 
-        var coordinating = Of(results, TestAbilities.BalancingInterests);
-        Assert.Equal(AbilityState.Confirmed, coordinating.State);
-        Assert.Equal("夫は夕方まで仕事で、子どもは午後に習い事がありました", coordinating.Shown[0].Quote);
+        var balancing = Of(results, TestAbilities.BalancingInterests);
+        Assert.Equal(AbilityState.Confirmed, balancing.State);
+        Assert.Equal("夫は夕方まで仕事で、子どもは午後に習い事がありました", balancing.Shown[0].Quote);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: そろう出来事が複数あれば、番号の大きい出来事の根拠を出す")]
@@ -90,10 +90,10 @@ public sealed class AbilityStatesTests
             E(TestAbilities.BalancingInterests, 3, 2),
         ]);
 
-        var coordinating = Of(results, TestAbilities.BalancingInterests);
-        Assert.Equal(AbilityState.NeedsCheck, coordinating.State);
-        Assert.Equal([1, 2], coordinating.Shown.Select(e => e.Action));
-        Assert.Equal([3], coordinating.Missing);
+        var balancing = Of(results, TestAbilities.BalancingInterests);
+        Assert.Equal(AbilityState.NeedsCheck, balancing.State);
+        Assert.Equal([1, 2], balancing.Shown.Select(e => e.Action));
+        Assert.Equal([3], balancing.Missing);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 同じ番号でも読み取りが違えば別の出来事として扱い、NeedsCheck のまま")]
@@ -106,9 +106,9 @@ public sealed class AbilityStatesTests
             E(TestAbilities.SettingPriorities, 3, 1) with { Reading = 2 },
         ]);
 
-        var prioritizing = Of(results, TestAbilities.SettingPriorities);
-        Assert.Equal(AbilityState.NeedsCheck, prioritizing.State);
-        Assert.Equal([1], prioritizing.Missing);
+        var priorities = Of(results, TestAbilities.SettingPriorities);
+        Assert.Equal(AbilityState.NeedsCheck, priorities.State);
+        Assert.Equal([1], priorities.Missing);
 
         // 同じ読み取りの同じ出来事に 3 つそろえば Confirmed
         var confirmed = Of(AbilityStates.Evaluate(
@@ -145,10 +145,10 @@ public sealed class AbilityStatesTests
             E(TestAbilities.SettingPriorities, 3, 1, general: true),
         ]);
 
-        var prioritizing = Of(results, TestAbilities.SettingPriorities);
-        Assert.Equal(AbilityState.NeedsCheck, prioritizing.State);
-        Assert.Equal(3, prioritizing.Shown.Count);
-        Assert.Empty(prioritizing.Missing);
+        var priorities = Of(results, TestAbilities.SettingPriorities);
+        Assert.Equal(AbilityState.NeedsCheck, priorities.State);
+        Assert.Equal(3, priorities.Shown.Count);
+        Assert.Empty(priorities.Missing);
 
         var partial = Of(AbilityStates.Evaluate([E(TestAbilities.SettingPriorities, 2, 1, general: true)]), TestAbilities.SettingPriorities);
         Assert.Equal(AbilityState.NeedsCheck, partial.State);
@@ -166,11 +166,11 @@ public sealed class AbilityStatesTests
             E(TestAbilities.NoticingChanges, 2, 3, general: true),
         ]);
 
-        var noticing = Of(results, TestAbilities.NoticingChanges);
-        Assert.Equal(AbilityState.NeedsCheck, noticing.State);
-        Assert.Equal([2], noticing.Missing);
-        Assert.Equal([1, 3], noticing.Shown.Select(e => e.Action));
-        Assert.All(noticing.Shown, e => Assert.Equal(1, e.Event));
+        var noticingChanges = Of(results, TestAbilities.NoticingChanges);
+        Assert.Equal(AbilityState.NeedsCheck, noticingChanges.State);
+        Assert.Equal([2], noticingChanges.Missing);
+        Assert.Equal([1, 3], noticingChanges.Shown.Select(e => e.Action));
+        Assert.All(noticingChanges.Shown, e => Assert.Equal(1, e.Event));
 
         // 同じ数なら、番号の大きい出来事
         var tie = Of(AbilityStates.Evaluate([E(TestAbilities.NoticingChanges, 1, 1), E(TestAbilities.NoticingChanges, 2, 2)]), TestAbilities.NoticingChanges);
@@ -300,6 +300,73 @@ public sealed class AbilityStatesTests
 
         Assert.Equal(AbilityState.Confirmed, result.State);
         Assert.Equal([1, 2, 3], result.Shown.Select(e => e.Action));
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 状況の行動の根拠だけの力は、本人の行動が聞けていないので NotYet")]
+    public void SituationOnlyIsNotYet()
+    {
+        var resilience = TestAbilities.Resilience;
+        Assert.True(AbilityCatalog.IsSituation(new ActionRef(resilience, 1)));
+
+        var specific = Of(AbilityStates.Evaluate([E(resilience, 1, 1, quote: "思うようにいかなかった")]), resilience);
+        Assert.Equal(AbilityState.NotYet, specific.State);
+        Assert.Empty(specific.Shown);
+        Assert.Empty(specific.Missing);
+
+        // 一般論の状況だけでも同じ
+        var general = Of(AbilityStates.Evaluate([E(resilience, 1, 1, general: true, quote: "いつも予定どおりにいかない")]), resilience);
+        Assert.Equal(AbilityState.NotYet, general.State);
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 状況の行動と本人の行動が同じ出来事にあれば NeedsCheck で、状況の行動も見せる根拠に入る")]
+    public void SituationWithOwnActionNeedsCheck()
+    {
+        var resilience = TestAbilities.Resilience;
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(resilience, 1, 1, answer: 1, quote: "思うようにいかなかった"),
+            E(resilience, 2, 1, answer: 2, quote: "できることを紙に書き出した"),
+        ]), resilience);
+
+        Assert.Equal(AbilityState.NeedsCheck, result.State);
+        Assert.Equal([1, 2], result.Shown.Select(e => e.Action));
+        Assert.Equal([3], result.Missing);
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 新しい出来事が状況の行動だけなら、本人の行動がある出来事の根拠を見せる")]
+    public void SituationOnlyEventIsSkipped()
+    {
+        var resilience = TestAbilities.Resilience;
+        var result = Of(AbilityStates.Evaluate(
+        [
+            E(resilience, 2, 1, answer: 1, quote: "できることを紙に書き出した"),
+            E(resilience, 1, 2, answer: 2, quote: "次の日も思うようにいかなかった"),
+        ]), resilience);
+
+        Assert.Equal(AbilityState.NeedsCheck, result.State);
+        Assert.Equal("できることを紙に書き出した", Assert.Single(result.Shown).Quote);
+        Assert.Equal([1, 3], result.Missing);
+    }
+
+    [Fact(DisplayName = "validate-5（選んだだけでは根拠にしない）: 行動が 2 つの力で、一方の句に結びつけた選んだ答えをもう一方に当てても、根拠ありにしない")]
+    public void ChoiceLinkedToSameQuoteDoesNotConfirm()
+    {
+        const string phrase = "やることを紙に書き出して、上から順に片づけました";
+        var result = Of(AbilityStates.Evaluate(
+        [
+            new Evidence(TestAbilities.PlanningSteps, 1, phrase, 1, 1, false, false, null),
+            new Evidence(TestAbilities.PlanningSteps, 2, "思い当たることがあります", 2, 1, false, true, phrase),
+        ]), TestAbilities.PlanningSteps);
+
+        Assert.Equal(AbilityState.NeedsCheck, result.State);
+
+        // 結びついた言葉が別の句なら、根拠ありになる
+        var separate = Of(AbilityStates.Evaluate(
+        [
+            new Evidence(TestAbilities.PlanningSteps, 1, "やることを紙に書き出して", 1, 1, false, false, null),
+            new Evidence(TestAbilities.PlanningSteps, 2, "思い当たることがあります", 2, 1, false, true, "上から順に片づけました"),
+        ]), TestAbilities.PlanningSteps);
+        Assert.Equal(AbilityState.Confirmed, separate.State);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 根拠がなければ NotYet、話から確かめる力は辞書の順")]
