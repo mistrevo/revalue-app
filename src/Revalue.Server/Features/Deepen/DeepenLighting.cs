@@ -27,7 +27,7 @@ public static class DeepenLighting
         }
 
         return target.Registered
-            .Select(t => new TaskLight(t.Id, t.Name, t.Detail, t.Ability, UsableOf(t.Ability), t.Knowledge, false))
+            .Select(t => new TaskLight(t.Id, t.Name, t.Detail, t.Abilities.Main, UsableOf(t.Abilities.Main), t.Knowledge, false))
             .ToList();
     }
 }

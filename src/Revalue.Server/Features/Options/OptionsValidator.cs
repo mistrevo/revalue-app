@@ -320,9 +320,10 @@ public static partial class OptionsValidator
     private static List<CardTask> WithUsableSlots(IReadOnlyList<CardTask> cardTasks, IReadOnlyList<JobTask> tasks, ProfileConditions c) =>
         cardTasks.Select((t, i) => t with { TimeSlots = ConditionFit.UsableSlots(tasks[i], c) }).ToList();
 
+    /// <summary>カードの業務を、いまのカードに使う業務で引く。登録にないか準備中の業務があれば null。</summary>
     private static List<JobTask>? Resolve(IReadOnlyList<CardTask> cardTasks, JobCatalog catalog)
     {
-        var tasks = cardTasks.Select(t => catalog.FindTask(t.TaskId)).ToList();
+        var tasks = cardTasks.Select(t => catalog.FindActiveTask(t.TaskId)).ToList();
         return tasks.Any(t => t is null) ? null : tasks.Select(t => t!).ToList();
     }
 
@@ -356,7 +357,7 @@ public static partial class OptionsValidator
                 return "abilityNotUsable";
             }
 
-            if (found.All(t => t.Ability != ability.Ability))
+            if (!found.Any(t => t.Uses(ability.Ability)))
             {
                 return "abilityNotInTasks";
             }
@@ -407,7 +408,7 @@ public static partial class OptionsValidator
                 return "abilityNotUsable";
             }
 
-            if (found.All(t => t.Ability != ability.Ability))
+            if (!found.Any(t => t.Uses(ability.Ability)))
             {
                 return "abilityNotInTasks";
             }
@@ -514,7 +515,7 @@ public static partial class OptionsValidator
         {
             var occupation = catalog.OccupationOf(task);
             return new CardTask(
-                task.Id, occupation.Id, occupation.Name, task.Name, task.Detail, task.Ability,
+                task.Id, occupation.Id, occupation.Name, task.Name, task.Detail, task.Abilities.Main,
                 ConditionFit.UsableSlots(task, conditions), task.Place, task.Knowledge);
         }
 

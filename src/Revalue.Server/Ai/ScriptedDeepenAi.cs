@@ -29,7 +29,7 @@ public sealed class ScriptedDeepenAi : IDeepenAi
             ]
             : [];
 
-        var ability = target.Drafts || target.Registered.Count == 0 ? BalancingInterests : target.Registered[0].Ability;
+        var ability = target.Drafts ? BalancingInterests : target.Registered.SelectMany(t => t.ActiveAbilities).DefaultIfEmpty(BalancingInterests).First();
         QuestionDraft[] questions = [new QuestionDraft(Situation, ActionRef.Key(ability), Choices)];
 
         var first = target.Kind == TargetKind.Create

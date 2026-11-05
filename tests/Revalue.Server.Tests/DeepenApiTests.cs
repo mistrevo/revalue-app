@@ -47,12 +47,14 @@ public sealed class DeepenApiTests
     private static Kit Setup()
     {
         var ai = new FakeConversationAi();
-        // 組み合わせるは、日程の調整（利害調整力）と帳簿の確かめ（変化への気づき）にする
+        // 選ぶは、オンライン秘書の出張や会食の手配（主な力は利害調整力）にする。
+        // 組み合わせるは、出張や会食の手配（利害調整力）と帳簿と口座の照合（変化への気づき）にする
         var options = new FakeOptionsAi
         {
             Change = d => d with
             {
-                Combine = d.Combine with { Made = true, TaskIds = ["online-secretary-schedule", "accounting-check"], Ability = "balancing-interests" },
+                Choose = d.Choose with { Made = true, OccupationId = "online-secretary", TaskIds = ["online-secretary-arrangement"], Ability = "balancing-interests" },
+                Combine = d.Combine with { Made = true, TaskIds = ["online-secretary-arrangement", "accounting-check"], Ability = "balancing-interests" },
             },
         };
         var deepen = new FakeDeepenAi();
@@ -215,7 +217,7 @@ public sealed class DeepenApiTests
         Assert.False(content.GetProperty("stale").GetBoolean());
         Assert.False(content.GetProperty("retryPaused").GetBoolean());
         var task = Assert.Single(Array(content, "tasks"));
-        Assert.Equal("online-secretary-schedule", task.GetProperty("id").GetString());
+        Assert.Equal("online-secretary-arrangement", task.GetProperty("id").GetString());
         Assert.False(task.GetProperty("drafted").GetBoolean());
         var question = Assert.Single(Array(content, "questions"));
         Assert.Equal("q1", question.GetProperty("id").GetString());
@@ -260,7 +262,7 @@ public sealed class DeepenApiTests
         var regenerated = await Generate(client);
         var content = Content(regenerated);
         Assert.False(content.GetProperty("stale").GetBoolean());
-        Assert.Equal(["online-secretary-schedule", "accounting-check"], Array(content, "tasks").Select(t => t.GetProperty("id").GetString()));
+        Assert.Equal(["online-secretary-arrangement", "accounting-check"], Array(content, "tasks").Select(t => t.GetProperty("id").GetString()));
         Assert.All(Array(content, "questions"), q => Assert.Equal(JsonValueKind.Null, q.GetProperty("answer").ValueKind));
         Assert.All(Steps(regenerated), s => Assert.False(s.Chosen));
         Assert.Empty(Array(content, "ownSteps"));
@@ -326,7 +328,7 @@ public sealed class DeepenApiTests
         var usable = schedule.GetProperty("usable");
         Assert.Equal("confirmed", usable.GetProperty("state").GetString());
         Assert.Equal(BalancingInterestsAll.Select(c => c.Quote), Array(usable, "quotes").Select(q => q.GetProperty("text").GetString()));
-        Assert.Equal(["オンラインの予定表"], Array(schedule, "knowledge").Select(k => k.GetString()));
+        Assert.Equal(["予約サイトの使い方"], Array(schedule, "knowledge").Select(k => k.GetString()));
 
         var check = tasks[1];
         Assert.Equal("noticing-changes", check.GetProperty("ability").GetString());

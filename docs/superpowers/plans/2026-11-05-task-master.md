@@ -142,7 +142,7 @@ public sealed record JobCatalog(JobSource Source, IReadOnlyList<JobDomain> Domai
 - 止めないもの: 準備中の力を持つ業務、`active` の業務がない職種（job tag のある職種でもよい。下書きのメモにあった「job tag のある職種には active の業務が 1 つ以上」は、保険の営業とキャリアコンサルタントを準備中にしたので入れない）、`checks` が空
 - 文の長さはデータのテストで見る（読み込みでは止めない）: 業務の名前 30、中身 80、知識や道具 60、活用場面 80、小さな試し方 100 文字まで（Claude の判断。深めるの上限と同じ。活用場面は下書きの最長 60 文字に余裕を持たせた）
 
-- [ ] **Step 1: 失敗するテストを書く**（`JobCatalogTests.cs`。いまの 3 職種と 12 業務のテストを置き換える）
+- [x] **Step 1: 失敗するテストを書く**（`JobCatalogTests.cs`。いまの 3 職種と 12 業務のテストを置き換える）
   - `options-9（業務マスターの形を守る）: 登録データは 10 の領域、30 の職種、125 の業務を持ち、カードに使う業務は 115`
   - `options-9（業務マスターの形を守る）: 話から確かめる力それぞれに、カードに使う業務が 2 つ以上つながる（主な力か補助の力）` — 力は `AbilityCatalog.Active` から読む
   - `options-9（業務マスターの形を守る）: カードに使う業務の時給の目安の下限は 1,300 円以上で、上限は下限以上` — 出典の `note` に「1,300 円」がある
@@ -162,16 +162,16 @@ public sealed record JobCatalog(JobSource Source, IReadOnlyList<JobDomain> Domai
     - `options-8（理由は本人の言葉とつなぐ）: 業務の準備中の力（原因分析力）は、カードの力にできない` — `abilityNotUsable`
   - `OptionsApiTests`: `options-2（選ぶは登録した職種から）: 前に保存したカードの業務が準備中なら、そのカードは出さず、選んだ案の中身は残す`（`insurance-sales-hearing` の「選ぶ」を置いてから `GET /api/options`）
   - `DeepenValidatorTests`: `deepen-6（仮の場面での考え方を聞く）: 問いの力は、選んだ案の業務の主な力か補助の力のうち、話から確かめる力` — `online-secretary-schedule` の利害調整力（補助）は通り、`planning-cause-hypothesis` の原因分析力（主、準備中）は落とす
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~JobCatalogTests|FullyQualifiedName~OptionsValidatorTests|FullyQualifiedName~DeepenValidatorTests"`
-- [ ] **Step 3: jobs.json を作る** — `.tmp/task-master/jobs-draft.json` を読み、上の「下書きから変えること」の 2（時給）と 3（準備中）と、出典の `note` だけを変えて `src/Revalue.Server/Features/Options/jobs.json` に書く（`node -e` で。字下げ 2、末尾に改行）。書いたあと `node -e` で、領域 10、職種 30、業務 125、`active` 115、`active` の時給の下限が 1,300 以上、22 の力それぞれ `active` の業務が 2 つ以上を確かめる
-- [ ] **Step 4: 写しと job tag の番号を確かめる** — `.tmp/task-master/jobs-check.py` を `.tmp/task-master/jobs-check-repo.py` に写し、読むファイルを `src/Revalue.Server/Features/Options/jobs.json` と `.tmp/jobtag/utf8/numeric.csv` に変える（協力者の表のパスはそのまま）。リポジトリの根で `PYTHONIOENCODING=utf-8 python .tmp/task-master/jobs-check-repo.py` を回す。期待: `jobtag check problems: 0`。`collab:` が空でない行は「固定資産台帳の更新」の 1 行だけ（`jobtag:` だけの重なりは「商品やサービスの」のような言い回しで、写しではない）。どちらも git が無視する置き場所なのでコミットしない
-- [ ] **Step 5: `JobCatalog` を広げ、業務の力を使う所を `Uses` と `ActiveAbilities` に直す**。`JobTask.Ability` を消し、`git grep -n "\.Ability\b" src/Revalue.Server/Features/Options src/Revalue.Server/Features/Deepen src/Revalue.Server/Ai` で、業務の力として読んでいる所が残っていないことを見る（カードと根拠の `Ability` は別物なので残る）
-- [ ] **Step 6: すべてのテストを通す** — `dotnet test`。データの数、並び（職種は経理事務から始まる）、名前を変えた 6 業務（`online-secretary-schedule` 会議や面会の日程調整、`accounting-check` 帳簿と口座の照合、`accounting-invoice` 請求書の発行、`accounting-monthly` 月の締めの進行管理、`recruiting-posting` 求人票の作成、`recruiting-applications` 応募の受付と書類の確認）、業務の主な力、時給の下限で期待が変わったテストは、それだけが理由かを確かめ、コミットメッセージの本文に書く。`dotnet run --project evals/Revalue.Evals -- --unit options --dry-run` と `--unit deepen --dry-run` が流れる
-- [ ] **Step 7: Spec、PRD、決めたことを書く**
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~JobCatalogTests|FullyQualifiedName~OptionsValidatorTests|FullyQualifiedName~DeepenValidatorTests"`
+- [x] **Step 3: jobs.json を作る** — `.tmp/task-master/jobs-draft.json` を読み、上の「下書きから変えること」の 2（時給）と 3（準備中）と、出典の `note` だけを変えて `src/Revalue.Server/Features/Options/jobs.json` に書く（`node -e` で。字下げ 2、末尾に改行）。書いたあと `node -e` で、領域 10、職種 30、業務 125、`active` 115、`active` の時給の下限が 1,300 以上、22 の力それぞれ `active` の業務が 2 つ以上を確かめる
+- [x] **Step 4: 写しと job tag の番号を確かめる** — `.tmp/task-master/jobs-check.py` を `.tmp/task-master/jobs-check-repo.py` に写し、読むファイルを `src/Revalue.Server/Features/Options/jobs.json` と `.tmp/jobtag/utf8/numeric.csv` に変える（協力者の表のパスはそのまま）。リポジトリの根で `PYTHONIOENCODING=utf-8 python .tmp/task-master/jobs-check-repo.py` を回す。期待: `jobtag check problems: 0`。`collab:` が空でない行は「固定資産台帳の更新」の 1 行だけ（`jobtag:` だけの重なりは「商品やサービスの」のような言い回しで、写しではない）。どちらも git が無視する置き場所なのでコミットしない
+- [x] **Step 5: `JobCatalog` を広げ、業務の力を使う所を `Uses` と `ActiveAbilities` に直す**。`JobTask.Ability` を消し、`git grep -n "\.Ability\b" src/Revalue.Server/Features/Options src/Revalue.Server/Features/Deepen src/Revalue.Server/Ai` で、業務の力として読んでいる所が残っていないことを見る（カードと根拠の `Ability` は別物なので残る）
+- [x] **Step 6: すべてのテストを通す** — `dotnet test`。データの数、並び（職種は経理事務から始まる）、名前を変えた 6 業務（`online-secretary-schedule` 会議や面会の日程調整、`accounting-check` 帳簿と口座の照合、`accounting-invoice` 請求書の発行、`accounting-monthly` 月の締めの進行管理、`recruiting-posting` 求人票の作成、`recruiting-applications` 応募の受付と書類の確認）、業務の主な力、時給の下限で期待が変わったテストは、それだけが理由かを確かめ、コミットメッセージの本文に書く。`dotnet run --project evals/Revalue.Evals -- --unit options --dry-run` と `--unit deepen --dry-run` が流れる
+- [x] **Step 7: Spec、PRD、決めたことを書く**
   - `05-options.md` の「登録した職種と業務」: 置き場所。業務マスター（10 の領域、職種、業務）で、協力者のインタビューをもとに Claude が書き起こしたこと。職種は job tag の職業の番号と名前、業務はタスクの番号を持つこと。業務ごとの値（使う力 = 主な力と補助の力、力が生きる場面、週の時間、時間帯、場所、時給の目安、要る知識や道具、小さな試し方、本人に確かめる条件、状態）。カードに使うのは `active` の業務だけで、`active` にはどの値がそろっていること。業務が力に「つながる」とは、主な力か補助の力のうち話から確かめる力にその力があること。業務の力に準備中の力が入っていてもよいが、カードの力にはならないこと。時給の目安の下限は 1,300 円以上（最低賃金を下回らないため）。読み込みで止めるもの（上の Interfaces）。options-9 の基準: `9. options-9（業務マスターの形を守る）: 業務マスターの形が崩れていれば起動で止める。登録データでは、話から確かめる力それぞれに、カードに使う業務が 2 つ以上つながり、カードに使う業務の時給の目安の下限は 1,300 円以上で、小さな試し方に一歩で落とす言葉がない。確かめ方: 単体テスト（一つの処理だけを取り出して確かめるテスト）`
   - `docs/prd/5-information.md`: 上の Files の 3 行
   - `docs/decisions/2026-11-05-task-master.md`: 見出しは「# 業務マスターの値と範囲」、日付の行、「## 決めたこと」の表（決めたこと | 決めた人 | 外した案 | 理由）、「## まだ分かっていないこと」。表の行は、active にした範囲（10 領域で job tag の職業とタスクが見つかった業務。外した案は 5 領域だけ。理由はメモの「active と preparing」）、まとめた 7 業務と id を残したこと（理由は公開中の保存データ）、時給の下限 1,300 円、保険の営業とキャリアコンサルタントを準備中、業務のデジタル化の支援を active のまま（開発者に確かめる）、主な力と補助の力をどちらもつながりに数える（設計の点検）、AI に渡す候補を使える力につながる業務に絞る（上の「AI に渡す候補」）、活用場面・小さな試し方・確かめる条件の使い道（上の表）、`web-marketing-ad-results` を active のまま置く。「まだ分かっていないこと」は、needsReview の 87 業務の力（協力者に確かめる）、時給の目安の出典、業務のデジタル化の支援が短い時間から始められるか
-- [ ] **Step 8: コミット**（「業務マスター: jobs.json を 125 業務にし、業務の力を主な力と補助の力にする（options-9（業務マスターの形を守る）、options-2（選ぶは登録した職種から））」）
+- [x] **Step 8: コミット**（「業務マスター: jobs.json を 125 業務にし、業務の力を主な力と補助の力にする（options-9（業務マスターの形を守る）、options-2（選ぶは登録した職種から））」）
 
 ### Task 2: 仕事の選択肢の候補を絞り、AI に業務の力と活用場面を渡し、カードに活用場面を添える
 

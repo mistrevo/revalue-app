@@ -168,10 +168,10 @@ public sealed class ReportBuilderTests
 
         Assert.Equal([TestAbilities.NoticingChanges], content.NotYet.Checking);
         Assert.False(content.NotYet.HasExcluded);
-        // 日程の調整は利害調整力（使える力）なので、力は出さずに知識や道具だけ
+        // 出張や会食の手配の主な力は利害調整力（使える力）なので、力は出さずに知識や道具だけ
         var gap = Assert.Single(content.NotYet.TaskGaps);
-        Assert.Equal(("日程の調整", (Ability?)null), (gap.TaskName, gap.Ability));
-        Assert.Equal(["オンラインの予定表"], gap.Knowledge);
+        Assert.Equal(("出張や会食の手配", (Ability?)null), (gap.TaskName, gap.Ability));
+        Assert.Equal(["予約サイトの使い方"], gap.Knowledge);
 
         var preference = Assert.Single(content.Records.Preferences);
         Assert.Equal(EntrySource.Chosen, preference.Source);
@@ -181,7 +181,7 @@ public sealed class ReportBuilderTests
 
         Assert.Equal((ChoiceKind.Card, CardKind.Choose, "オンライン秘書"), (content.Choice.Kind, content.Choice.Card, content.Choice.Title));
         Assert.Equal("要約", content.Choice.Summary);
-        Assert.Equal(["日程の調整"], content.Choice.Tasks);
+        Assert.Equal(["出張や会食の手配"], content.Choice.Tasks);
         Assert.False(content.Choice.DemandNotChecked);
 
         var thought = Assert.Single(content.Thinking!);
@@ -254,8 +254,8 @@ public sealed class ReportBuilderTests
         Assert.Null(content.Thinking);
         Assert.Null(content.Steps);
         Assert.Equal((ChoiceKind.Card, CardKind.Combine, "予定をつなぐ人"), (content.Choice.Kind, content.Choice.Card, content.Choice.Title));
-        // 組み合わせるの業務は登録から出す。帳簿の見直しの変化への気づきは確かめ中（使える力）なので、知識や道具だけ
-        Assert.Equal(["日程の調整", "帳簿の見直し"], content.NotYet.TaskGaps.Select(g => g.TaskName));
+        // 組み合わせるの業務は登録から出す。帳簿と口座の照合の変化への気づきは確かめ中（使える力）なので、知識や道具だけ
+        Assert.Equal(["出張や会食の手配", "帳簿と口座の照合"], content.NotYet.TaskGaps.Select(g => g.TaskName));
         Assert.All(content.NotYet.TaskGaps, g => Assert.Null(g.Ability));
     }
 
@@ -269,7 +269,7 @@ public sealed class ReportBuilderTests
 
         var content = await Build(kit);
 
-        var check = content.NotYet.TaskGaps.Single(g => g.TaskName == "帳簿の見直し");
+        var check = content.NotYet.TaskGaps.Single(g => g.TaskName == "帳簿と口座の照合");
         Assert.Equal(TestAbilities.NoticingChanges, check.Ability);
         Assert.Equal(["簿記の基礎", "会計ソフト"], check.Knowledge);
     }
@@ -326,7 +326,7 @@ public sealed class ReportBuilderTests
         Assert.Null(content.Choice.Problem);
         Assert.False(content.Choice.OutsideConditions);
 
-        await SetConditions(kit, Conditions(hours: 1));
+        await SetConditions(kit, Conditions(slots: [TimeSlot.Night]));
         Assert.True((await Build(kit)).Choice.OutsideConditions);
 
         await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.BalancingInterests, true, kit.Clock, Ct);

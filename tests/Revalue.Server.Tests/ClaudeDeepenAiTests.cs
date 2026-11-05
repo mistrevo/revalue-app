@@ -164,7 +164,7 @@ public sealed class ClaudeDeepenAiTests
         var choose = Section(ClaudeDeepenAi.Brief(Target(Options(ChooseChoice())), RecordInputs()), "target");
         Assert.Contains("choose", choose);
         Assert.Contains("オンライン秘書", choose);
-        var task = Catalog.FindTask("online-secretary-schedule")!;
+        var task = Catalog.FindTask("online-secretary-arrangement")!;
         Assert.Contains(task.Name, choose);
         Assert.Contains(task.Detail, choose);
         Assert.Contains("balancing-interests", choose);

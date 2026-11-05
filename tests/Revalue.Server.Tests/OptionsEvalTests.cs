@@ -1,6 +1,7 @@
 using Revalue.Evals;
 using Revalue.Server.Ai;
 using Revalue.Server.Features.Options;
+using Revalue.Server.Features.Profile;
 using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Tests;
@@ -157,10 +158,12 @@ public sealed class OptionsEvalTests
         }
 
         Assert.All(runs, r => Assert.Null(r.Error));
-        // 週 1 時間、夜だけの人には、選ぶと組み合わせるの候補がない
+        // 週 1 時間、夜だけの人には、組み合わせるの候補がない（2 つの業務の始めやすさの合計が 1 時間を超える）。
+        // 選ぶの候補は、夜に週 1 時間から家でできる業務だけ
         var tight = runs.Single(r => r.Case.Id == "p03-tight-conditions");
-        Assert.False(tight.Candidates.CanChoose);
-        Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoFit), tight.Cards!.Missing);
+        Assert.False(tight.Candidates.CanCombine);
+        Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoFit), tight.Cards!.Missing);
+        Assert.All(tight.Candidates.Tasks, t => Assert.True(t.HoursPerWeek.Min <= 1 && t.TimeSlots.Contains(TimeSlot.Night) && t.Place == TaskPlace.Home));
         // 外にも出られる人には、外に出る業務も候補に入る
         Assert.Contains(runs.Single(r => r.Case.Id == "p04-can-go-out").Candidates.Tasks, t => t.Place == TaskPlace.Out);
 

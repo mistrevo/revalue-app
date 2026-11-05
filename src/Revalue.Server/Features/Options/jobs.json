@@ -1,175 +1,5079 @@
 {
   "source": {
-    "text": "独立行政法人労働政策研究・研修機構（JILPT）作成「職業情報データベース　簡易版数値系ダウンロードデータ　ver.7.00」職業情報提供サイト（job tag）より2026年11月3日にダウンロード（https://shigoto.mhlw.go.jp/User/download）を加工して作成",
+    "text": "独立行政法人労働政策研究・研修機構（JILPT）作成「職業情報データベース　簡易版数値系ダウンロードデータ　ver.7.00」職業情報提供サイト（job tag）より2026年11月3日にダウンロード（https://shigoto.mhlw.go.jp/User/download）を加工して作成。業務の領域と業務は、当事者の協力者へのインタビューで得た業務マスターをもとに書き起こした",
     "url": "https://shigoto.mhlw.go.jp/User/download",
-    "note": "職種と業務の言葉は、job tag のタスクを元に、家庭と両立しながら受けやすい形に言い換えた（jobtagTasks は元のタスクの番号）。使う力、週あたりの時間、時間帯、場所、時給の目安、要る知識や道具は job tag にない値で、Claude が下書きした。開発者が確かめて直す"
+    "note": "職種と業務の言葉は、協力者の業務マスターと job tag のタスクを元に、家庭と両立しながら受けやすい形に言い換えた（jobtagTasks は job tag の職業のタスクの番号）。使う力、力が生きる場面、週あたりの時間、時間帯、場所、時給の目安、要る知識や道具、小さな試し方、本人に確かめる条件は job tag にない値で、Claude が下書きした。開発者が確かめて直す。時給の目安の下限は、2026 年度の地域別最低賃金（東京都 1,280 円）を下回らないよう、1,300 円以上にそろえた。needsReview が true の業務は、使う力を Claude が付け替えたか足したもので、協力者に確かめる。preparing の業務はカードに使わない。job tag の近いタスクがまだ見つかっていない業務と、登録や国家資格が要るか給与が歩合で決まることが多く、短い時間から小さく始める形で出せない業務（保険の営業、キャリアコンサルタント）"
   },
-  "occupations": [
+  "domains": [
     {
-      "id": "online-secretary",
-      "name": "オンライン秘書",
-      "summary": "会社や個人で仕事をする人の、連絡や予定の段取りを、オンラインで手伝う仕事",
-      "jobtag": { "number": 426, "name": "秘書" },
-      "tasks": [
-        {
-          "id": "online-secretary-email",
-          "name": "メールの一次対応",
-          "detail": "届いたメールに目を通し、急ぐものと、あとでよいものに分けて伝える",
-          "jobtagTasks": [1],
-          "ability": "setting-priorities",
-          "hoursPerWeek": { "min": 3, "max": 10 },
-          "timeSlots": ["morning", "daytime", "evening"],
-          "place": "home",
-          "hourlyYen": { "min": 1300, "max": 1800 },
-          "knowledge": ["メールやチャットの道具"]
-        },
-        {
-          "id": "online-secretary-schedule",
-          "name": "日程の調整",
-          "detail": "予定表を整え、関わる人と連絡を取り合って、会う日時を決める",
-          "jobtagTasks": [2, 3],
-          "ability": "balancing-interests",
-          "hoursPerWeek": { "min": 3, "max": 10 },
-          "timeSlots": ["daytime", "evening"],
-          "place": "home",
-          "hourlyYen": { "min": 1300, "max": 2000 },
-          "knowledge": ["オンラインの予定表"]
-        },
-        {
-          "id": "online-secretary-arrangement",
-          "name": "出張や会食の手配",
-          "detail": "移動や宿、お店の予約を、相手の都合に合わせて整える",
-          "jobtagTasks": [14, 17],
-          "ability": "balancing-interests",
-          "hoursPerWeek": { "min": 1, "max": 5 },
-          "timeSlots": ["daytime", "evening"],
-          "place": "home",
-          "hourlyYen": { "min": 1300, "max": 2000 },
-          "knowledge": ["予約サイトの使い方"]
-        },
-        {
-          "id": "online-secretary-briefing",
-          "name": "情報の取りまとめ",
-          "detail": "集めた情報から要るものを選び、前と変わったところが分かるようにまとめる",
-          "jobtagTasks": [6, 22],
-          "ability": "noticing-changes",
-          "hoursPerWeek": { "min": 2, "max": 8 },
-          "timeSlots": ["morning", "daytime", "evening", "night"],
-          "place": "home",
-          "hourlyYen": { "min": 1300, "max": 2000 },
-          "knowledge": ["表計算", "文書作成"]
-        }
-      ]
+      "id": "accounting",
+      "name": "経理・財務"
     },
+    {
+      "id": "hr",
+      "name": "人事・採用・労務"
+    },
+    {
+      "id": "marketing",
+      "name": "マーケティング・広報"
+    },
+    {
+      "id": "sales",
+      "name": "営業・顧客対応"
+    },
+    {
+      "id": "general-affairs",
+      "name": "総務・法務・事務"
+    },
+    {
+      "id": "it-data",
+      "name": "IT・データ・DX"
+    },
+    {
+      "id": "education",
+      "name": "教育・研修・対人支援"
+    },
+    {
+      "id": "planning",
+      "name": "企画・調査・PM"
+    },
+    {
+      "id": "logistics",
+      "name": "物流・製造・軽作業"
+    },
+    {
+      "id": "service",
+      "name": "接客・サービス・移動"
+    }
+  ],
+  "occupations": [
     {
       "id": "accounting-clerk",
       "name": "経理事務",
+      "domain": "accounting",
       "summary": "会社のお金の出入りを記録し、間違いがないかを確かめる仕事",
-      "jobtag": { "number": 430, "name": "経理事務" },
+      "jobtag": {
+        "number": 430,
+        "name": "経理事務"
+      },
       "tasks": [
         {
-          "id": "accounting-check",
-          "name": "帳簿の見直し",
-          "detail": "帳簿の記録を見直し、打ち間違いや、領収書などとのずれを見つける",
-          "jobtagTasks": [2],
-          "ability": "noticing-changes",
-          "hoursPerWeek": { "min": 3, "max": 10 },
-          "timeSlots": ["daytime", "evening", "night"],
+          "id": "accounting-receipts",
+          "name": "領収書などの回収と整理",
+          "detail": "社員や取引先から領収書や納品書を集め、日付と使い道ごとにそろえて保管する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": [
+              "planning-steps"
+            ]
+          },
+          "scene": "締め日から逆算して、だれにいつまでに書類を出してもらうかを決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
           "place": "home",
-          "hourlyYen": { "min": 1200, "max": 1600 },
-          "knowledge": ["簿記の基礎", "会計ソフト"]
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "表計算"
+          ],
+          "trial": "手元のレシート 1 週間分を、日付と使い道ごとに表に書き出してみる",
+          "checks": [
+            "細かい数字や日付の違いを見る作業を続けられるか",
+            "書類どうしを一つずつ突き合わせる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "accounting-expense-check",
+          "name": "経費精算の中身の確認",
+          "detail": "社員が出した経費の申請を、領収書や社内の決まりと照らし、合わないところを本人に聞き返す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2
+          ],
+          "abilities": {
+            "main": "sensing-incongruity",
+            "sub": [
+              "considering-fairness",
+              "managing-deadlines"
+            ]
+          },
+          "scene": "申請の説明と領収書の中身の小さな食い違いに気づき、だれの申請にも同じ決まりを当てはめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "経費精算の決まり",
+            "会計ソフト"
+          ],
+          "trial": "家計の 1 か月分の支出を、決めた分け方で表にし、分け方に迷ったものを書き出してみる",
+          "checks": [
+            "書類どうしを一つずつ突き合わせる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "accounting-journal-entry",
+          "name": "仕訳の入力",
+          "detail": "取引の書類をもとに、どの科目にいくら記録するかを会計ソフトに入れていく",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1,
+            11
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": []
+          },
+          "scene": "月末までに入れる量をつかみ、締めに間に合うよう日ごとの入力の量を決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "会計ソフト"
+          ],
+          "trial": "家計簿の 1 週間分を、収入と支出に分けて記録し直してみる",
+          "checks": [
+            "細かい数字や日付の違いを見る作業を続けられるか"
+          ]
+        },
+        {
+          "id": "accounting-account-titles",
+          "name": "勘定科目の振り分け",
+          "detail": "取引の中身を読んで当てる勘定科目を決め、迷うものは決まりを確かめて相談する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1,
+            11
+          ],
+          "abilities": {
+            "main": "considering-fairness",
+            "sub": []
+          },
+          "scene": "似た支払いには同じ科目を当てる決め方をそろえ、だれの取引にも同じように当てはめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "簿記の基礎（勘定科目）",
+            "会計ソフト"
+          ],
+          "trial": "家計の支出を 5 つの分け方で分類し、分け方の決まりを 1 行ずつ書いてみる",
+          "checks": [
+            "細かい数字や日付の違いを見る作業を続けられるか",
+            "書類どうしを一つずつ突き合わせる作業が苦にならないか"
+          ]
         },
         {
           "id": "accounting-invoice",
-          "name": "請求と入金の確認",
-          "detail": "請求書を作って送り、期日までに入金があったかを確かめる",
-          "jobtagTasks": [4],
-          "ability": "noticing-changes",
-          "hoursPerWeek": { "min": 2, "max": 8 },
-          "timeSlots": ["daytime"],
+          "name": "請求書の発行",
+          "detail": "取引の記録から請求書を作って送り、送った日と支払いの期日を控えておく",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": []
+          },
+          "scene": "取引先ごとの締め日と支払いの期日をつかみ、送る順と日を決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime"
+          ],
           "place": "home",
-          "hourlyYen": { "min": 1200, "max": 1600 },
-          "knowledge": ["会計ソフト", "表計算"]
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "会計ソフト",
+            "表計算"
+          ],
+          "trial": "身の回りの支払い（公共料金など）の期日を 1 か月分、表に並べてみる",
+          "checks": [
+            "書類どうしを一つずつ突き合わせる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "accounting-payment-matching",
+          "name": "入金の消し込み",
+          "detail": "口座に入ったお金を、どの請求の分かと突き合わせて記録し、期日を過ぎても入っていない分を拾い出す",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": []
+          },
+          "scene": "期日を過ぎた入金をつかみ、どの取引先から先に確かめるかを決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "会計ソフト"
+          ],
+          "trial": "通帳かネット口座の 1 か月分の入金を、何の入金かと並べて書き出してみる",
+          "checks": [
+            "細かい数字や日付の違いを見る作業を続けられるか"
+          ]
+        },
+        {
+          "id": "accounting-payables",
+          "name": "支払いの予定の管理",
+          "detail": "仕入れ先への支払いを一覧にし、いつ何を払うかを決めて、払い忘れがないように進める",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1,
+            8
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "balancing-interests"
+            ]
+          },
+          "scene": "支払いに要る作業を洗い出して順番を組み、資金の都合と取引先の期日の折り合いをつけるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "表計算"
+          ],
+          "trial": "これから 2 か月の家の支払いを洗い出し、払う順に並べてみる",
+          "checks": []
+        },
+        {
+          "id": "accounting-check",
+          "name": "帳簿と口座の照合",
+          "detail": "帳簿の記録を見直し、通帳や領収書とのずれや打ち間違いを見つける",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "managing-deadlines"
+            ]
+          },
+          "scene": "いつもの記録と比べて、金額や日付が違うところに自分で気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "会計ソフト"
+          ],
+          "trial": "家計簿と通帳の 1 か月分を見比べ、合わないところを書き出してみる",
+          "checks": [
+            "書類どうしを一つずつ突き合わせる作業が苦にならないか"
+          ]
         },
         {
           "id": "accounting-monthly",
-          "name": "月の締めの手伝い",
-          "detail": "月ごとの集計を、締め日までに終わるよう、順番を決めて進める",
-          "jobtagTasks": [6],
-          "ability": "setting-priorities",
-          "hoursPerWeek": { "min": 5, "max": 15 },
-          "timeSlots": ["daytime"],
+          "name": "月の締めの進行管理",
+          "detail": "月ごとの集計を締め日までに終えるよう、作業と順番を決めて進め、遅れている資料を催促する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "setting-priorities",
+              "balancing-interests"
+            ]
+          },
+          "scene": "締めに要る作業を洗い出して順番を組み、重なったときに先にすることを選ぶところで生きる",
+          "hoursPerWeek": {
+            "min": 5,
+            "max": 15
+          },
+          "timeSlots": [
+            "daytime"
+          ],
           "place": "home",
-          "hourlyYen": { "min": 1300, "max": 1800 },
-          "knowledge": ["簿記の基礎", "会計ソフト", "表計算"]
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "会計ソフト",
+            "表計算"
+          ],
+          "trial": "家の 1 か月の家計の締めに要る作業を書き出し、やる順に並べてみる",
+          "checks": []
+        },
+        {
+          "id": "accounting-fixed-assets",
+          "name": "固定資産台帳の更新",
+          "detail": "パソコンや設備など長く使う物の買い入れや処分を台帳に記録し、決まった時期に見直す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            17
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": [
+              "planning-steps"
+            ]
+          },
+          "scene": "台帳を見直す時期をつかみ、それに合わせて確かめる順と日を決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "簿記の基礎（減価償却）",
+            "会計ソフト"
+          ],
+          "trial": "家にある長く使う家電を 5 つ選び、使い始めた時期と使う年数の見込みを表にしてみる",
+          "checks": [
+            "細かい数字や日付の違いを見る作業を続けられるか",
+            "書類どうしを一つずつ突き合わせる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "accounting-budget-variance",
+          "name": "予算と実績の差の分析",
+          "detail": "立てた予算と実際の数字を比べ、差の大きい項目について、なぜ差が出たかを調べてまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            13,
+            15
+          ],
+          "abilities": {
+            "main": "cause-analysis",
+            "sub": [
+              "sensing-incongruity",
+              "hypothesis-thinking"
+            ]
+          },
+          "scene": "差が出たわけを、起きたことと、それを生んだ条件に分けて考えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "表計算",
+            "会社の数字の読み方"
+          ],
+          "trial": "先月の家計の見込みと実際を 3 項目比べ、差が出たわけを書き出してみる",
+          "checks": []
+        },
+        {
+          "id": "accounting-cash-flow",
+          "name": "資金繰りの予定表づくり",
+          "detail": "これから入るお金と出ていくお金を月ごとに並べ、お金が不足しそうな時期を早めに示す",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            13
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "balancing-interests"
+            ]
+          },
+          "scene": "入金と支払いの予定を洗い出して並べ、支払いの時期を関わる人と合わせるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1400,
+            "max": 2000
+          },
+          "knowledge": [
+            "簿記の基礎",
+            "表計算"
+          ],
+          "trial": "これから 3 か月の家の入るお金と出るお金を、月ごとに表にしてみる",
+          "checks": []
         },
         {
           "id": "accounting-cash",
           "name": "手元の現金の管理",
           "detail": "事務所で手元の現金を数え、記録と合っているかを確かめる",
-          "jobtagTasks": [3],
-          "ability": "noticing-changes",
-          "hoursPerWeek": { "min": 2, "max": 6 },
-          "timeSlots": ["daytime"],
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": []
+          },
+          "scene": "いつもの残高と比べて、記録と現金が合わないことに自分で気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
           "place": "out",
-          "hourlyYen": { "min": 1200, "max": 1500 },
-          "knowledge": ["簿記の基礎"]
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "簿記の基礎"
+          ],
+          "trial": "財布の中の現金を 1 週間記録し、記録と実際が合うかを毎日確かめてみる",
+          "checks": [
+            "細かい数字や日付の違いを見る作業を続けられるか"
+          ]
         }
       ]
     },
     {
       "id": "recruiting-clerk",
       "name": "採用事務",
+      "domain": "hr",
       "summary": "人を採用するときの、求人や面接の段取りを手伝う仕事",
-      "jobtag": { "number": 432, "name": "人事事務" },
+      "jobtag": {
+        "number": 432,
+        "name": "人事事務"
+      },
       "tasks": [
         {
           "id": "recruiting-posting",
-          "name": "求人の準備",
-          "detail": "人を求めている部署に話を聞き、求人の中身をまとめて、載せる手配をする",
-          "jobtagTasks": [2],
-          "ability": "balancing-interests",
-          "hoursPerWeek": { "min": 2, "max": 8 },
-          "timeSlots": ["daytime"],
+          "name": "求人票の作成",
+          "detail": "部署から聞いた条件をもとに、仕事の中身や働く条件を求人の文にまとめ、載せる手配をする",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            2
+          ],
+          "abilities": {
+            "main": "question-design",
+            "sub": [
+              "considering-fairness"
+            ]
+          },
+          "scene": "部署にばくぜんと聞かず、すぐ答えられる具体的な問いで条件を聞き出し、だれが読んでも同じに受け取れる文にするところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime"
+          ],
           "place": "home",
-          "hourlyYen": { "min": 1200, "max": 1600 },
-          "knowledge": ["文書作成", "求人サイトの使い方"]
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "文書作成",
+            "求人サイトの使い方",
+            "採用で守る決まりの基礎"
+          ],
+          "trial": "知っている仕事を 1 つ選び、仕事の中身と働く条件を 200 字の求人の文にまとめてみる",
+          "checks": []
+        },
+        {
+          "id": "recruiting-requirements",
+          "name": "採用したい人の条件の聞き取り",
+          "detail": "人を求めている部署に、どんな仕事をだれに任せたいかを聞き、要る経験や条件を書き出す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening",
+              "info-gathering"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、任せたい仕事の具体的な例や、その条件を求める理由を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "オンライン会議の道具",
+            "採用の基礎知識"
+          ],
+          "trial": "身近な人に仕事の中身を 15 分聞き、要る経験と条件を 5 行で書き出してみる",
+          "checks": []
         },
         {
           "id": "recruiting-interview-schedule",
           "name": "面接の日程調整",
-          "detail": "応募した人と面接する人の都合を聞き、日時を決めて案内する",
-          "jobtagTasks": [4],
-          "ability": "balancing-interests",
-          "hoursPerWeek": { "min": 3, "max": 10 },
-          "timeSlots": ["daytime", "evening"],
+          "detail": "応募した人と面接する人の都合を聞き、日時を決めて案内し、変更があれば組み直す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "balancing-interests",
+              "handling-schedule-changes"
+            ]
+          },
+          "scene": "面接までに要る連絡を洗い出して順に進め、双方の都合が合わないときに代わりの日時を出すところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
           "place": "home",
-          "hourlyYen": { "min": 1200, "max": 1600 },
-          "knowledge": ["メールやチャットの道具", "オンラインの予定表"]
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "メールやチャットの道具",
+            "オンラインの予定表"
+          ],
+          "trial": "家族 3 人の来週の予定を聞き、全員が集まれる時間を 2 つ見つけてみる",
+          "checks": []
         },
         {
           "id": "recruiting-applications",
-          "name": "応募の受付と整理",
-          "detail": "届いた応募を、締め切りや選考の進み具合で整理し、先に連絡するものを決める",
-          "jobtagTasks": [3, 5],
-          "ability": "setting-priorities",
-          "hoursPerWeek": { "min": 3, "max": 10 },
-          "timeSlots": ["daytime", "evening"],
+          "name": "応募の受付と書類の確認",
+          "detail": "届いた応募書類を同じ項目で確かめ、締め切りや選考の進み具合で整理し、先に連絡するものを決める",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            3,
+            5
+          ],
+          "abilities": {
+            "main": "setting-priorities",
+            "sub": [
+              "considering-fairness"
+            ]
+          },
+          "scene": "応募が重なったときに先に連絡する人を理由をもって選び、だれの書類も同じ項目で見るところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
           "place": "home",
-          "hourlyYen": { "min": 1200, "max": 1600 },
-          "knowledge": ["表計算", "個人情報の扱い"]
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "表計算",
+            "個人情報の扱い"
+          ],
+          "trial": "メールの受信箱の 20 通を、急ぐもの、あとでよいもの、返事が要らないものに分けてみる",
+          "checks": [
+            "決まった項目を一つずつ確かめる作業が苦にならないか"
+          ]
         },
         {
           "id": "recruiting-reception",
           "name": "面接の日の受付",
           "detail": "来た人を迎えて面接の部屋へ案内し、予定がずれたときは、面接する人と来た人のあいだで時間を合わせる",
-          "jobtagTasks": [4],
-          "ability": "balancing-interests",
-          "hoursPerWeek": { "min": 2, "max": 6 },
-          "timeSlots": ["daytime"],
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "handling-schedule-changes",
+            "sub": [
+              "balancing-interests"
+            ]
+          },
+          "scene": "面接の時間が急にずれたときに、面接する人と来た人へ伝え、あとの予定を組み直すところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
           "place": "out",
-          "hourlyYen": { "min": 1200, "max": 1500 },
-          "knowledge": []
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [],
+          "trial": "来客を迎えるときの流れ（迎える、案内する、待ってもらう）を紙に書き出してみる",
+          "checks": []
+        },
+        {
+          "id": "recruiting-behavioral-interview",
+          "name": "行動を聞く面接",
+          "detail": "応募した人に、前の仕事や暮らしで実際にしたことを順に尋ね、話を記録する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening",
+              "sensing-incongruity"
+            ]
+          },
+          "scene": "最初の答えに続けて具体的な例や理由を尋ね、話の中の言葉と実際の行動の食い違いに気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1400,
+            "max": 2000
+          },
+          "knowledge": [
+            "面接の進め方",
+            "採用で守る決まりの基礎",
+            "オンライン会議の道具"
+          ],
+          "trial": "身近な人に最近の出来事を 1 つ聞き、何を、なぜ、どの順でしたかを続けて尋ねてメモしてみる",
+          "checks": []
+        },
+        {
+          "id": "recruiting-interview-records",
+          "name": "面接の記録の整理と比較",
+          "detail": "面接で聞いた話を同じ項目でまとめ、応募した人ごとに並べて見比べられるようにする",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "summarizing",
+            "sub": [
+              "considering-fairness"
+            ]
+          },
+          "scene": "聞いた話の要点を自分の言葉でまとめ直し、だれの記録も同じ項目でそろえるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "表計算",
+            "個人情報の扱い"
+          ],
+          "trial": "同じ話題の記事 2 本を読み、同じ 3 つの項目で要点をまとめて並べてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "hr-clerk",
+      "name": "人事・労務の事務",
+      "domain": "hr",
+      "summary": "入社の手続きや勤怠の記録、評価や研修の準備で、社員の働く日々を支える仕事",
+      "jobtag": {
+        "number": 432,
+        "name": "人事事務"
+      },
+      "tasks": [
+        {
+          "id": "hr-onboarding-guide",
+          "name": "入社の手続きの案内",
+          "detail": "入社する人に、出してもらう書類や初日の流れを、分かりやすい順に案内する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            5,
+            6
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "question-design"
+            ]
+          },
+          "scene": "相手が会社のことをどこまで知っているかを考えて、言葉や説明の順を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "労務の手続きの基礎（社会保険など）",
+            "文書作成"
+          ],
+          "trial": "身近な手続き（転入の届けなど）を 1 つ選び、初めての人向けの案内を 10 行で書いてみる",
+          "checks": []
+        },
+        {
+          "id": "hr-newcomer-support",
+          "name": "新しく入った人の不安や質問への対応",
+          "detail": "入って間もない人の困りごとや質問を聞き、答えや相談先を伝え、続けて様子を気にかける",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "相手が何を心配しているかを聞き取り、要る情報とこの先の見通しを整えて伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "社内の決まりや制度の知識",
+            "メールやチャットの道具"
+          ],
+          "trial": "新しい環境に入る人が抱きそうな心配を 5 つ挙げ、それぞれに伝えたいことを 1 行ずつ書いてみる",
+          "checks": []
+        },
+        {
+          "id": "hr-attendance-check",
+          "name": "勤怠の記録の確認",
+          "detail": "出勤や休みの記録を見て、打ち忘れや決まりと合わないところを本人や上司に確かめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            12
+          ],
+          "abilities": {
+            "main": "considering-fairness",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "だれの記録にも同じ決まりを当てはめ、いつもと違う働き方の記録に気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "労働時間の決まりの基礎",
+            "勤怠の管理の道具",
+            "個人情報の扱い"
+          ],
+          "trial": "家族の 1 週間の起きる時間と寝る時間を記録し、いつもと違う日に印を付けてみる",
+          "checks": [
+            "決まった項目を一つずつ確かめる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "hr-evaluation-criteria",
+          "name": "評価の目安を行動の言葉にする",
+          "detail": "上司が人を見るときの目安を聞き、だれが見ても同じに受け取れる具体的な行動の言葉に書き直す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            11
+          ],
+          "abilities": {
+            "main": "helping-put-into-words",
+            "sub": [
+              "considering-fairness",
+              "question-design"
+            ]
+          },
+          "scene": "上司が言葉にしにくそうな見方を言葉にしてみて、本人に確かめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "人事評価の基礎",
+            "文書作成"
+          ],
+          "trial": "「気配りができる」のような言葉を 1 つ選び、見て分かる行動の文に 3 つ書き直してみる",
+          "checks": []
+        },
+        {
+          "id": "hr-evaluation-meeting",
+          "name": "評価の面談の進行の手伝い",
+          "detail": "上司と社員の面談で、話す順や聞くことを用意し、話した中身を記録してまとめる",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            11
+          ],
+          "abilities": {
+            "main": "question-design",
+            "sub": [
+              "considering-fairness"
+            ]
+          },
+          "scene": "答えにくい大きな問いを、すぐ答えられる具体的な問いに変えて用意するところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1400,
+            "max": 2000
+          },
+          "knowledge": [
+            "人事評価の基礎",
+            "オンライン会議の道具"
+          ],
+          "trial": "「最近どう？」を、答えやすい具体的な問い 3 つに書き換えてみる",
+          "checks": []
+        },
+        {
+          "id": "hr-training-needs",
+          "name": "研修で学びたいことの聞き取り",
+          "detail": "社員や上司に、仕事でつまずいていることや学びたいことを聞き、研修で扱うことをまとめる",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            10
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、つまずいた具体的な場面や、その背景を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "オンライン会議の道具",
+            "研修の企画の基礎"
+          ],
+          "trial": "身近な人に、いま覚えたいことを 1 つ聞き、なぜそれかと、困った場面を続けて尋ねてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "pr-staff",
+      "name": "広報の担当",
+      "domain": "marketing",
+      "summary": "会社や団体の取り組みを、記事や SNS で外に伝える仕事",
+      "jobtag": {
+        "number": 444,
+        "name": "広報・PR担当"
+      },
+      "tasks": [
+        {
+          "id": "pr-article-themes",
+          "name": "記事のテーマの企画",
+          "detail": "会社や団体の取り組みから、読む人が知りたそうなことを選び、記事のテーマと見出しの案をまとめる",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            3,
+            14
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "info-gathering"
+            ]
+          },
+          "scene": "読まれそうなテーマの見当を置き、社内の人や読む人に聞いて確かめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1900
+          },
+          "knowledge": [
+            "文書作成",
+            "広報の基礎"
+          ],
+          "trial": "身近な団体（学校や地域の会など）の取り組みから、記事にしたいテーマを 3 つ挙げ、見出しを付けてみる",
+          "checks": []
+        },
+        {
+          "id": "pr-sns-posts",
+          "name": "SNS の投稿文の作成",
+          "detail": "伝えたいことを短くまとめ、読む人に合わせた言葉で投稿の文と画像の組み合わせを用意する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            21
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "summarizing"
+            ]
+          },
+          "scene": "読む人が知っていることを考えて、使う言葉や話の運び方を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "SNS の運用の基礎",
+            "著作権の基礎"
+          ],
+          "trial": "最近のお知らせを 1 つ選び、140 字の投稿の文を 2 通り書いてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "web-marketer",
+      "name": "Web マーケティングの担当",
+      "domain": "marketing",
+      "summary": "Web の広告やメールで商品を知ってもらい、その反応を数字で確かめる仕事",
+      "jobtag": {
+        "number": 240,
+        "name": "Webマーケティング（ネット広告・販売促進）"
+      },
+      "tasks": [
+        {
+          "id": "web-marketing-reviews",
+          "name": "口コミやレビューの分類",
+          "detail": "商品やサービスへの口コミを読み、よい点と困った点などに分けて、多い声をまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "多そうな声の見当をひとまず置き、読み進めながら分け方が合っているかを確かめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "表計算"
+          ],
+          "trial": "身近な商品の口コミを 20 件読み、よい点と困った点に分けて数えてみる",
+          "checks": []
+        },
+        {
+          "id": "web-marketing-images",
+          "name": "写真や画像の素材選び",
+          "detail": "記事や広告に使う写真や画像を、伝えたいことと見る人に合わせて選び、使ってよい範囲を確かめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "見る人の立場を思い浮かべて、この写真なら伝わるという見当を置き、反応で確かめるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "著作権の基礎",
+            "画像の加工の道具"
+          ],
+          "trial": "伝えたいことを 1 つ決め、手持ちの写真から合いそうなものを 3 枚選んで、選んだ理由を書いてみる",
+          "checks": []
+        },
+        {
+          "id": "web-marketing-analytics",
+          "name": "Web のアクセスの数字の確認",
+          "detail": "サイトを見た人の数や、よく読まれたページの動きを週ごとに見て、変わったところをまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            11,
+            13
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "いつもと違う数の動きに気づき、そのわけの見当を置いて確かめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "アクセス解析の道具",
+            "表計算"
+          ],
+          "trial": "よく見るサイトを 1 つ選び、どのページがなぜ読まれていそうか、見当を 3 つ書いてみる",
+          "checks": []
+        },
+        {
+          "id": "web-marketing-ad-results",
+          "name": "広告の効果の比較",
+          "detail": "出した広告ごとに、見た人や問い合わせの数を同じ物差しで比べ、続けるものを選ぶ材料をまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            11,
+            14
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "cause-analysis"
+            ]
+          },
+          "scene": "反応に差が出たわけの見当を置き、出し方の条件と結果を分けて確かめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "Web 広告の基礎",
+            "表計算"
+          ],
+          "trial": "チラシや広告を 2 つ見比べ、目に留まった方とそのわけを 3 つ書き出してみる",
+          "checks": []
+        },
+        {
+          "id": "web-marketing-email",
+          "name": "メール配信の組み立て",
+          "detail": "だれに、何を、いつ送るかを決め、読む人に合わせた件名と本文の案を作る",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            15
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "adapting-explanations"
+            ]
+          },
+          "scene": "開いてもらえそうな件名の見当を置いて試し、読む人に合わせて言葉を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "メール配信の道具",
+            "文書作成"
+          ],
+          "trial": "届いたお知らせメールを 3 通読み、開きたくなった件名とそのわけを書き出してみる",
+          "checks": []
+        },
+        {
+          "id": "web-marketing-review",
+          "name": "取り組みの結果の振り返り",
+          "detail": "終わった広告や配信の結果を見直し、思うようにいかなかったところと、次に変えることをまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            13,
+            14
+          ],
+          "abilities": {
+            "main": "resilience",
+            "sub": [
+              "hypothesis-thinking",
+              "cause-analysis"
+            ]
+          },
+          "scene": "思うような反応がなかったあとに状況を整理し直し、次にすることを決めて動き出すところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 4
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "表計算",
+            "文書作成"
+          ],
+          "trial": "最近思いどおりにいかなかった家のことを 1 つ選び、何が起きて次に何を変えるかを書き出してみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "market-researcher",
+      "name": "市場調査の担当",
+      "domain": "marketing",
+      "summary": "お客や市場について聞き取りや調べものをして、商品づくりの材料をまとめる仕事",
+      "jobtag": {
+        "number": 456,
+        "name": "マーケティング・リサーチャー"
+      },
+      "tasks": [
+        {
+          "id": "research-customer-interview",
+          "name": "お客への聞き取り",
+          "detail": "商品やサービスを使う人に、使う場面や困っていることを聞き、話の中身を記録する",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "info-gathering",
+            "sub": [
+              "digging-deeper"
+            ]
+          },
+          "scene": "相手が話しやすい聞き方を選びながら、知りたいことを聞き取るところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "オンライン会議の道具",
+            "個人情報の扱い"
+          ],
+          "trial": "身近な人に、よく使う道具を 1 つ聞き、使う場面と困っていることを 15 分聞いてメモしてみる",
+          "checks": []
+        },
+        {
+          "id": "research-survey-design",
+          "name": "アンケートの問いづくり",
+          "detail": "知りたいことから問いを作り、答える人が迷わない聞き方と選択肢に整える",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2,
+            14
+          ],
+          "abilities": {
+            "main": "question-design",
+            "sub": [
+              "hypothesis-thinking"
+            ]
+          },
+          "scene": "ばくぜんとした問いでは答えにくいと気づき、すぐ答えられる具体的な問いに変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1900
+          },
+          "knowledge": [
+            "アンケートの道具",
+            "調査の基礎"
+          ],
+          "trial": "家族に聞きたいことを 1 つ決め、5 問のアンケートを作って答えてもらってみる",
+          "checks": []
+        },
+        {
+          "id": "research-competitors",
+          "name": "ほかの商品やサービスとの比較",
+          "detail": "似た商品やサービスを調べ、値段や使い方などの観点を分けて表にまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            8
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "info-gathering"
+            ]
+          },
+          "scene": "調べたことが広がったときに、比べる観点をはっきりさせて分けて並べるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1900
+          },
+          "knowledge": [
+            "表計算",
+            "調べものの基礎"
+          ],
+          "trial": "よく使うお店を 3 つ選び、値段、近さ、品ぞろえの 3 つで表にしてみる",
+          "checks": []
+        },
+        {
+          "id": "research-customer-profiles",
+          "name": "お客の姿と使う場面の整理",
+          "detail": "聞き取りや調べた結果から、どんな人がどんな場面で使うかを何通りかにまとめる",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "hypothesis-thinking"
+            ]
+          },
+          "scene": "使う人の話で切り上げず、使う場面の背景や選んだ理由を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "調査の基礎",
+            "文書作成"
+          ],
+          "trial": "身近な商品を 1 つ選び、使っていそうな人の姿と場面を 3 通り書き出してみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "mail-order-clerk",
+      "name": "通信販売の受付",
+      "domain": "sales",
+      "summary": "通信販売のお客からの注文や問い合わせに電話やメールで応え、お客の記録を整える仕事",
+      "jobtag": {
+        "number": 441,
+        "name": "通信販売受付事務"
+      },
+      "tasks": [
+        {
+          "id": "mail-order-prospect-list",
+          "name": "見込みのお客の一覧の整理",
+          "detail": "問い合わせや資料の請求をした人を一覧にまとめ、連絡の時期と中身を書き添える",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            12,
+            17
+          ],
+          "abilities": {
+            "main": "setting-priorities",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "連絡したい相手が重なったときに、先に連絡する相手を理由をもって選ぶところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "表計算",
+            "顧客の管理の道具",
+            "個人情報の扱い"
+          ],
+          "trial": "連絡先の中から、しばらく連絡していない人を 5 人挙げ、連絡する順とそのわけを書いてみる",
+          "checks": []
+        },
+        {
+          "id": "mail-order-first-message",
+          "name": "はじめての連絡の文づくり",
+          "detail": "まだ取引のない相手に送る最初のメールや手紙の文を、短く分かりやすくまとめる",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            17
+          ],
+          "abilities": {
+            "main": "summarizing",
+            "sub": [
+              "easing-anxiety"
+            ]
+          },
+          "scene": "伝えたいことの要点をまとめ直し、相手が気にしそうなことに先に答える文にするところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "文書作成",
+            "商品やサービスの知識"
+          ],
+          "trial": "身近な人に何かを紹介する短い文（200 字）を、要点を 3 つに絞って書いてみる",
+          "checks": []
+        },
+        {
+          "id": "mail-order-request-summary",
+          "name": "お客の要望のまとめ",
+          "detail": "電話やメールで受けたお客の要望を、要点を整理して記録し、担当に伝える",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            9,
+            10
+          ],
+          "abilities": {
+            "main": "summarizing",
+            "sub": [
+              "easing-anxiety"
+            ]
+          },
+          "scene": "お客の話をそのまま写さず、要点をまとめ直して確かめ返すところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "顧客の管理の道具",
+            "メールやチャットの道具"
+          ],
+          "trial": "家族から頼まれごとを 1 つ聞き、要点を 3 行にまとめて本人に読んで確かめてもらってみる",
+          "checks": []
+        },
+        {
+          "id": "mail-order-inquiries",
+          "name": "問い合わせや苦情の一次対応",
+          "detail": "電話やメールで届いた問い合わせや苦情を受け止め、分かることに答え、要る担当につなぐ",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            8
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "相手が何を心配しているかを聞き取り、要る情報とこの先の流れを整えて伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "商品やサービスの知識",
+            "メールやチャットの道具"
+          ],
+          "trial": "よくある問い合わせを 3 つ想像し、それぞれに返すメールの文を 5 行ずつ書いてみる",
+          "checks": [
+            "苦情の電話やメールを受けることがあってもよいか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sales-assistant",
+      "name": "営業事務",
+      "domain": "sales",
+      "summary": "営業の担当を支えて、見積もりや契約の書類、お客との連絡を受け持つ仕事",
+      "jobtag": {
+        "number": 431,
+        "name": "営業事務"
+      },
+      "tasks": [
+        {
+          "id": "sales-quote-explanation",
+          "name": "見積もりの条件の説明",
+          "detail": "見積書を作り、値段や納める時期、支払いの条件を、相手が分かる言葉で説明する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "summarizing"
+            ]
+          },
+          "scene": "相手が取引の決まりをどこまで知っているかを考えて、言葉や説明の順を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "表計算",
+            "商品やサービスの知識",
+            "取引の基礎"
+          ],
+          "trial": "家電の取扱説明書から 1 つの決まりを選び、子どもにも分かる言葉で 5 行に書き直してみる",
+          "checks": []
+        },
+        {
+          "id": "sales-contract-process",
+          "name": "契約の手続きの進行",
+          "detail": "契約までに要る書類と手順を整理し、相手と社内に確かめながら、決まった日までに手続きを進める",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            9
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "active-listening"
+            ]
+          },
+          "scene": "相手が手続きのどこを心配しているかを聞き取り、この先の流れを整えて伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "契約書の基本的な読み方",
+            "文書作成"
+          ],
+          "trial": "身近な手続き（引っ越しの届けなど）を 1 つ選び、要る書類とやる順を書き出してみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "insurance-sales",
+      "name": "保険の営業",
+      "domain": "sales",
+      "summary": "暮らしや仕事の事情を聞いて保険を提案し、契約のあとも相談に乗る仕事",
+      "jobtag": {
+        "number": 453,
+        "name": "保険営業（生命保険、損害保険）"
+      },
+      "tasks": [
+        {
+          "id": "insurance-sales-appointments",
+          "name": "面談の日程の調整",
+          "detail": "お客と面談する日時を電話やメールで決め、持っていく資料や場所を伝える",
+          "status": "preparing",
+          "needsReview": false,
+          "jobtagTasks": [
+            3,
+            12
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "balancing-interests"
+            ]
+          },
+          "scene": "面談までに要る連絡と準備を洗い出して順に進め、お客と自分の都合の折り合いをつけるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "メールやチャットの道具",
+            "オンラインの予定表"
+          ],
+          "trial": "来週会いたい人を 2 人決め、それぞれの都合を聞いて日時と場所を決めてみる",
+          "checks": []
+        },
+        {
+          "id": "insurance-sales-hearing",
+          "name": "はじめての面談での聞き取り",
+          "detail": "お客の暮らしや仕事の事情、心配していることを聞き、話の中身を記録する",
+          "status": "preparing",
+          "needsReview": true,
+          "jobtagTasks": [
+            7
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening",
+              "info-gathering"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、具体的な例や話の背景、そう考える理由を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "保険の基礎",
+            "保険を扱うのに要る登録（働きはじめるときに取る）"
+          ],
+          "trial": "身近な人に、これから 5 年で気になっていることを聞き、背景と理由を続けて尋ねてメモしてみる",
+          "checks": [
+            "あちこちへ出向く仕事ができるか"
+          ]
+        },
+        {
+          "id": "insurance-sales-proposal",
+          "name": "提案の資料の組み立て",
+          "detail": "聞き取った事情と心配に合わせて、見せる順と中身を決め、提案の資料をまとめる",
+          "status": "preparing",
+          "needsReview": true,
+          "jobtagTasks": [
+            4,
+            6
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "easing-anxiety"
+            ]
+          },
+          "scene": "聞いた話が広がったときに、何に答える資料かをはっきりさせ、伝えることを分けて並べるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1900
+          },
+          "knowledge": [
+            "保険の基礎",
+            "資料作成の道具"
+          ],
+          "trial": "家族の気がかりを 1 つ選び、それに答える説明を 3 枚のメモに分けて並べてみる",
+          "checks": []
+        },
+        {
+          "id": "insurance-sales-concerns",
+          "name": "迷いや心配への対応",
+          "detail": "提案を聞いたお客の迷いや心配を受け止め、要る情報を足したり、案を見直したりする",
+          "status": "preparing",
+          "needsReview": true,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "empathy",
+              "resilience"
+            ]
+          },
+          "scene": "お客が何を心配しているかを聞き取って見通しを整えて伝え、断られたあとも状況を整理して次の動きを決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "保険の基礎"
+          ],
+          "trial": "最近だれかが迷っていたことを 1 つ思い出し、その人の心配と、要りそうだった情報を書き出してみる",
+          "checks": [
+            "あちこちへ出向く仕事ができるか"
+          ]
+        },
+        {
+          "id": "insurance-sales-follow-up",
+          "name": "契約のあとのフォロー",
+          "detail": "契約したお客に連絡を取り、困っていることや暮らしの変化を聞いて、要る手続きを知らせる",
+          "status": "preparing",
+          "needsReview": false,
+          "jobtagTasks": [
+            17,
+            18
+          ],
+          "abilities": {
+            "main": "active-listening",
+            "sub": [
+              "summarizing"
+            ]
+          },
+          "scene": "すぐに案内を始めず、まずお客の話を聞いて言いたいことをつかむところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "保険の基礎",
+            "メールやチャットの道具"
+          ],
+          "trial": "しばらく話していない知人に連絡し、最近の様子を聞いて要点を 3 行にまとめてみる",
+          "checks": []
+        },
+        {
+          "id": "insurance-sales-check-in",
+          "name": "続けているお客の様子の確かめ",
+          "detail": "続けているお客に時々連絡し、暮らしの変化を聞いて、見直しが要るかを確かめる",
+          "status": "preparing",
+          "needsReview": true,
+          "jobtagTasks": [
+            18
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "active-listening",
+              "noticing-changes"
+            ]
+          },
+          "scene": "前に話したときと比べてお客の暮らしや反応の変化に気づき、心配を聞き取るところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "保険の基礎",
+            "顧客の管理の道具"
+          ],
+          "trial": "家族の 1 か月前と今の暮らしを比べ、変わったことを 3 つ書き出してみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "online-secretary",
+      "name": "オンライン秘書",
+      "domain": "general-affairs",
+      "summary": "会社や個人で仕事をする人の、連絡や予定の段取りを、オンラインで手伝う仕事",
+      "jobtag": {
+        "number": 426,
+        "name": "秘書"
+      },
+      "tasks": [
+        {
+          "id": "online-secretary-email",
+          "name": "メールの一次対応",
+          "detail": "届いたメールに目を通し、急ぐものと、あとでよいものに分けて伝える",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1
+          ],
+          "abilities": {
+            "main": "setting-priorities",
+            "sub": [
+              "managing-deadlines"
+            ]
+          },
+          "scene": "メールが重なったときに、先に伝えるものと後に回すものを理由をもって選ぶところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "メールやチャットの道具"
+          ],
+          "trial": "受信箱の 30 通を、今日、今週、返事が要らないの 3 つに分け、分けた理由を書いてみる",
+          "checks": []
+        },
+        {
+          "id": "online-secretary-schedule",
+          "name": "会議や面会の日程調整",
+          "detail": "予定表を整え、関わる人と連絡を取り合って、会議や面会の日時と場所を決める",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2,
+            3,
+            16
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "balancing-interests",
+              "handling-schedule-changes"
+            ]
+          },
+          "scene": "決めるまでの連絡を順に組み、合わない都合のあいだで代わりの日時を出すところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "オンラインの予定表",
+            "オンライン会議の道具"
+          ],
+          "trial": "家族や友人 3 人と集まる日を、候補を 3 つ出して決めてみる",
+          "checks": []
+        },
+        {
+          "id": "online-secretary-arrangement",
+          "name": "出張や会食の手配",
+          "detail": "移動や宿、お店の予約を、相手の都合に合わせて整える",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            14,
+            17
+          ],
+          "abilities": {
+            "main": "balancing-interests",
+            "sub": [
+              "planning-steps"
+            ]
+          },
+          "scene": "行く人と受ける側の違う都合をつかみ、自分から問い合わせて、合う形を探るところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "予約サイトの使い方"
+          ],
+          "trial": "家族で出かける日帰りの計画を、移動と食事の候補を 2 つずつ挙げて組んでみる",
+          "checks": []
+        },
+        {
+          "id": "online-secretary-briefing",
+          "name": "情報の取りまとめ",
+          "detail": "集めた情報から要るものを選び、前と変わったところが分かるようにまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            6,
+            22
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "summarizing"
+            ]
+          },
+          "scene": "前の情報と比べて変わったところに気づき、何を見てそう思ったかを添えてまとめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "表計算",
+            "文書作成"
+          ],
+          "trial": "学校や地域のお知らせを 2 か月分読み、前と変わったことを 3 つ書き出してみる",
+          "checks": []
+        },
+        {
+          "id": "online-secretary-minutes",
+          "name": "議事録の要点の整理",
+          "detail": "会議の録音やメモから、決まったこと、残った課題、だれが何をするかを短くまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            11
+          ],
+          "abilities": {
+            "main": "summarizing",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "話をそのまま写さず、要点をまとめ直して、自分の言葉で書くところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 6
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "文書作成",
+            "オンライン会議の道具"
+          ],
+          "trial": "30 分ほどの話し合いの動画や番組を見て、決まったことと残ったことを 5 行にまとめてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "office-clerk",
+      "name": "一般事務",
+      "domain": "general-affairs",
+      "summary": "書類の整理や電話の応対、備品の手配など、職場の事務を幅広く受け持つ仕事",
+      "jobtag": {
+        "number": 428,
+        "name": "一般事務"
+      },
+      "tasks": [
+        {
+          "id": "office-clerk-filing",
+          "name": "文書の整理と保管",
+          "detail": "書類やデータを決まった分け方で整理し、だれでも探せる場所と名前で保管する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "improving-work",
+            "sub": []
+          },
+          "scene": "探すのに手間がかかる置き方に気づき、分け方や名前をまとめ直すところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "文書の管理の決まり",
+            "ファイルの共有の道具"
+          ],
+          "trial": "パソコンかスマートフォンのファイルを 50 個選び、分け方と名前の付け方を決めて整理してみる",
+          "checks": [
+            "決まった項目を一つずつ確かめる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "office-clerk-supplies",
+          "name": "備品や消耗品の発注",
+          "detail": "事務用品などの残りを見て、切れる前に発注し、届いた数を確かめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            8
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "品ごとに切れそうな時期をつかみ、それに合わせて発注する順と日を決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 4
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "表計算",
+            "発注の道具"
+          ],
+          "trial": "家の日用品を 10 品選び、残りと切れそうな時期を表にしてみる",
+          "checks": []
+        },
+        {
+          "id": "office-clerk-front-desk",
+          "name": "来客や電話の一次対応",
+          "detail": "来た人や電話の用件を聞き、担当につなぐか、分かることを答えて、伝言を残す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            9,
+            10
+          ],
+          "abilities": {
+            "main": "active-listening",
+            "sub": [
+              "adapting-explanations"
+            ]
+          },
+          "scene": "すぐに答えようとせず、まず相手の話を聞いて用件をつかむところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "電話応対の基本",
+            "社内の担当の知識"
+          ],
+          "trial": "家にかかってきた電話やインターホンの用件を 1 週間メモし、だれに伝えるかを書き添えてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "general-affairs-clerk",
+      "name": "総務事務",
+      "domain": "general-affairs",
+      "summary": "社員の問い合わせや社内の決まり、手続きの書類を受け持ち、働く環境を整える仕事",
+      "jobtag": {
+        "number": 433,
+        "name": "総務事務"
+      },
+      "tasks": [
+        {
+          "id": "general-affairs-inquiries",
+          "name": "社内の問い合わせへの対応",
+          "detail": "社員から手続きや決まりのことを聞かれたら答え、分からないことは調べてから返す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "planning-steps"
+            ]
+          },
+          "scene": "質問した人が決まりをどこまで知っているかを考えて、言葉や説明の順を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "社内の決まりや制度の知識",
+            "メールやチャットの道具"
+          ],
+          "trial": "よく聞かれそうな質問を 3 つ選び、決まりを知らない人向けの答えを 5 行ずつ書いてみる",
+          "checks": []
+        },
+        {
+          "id": "general-affairs-manuals",
+          "name": "社内の決まりや手順書の更新",
+          "detail": "変わった決まりや手順を手順書に反映し、読む人が迷わない言葉と順に直す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            17
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "improving-work"
+            ]
+          },
+          "scene": "読む人が知っていることに合わせて言葉や順を変え、手間の多い手順に気づいてまとめ直すところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "文書作成",
+            "社内の決まりの基礎"
+          ],
+          "trial": "家事を 1 つ選び、初めての人でもできる手順書を 10 行で書いてみる",
+          "checks": [
+            "決まった項目を一つずつ確かめる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "general-affairs-form-check",
+          "name": "申請書類の不備の確認",
+          "detail": "出された申請書類を決まった項目で確かめ、足りないところを出した人に聞き返す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "considering-fairness",
+            "sub": [
+              "question-design"
+            ]
+          },
+          "scene": "だれの書類にも同じ確かめ方を当てはめ、聞き返すときは答えやすい具体的な問いにするところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "社内の手続きの知識",
+            "個人情報の扱い"
+          ],
+          "trial": "役所の届け出の記入例を 1 つ見て、確かめる項目の一覧を作ってみる",
+          "checks": [
+            "決まった項目を一つずつ確かめる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "general-affairs-info-rules",
+          "name": "情報の扱いの決まりの周知",
+          "detail": "個人情報や社外秘の扱いの決まりを、社員に分かる言葉でまとめて伝え、守られているかを確かめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            18
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "planning-steps"
+            ]
+          },
+          "scene": "相手がどこまで知っているかを考えて、決まりを伝える言葉や順を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "個人情報の扱い",
+            "情報を守る決まりの基礎"
+          ],
+          "trial": "家族で守りたいスマートフォンの使い方の決まりを 3 つ選び、子どもにも分かる言葉で書いてみる",
+          "checks": [
+            "決まった項目を一つずつ確かめる作業が苦にならないか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legal-clerk",
+      "name": "法務の事務",
+      "domain": "general-affairs",
+      "summary": "契約書の期限や確認の項目を管理し、弁護士などに相談するときの準備をする仕事",
+      "jobtag": {
+        "number": 446,
+        "name": "企業法務担当"
+      },
+      "tasks": [
+        {
+          "id": "legal-contract-deadlines",
+          "name": "契約書の期限の管理",
+          "detail": "契約書ごとに、更新や終わりの期限を一覧にし、期限が近いものを担当に知らせる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": [
+              "planning-steps"
+            ]
+          },
+          "scene": "いくつもの契約の期限をつかみ、それに合わせて知らせる順と日を決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "契約書の基本的な読み方",
+            "表計算"
+          ],
+          "trial": "家の更新のある書類（保険や携帯電話など）を 5 つ選び、期限を一覧にしてみる",
+          "checks": []
+        },
+        {
+          "id": "legal-contract-checklist",
+          "name": "契約書の確認項目のチェック",
+          "detail": "決まった確認項目に沿って契約書を読み、気になる条文に印を付けて担当に説明する",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "adapting-explanations"
+            ]
+          },
+          "scene": "確かめる項目を洗い出して読む順を決め、気になった点を相手に分かる言葉で伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1400,
+            "max": 2000
+          },
+          "knowledge": [
+            "契約書の基本的な読み方",
+            "法律の基礎"
+          ],
+          "trial": "家電の保証書の決まりを読み、気になる点を 3 つ選んで、家族に分かる言葉で書いてみる",
+          "checks": [
+            "決まった項目を一つずつ確かめる作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "legal-expert-consultation",
+          "name": "弁護士などへの相談の準備",
+          "detail": "弁護士などに相談することを、事実、聞きたいこと、手元の資料に分けて整理する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            10
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "digging-deeper"
+            ]
+          },
+          "scene": "話が広がったときに何を相談するのかをはっきりさせ、聞きたいことを分けて並べるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1400,
+            "max": 2000
+          },
+          "knowledge": [
+            "法律の基礎",
+            "文書作成"
+          ],
+          "trial": "最近迷っている家のことを 1 つ選び、事実、聞きたいこと、手元の資料に分けて書いてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "dx-support",
+      "name": "業務のデジタル化の支援",
+      "domain": "it-data",
+      "summary": "職場の仕事の流れを聞き取り、デジタルの道具で手間を減らす手伝いをする仕事",
+      "jobtag": {
+        "number": 324,
+        "name": "DXプロデューサー"
+      },
+      "tasks": [
+        {
+          "id": "dx-hearing",
+          "name": "職場で困っていることの聞き取り",
+          "detail": "職場の人に、いつもの仕事の流れと手間のかかるところを聞き、困りごとを書き出す",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1,
+            2
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、手間がかかる具体的な場面や、そのやり方を続けている理由を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "オンライン会議の道具",
+            "業務の流れの書き方"
+          ],
+          "trial": "家族に、家事で面倒に感じていることを 1 つ聞き、具体的な場面と理由を続けて尋ねてみる",
+          "checks": []
+        },
+        {
+          "id": "dx-workflow-mapping",
+          "name": "いまの仕事の流れを図にする",
+          "detail": "聞き取った仕事の手順を、だれが、何を、どの順でするかの図にまとめ、止まりやすいところを示す",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            2,
+            4
+          ],
+          "abilities": {
+            "main": "cause-analysis",
+            "sub": [
+              "improving-work"
+            ]
+          },
+          "scene": "仕事が止まるわけを、起きたことと、それを生んだ手順の条件に分けて考えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "業務の流れの書き方",
+            "図を描く道具"
+          ],
+          "trial": "朝の支度の流れを、だれが何をどの順でするかの図にして、止まりやすいところに印を付けてみる",
+          "checks": []
+        },
+        {
+          "id": "dx-dashboard-requirements",
+          "name": "数字の一覧画面の要望の整理",
+          "detail": "職場の人が毎週見たい数字と、その使い道を聞き、一覧の画面に載せるものを整理する",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            7
+          ],
+          "abilities": {
+            "main": "improving-work",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "毎回の集計で生じている二度手間に気づき、見たい数字を分けて並べ直すところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "表計算",
+            "データの見える化の道具"
+          ],
+          "trial": "家計で毎月見たい数字を 3 つ決め、1 枚の表にまとめてみる",
+          "checks": []
+        },
+        {
+          "id": "dx-tool-comparison",
+          "name": "使う道具の比較",
+          "detail": "仕事に使えそうなアプリや道具を、値段、使いやすさ、いまの手間が減るかの観点で比べる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            3,
+            6
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "improving-work"
+            ]
+          },
+          "scene": "比べる観点をはっきりさせて分けて並べ、いまの手間が減るところを見つけるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "IT の基礎知識",
+            "表計算"
+          ],
+          "trial": "家計簿のアプリを 3 つ調べ、値段、使いやすさ、手間の 3 つで表にしてみる",
+          "checks": []
+        },
+        {
+          "id": "dx-automation-targets",
+          "name": "手作業を減らす仕事の選び出し",
+          "detail": "くり返している手作業を洗い出し、手間の大きさと変えやすさを見て、どれから道具に任せるかを決める",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "improving-work",
+            "sub": [
+              "setting-priorities"
+            ]
+          },
+          "scene": "くり返しの手間に気づき、どれから変えるかを理由をもって選ぶところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "IT の基礎知識",
+            "自動化の道具の基礎"
+          ],
+          "trial": "毎週くり返している家事を 5 つ書き出し、手間の大きい順に並べて、道具で減らせそうなものに印を付けてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "data-entry-clerk",
+      "name": "データ入力",
+      "domain": "it-data",
+      "summary": "表やシステムにデータを入れ、抜けや誤りがないかを確かめて整える仕事",
+      "jobtag": {
+        "number": 429,
+        "name": "データ入力"
+      },
+      "tasks": [
+        {
+          "id": "data-spreadsheet-cleanup",
+          "name": "表計算のシートの整備",
+          "detail": "使われている表の入力の欄や形をそろえ、二重に入れている項目をまとめて、使いやすく整える",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "improving-work",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "表の中の二度手間に気づき、項目を分けて並べ直すところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "表計算"
+          ],
+          "trial": "家計や予定の表を 1 つ選び、同じことを 2 回書いている欄をまとめてみる",
+          "checks": []
+        },
+        {
+          "id": "data-missing-check",
+          "name": "入力データの抜けの確認",
+          "detail": "入力されたデータを見て、空いている欄やいつもと違う値を拾い、元の書類と確かめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "cause-analysis"
+            ]
+          },
+          "scene": "いつもと違う値や空いた欄に気づき、抜けが出たわけを考えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1600
+          },
+          "knowledge": [
+            "表計算",
+            "個人情報の扱い"
+          ],
+          "trial": "家の住所録や連絡先の一覧を見て、抜けている欄を拾い出してみる",
+          "checks": [
+            "細かい数字や文字の違いを見る作業を続けられるか"
+          ]
+        },
+        {
+          "id": "data-summary-tables",
+          "name": "データの集計表づくり",
+          "detail": "入力されたデータを、月ごとや種類ごとの集計表にまとめ、見る人が使う形に整える",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "improving-work"
+            ]
+          },
+          "scene": "集計の切り口をはっきりさせて分けて並べ、毎回の手間が減る形にするところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "表計算"
+          ],
+          "trial": "1 か月分のレシートを、週ごとと使い道ごとの 2 通りで集計してみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "it-helpdesk",
+      "name": "IT のヘルプデスク",
+      "domain": "it-data",
+      "summary": "パソコンやシステムの使い方の質問やトラブルに、電話やメールで応える仕事",
+      "jobtag": {
+        "number": 320,
+        "name": "ヘルプデスク（IT）"
+      },
+      "tasks": [
+        {
+          "id": "helpdesk-manuals",
+          "name": "システムの使い方の手順書づくり",
+          "detail": "システムの操作を、画面の順に沿って、初めて使う人にも分かる手順書にまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            16,
+            22
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "読む人がどこまで知っているかを考えて、使う言葉や手順の運び方を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1900
+          },
+          "knowledge": [
+            "IT の基礎知識",
+            "文書作成"
+          ],
+          "trial": "スマートフォンの設定を 1 つ選び、初めての人向けの手順書を画面の順に書いてみる",
+          "checks": []
+        },
+        {
+          "id": "helpdesk-user-support",
+          "name": "使う人への操作の説明",
+          "detail": "システムの使い方に困っている人の話を聞き、電話や画面の共有で操作を説明する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2,
+            8
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "question-design"
+            ]
+          },
+          "scene": "相手が何を知っているかを考えて説明を変え、困りごとを聞くときは答えやすい具体的な問いにするところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1800
+          },
+          "knowledge": [
+            "IT の基礎知識",
+            "オンライン会議の道具"
+          ],
+          "trial": "家族のスマートフォンの困りごとを 1 つ聞き、電話だけで操作を説明してみる",
+          "checks": []
+        },
+        {
+          "id": "helpdesk-bug-reproduction",
+          "name": "不具合が起きる条件の整理",
+          "detail": "不具合の知らせを受け、いつ、どの操作で起きるかを聞いて試し、起きる条件を担当に伝える",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4,
+            6
+          ],
+          "abilities": {
+            "main": "cause-analysis",
+            "sub": [
+              "sensing-incongruity",
+              "persistence"
+            ]
+          },
+          "scene": "起きたことと、それを生んだ操作の条件を分けて捉え、聞いた説明と実際の操作の食い違いに気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1900
+          },
+          "knowledge": [
+            "IT の基礎知識"
+          ],
+          "trial": "家の機器で調子の悪いものを 1 つ選び、いつ、何をしたときに起きるかを 3 回試して書き出してみる",
+          "checks": []
+        },
+        {
+          "id": "helpdesk-improvement-requests",
+          "name": "使いはじめたあとの要望の整理",
+          "detail": "システムを使いはじめた人からの要望を集め、似たものをまとめて、手間を減らす直し方の案を出す",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1,
+            18
+          ],
+          "abilities": {
+            "main": "improving-work",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "要望の中から、いつもの手間や二度手間に気づき、まとめて直し方を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1900
+          },
+          "knowledge": [
+            "IT の基礎知識",
+            "表計算"
+          ],
+          "trial": "家族に、よく使うアプリで困っていることを聞き、似たものをまとめて 3 つに分けてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "tutor",
+      "name": "学習塾の講師",
+      "domain": "education",
+      "summary": "子どもの学習を、教室やオンラインで教え、学び方を一緒に考える仕事",
+      "jobtag": {
+        "number": 396,
+        "name": "学習塾教師"
+      },
+      "tasks": [
+        {
+          "id": "tutor-hearing",
+          "name": "学ぶ人のつまずきの聞き取り",
+          "detail": "子どもや保護者に、勉強のどこで困っているかを聞き、つまずいている場面を具体的につかむ",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            7
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening",
+              "info-gathering"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、つまずいた具体的な問題や、そう感じた理由を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "教える教科の知識",
+            "オンライン会議の道具"
+          ],
+          "trial": "子どもか身近な人に、いま勉強や習いごとで困っていることを聞き、具体的な場面と理由を続けて尋ねてみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-goal-setting",
+          "name": "学ぶ目標づくりの手伝い",
+          "detail": "学ぶ人がまだ言葉にできていない思いを聞き、本人と一緒に、目指すことを具体的な目標にする",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1,
+            10
+          ],
+          "abilities": {
+            "main": "helping-put-into-words",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "学ぶ人が言葉にしにくそうな思いに気づき、言葉にしてみて本人に確かめるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 4
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "教える教科の知識"
+          ],
+          "trial": "身近な人の「もっとできるようになりたい」を 1 つ聞き、1 か月で目指せる形の目標に一緒に書き直してみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-material-level",
+          "name": "教材の難しさの調整",
+          "detail": "学ぶ人の様子を見て、問題の量や難しさ、説明の細かさを変えた教材を用意する",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            4,
+            5
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "学ぶ人の手の止まり方がいつもと違うことに気づき、前の様子と比べて教材を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "教える教科の知識",
+            "文書作成"
+          ],
+          "trial": "子ども向けの問題を 1 つ選び、やさしい形と少し難しい形の 2 通りに書き直してみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-study-plan",
+          "name": "学ぶ計画の作成",
+          "detail": "目標と試験の日から逆算して、何をどの順で学ぶかを週ごとの計画にまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "目標のために要る学びを洗い出し、学ぶ人の暮らしの事情を思い浮かべて順を組むところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 4
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "教える教科の知識"
+          ],
+          "trial": "自分か家族の覚えたいことを 1 つ選び、4 週間の計画を週ごとに書いてみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-rephrasing",
+          "name": "説明の言い換え",
+          "detail": "伝わりにくかった説明を、学ぶ人の年齢や知っていることに合わせて、別の言葉や例で言い直す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            6,
+            7
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "相手が子どもか大人か、何を知っているかを考えて、言葉や話の運び方を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "教える教科の知識",
+            "オンライン会議の道具"
+          ],
+          "trial": "大人向けのニュースを 1 つ選び、小学生に分かる言葉で 5 行に言い換えてみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-understanding-check",
+          "name": "分かったかの確かめ",
+          "detail": "短い問いや説明し返してもらうことで、学ぶ人がどこまで分かったかを確かめ、記録する",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "学ぶ人の答え方の変化に気づき、何を見てそう思ったかを前の様子と比べて捉えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "教える教科の知識"
+          ],
+          "trial": "子どもか身近な人に何かを説明したあと、分かったかを確かめる問いを 3 つ用意して聞いてみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-practice-questions",
+          "name": "練習問題の作成",
+          "detail": "学ぶ人のつまずきに合わせて、答えやすいところから少しずつ進む練習問題を作る",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            8
+          ],
+          "abilities": {
+            "main": "question-design",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "ばくぜんとした問いでは答えにくいと気づき、すぐ答えられる具体的な問いに変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "教える教科の知識",
+            "文書作成"
+          ],
+          "trial": "子ども向けの算数か漢字の問題を、やさしい順に 5 問作ってみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-feedback",
+          "name": "添削と具体的な声かけ",
+          "detail": "宿題や答えを見て、できていたところと次に直すところを、した行動を挙げて伝える",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            9
+          ],
+          "abilities": {
+            "main": "helping-put-into-words",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "学ぶ人が言葉にしにくそうな考えを言葉にしてみて、本人に確かめながら返すところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "教える教科の知識"
+          ],
+          "trial": "子どもの宿題か身近な人の文を 1 つ読み、できていたことと次に直すことを 2 行ずつ書いてみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-parent-contact",
+          "name": "保護者や関係する人との連絡",
+          "detail": "学ぶ人の様子や変わったところを、保護者や学校の先生などに伝え、家での様子も聞く",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            11
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "前と比べて変わった様子に気づき、何を見てそう思ったかを添えて伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 4
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "メールやチャットの道具",
+            "個人情報の扱い"
+          ],
+          "trial": "子どもの 1 週間の様子で変わったことを 3 つ書き、伝えるときの文にしてみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-study-group",
+          "name": "学習会の進行",
+          "detail": "何人かで学ぶ会で、話す順や時間を決めて進め、参加した人が話しやすいようにする",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "empathy",
+            "sub": [
+              "helping-put-into-words"
+            ]
+          },
+          "scene": "参加した人それぞれの立場や事情を思い浮かべ、話しにくそうな人の気持ちのわけを考えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 4
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "教える教科の知識",
+            "オンライン会議の道具"
+          ],
+          "trial": "家族か友人と 30 分の話し合いを開き、話す順と時間を決めて進めてみる",
+          "checks": []
+        },
+        {
+          "id": "tutor-learning-records",
+          "name": "学びの記録の振り返り",
+          "detail": "これまでの学びの記録やテストの結果を見返し、伸びたところと止まっているところをまとめる",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            2,
+            3
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "前の記録と比べて変わったところに気づき、何を手がかりにそう思ったかを挙げるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 4
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "教える教科の知識",
+            "表計算"
+          ],
+          "trial": "家族の 1 か月の記録（読んだ本や歩いた歩数など）を見返し、前と変わったことを 3 つ書いてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "career-consultant",
+      "name": "キャリアコンサルタント",
+      "domain": "education",
+      "summary": "仕事や働き方の相談に乗り、要る情報や支援につなぐ仕事",
+      "jobtag": {
+        "number": 136,
+        "name": "キャリアカウンセラー/キャリアコンサルタント"
+      },
+      "tasks": [
+        {
+          "id": "career-support-guidance",
+          "name": "相談先や支援の制度の案内",
+          "detail": "相談に来た人の事情を聞き、使える公的な支援や相談先を調べて、この先の流れと一緒に伝える",
+          "status": "preparing",
+          "needsReview": true,
+          "jobtagTasks": [
+            4,
+            5
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "active-listening"
+            ]
+          },
+          "scene": "相手が何を心配しているかを聞き取り、要る情報とこの先の見通しを整えて伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2500
+          },
+          "knowledge": [
+            "公的な支援の制度の知識",
+            "キャリアコンサルタントの資格（名乗るときに要る）"
+          ],
+          "trial": "住んでいる市の子育てか仕事の支援を 3 つ調べ、だれがどう使えるかを 1 行ずつ書いてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "planner",
+      "name": "企画・調査の担当",
+      "domain": "planning",
+      "summary": "調べた結果から見当を立て、新しい商品やサービスの企画をまとめる仕事",
+      "jobtag": {
+        "number": 434,
+        "name": "企画・調査担当"
+      },
+      "tasks": [
+        {
+          "id": "planning-purpose",
+          "name": "企画の目的の整理",
+          "detail": "企画を始める前に、だれの何を変えたいのかを関わる人に確かめ、目的を短い文にまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "balancing-interests"
+            ]
+          },
+          "scene": "話が広がったときに、何のための企画かをはっきりさせ、考えることを分けて並べるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "企画書の書き方",
+            "文書作成"
+          ],
+          "trial": "地域や学校の行事を 1 つ選び、だれの何のための行事かを 3 行でまとめてみる",
+          "checks": []
+        },
+        {
+          "id": "planning-stakeholder-hearing",
+          "name": "関わる人への聞き取り",
+          "detail": "企画に関わる部署や利用する人に、望むことと困っていることを聞き、違いを整理する",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            7
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、具体的な例や望むことの理由を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "オンライン会議の道具"
+          ],
+          "trial": "身近な 2 人に同じ問いを聞き、望むことの違いとその理由を書き出してみる",
+          "checks": []
+        },
+        {
+          "id": "planning-cause-hypothesis",
+          "name": "課題の原因の見当づくり",
+          "detail": "数字や聞き取りの結果から、課題が起きていそうな原因の見当を何通りか立て、確かめ方を決める",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "cause-analysis",
+            "sub": [
+              "sensing-incongruity",
+              "hypothesis-thinking"
+            ]
+          },
+          "scene": "課題が起きたわけを自分で考え、起きたことと、それを生んだ条件やきっかけを分けて挙げるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "調査の基礎",
+            "表計算"
+          ],
+          "trial": "家で最近くり返し起きる困りごとを 1 つ選び、原因の見当を 3 つ挙げて確かめ方を書いてみる",
+          "checks": []
+        },
+        {
+          "id": "planning-research-items",
+          "name": "調べる項目の組み立て",
+          "detail": "確かめたい見当から、何を、だれに、どう調べるかを決め、調べる項目の一覧にする",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1,
+            3
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "question-design"
+            ]
+          },
+          "scene": "見当をひとまず置き、それが合っているかを確かめるための問いを具体的にするところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "調査の基礎",
+            "アンケートの道具"
+          ],
+          "trial": "気になる見当を 1 つ置き（例: 朝の支度が遅れるのは前の晩の準備のせい）、確かめる問いを 3 つ書いてみる",
+          "checks": []
+        },
+        {
+          "id": "planning-source-comparison",
+          "name": "情報の出どころの比較",
+          "detail": "調べた情報の出どころを、いつ、だれが出した情報かで比べ、使えるものを選ぶ",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "hypothesis-thinking"
+            ]
+          },
+          "scene": "集めた情報が広がったときに、比べる観点をはっきりさせて分けて並べるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "調べものの基礎"
+          ],
+          "trial": "同じ話題の記事を 3 つ選び、出した人と時期と中身の違いを表にしてみる",
+          "checks": []
+        },
+        {
+          "id": "planning-options",
+          "name": "実行する案の選択肢づくり",
+          "detail": "目的に向けた案を何通りか考え、それぞれの手間や見込みを並べて、選ぶ人が比べられる形にする",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            6
+          ],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "案ごとに、こうなりそうという見当を置き、小さく試して確かめる道を考えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "企画書の書き方"
+          ],
+          "trial": "週末の過ごし方の案を 3 つ考え、手間とよいところを並べて家族に選んでもらってみる",
+          "checks": []
+        },
+        {
+          "id": "planning-cost-estimate",
+          "name": "費用と手間の見積もり",
+          "detail": "企画に要る作業を洗い出し、それぞれにかかる時間と費用を見積もって一覧にする",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            15
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "hypothesis-thinking"
+            ]
+          },
+          "scene": "目指すことに要る作業を洗い出し、どの順で進めるかを組み立てるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening",
+            "night"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "表計算",
+            "予算の基礎"
+          ],
+          "trial": "家族の誕生日会の準備に要る作業を洗い出し、かかる時間と費用を表にしてみる",
+          "checks": []
+        },
+        {
+          "id": "planning-meeting-issues",
+          "name": "会議の論点の整理",
+          "detail": "会議の前後で、決めること、話し合うこと、持ち越すことを分けて、関わる人に示す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            7
+          ],
+          "abilities": {
+            "main": "organizing-issues",
+            "sub": [
+              "balancing-interests"
+            ]
+          },
+          "scene": "話があちこちに広がったときに、何について話しているかをはっきりさせ、考えることを分けて並べるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "オンライン会議の道具",
+            "文書作成"
+          ],
+          "trial": "家族の話し合いを 1 つ選び、決めること、話すこと、あとに回すことに分けて書いてみる",
+          "checks": []
+        },
+        {
+          "id": "planning-trial-review",
+          "name": "試した結果の見直し",
+          "detail": "小さく試した結果を、目的と見当に照らして見直し、続けるか、変えるか、やめるかの材料をまとめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            8,
+            10,
+            11
+          ],
+          "abilities": {
+            "main": "seeing-it-through",
+            "sub": [
+              "hypothesis-thinking",
+              "resilience"
+            ]
+          },
+          "scene": "困りごとが続いても目的を手放さず、続けるために要る次の工程を決めて進めるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "表計算",
+            "企画書の書き方"
+          ],
+          "trial": "最近試した家のやり方を 1 つ選び、続けるか変えるかを、目的に照らして書き出してみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "event-planner",
+      "name": "イベントの企画・運営",
+      "domain": "planning",
+      "summary": "催しの準備を、関わる人と役割を分けて進め、当日までの予定を管理する仕事",
+      "jobtag": {
+        "number": 566,
+        "name": "イベントの企画・運営"
+      },
+      "tasks": [
+        {
+          "id": "event-task-breakdown",
+          "name": "やることの洗い出しと役割分担",
+          "detail": "催しの準備に要る作業を細かく分け、だれが受け持つかを、関わる人の都合を聞いて決める",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            7
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "balancing-interests",
+              "seeing-it-through"
+            ]
+          },
+          "scene": "催しに要る作業を洗い出して順を組み、関わる人の違う都合に折り合いをつけて受け持ちを決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "表計算",
+            "タスクの管理の道具"
+          ],
+          "trial": "地域や学校の行事 1 つの準備を 10 の作業に分け、だれが受け持てそうかを書いてみる",
+          "checks": []
+        },
+        {
+          "id": "event-progress-check",
+          "name": "進み具合と期限の確かめ",
+          "detail": "準備の作業ごとに期限と進み具合を確かめ、遅れそうなものを早めに知らせて手を打つ",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            5
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": [
+              "seeing-it-through"
+            ]
+          },
+          "scene": "いくつもの作業の締め切りをつかみ、それに合わせて確かめる順と日を決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 6
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 2000
+          },
+          "knowledge": [
+            "タスクの管理の道具",
+            "オンラインの予定表"
+          ],
+          "trial": "これから 1 か月の家の用事を書き出し、期限と、いつ取りかかるかを表にしてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "picker",
+      "name": "倉庫のピッキング・仕分け",
+      "domain": "logistics",
+      "summary": "倉庫で商品を受け入れ、注文ごとに集めて仕分ける仕事",
+      "jobtag": {
+        "number": 486,
+        "name": "ピッキング作業員"
+      },
+      "tasks": [
+        {
+          "id": "picking-inbound-count",
+          "name": "届いた品の数の確かめ",
+          "detail": "届いた品物の数と種類を伝票と照らし、足りない物や傷のある物を記録する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            1,
+            2
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": []
+          },
+          "scene": "いつもの入り方と比べて、数や見た目の違いに自分で気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "バーコードを読む機器の使い方"
+          ],
+          "trial": "家に届いた荷物 1 つを、明細と 1 品ずつ照らしてみる",
+          "checks": [
+            "長く立って作業できるか",
+            "荷物を持ち運べるか",
+            "同じ確かめを長く続けられるか",
+            "手先を使う細かい作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "picking-sorting",
+          "name": "商品の仕分け",
+          "detail": "注文の伝票に沿って、商品を送り先や種類ごとに分けてそろえる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "persistence"
+            ]
+          },
+          "scene": "仕分けに要る作業を洗い出し、どの順で手を付けるかを組み立てるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "作業の手順と安全の決まり"
+          ],
+          "trial": "家の衣類か食器を、使う人ごとと種類ごとの 2 通りに分けて、かかった時間を比べてみる",
+          "checks": [
+            "長く立って作業できるか",
+            "荷物を持ち運べるか",
+            "手先を使う細かい作業が苦にならないか"
+          ]
+        },
+        {
+          "id": "picking-shelving",
+          "name": "棚への補充と並べ方",
+          "detail": "届いた商品を決まった棚に入れ、取り出しやすい置き方に並べ直す",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "persistence",
+            "sub": []
+          },
+          "scene": "一度で収まらない棚に、置き方を変えながら何度か並べ直すところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "作業の手順と安全の決まり"
+          ],
+          "trial": "家の棚を 1 段選び、よく使う物が取りやすい並べ方を 2 通り試してみる",
+          "checks": [
+            "長く立って作業できるか",
+            "荷物を持ち運べるか",
+            "同じ確かめを長く続けられるか"
+          ]
+        },
+        {
+          "id": "picking-stock-count",
+          "name": "在庫の数の照らし合わせ",
+          "detail": "棚の在庫を数え、記録の数と合わないときは、どこで違いが出たかを調べる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            9,
+            10
+          ],
+          "abilities": {
+            "main": "cause-analysis",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "数が合わないわけを自分で考え、起きたことと、それを生んだ条件を分けて挙げるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1450
+          },
+          "knowledge": [
+            "在庫の管理の基礎"
+          ],
+          "trial": "冷蔵庫か日用品の棚の中身を数え、思っていた数と合わないもののわけを書いてみる",
+          "checks": [
+            "同じ確かめを長く続けられるか",
+            "手先を使う細かい作業が苦にならないか",
+            "長く立って作業できるか"
+          ]
+        },
+        {
+          "id": "picking-route-improvement",
+          "name": "ピッキングの動き方の見直し",
+          "detail": "商品を集めて回る順や棚の並びを見直し、歩く距離や行き来を減らす案を出す",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "improving-work",
+            "sub": [
+              "persistence"
+            ]
+          },
+          "scene": "いつもの回り方のむだな行き来に気づき、順を変えて手間を省くところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "作業の手順と安全の決まり"
+          ],
+          "trial": "朝の支度で家の中を歩く道筋を紙に描き、行き来が減る順に描き直してみる",
+          "checks": [
+            "長く立って作業できるか",
+            "同じ確かめを長く続けられるか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "packer",
+      "name": "梱包の作業",
+      "domain": "logistics",
+      "summary": "品物に合う箱や資材を選んで詰め、送り先ごとに出荷の用意をする仕事",
+      "jobtag": {
+        "number": 498,
+        "name": "こん包作業員"
+      },
+      "tasks": [
+        {
+          "id": "packing-materials",
+          "name": "梱包の資材の用意",
+          "detail": "その日の出荷の量と品物に合わせて、箱や緩衝材などの資材を選んでそろえる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": []
+          },
+          "scene": "その日の出荷に要る資材を洗い出し、用意する順を組み立てるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "梱包の資材の種類"
+          ],
+          "trial": "家にある品物を 3 つ選び、送るとしたら要る箱と詰め物を書き出してみる",
+          "checks": [
+            "手先を使う細かい作業が苦にならないか",
+            "細かい数字や文字の違いを見る作業を続けられるか",
+            "長く立って作業できるか"
+          ]
+        },
+        {
+          "id": "packing-items",
+          "name": "商品の梱包",
+          "detail": "品物を傷めないように包んで箱に詰め、決まった時刻までに出荷の用意をする",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            7,
+            10
+          ],
+          "abilities": {
+            "main": "managing-deadlines",
+            "sub": [
+              "planning-steps"
+            ]
+          },
+          "scene": "出荷の締めの時刻をつかみ、それに合わせて詰める順を決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "梱包の手順"
+          ],
+          "trial": "家にある割れ物を 1 つ選び、送るときの包み方の手順を書き出してみる",
+          "checks": [
+            "手先を使う細かい作業が苦にならないか",
+            "細かい数字や文字の違いを見る作業を続けられるか",
+            "長く立って作業できるか",
+            "荷物を持ち運べるか"
+          ]
+        },
+        {
+          "id": "packing-labels",
+          "name": "ラベルの貼り付け",
+          "detail": "送り先や品名のラベルを、決まった位置に、取り違えのないように貼る",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            16
+          ],
+          "abilities": {
+            "main": "improving-work",
+            "sub": []
+          },
+          "scene": "貼る順や置き方のむだな手間に気づき、取り違えが起きにくい流れにまとめるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 10
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "梱包の手順"
+          ],
+          "trial": "家の収納の箱 5 つに中身のラベルを作り、貼る位置をそろえてみる",
+          "checks": [
+            "手先を使う細かい作業が苦にならないか",
+            "細かい数字や文字の違いを見る作業を続けられるか",
+            "長く立って作業できるか"
+          ]
+        },
+        {
+          "id": "packing-shipment-check",
+          "name": "出荷する品の照らし合わせ",
+          "detail": "出荷する品物の種類と数、送り先を伝票と照らし、違いがあれば止めて確かめる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            5,
+            17
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "persistence"
+            ]
+          },
+          "scene": "伝票やいつもの荷の様子と比べて、違うところに自分で気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "梱包の手順"
+          ],
+          "trial": "荷物の中身を書いたメモを作り、実物と 1 品ずつ照らしてみる",
+          "checks": [
+            "手先を使う細かい作業が苦にならないか",
+            "長く立って作業できるか",
+            "荷物を持ち運べるか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inspector",
+      "name": "製品の検査",
+      "domain": "logistics",
+      "summary": "仕上がった製品に傷やゆがみがないかを見て、決まりに合うかを確かめる仕事",
+      "jobtag": {
+        "number": 526,
+        "name": "検査工（工業製品）"
+      },
+      "tasks": [
+        {
+          "id": "inspection-visual",
+          "name": "外観や傷の目で見る検査",
+          "detail": "仕上がった品を一つずつ見て、傷やゆがみ、汚れがないかを確かめ、見つけたものを記録する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            3
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "persistence"
+            ]
+          },
+          "scene": "いつもの製品と比べて小さな傷や色の違いに自分で気づき、何を見てそう思ったかを記録するところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1450
+          },
+          "knowledge": [
+            "製品の検査の基準",
+            "作業の手順と安全の決まり"
+          ],
+          "trial": "家の食器を 10 枚並べ、欠けや傷がないかを順に見て記録してみる",
+          "checks": [
+            "手先を使う細かい作業が苦にならないか",
+            "同じ確かめを長く続けられるか",
+            "長く立って作業できるか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assembler",
+      "name": "電子機器の組立",
+      "domain": "logistics",
+      "summary": "部品をそろえ、工具を使って電子機器を組み上げる仕事",
+      "jobtag": {
+        "number": 261,
+        "name": "電子機器組立"
+      },
+      "tasks": [
+        {
+          "id": "assembly-support",
+          "name": "工具を使う組み立ての手伝い",
+          "detail": "手順書に沿って部品をそろえ、ねじ締めなどで製品の一部を組み立てる",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2,
+            4
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "persistence"
+            ]
+          },
+          "scene": "組み立てに要る部品と作業を洗い出し、どの順で組むかを決めるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1450
+          },
+          "knowledge": [
+            "工具の使い方",
+            "作業の手順と安全の決まり"
+          ],
+          "trial": "組み立て式の家具か模型の説明書を読み、部品と手順を自分の言葉で書き出してみる",
+          "checks": [
+            "手先を使う細かい作業が苦にならないか",
+            "細かい数字や文字の違いを見る作業を続けられるか",
+            "長く立って作業できるか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apparel-sales",
+      "name": "衣料品の販売",
+      "domain": "service",
+      "summary": "売り場でお客を迎え、服や小物を選ぶ手伝いと会計をする仕事",
+      "jobtag": {
+        "number": 73,
+        "name": "衣料品販売"
+      },
+      "tasks": [
+        {
+          "id": "apparel-greeting",
+          "name": "来た人への声かけ",
+          "detail": "売り場に来た人の様子を見て、話しかけるか、そっとしておくかを決め、声をかける",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            4
+          ],
+          "abilities": {
+            "main": "empathy",
+            "sub": [
+              "noticing-changes"
+            ]
+          },
+          "scene": "来た人の置かれた事情を思い浮かべ、その様子のわけを考えるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1450
+          },
+          "knowledge": [
+            "接客の基本",
+            "商品の知識"
+          ],
+          "trial": "最近お店で声をかけられた場面を 3 つ思い出し、話しかけやすかった時とそのわけを書いてみる",
+          "checks": [
+            "長く立って作業できるか",
+            "売り場や建物の中を歩き回る仕事ができるか"
+          ]
+        },
+        {
+          "id": "apparel-product-explanation",
+          "name": "商品やサービスの説明",
+          "detail": "お客の使い方や好みを聞き、商品の特徴や手入れのしかたを、相手に分かる言葉で説明する",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            5,
+            6
+          ],
+          "abilities": {
+            "main": "adapting-explanations",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "相手が何を知っていて何を気にしているかを考え、言葉や話の運び方を変えるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1450
+          },
+          "knowledge": [
+            "商品の知識",
+            "接客の基本"
+          ],
+          "trial": "家にある服か道具を 1 つ選び、知らない人に向けた 1 分の説明を書いてみる",
+          "checks": [
+            "売り場や建物の中を歩き回る仕事ができるか",
+            "長く立って作業できるか"
+          ]
+        },
+        {
+          "id": "apparel-checkout",
+          "name": "レジと会計",
+          "detail": "代金を計算して受け取り、包装やポイントの手続きを、待っている人の様子を見ながら進める",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            10,
+            11
+          ],
+          "abilities": {
+            "main": "setting-priorities",
+            "sub": [
+              "handling-schedule-changes"
+            ]
+          },
+          "scene": "レジが混んだときに、何を先にして何を後に回すかを理由をもって選ぶところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1450
+          },
+          "knowledge": [
+            "レジの操作"
+          ],
+          "trial": "会計の流れ（数える、受け取る、包む、渡す）を紙に書き、混んだときに先にすることを決めてみる",
+          "checks": [
+            "長く立って作業できるか",
+            "売り場や建物の中を歩き回る仕事ができるか"
+          ]
+        },
+        {
+          "id": "apparel-display",
+          "name": "売り場の陳列と整頓",
+          "detail": "崩れた商品をたたみ直し、少なくなった物を補い、見やすく取りやすい並べ方に整える",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2,
+            3
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "improving-work"
+            ]
+          },
+          "scene": "いつもの売り場と比べて、減った棚や崩れた所に自分で気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1450
+          },
+          "knowledge": [
+            "商品の知識"
+          ],
+          "trial": "家のたんすか棚を 1 つ選び、見やすく取りやすい並べ方に整えてみる",
+          "checks": [
+            "手先を使う細かい作業が苦にならないか",
+            "細かい数字や文字の違いを見る作業を続けられるか",
+            "長く立って作業できるか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "receptionist",
+      "name": "受付",
+      "domain": "service",
+      "summary": "来た人や電話の用件を聞いて担当につなぎ、予約を管理する仕事",
+      "jobtag": {
+        "number": 427,
+        "name": "受付事務"
+      },
+      "tasks": [
+        {
+          "id": "reception-purpose-hearing",
+          "name": "来た人の用件の聞き取り",
+          "detail": "来た人に用件と訪ねる相手を聞き、担当につなぐか、案内する先を決める",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1,
+            3
+          ],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、用件の具体的な中身や背景を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "受付の基本",
+            "社内の担当の知識"
+          ],
+          "trial": "家族に、今日だれに何の用で連絡したいかを聞き、伝える先と中身を 2 行でまとめてみる",
+          "checks": []
+        },
+        {
+          "id": "reception-bookings",
+          "name": "予約の受付と変更",
+          "detail": "電話やメールで予約を受けて予約表に入れ、変更や取り消しがあれば関わる人に伝えて組み直す",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            14
+          ],
+          "abilities": {
+            "main": "empathy",
+            "sub": [
+              "handling-schedule-changes"
+            ]
+          },
+          "scene": "相手の事情を思い浮かべながら、急な変更を関わる人へ伝えて、あとの予定を組み直すところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "予約の管理の道具",
+            "電話応対の基本"
+          ],
+          "trial": "家族の来月の予定を 1 つの表にまとめ、変更が出たときの書き直し方を決めてみる",
+          "checks": []
+        },
+        {
+          "id": "reception-reassuring",
+          "name": "利用する人の不安への説明",
+          "detail": "初めて来た人や心配そうな人に、この先の流れや待ち時間、要るものを伝える",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            5
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "相手が何を心配しているかを聞き取り、要る情報とこの先の見通しを整えて伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "受付の基本",
+            "施設やサービスの知識"
+          ],
+          "trial": "初めての場所に行く人が気にしそうなことを 5 つ挙げ、それぞれに伝えることを 1 行ずつ書いてみる",
+          "checks": []
+        },
+        {
+          "id": "reception-event-day",
+          "name": "イベントの日の受付",
+          "detail": "イベントの当日、来た人を名簿と照らして迎え、会場へ案内し、時間の変更があれば伝える",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            1,
+            4
+          ],
+          "abilities": {
+            "main": "empathy",
+            "sub": [
+              "handling-schedule-changes"
+            ]
+          },
+          "scene": "来た人の事情を思い浮かべて迎え、急な変更を関わる人へ伝えて組み直すところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "受付の基本"
+          ],
+          "trial": "家族の集まりの受付役を想定し、迎える、確かめる、案内するの流れを書き出してみる",
+          "checks": [
+            "長く立って作業できるか"
+          ]
+        },
+        {
+          "id": "reception-complaints",
+          "name": "苦情のときの事情の聞き取り",
+          "detail": "苦情を受けたとき、相手の話を受け止め、何がいつ起きたかを確かめて、担当につなぐ",
+          "status": "active",
+          "needsReview": false,
+          "jobtagTasks": [
+            5
+          ],
+          "abilities": {
+            "main": "easing-anxiety",
+            "sub": [
+              "empathy"
+            ]
+          },
+          "scene": "相手が何を心配しているかを聞き取り、この先どうなるかを整えて伝えるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "受付の基本",
+            "苦情の受け方の基本"
+          ],
+          "trial": "最近だれかが困っていた出来事を 1 つ思い出し、いつ、何が起きたかを順に書き出してみる",
+          "checks": [
+            "苦情の電話や来訪を受けることがあってもよいか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shuttle-driver",
+      "name": "送迎車の運転",
+      "domain": "service",
+      "summary": "施設や学校などを使う人を、決まった場所のあいだで送り迎えする仕事",
+      "jobtag": {
+        "number": 480,
+        "name": "送迎バス等運転手"
+      },
+      "tasks": [
+        {
+          "id": "shuttle-route-planning",
+          "name": "回る先と道順の計画",
+          "detail": "その日の送り迎えや訪問の先を確かめ、時間と道の混み具合を見て回る順を決める",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            2,
+            3
+          ],
+          "abilities": {
+            "main": "planning-steps",
+            "sub": [
+              "handling-schedule-changes"
+            ]
+          },
+          "scene": "回る先を洗い出してどの順で回るかを組み立て、急な変更のときに組み直すところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 10
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "地図アプリの使い方",
+            "地域の道の知識"
+          ],
+          "trial": "近所の 4 か所を回る用事を想定し、地図を見て回る順と時間を書き出してみる",
+          "checks": [
+            "運転免許があり、仕事で車を運転できるか",
+            "運転すること自体が苦にならないか",
+            "あちこちへ出向く仕事ができるか"
+          ]
+        },
+        {
+          "id": "shuttle-ride-assist",
+          "name": "車での送迎と乗り降りの手伝い",
+          "detail": "利用する人を決まった場所で迎え、乗り降りを手伝い、体調や様子に気を配って送り届ける",
+          "status": "active",
+          "needsReview": true,
+          "jobtagTasks": [
+            5,
+            10,
+            13
+          ],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "handling-schedule-changes"
+            ]
+          },
+          "scene": "利用する人の様子がいつもと違うことに気づき、何を見てそう思ったかを前と比べて捉えるところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 12
+          },
+          "timeSlots": [
+            "morning",
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1700
+          },
+          "knowledge": [
+            "安全運転の決まり",
+            "乗り降りの手伝い方",
+            "運転する車に合う免許（車の大きさによる）"
+          ],
+          "trial": "家族を乗せて出かけるときの、乗る前、乗っている間、降りたあとの気配りを書き出してみる",
+          "checks": [
+            "運転免許があり、仕事で車を運転できるか",
+            "運転すること自体が苦にならないか",
+            "あちこちへ出向く仕事ができるか",
+            "人の乗り降りを手伝える体の条件があるか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "planning-unassigned",
+      "name": "企画・調査・PM（職種は準備中）",
+      "domain": "planning",
+      "summary": "job tag の職業との対応を準備している業務の置き場所。カードには出さない",
+      "jobtag": null,
+      "tasks": [
+        {
+          "id": "planning-risks",
+          "name": "起こりそうな困りごとと備えの整理",
+          "detail": "企画を進める中で起こりそうな困りごとを挙げ、起きたときの手と、先に打つ手を一覧にする",
+          "status": "preparing",
+          "needsReview": true,
+          "jobtagTasks": [],
+          "abilities": {
+            "main": "hypothesis-thinking",
+            "sub": [
+              "organizing-issues"
+            ]
+          },
+          "scene": "起こりそうなことの見当をひとまず置き、確かめながら備えを考えるところで生きる",
+          "hoursPerWeek": {
+            "min": 1,
+            "max": 5
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "home",
+          "hourlyYen": {
+            "min": 1500,
+            "max": 2200
+          },
+          "knowledge": [
+            "企画書の書き方"
+          ],
+          "trial": "家族の旅行の計画を 1 つ選び、起こりそうな困りごとを 5 つと、それぞれの備えを書いてみる",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "logistics-unassigned",
+      "name": "物流・製造・軽作業（職種は準備中）",
+      "domain": "logistics",
+      "summary": "job tag の職業との対応を準備している業務の置き場所。カードには出さない",
+      "jobtag": null,
+      "tasks": [
+        {
+          "id": "logistics-safety-check",
+          "name": "安全の手順の確かめ",
+          "detail": "作業の前に、決まった安全の手順や道具の状態を確かめ、いつもと違うところを知らせる",
+          "status": "preparing",
+          "needsReview": true,
+          "jobtagTasks": [],
+          "abilities": {
+            "main": "noticing-changes",
+            "sub": [
+              "persistence"
+            ]
+          },
+          "scene": "いつもの作業場と比べて、道具や置き場所の違いに気づくところで生きる",
+          "hoursPerWeek": {
+            "min": 3,
+            "max": 15
+          },
+          "timeSlots": [
+            "morning",
+            "daytime"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1400
+          },
+          "knowledge": [
+            "作業の手順と安全の決まり"
+          ],
+          "trial": "家の中で、つまずきやすい所や危ない所を 5 つ見つけて書き出してみる",
+          "checks": [
+            "同じ確かめを長く続けられるか",
+            "長く立って作業できるか"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "service-unassigned",
+      "name": "接客・サービス・移動（職種は準備中）",
+      "domain": "service",
+      "summary": "job tag の職業との対応を準備している業務の置き場所。カードには出さない",
+      "jobtag": null,
+      "tasks": [
+        {
+          "id": "service-feedback-collection",
+          "name": "利用したあとの感想集め",
+          "detail": "サービスを利用した人に感想や困ったことを聞き、似た声をまとめて担当に伝える",
+          "status": "preparing",
+          "needsReview": false,
+          "jobtagTasks": [],
+          "abilities": {
+            "main": "digging-deeper",
+            "sub": [
+              "active-listening"
+            ]
+          },
+          "scene": "最初の答えで切り上げず、具体的な場面や、そう感じた理由を尋ねるところで生きる",
+          "hoursPerWeek": {
+            "min": 2,
+            "max": 8
+          },
+          "timeSlots": [
+            "daytime",
+            "evening"
+          ],
+          "place": "out",
+          "hourlyYen": {
+            "min": 1300,
+            "max": 1500
+          },
+          "knowledge": [
+            "接客の基本"
+          ],
+          "trial": "最近使ったお店やサービスについて家族に感想を聞き、よかった点と困った点を分けて書いてみる",
+          "checks": []
         }
       ]
     }

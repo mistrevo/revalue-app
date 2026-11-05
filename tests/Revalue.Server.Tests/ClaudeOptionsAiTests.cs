@@ -212,8 +212,8 @@ public sealed class ClaudeOptionsAiTests
         Assert.Contains("online-secretary-schedule", candidates);
         Assert.Contains("recruiting-interview-schedule", candidates);
         // 家だけの人に、外に出る業務を渡さない
-        Assert.DoesNotContain("accounting-cash", brief);
-        Assert.DoesNotContain("recruiting-reception", brief);
+        Assert.DoesNotContain("業務 id: accounting-cash\n", brief);
+        Assert.DoesNotContain("業務 id: recruiting-reception\n", brief);
         Assert.Contains("choose: 作れる", Section(brief, "cards"));
         Assert.Contains("combine: 作れる", Section(brief, "cards"));
 
@@ -225,14 +225,15 @@ public sealed class ClaudeOptionsAiTests
         Assert.Contains("homeOnly", conditions);
         Assert.Contains("5 万円", conditions);
 
-        // 週 1 時間、日中だけ: 業務は 1 つ（オンライン秘書の手配）だけで、組み合わせるは作れない
+        // 週 1 時間、日中だけ: 1 時間から受けられる業務（オンライン秘書の手配など）だけで、2 つの業務の合計は 1 時間を超えるので組み合わせるは作れない
         var tight = Inputs(hours: 1, slots: [TimeSlot.Daytime], income: null);
         var tightCandidates = OptionCandidates.From(Catalog, tight);
         Assert.False(tightCandidates.CanCombine);
+        Assert.All(tightCandidates.Tasks, t => Assert.Equal(1, t.HoursPerWeek.Min));
         var tightBrief = ClaudeOptionsAi.Brief(tight, tightCandidates);
         Assert.Contains("online-secretary-arrangement", tightBrief);
         Assert.DoesNotContain("online-secretary-schedule", tightBrief);
-        Assert.DoesNotContain("accounting-", tightBrief);
+        Assert.DoesNotContain("業務 id: accounting-check\n", tightBrief);
         Assert.Contains("combine: 作れない", Section(tightBrief, "cards"));
         Assert.Contains("まだ決めていない", Section(tightBrief, "conditions"));
     }

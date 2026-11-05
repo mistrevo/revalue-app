@@ -176,6 +176,23 @@ public sealed class DeepenValidatorTests
         Assert.Equal("二つ目の場面です", three.Questions[1].Situation);
     }
 
+    [Fact(DisplayName = "deepen-6（仮の場面での考え方を聞く）: 問いの力は、選んだ案の業務の主な力か補助の力のうち、話から確かめる力")]
+    public void QuestionAbilityMayBeMainOrSubOfRegisteredTasks()
+    {
+        // 会議や面会の日程調整: 主な力は段取り力、補助の力に利害調整力
+        var (schedule, sr) = Build(
+            Draft(questions: [Question("planning-steps", "一つ目の場面です"), Question("balancing-interests", "二つ目の場面です")]),
+            Options(ChooseChoice(taskId: "online-secretary-schedule")));
+        Assert.Empty(sr);
+        Assert.Equal([TestAbilities.PlanningSteps, TestAbilities.BalancingInterests], schedule.Questions.Select(q => q.Ability));
+
+        // 課題の原因の見当づくり: 主な力の原因分析力は準備中なので問いにできず、補助の力の違和感察知力はできる
+        var (planned, pr) = Build(
+            Draft(questions: [Question("cause-analysis"), Question("sensing-incongruity")]), Options(ChooseChoice(taskId: "planning-cause-hypothesis")));
+        Assert.Equal("sensing-incongruity", Assert.Single(planned.Questions).Ability.Id);
+        Assert.Contains(new DeepenRejection("question", "ability"), pr);
+    }
+
     [Fact(DisplayName = "common-1（使わない言葉を出さない）: 深める文に、使わない言葉、言い切り、褒め言葉、お金の額があれば出さない")]
     public void WordRulesApply()
     {

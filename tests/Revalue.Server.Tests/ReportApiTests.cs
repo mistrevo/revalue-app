@@ -115,7 +115,7 @@ public sealed class ReportApiTests
         await ChooseCard(client);
         var chosen = await Get(client);
         Assert.Equal("card", chosen.GetProperty("content").GetProperty("choice").GetProperty("kind").GetString());
-        Assert.Equal("オンライン秘書", chosen.GetProperty("content").GetProperty("choice").GetProperty("title").GetString());
+        Assert.Equal("経理事務", chosen.GetProperty("content").GetProperty("choice").GetProperty("title").GetString());
         Assert.Equal(2, Number(chosen));
         Assert.Equal(1, await Reached(client));
 
@@ -463,7 +463,7 @@ public sealed class ReportApiTests
         {
             Assert.DoesNotContain("目印", line);
             Assert.DoesNotContain("夫と母の予定がぶつかって", line);
-            Assert.DoesNotContain("オンライン秘書", line);
+            Assert.DoesNotContain("経理事務", line);
         }
     }
 

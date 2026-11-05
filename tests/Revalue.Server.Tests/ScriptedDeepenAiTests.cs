@@ -43,7 +43,7 @@ public sealed class ScriptedDeepenAiTests
         Assert.Equal(target.Kind == TargetKind.Create ? 1 : 0, content.Steps.Count(s => s.DemandCheck));
         Assert.Equal(target.Drafts ? 2 : 0, content.Tasks.Count);
         var question = Assert.Single(content.Questions);
-        Assert.Equal(target.Drafts ? TestAbilities.BalancingInterests : target.Registered[0].Ability, question.Ability);
+        Assert.Equal(target.Drafts ? TestAbilities.BalancingInterests : target.Registered[0].ActiveAbilities[0], question.Ability);
     }
 
     [Fact(DisplayName = "deepen-6（仮の場面での考え方を聞く）: Testing の環境では、深める AI も偽物になる")]

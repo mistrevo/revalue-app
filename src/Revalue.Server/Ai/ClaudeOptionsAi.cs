@@ -152,9 +152,9 @@ public sealed class ClaudeOptionsAi(
                 sb.Append("- 業務 id: ").Append(task.Id).Append('\n');
                 sb.Append("  名前: ").Append(task.Name).Append('\n');
                 sb.Append("  中身: ").Append(task.Detail).Append('\n');
-                if (AbilityText.NameOrNull(task.Ability) is { } abilityName)
+                if (task.ActiveAbilities.Count > 0)
                 {
-                    sb.Append("  使う力: ").Append(ActionRef.Key(task.Ability)).Append('（').Append(abilityName).Append("）\n");
+                    sb.Append("  使う力: ").Append(string.Join("、", task.ActiveAbilities.Select(a => $"{ActionRef.Key(a)}（{AbilityText.Name(a)}）"))).Append('\n');
                 }
 
                 sb.Append("  週あたりの時間: ").Append(task.HoursPerWeek.Min).Append(" 時間から ").Append(task.HoursPerWeek.Max).Append(" 時間まで\n");

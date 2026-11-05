@@ -15,10 +15,10 @@ public sealed class DeepenLightingTests
         var inputs = Inputs();
         var lights = DeepenLighting.Light(Target(Options(CombineChoice())), null, inputs);
 
-        var schedule = lights.Single(l => l.Id == "online-secretary-schedule");
-        Assert.Equal(TestAbilities.BalancingInterests, schedule.Usable!.Ability);
-        Assert.Equal(inputs.Abilities[0].Quotes, schedule.Usable.Quotes);
-        Assert.False(schedule.Drafted);
+        var arrangement = lights.Single(l => l.Id == "online-secretary-arrangement");
+        Assert.Equal(TestAbilities.BalancingInterests, arrangement.Usable!.Ability);
+        Assert.Equal(inputs.Abilities[0].Quotes, arrangement.Usable.Quotes);
+        Assert.False(arrangement.Drafted);
 
         var check = lights.Single(l => l.Id == "accounting-check");
         Assert.Null(check.Usable);
@@ -31,7 +31,7 @@ public sealed class DeepenLightingTests
         var excluded = Inputs() with { Abilities = [], Excluded = [TestAbilities.BalancingInterests] };
         var lights = DeepenLighting.Light(Target(Options(CombineChoice())), null, excluded);
 
-        Assert.Null(lights.Single(l => l.Id == "online-secretary-schedule").Usable);
+        Assert.Null(lights.Single(l => l.Id == "online-secretary-arrangement").Usable);
     }
 
     [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 業務の力が画面に出さない力なら、使えるところとして示さない")]
@@ -59,13 +59,13 @@ public sealed class DeepenLightingTests
         var inputs = OptionsInputsReader.From(null, [episode], AbilityBook.View([episode], null), null) with { Conditions = Conditions() };
         var choice = new OptionChoice(ChoiceKind.Card, Now, CardKind.Choose,
             new ChooseCard("online-secretary", "オンライン秘書", "要約",
-                [CardTaskOf("online-secretary-schedule"), CardTaskOf("online-secretary-email")], new WorkRange(3, 10, 15000, 80000), "理由です。",
+                [CardTaskOf("online-secretary-arrangement"), CardTaskOf("online-secretary-email")], new WorkRange(3, 10, 15000, 80000), "理由です。",
                 new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1)])),
             null, null, null);
 
         var lights = DeepenLighting.Light(Target(Options(choice)), null, inputs);
 
-        Assert.Equal(TestAbilities.BalancingInterests, lights.Single(l => l.Id == "online-secretary-schedule").Usable!.Ability);
+        Assert.Equal(TestAbilities.BalancingInterests, lights.Single(l => l.Id == "online-secretary-arrangement").Usable!.Ability);
         var email = lights.Single(l => l.Id == "online-secretary-email");
         Assert.Equal(TestAbilities.SettingPriorities, email.Ability);
         Assert.Null(email.Usable);

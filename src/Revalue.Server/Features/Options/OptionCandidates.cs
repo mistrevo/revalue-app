@@ -18,7 +18,7 @@ public sealed record OptionCandidates(
             return new OptionCandidates([], [], MissingReason.NoFit, MissingReason.NoFit);
         }
 
-        var tasks = catalog.AllTasks.Where(t => ConditionFit.Fits(t, conditions)).ToList();
+        var tasks = catalog.ActiveTasks.Where(t => ConditionFit.Fits(t, conditions)).ToList();
         var ids = tasks.Select(t => t.Id).ToHashSet();
         var occupations = catalog.Occupations
             .Select(o => o with { Tasks = o.Tasks.Where(t => ids.Contains(t.Id)).ToList() })
@@ -28,7 +28,7 @@ public sealed record OptionCandidates(
         // 条件に収まる業務がないのか、収まる業務はあるが本人が使える力を使わないのかを分ける
         var usable = inputs.Abilities.Select(a => a.Ability).ToHashSet();
         var chooseBlocked = tasks.Count == 0 ? MissingReason.NoFit
-            : !tasks.Any(t => usable.Contains(t.Ability)) ? MissingReason.NoAbilityMatch
+            : !tasks.Any(t => usable.Any(t.Uses)) ? MissingReason.NoAbilityMatch
             : (MissingReason?)null;
 
         var pairs = occupations.SelectMany((a, i) => occupations.Skip(i + 1).Select(b => (a, b)))
@@ -36,7 +36,7 @@ public sealed record OptionCandidates(
             .Where(pair => ConditionFit.CombineFits([pair.x, pair.y], conditions))
             .ToList();
         var combineBlocked = pairs.Count == 0 ? MissingReason.NoFit
-            : !pairs.Any(pair => usable.Contains(pair.x.Ability) || usable.Contains(pair.y.Ability)) ? MissingReason.NoAbilityMatch
+            : !pairs.Any(pair => usable.Any(pair.x.Uses) || usable.Any(pair.y.Uses)) ? MissingReason.NoAbilityMatch
             : (MissingReason?)null;
         return new OptionCandidates(occupations, tasks, chooseBlocked, combineBlocked);
     }

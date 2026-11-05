@@ -24,7 +24,7 @@ public sealed class DeepenTargetTests
         var choose = Target(Options(ChooseChoice()));
         Assert.Equal(TargetKind.Choose, choose.Kind);
         Assert.Equal("オンライン秘書", choose.Title);
-        Assert.Equal(["online-secretary-schedule"], choose.Registered.Select(t => t.Id));
+        Assert.Equal(["online-secretary-arrangement"], choose.Registered.Select(t => t.Id));
         Assert.False(choose.Drafts);
 
         var combine = Target(Options(CombineChoice()));

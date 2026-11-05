@@ -43,11 +43,16 @@ public sealed class OptionsValidatorTests
     private static OptionsDraft Draft(ChooseDraft? choose = null, CombineDraft? combine = null, CreateDraft? create = null) =>
         new(choose ?? GoodChoose(), combine ?? GoodCombine(), create ?? GoodCreate());
 
-    private static (OptionCards Cards, IReadOnlyList<CardRejection> Rejections) Build(OptionsDraft draft, OptionsInputs? inputs = null)
+    private static (OptionCards Cards, IReadOnlyList<CardRejection> Rejections) Build(OptionsDraft draft, OptionsInputs? inputs = null, JobCatalog? catalog = null)
     {
         inputs ??= Inputs();
-        return OptionsValidator.Build(draft, OptionCandidates.From(Catalog, inputs), inputs, Catalog, Forbidden, Now);
+        catalog ??= Catalog;
+        return OptionsValidator.Build(draft, OptionCandidates.From(catalog, inputs), inputs, catalog, Forbidden, Now);
     }
+
+    /// <summary>登録データのうち、決めた職種だけの業務マスター。条件に合う業務がないときを作るために使う。</summary>
+    private static JobCatalog Only(params string[] occupationIds) =>
+        Catalog with { Occupations = Catalog.Occupations.Where(o => occupationIds.Contains(o.Id)).ToList() };
 
     private static void AssertRejected(CardKind kind, string rule, OptionsDraft draft, OptionsInputs? inputs = null)
     {
@@ -158,9 +163,59 @@ public sealed class OptionsValidatorTests
         // 外した力は使える力に入らない
         var excluded = Inputs(excluded: [TestAbilities.NoticingChanges], usable: [TestAbilities.BalancingInterests]);
         AssertRejected(CardKind.Choose, "abilityNotUsable", Draft(choose: GoodChoose() with { Ability = "noticing-changes" }), excluded);
-        // 変化への気づきは使えるが、日程の調整の業務の使う力は利害調整力
+        // 変化への気づきは使えるが、会議や面会の日程調整の業務の力（主な力と補助の力）にない
         var both = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges]);
         AssertRejected(CardKind.Choose, "abilityNotInTasks", Draft(choose: GoodChoose() with { Ability = "noticing-changes", Reason = "見立ててきた経験が生かせるかもしれません。" }), both);
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 選ぶの力は、業務の主な力でも補助の力でもよく、どちらでもない力なら落とす")]
+    public void ChooseAbilityMayBeMainOrSub()
+    {
+        // 会議や面会の日程調整の主な力は段取り力、利害調整力は補助の力
+        var schedule = Catalog.FindTask("online-secretary-schedule")!;
+        Assert.Equal(TestAbilities.PlanningSteps, schedule.Abilities.Main);
+        Assert.Contains(TestAbilities.BalancingInterests, schedule.Abilities.Sub);
+
+        var (cards, rejections) = Build(Draft());
+        Assert.Empty(rejections);
+        Assert.Equal(TestAbilities.BalancingInterests, cards.Choose!.Ability.Ability);
+        // カードの業務の写しの力は、業務の主な力
+        Assert.Equal(TestAbilities.PlanningSteps, Assert.Single(cards.Choose.Tasks).Ability);
+
+        var withEmpathy = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.Empathy]);
+        AssertRejected(CardKind.Choose, "abilityNotInTasks", Draft(choose: GoodChoose() with { Ability = "empathy", Reason = "見立ててきた経験が生かせるかもしれません。" }), withEmpathy);
+    }
+
+    [Fact(DisplayName = "options-3（組み合わせるは登録した業務から）: 組み合わせるの力は、業務のどれかの主な力か補助の力")]
+    public void CombineAbilityMayBeMainOrSub()
+    {
+        var (cards, rejections) = Build(Draft());
+        Assert.Empty(rejections);
+        Assert.Equal(TestAbilities.BalancingInterests, cards.Combine!.Ability.Ability);
+
+        var withEmpathy = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.Empathy]);
+        AssertRejected(CardKind.Combine, "abilityNotInTasks", Draft(combine: GoodCombine() with { Ability = "empathy" }), withEmpathy);
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 準備中の業務の id は、渡していない ID として落とす")]
+    public void PreparingTaskIdsAreUnknown()
+    {
+        var inputs = Inputs(place: Place.CanGoOut, usable: [TestAbilities.BalancingInterests, TestAbilities.ActiveListening]);
+
+        AssertRejected(CardKind.Choose, "unknownId",
+            Draft(choose: new ChooseDraft(true, "insurance-sales", ["insurance-sales-hearing"], "active-listening", "見立ててきた経験が生かせるかもしれません。")), inputs);
+        AssertRejected(CardKind.Combine, "unknownId",
+            Draft(combine: GoodCombine() with { TaskIds = ["online-secretary-schedule", "insurance-sales-hearing"] }), inputs);
+    }
+
+    [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 業務の準備中の力（原因分析力）は、カードの力にできない")]
+    public void PreparingAbilityIsNotUsable()
+    {
+        var sensing = new Ability("sensing-incongruity");
+        var inputs = Inputs(usable: [TestAbilities.BalancingInterests, sensing]);
+
+        AssertRejected(CardKind.Choose, "abilityNotUsable",
+            Draft(choose: new ChooseDraft(true, "planner", ["planning-cause-hypothesis"], "cause-analysis", "見立ててきた経験が生かせるかもしれません。")), inputs);
     }
 
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が本人の根拠にないカードは出さない。根拠の言葉の一部を一字一句そのまま引くのはよい")]
@@ -475,9 +530,9 @@ public sealed class OptionsValidatorTests
     [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 候補で作れないカードは、AI の答えを見ずに出せない理由を返す")]
     public void CardsWithoutCandidatesAreNoFitWithoutLookingAtTheDraft()
     {
-        // 週 1 時間・夜だけ・家だけ: 条件に合う業務がない
+        // 経理事務と採用事務だけで、週 1 時間・夜だけ・家だけ: 条件に合う業務がない
         var inputs = Inputs(hours: 1, slots: [TimeSlot.Night]);
-        var (cards, rejections) = Build(Draft(), inputs);
+        var (cards, rejections) = Build(Draft(), inputs, Only("accounting-clerk", "recruiting-clerk"));
 
         Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoFit), cards.Missing);
         Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoFit), cards.Missing);
@@ -489,14 +544,14 @@ public sealed class OptionsValidatorTests
     [Fact(DisplayName = "options-1（3 枚を同じ重さで示す）: 条件に収まる業務はあるが使える力を使う業務がないカードは、条件に合わないとは返さない")]
     public void CardsWithoutAbilityMatchAreNotNoFit()
     {
-        // 夜だけ、週 10 時間: 夜の業務（必要な情報をまとめる、帳簿の点検）はあるが、どちらも気づく力を使い、使えるのは利害調整力だけ
+        // 夜だけ、週 10 時間: 夜の業務はあるが、どれも利害調整力につながらず、使えるのは利害調整力だけ
         var night = Build(Draft(), Inputs(slots: [TimeSlot.Night]));
         Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoAbilityMatch), night.Cards.Missing);
         Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoAbilityMatch), night.Cards.Missing);
         Assert.DoesNotContain(night.Rejections, r => r.Kind is CardKind.Choose or CardKind.Combine);
 
-        // 朝だけ: 朝の業務はオンライン秘書だけで、職種をまたいで組み合わせられない。組み合わせるは条件に合わないとして返す
-        var morning = Build(Draft(), Inputs(slots: [TimeSlot.Morning]));
+        // オンライン秘書と採用事務だけで、朝だけ: 朝の業務はオンライン秘書だけで、職種をまたいで組み合わせられない。組み合わせるは条件に合わないとして返す
+        var morning = Build(Draft(), Inputs(slots: [TimeSlot.Morning]), Only("online-secretary", "recruiting-clerk"));
         Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoAbilityMatch), morning.Cards.Missing);
         Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoFit), morning.Cards.Missing);
     }
