@@ -612,6 +612,27 @@ public sealed class EvalsTests
         Assert.False(failed.Passed);
     }
 
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 評価は、足りない行動を聞いても、一つの問いに二つのことを入れた聞き返しは、足りない行動だけを聞き返した例に数えない")]
+    public async Task AskMissingActionWithTwoQuestionsIsNotCounted()
+    {
+        var script = ValidateScript(
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", ask: "balancing-interests.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
+        // 手がかりの行動についてだけ聞いているが、一度に二つのことを聞いている
+        var judge = new FixedJudge(AllGood with { SingleQuestion = false, Reason = "だれの都合を合わせたかと、どう合わせたかを一度に聞いている" });
+
+        var run = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden(), new DryRunEvidenceJudge())
+            .RunAsync(script, Ct);
+
+        var reply = Assert.Single(run.Replies);
+        Assert.Equal(MoveKind.AskMissingAction, reply.Move);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), reply.Target);
+        Assert.True(reply.Verdict!.MissingOnly);
+        var summary = EvalSummary.From([run]);
+        var gate = Assert.Single(summary.Gated, i => i.Name.Contains("足りない行動だけを聞き返した"));
+        Assert.Equal((0, 1), (gate.Count, gate.Total));
+        Assert.False(summary.Passed);
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 判定役には、足りない行動を聞く一手のときだけ手がかりを渡す")]
     public void JudgeMessageHasHint()
     {
@@ -1156,6 +1177,30 @@ public sealed class EvalsTests
         }
     }
 
+    // 手がかりを一つの問いになる形に直した行動（情報収集力 2、違和感察知力 1、相手に応じた説明力 1、予定変更への対応力 2、期限管理力 1・2、論点整理力 2）。
+    // 直した手がかりで聞き返せるかを、本物の AI の評価で確かめるために、どれかを聞き返す台本を置く
+    private static readonly ActionRef[] RewordedHintActions =
+    [
+        new(new Ability("info-gathering"), 2),
+        new(new Ability("sensing-incongruity"), 1),
+        new(new Ability("adapting-explanations"), 1),
+        new(new Ability("handling-schedule-changes"), 2),
+        new(new Ability("managing-deadlines"), 1),
+        new(new Ability("managing-deadlines"), 2),
+        new(new Ability("organizing-issues"), 2),
+    ];
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 手がかりを一つの問いになる形に直した行動のどれかを聞き返す、一部だけそろう台本が 1 本以上ある")]
+    public void SomePartialScriptAsksRewordedHint()
+    {
+        Assert.All(RewordedHintActions, a => Assert.InRange(a.Number, 1, AbilityCatalog.ActionCount(a.Ability)));
+
+        var scripts = ValidateScripts().Where(s => s.Ask is { } ask && RewordedHintActions.Contains(ask)).ToList();
+
+        Assert.NotEmpty(scripts);
+        Assert.All(scripts, s => Assert.Equal(AbilityState.NeedsCheck, s.States![s.Ask!.Ability]));
+    }
+
     [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 同じ分類の 2 つの力が根拠ありになる台本が 1 本以上ある")]
     public void SomeScriptHasTwoConfirmedAbilitiesInOneCategory()
     {
@@ -1200,8 +1245,9 @@ public sealed class EvalsTests
         }
     }
 
-    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 一部だけそろう台本は、足りない行動の手がかりになる話を、どの答えでもしていない")]
-    public void PartialScriptsKeepMissingActionUnsaid()
+    // 足りない行動の手がかりになる話をどの答えでもしていないかは、言い換えまでは機械で見分けられないので、台本のレビューで見る
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 一部だけそろう台本は、狙った力を一つだけ要確認と書き、ask の力とファイル名がそろい、自由に書いた答えだけで話す")]
+    public void PartialScriptsTargetOneNeedsCheckAbility()
     {
         var scripts = ValidateScripts().Where(s => PartialScriptIds.Contains(s.Id)).ToList();
 
@@ -1209,9 +1255,12 @@ public sealed class EvalsTests
         Assert.All(scripts, s =>
         {
             Assert.Equal("concreteEvent", s.Expect);
-            Assert.Single(s.States!);
+            var target = Assert.Single(s.States!);
+            Assert.Equal(AbilityState.NeedsCheck, target.Value);
             Assert.NotNull(s.Ask);
-            Assert.Single(Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "episodes"), $"{s.Id}-{s.Ask!.Ability.Id}-partial.md"));
+            Assert.Equal(target.Key, s.Ask!.Ability);
+            Assert.DoesNotContain(target.Key, s.NotConfirmed);
+            Assert.Single(Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "episodes"), $"{s.Id}-{s.Ask.Ability.Id}-partial.md"));
             Assert.All(s.Answers, a => Assert.False(a.IsChoice || a.IsCorrection));
         });
     }

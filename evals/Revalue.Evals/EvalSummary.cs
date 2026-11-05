@@ -167,8 +167,10 @@ public sealed class EvalSummary
         var shown = runs.SelectMany(r => r.Final.SelectMany(f => f.Shown).Select(e => (Run: r, Evidence: e))).ToList();
         var verbatim = shown.Count(x => IsVerbatim(x.Run.Turns, x.Evidence));
         var askRuns = runs.Where(r => r.Script.Ask is not null).ToList();
+        // 足りない行動だけを聞いていても、一つの問いに二つのことを入れた聞き返しは数えない（芯 3（AI が聞き手になる））
         var askedOnlyMissing = askRuns.Count(r => r.Replies.Any(x =>
-            x.Move == MoveKind.AskMissingAction && x.Target == r.Script.Ask && x.Verdict?.MissingOnly == true));
+            x.Move == MoveKind.AskMissingAction && x.Target == r.Script.Ask
+            && x.Verdict?.MissingOnly == true && x.Verdict?.SingleQuestion == true));
 
         gated.AddRange(
         [

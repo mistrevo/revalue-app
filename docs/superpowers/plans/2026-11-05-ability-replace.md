@@ -600,12 +600,13 @@ ask: prioritizing.3
 | e43-summarizing-partial | 要約力 = needsCheck | summarizing.2 | 夫の話の要点をまとめたことは話すが、自分の言葉で返したことは話さない |
 | e44-considering-fairness-partial | 公平性を考える力 = needsCheck | considering-fairness.2 | お手伝いの当番の決め方を決めたが、それをどう当てはめたかは話さない |
 | e45-hypothesis-thinking-partial | 仮説思考力 = needsCheck | hypothesis-thinking.2 | 子どもの寝つきが悪い原因を仮に置くが、確かめたことは話さない |
-| e46-handling-schedule-changes-partial | 予定変更への対応力 = needsCheck | handling-schedule-changes.3 | 急な予定の変更と、関わる人への連絡までは話すが、あとの予定の組み直しは話さない |
+| e46-handling-schedule-changes-partial | 予定変更への対応力 = needsCheck | handling-schedule-changes.2 | 習い事が急に休みになり、あとの予定の組み直しまでは話すが、関わる人への連絡は話さない（知らせは教室から受け取っただけ） |
 | e47-easing-anxiety-partial | 不安軽減力 = needsCheck | easing-anxiety.2 | 転校を前にした子の心配を聞き取るが、伝えたことは話さない |
 | e48-digging-deeper-partial | 深掘り力 = needsCheck | digging-deeper.3 | 子どもの話に具体的な例と背景は尋ねるが、考えのわけは尋ねない |
 | e49-resilience-partial | 回復力 = needsCheck | resilience.3 | 手作りの準備が途中で止まり、状況を整理し直したところまでで、また動き出したことは話さない |
 
 - 足りない行動は、あとの答えでも話さない（聞き返したかを見るため）。狙った力の行動が、その出来事でいちばん多くそろうようにし、ほかの力の行動を重ねない
+- e46 は、手がかりを一つの問いになる形に直した行動（予定変更への対応力 2）を聞き返す台本にするため、ask を handling-schedule-changes.3 から .2 に変えた（2 回目のレビューの指摘。Claude の判断）。リポジトリの台本に、直した手がかりの行動を聞き返す台本が 1 本以上あることをテストで確かめる
 - [x] **Step 1: 7 本を書く**（仮説思考力は準備中のため e45 は書かず、番号を空けた）
 - [x] **Step 2: 確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
 - [x] **Step 3: コミット**（「辞書の力に置き換える: 分類ごとに一部だけそろう台本を足す（validate-2（足りない行動だけ聞き返す））」）

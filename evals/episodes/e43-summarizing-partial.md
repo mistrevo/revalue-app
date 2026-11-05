@@ -4,7 +4,7 @@ title: 夫の話の要点をつかんだところまで
 unit: validate
 expect: concreteEvent
 states: summarizing=needsCheck
-notConfirmed: active-listening, helping-put-into-words
+notConfirmed: helping-put-into-words
 ask: summarizing.2
 ---
 
@@ -14,7 +14,7 @@ ask: summarizing.2
 
 ## どんな例か
 
-要約力の行動のうち、相手の話の要点をまとめたことまでは話すが、自分の言葉で言い直して返したことは話さない。聞かれても「返してはいません」と答える。要確認にし、足りない行動（自分の言葉で言い直して返す）だけを聞き返せるかを見る。
+要約力の行動のうち、相手の話の要点をまとめたことまでは話すが、自分の言葉で言い直して返したことは話さない。聞かれても「返してはいません」と答える。要確認にし、足りない行動（自分の言葉で言い直して返す）だけを聞き返せるかを見る。要点を頭の中で整理した答えは、傾聴力の「相手の言いたいことをつかむ」にも読めるので、傾聴力は根拠ありにしてはいけない力に書かず、根拠の判定役に任せる（Claude の判断）。
 
 ## 利用者の答え
 
