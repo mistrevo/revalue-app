@@ -324,9 +324,75 @@ describe('Deepen', () => {
     }
   })
 
+  it('deepen-2（業務ごとに照らす）: 使える力をすべて、それぞれ名前と本人の言葉で出し、主な力が使える力なら力が生きる場面を添える', async () => {
+    const base = fakeDeepenContent()
+    const main = base.tasks[0].usable[0]
+    const sub = { key: 'setting-priorities' as const, name: '優先順位設定力', state: 'needsCheck' as const, quotes: [{ text: '先に書類を仕上げました', fromChoice: false, linkedText: null }] }
+    const noScene = { ...base.tasks[1], ability: 'noticing-changes' as const, abilityName: '変化への気づき', usable: [sub], scene: null }
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      deepen: fakeDeepen({
+        content: fakeDeepenContent({
+          tasks: [{ ...base.tasks[0], usable: [main, sub], scene: '関わる人の都合が食い違うとき' }, noScene],
+        }),
+      }),
+    })
+    renderApp('/deepen')
+
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    const schedule = within(tasks).getByRole('article', { name: '日程の調整' })
+    const names = within(schedule).getAllByTestId('usable-ability').map((e) => e.textContent)
+    expect(names).toEqual(['利害調整力', '優先順位設定力'])
+    expect(schedule).toHaveTextContent(copy.deepen.abilityStates.confirmed)
+    expect(schedule).toHaveTextContent(copy.deepen.abilityStates.needsCheck)
+    expect(schedule).toHaveTextContent('「班の 2 家族の都合を聞きました」')
+    expect(schedule).toHaveTextContent('「先に書類を仕上げました」')
+    expect(schedule).toHaveTextContent(copy.deepen.sceneLine.replace('{scene}', '関わる人の都合が食い違うとき'))
+    // 主な力が使える力でなければ、使える力は並べるが、まだ確かめていない主な力を添え、力が生きる場面は出さない
+    const travel = within(tasks).getByRole('article', { name: '出張や会食の手配' })
+    expect(travel).toHaveTextContent('優先順位設定力')
+    expect(travel).toHaveTextContent(copy.deepen.abilityNotYet.replace('{name}', '変化への気づき'))
+    expect(travel.textContent).not.toContain(copy.deepen.sceneLine.split('{scene}')[0])
+  })
+
+  it('deepen-2（業務ごとに照らす）: 本人に確かめる条件を、まだ確かめていないことの一行で出す', async () => {
+    const base = fakeDeepenContent()
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      deepen: fakeDeepen({
+        content: fakeDeepenContent({ tasks: [{ ...base.tasks[0], checks: ['連絡が来る時間帯', '急な変更への対応'] }, base.tasks[1]] }),
+      }),
+    })
+    renderApp('/deepen')
+
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    const schedule = within(tasks).getByRole('article', { name: '日程の調整' })
+    const notYet = within(schedule).getByText(copy.deepen.notYetTitle).parentElement!
+    expect(notYet).toHaveTextContent(copy.deepen.checksLine.replace('{items}', '連絡が来る時間帯、急な変更への対応'))
+    const travel = within(tasks).getByRole('article', { name: '出張や会食の手配' })
+    expect(travel.textContent).not.toContain(copy.deepen.checksLine.split('{items}')[0])
+  })
+
+  it('deepen-2（業務ごとに照らす）: 登録した業務の力の名前がなくても、まだ確かめていないの行も直す欄も出さない', async () => {
+    // 主な力が準備中の登録の業務は、裏側が力の id と名前を null で返す。補助の力が使えるときはそれだけを示す
+    const base = fakeDeepenContent()
+    const registered: DeepenTask = { ...base.tasks[1], ability: null, abilityName: null, usable: base.tasks[0].usable }
+    installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent({ tasks: [registered] }) }) })
+    renderApp('/deepen')
+
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    const task = within(tasks).getByRole('article', { name: '出張や会食の手配' })
+    expect(task).toHaveTextContent('利害調整力')
+    expect(task.textContent).not.toContain(copy.deepen.abilityNotYet.split('{name}')[0])
+    expect(within(task).queryByRole('button', { name: /を直す/ })).not.toBeInTheDocument()
+    expect(within(tasks).queryByLabelText(copy.deepen.taskAbilityLabel)).not.toBeInTheDocument()
+  })
+
   it('deepen-2（業務ごとに照らす）: 力の名前のない業務も出し、「まだ確かめていません」の行を出さない', async () => {
     // 業務の力が辞書から消えていると、裏側は力の id と名前を null で返す
-    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'balancing-interests', knowledge: '表計算' }), ability: null, abilityName: null, usable: null }
+    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'balancing-interests', knowledge: '表計算' }), ability: null, abilityName: null, usable: [] }
     installFakeApi({
       loggedIn: true,
       consented: true,
@@ -351,7 +417,7 @@ describe('Deepen', () => {
 
   it('deepen-2（業務ごとに照らす）: 力の名前のない業務があるときにほかの業務を消すと、送らずにわけを伝えてその業務の直す欄を開き、選び直せば保存できる', async () => {
     // 一覧は丸ごと送るので、力のない業務が混ざったままだと裏側が断る。送る前に、先に選び直してもらう
-    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'balancing-interests', knowledge: '' }), ability: null, abilityName: null, usable: null }
+    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'balancing-interests', knowledge: '' }), ability: null, abilityName: null, usable: [] }
     const base = ownWithDrafts()
     const api = installFakeApi({
       loggedIn: true,

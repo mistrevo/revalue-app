@@ -163,6 +163,7 @@ describe('Report', () => {
             outsideConditions: true,
             demandNotChecked: true,
             cardsStale: true,
+            scenes: [],
           },
         }),
       }),
@@ -357,6 +358,62 @@ describe('Report', () => {
     expect(within(previous).queryByRole('link')).not.toBeInTheDocument()
   })
 
+  it('report-1（一つにまとめて示す）: 選んだ案に力が生きる場面を、まだ確かめていないことに本人に確かめる条件を出す', async () => {
+    const base = fakeReportContent()
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      report: fakeReport({
+        content: fakeReportContent({
+          notYet: {
+            ...base.notYet,
+            taskGaps: [{ taskName: '日程の調整', abilityName: null, knowledge: ['表計算'], checks: ['連絡が来る時間帯', '急な変更への対応'] }],
+          },
+          choice: { ...base.choice, scenes: [{ taskName: '日程の調整', scene: '関わる人の都合が食い違うとき' }] },
+        }),
+      }),
+    })
+    renderApp('/report')
+
+    const choice = await screen.findByRole('region', { name: copy.report.sections.choice })
+    expect(within(choice).getByText(copy.report.sceneTitle)).toBeInTheDocument()
+    expect(choice).toHaveTextContent(copy.report.sceneLine.replace('{task}', '日程の調整').replace('{scene}', '関わる人の都合が食い違うとき'))
+    const notYet = screen.getByRole('region', { name: copy.report.sections.notYet })
+    expect(notYet).toHaveTextContent(
+      copy.report.taskChecks.replace('{task}', '日程の調整').replace('{items}', '連絡が来る時間帯、急な変更への対応'),
+    )
+  })
+
+  it('report-1（一つにまとめて示す）: 力が生きる場面が来なければ、その見出しも出さない', async () => {
+    installFakeApi({ loggedIn: true, consented: true, report: fakeReport() })
+    renderApp('/report')
+
+    const choice = await screen.findByRole('region', { name: copy.report.sections.choice })
+    expect(within(choice).queryByText(copy.report.sceneTitle)).not.toBeInTheDocument()
+  })
+
+  it('report-3（版を残す）: 前の版にも、業務の本人に確かめる条件を出し、力が生きる場面は出さない', async () => {
+    const base = fakeReportContent()
+    const past = fakeReportContent({
+      notYet: { ...base.notYet, taskGaps: [{ taskName: '日程の調整', abilityName: null, knowledge: [], checks: ['連絡が来る時間帯'] }] },
+    })
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      report: fakeReport({
+        content: base,
+        current: { number: 2, at: '2026-11-03T10:00:00Z', changed: [], snapshot: fakeReportSnapshot(base) },
+        previous: [{ number: 1, at: '2026-11-03T09:00:00Z', changed: [], snapshot: fakeReportSnapshot(past) }],
+      }),
+    })
+    renderApp('/report')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.report.previousShow }))
+    const previous = screen.getByRole('region', { name: copy.report.previousTitle })
+    expect(previous).toHaveTextContent(copy.report.taskChecks.replace('{task}', '日程の調整').replace('{items}', '連絡が来る時間帯'))
+    expect(within(previous).queryByText(copy.report.sceneTitle)).not.toBeInTheDocument()
+  })
+
   it('report-3（版を残す）: 版の番号と変わった欄を出し、前の版は根拠の言葉なしで見られる', async () => {
     const first = fakeReportContent({
       records: { ...fakeReportContent().records, preferences: [{ text: '人とやりとりしながら進められる', source: 'chosen' }] },
@@ -458,6 +515,7 @@ describe('Report', () => {
       outsideConditions: false,
       demandNotChecked: false,
       cardsStale: false,
+      scenes: [],
     }
     for (const [kind, text] of [
       ['hold', copy.report.holding],

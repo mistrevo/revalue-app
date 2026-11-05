@@ -263,6 +263,7 @@ function NotYetBody({ notYet, hasAbilities }: { notYet: ReportNotYet; hasAbiliti
       ...(gap.knowledge.length > 0
         ? [copy.report.taskKnowledge.replace('{task}', gap.taskName).replace('{items}', gap.knowledge.join('、'))]
         : []),
+      ...(gap.checks.length > 0 ? [copy.report.taskChecks.replace('{task}', gap.taskName).replace('{items}', gap.checks.join('、'))] : []),
     ]),
   ]
   return (
@@ -285,9 +286,10 @@ function NotYetBody({ notYet, hasAbilities }: { notYet: ReportNotYet; hasAbiliti
 
 /** 前の版のまだ確かめていないこと。力の状態を表す行は来ないので、業務に要る知識や道具だけを出す。 */
 function SnapshotNotYet({ notYet }: { notYet: ReportSnapshotNotYet }) {
-  const items = notYet.taskGaps.map((gap) =>
-    copy.report.taskKnowledge.replace('{task}', gap.taskName).replace('{items}', gap.knowledge.join('、')),
-  )
+  const items = notYet.taskGaps.flatMap((gap) => [
+    ...(gap.knowledge.length > 0 ? [copy.report.taskKnowledge.replace('{task}', gap.taskName).replace('{items}', gap.knowledge.join('、'))] : []),
+    ...(gap.checks.length > 0 ? [copy.report.taskChecks.replace('{task}', gap.taskName).replace('{items}', gap.checks.join('、'))] : []),
+  ])
   return (
     <>
       {items.length > 0 && (
@@ -451,6 +453,18 @@ function ChoiceSection({
       <ChoiceBody choice={choice} />
       {chosen(choice) && choice.reason && choice.ability && (
         <>
+          {choice.scenes.length > 0 && (
+            <div>
+              <p className="text-sm text-muted-foreground">{copy.report.sceneTitle}</p>
+              <ul className="mt-1 list-disc pl-5 text-sm leading-relaxed">
+                {choice.scenes.map((s) => (
+                  <li key={s.taskName} className="break-words">
+                    {copy.report.sceneLine.replace('{task}', s.taskName).replace('{scene}', s.scene)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div>
             <p className="text-sm text-muted-foreground">{copy.options.reasonTitle}</p>
             <p className="text-sm leading-relaxed break-words">{choice.reason}</p>

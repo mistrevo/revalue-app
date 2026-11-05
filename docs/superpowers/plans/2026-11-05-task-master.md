@@ -340,7 +340,7 @@ public sealed record TaskLightDto(
   - `report.sceneLine: '{task}: {scene}'`（見出し `report.sceneTitle: '力が生きる場面'`）
   - `report.taskChecks: '{task}: 確かめておきたいこと（{items}）'`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `Options.test.tsx`: `options-10（力が生きる場面を添える）: カードと選んだ案の業務に力が生きる場面が来たら、その業務の下に添え、来なければ出さない`
   - `Deepen.test.tsx`
     - `deepen-2（業務ごとに照らす）: 使える力をすべて、それぞれ名前と本人の言葉で出し、主な力が使える力なら力が生きる場面を添える`
@@ -348,11 +348,11 @@ public sealed record TaskLightDto(
     - `deepen-2（業務ごとに照らす）: 登録した業務の力の名前がなくても、まだ確かめていないの行も直す欄も出さない`
   - `Report.test.tsx`: `report-1（一つにまとめて示す）: 選んだ案に力が生きる場面を、まだ確かめていないことに本人に確かめる条件を出す`。前の版の確かめる条件も出す（`report-3（版を残す）`）
   - `copy.test.ts`: 足した文に使わない言葉がない（いまの common-1（使わない言葉を出さない）のテストが拾う）
-- [ ] **Step 2: テストが失敗することを確かめる** — `npm --prefix src/web test`
-- [ ] **Step 3: 画面を直す**
-- [ ] **Step 4: Spec の「画面」を直す** — 05: カードに出すものに「使った力を主な力に持つ業務の力が生きる場面」。06: 業務ごとの「まだ確かめていないこと」の一行に確かめる条件、使えるところに使える力の一覧と力が生きる場面。07: 選んだ案の欄の力が生きる場面と、まだ確かめていないことの確かめる条件の一行
-- [ ] **Step 5: 確かめる** — `npm --prefix src/web run build`、`npm --prefix src/web test`。`git grep -nP "(online-secretary|accounting|recruiting)-[a-z-]+" -- src/web/src ':!*.test.*' ':!src/web/src/test'` が 0 件（画面のコードに業務の id がない）
-- [ ] **Step 6: コミット**（「業務マスター: 画面に力が生きる場面、業務の使える力の一覧、確かめる条件を出す（options-10（力が生きる場面を添える）、deepen-2（業務ごとに照らす）、report-1（一つにまとめて示す））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `npm --prefix src/web test`
+- [x] **Step 3: 画面を直す**
+- [x] **Step 4: Spec の「画面」を直す** — 05: カードに出すものに「使った力を主な力に持つ業務の力が生きる場面」。06: 業務ごとの「まだ確かめていないこと」の一行に確かめる条件、使えるところに使える力の一覧と力が生きる場面。07: 選んだ案の欄の力が生きる場面と、まだ確かめていないことの確かめる条件の一行
+- [x] **Step 5: 確かめる** — `npm --prefix src/web run build`、`npm --prefix src/web test`。`git grep -nP "(online-secretary|accounting|recruiting)-[a-z-]+" -- src/web/src ':!*.test.*' ':!src/web/src/test'` が 0 件（画面のコードに業務の id がない）
+- [x] **Step 6: コミット**（「業務マスター: 画面に力が生きる場面、業務の使える力の一覧、確かめる条件を出す（options-10（力が生きる場面を添える）、deepen-2（業務ごとに照らす）、report-1（一つにまとめて示す））」）
 
 ### Task 6: 前の保存データを確かめ、評価のデータと文書を業務マスターに合わせる
 

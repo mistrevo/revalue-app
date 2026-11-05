@@ -322,6 +322,8 @@ export const copy = {
     incomeTarget: 'あなたの目安: 月 {n} 万円くらい',
     placeValues: { home: '家でできる', out: '外に出る' },
     tasksTitle: '業務',
+    // カードと選んだ案の業務の下に添える。使った力を主な力に持つ業務だけ（Claude の判断）
+    sceneLine: '力が生きる場面: {scene}',
     reasonTitle: 'この案を出した理由',
     abilityTitle: 'もとにした力と、あなたの言葉',
     abilityStates: { confirmed: 'あなたの話から見えた力', needsCheck: '確かめ中' },
@@ -401,6 +403,9 @@ export const copy = {
     taskKnowledgeLabel: '要る知識や道具（なくてもかまいません）',
     // まだ確かめていないことの、知識や道具の行。可能性レポート（report.taskKnowledge）と同じ言い方にする（Claude の判断）
     knowledgeLine: '要る知識や道具（{items}）',
+    // 業務の本人に確かめる条件の行。知識や道具の行と同じ形（Claude の判断）
+    checksLine: '確かめておきたいこと（{items}）',
+    sceneLine: '力が生きる場面: {scene}',
     taskNeedName: '業務の名前と、この業務で使う力を選ぶと、保存できます。',
     // 業務の一覧は丸ごと保存するので、使う力が読めなくなった業務（辞書から消えた力）があると、ほかの業務も保存できない。先にその業務へ導く（Claude の判断）
     taskAbilityMissing: '力の一覧が新しくなったので、「{text}」で使う力を、もう一度選んでください。選ぶと、ほかの業務も保存できます。',
@@ -488,6 +493,9 @@ export const copy = {
     checking: '確かめ中の力: {names}',
     taskAbility: '{task}: {name}は、まだ確かめていません',
     taskKnowledge: '{task}: 要る知識や道具（{items}）',
+    taskChecks: '{task}: 確かめておきたいこと（{items}）',
+    sceneTitle: '力が生きる場面',
+    sceneLine: '{task}: {scene}',
     canDoTitle: 'できること',
     // 5 つの記録のできることは、力の欄を見出しの名前で指す。{title} はいまの版の欄の見出し
     canDoNote: '上の「{title}」の欄のとおりです。',

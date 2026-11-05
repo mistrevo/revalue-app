@@ -627,6 +627,35 @@ describe('Options', () => {
     }
   })
 
+  it('options-10（力が生きる場面を添える）: カードと選んだ案の業務に力が生きる場面が来たら、その業務の下に添え、来なければ出さない', async () => {
+    const base = fakeOptionCards()
+    const scene = '関わる人の都合が食い違うとき'
+    const withScene = { ...base.choose!, tasks: base.choose!.tasks.map((t) => ({ ...t, scene })) }
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      options: withCards({
+        cards: { ...base, choose: withScene },
+        choice: {
+          kind: 'card',
+          at: '2026-11-03T07:00:00Z',
+          card: { kind: 'choose', choose: withScene, combine: null, create: null, abilityExcluded: false, abilityChanged: false, outsideConditions: false },
+          ownJob: null,
+        },
+      }),
+    })
+    renderApp('/options')
+
+    const line = copy.options.sceneLine.replace('{scene}', scene)
+    const chosen = await screen.findByRole('region', { name: copy.options.chosenTitle })
+    expect(chosen).toHaveTextContent(line)
+    expect(within(card(LABELS[0])).getByText(line)).toBeInTheDocument()
+    // 来なかった業務（組み合わせる、創る）には出さない
+    const prefix = copy.options.sceneLine.split('{scene}')[0]
+    expect(card(LABELS[1]).textContent).not.toContain(prefix)
+    expect(card(LABELS[2]).textContent).not.toContain(prefix)
+  })
+
   it('options-1（3 枚を同じ重さで示す）: 作るのに失敗したら穏やかな言葉を出し、送信回数の上限なら上限の言葉を出す', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true })
     api.state.generate = { status: 503, body: { type: '/problems/ai-unavailable', status: 503, kind: 'refusal' } }
