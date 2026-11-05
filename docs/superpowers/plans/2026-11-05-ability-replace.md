@@ -559,9 +559,9 @@ ask: prioritizing.3
 | e29-cause-analysis | 原因分析力 = confirmed | 朝の支度が遅れたわけを考え、起きたことと、前の晩の寝る時間のような条件を分けて挙げる |
 | e30-hypothesis-thinking | 仮説思考力 = confirmed | 部屋干しの洗濯物のにおいの原因を、干す間隔かもしれないと仮に置き、干し方を変えて確かめる |
 
-- [ ] **Step 1: 10 本を書く**（上の「台本の書き方」）
-- [ ] **Step 2: 確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`（すべて読めて流れる）
-- [ ] **Step 3: コミット**（「辞書の力に置き換える: 根拠ありになる台本を 10 本足す（validate-1（すべてそろったときだけ根拠あり））」）
+- [x] **Step 1: 10 本を書く**（上の「台本の書き方」）。準備中に戻した原因分析力（e29）と仮説思考力（e30）は書かず、番号を空けて 8 本にした
+- [x] **Step 2: 確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`（すべて読めて流れる）
+- [x] **Step 3: コミット**（「辞書の力に置き換える: 根拠ありになる台本を 10 本足す（validate-1（すべてそろったときだけ根拠あり））」）
 
 ### Task 13: 調整・実行・仕組み化、家庭・子育て、共感・安心、問い・洞察、実行・挑戦の 11 本
 

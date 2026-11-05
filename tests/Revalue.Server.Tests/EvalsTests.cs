@@ -1075,13 +1075,15 @@ public sealed class EvalsTests
         Assert.Equal((1, 1), (unavailable.Count, unavailable.Total));
     }
 
-    [Fact(DisplayName = "評価: リポジトリの確かめの例 12 件が読め、どれも狙った力か根拠ありにしてはいけない力を持ち、すべて架空と書いてある")]
+    [Fact(DisplayName = "評価: リポジトリの確かめの例がすべて読め、どれも狙った力か根拠ありにしてはいけない力を持ち、すべて架空と書いてある")]
     public void RepositoryValidateEpisodesParse()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
         var scripts = EpisodeScript.LoadAll(dir, "validate");
 
-        Assert.Equal(["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19"], scripts.Select(s => s.Id));
+        Assert.Equal(
+            ["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19", .. ConfirmedScriptIds],
+            scripts.Select(s => s.Id));
         Assert.All(scripts, s =>
         {
             Assert.NotEmpty(s.Listed);
@@ -1108,5 +1110,30 @@ public sealed class EvalsTests
         {
             Assert.Contains("すべて架空", File.ReadAllText(file));
         }
+    }
+
+    // 根拠ありになる台本（話から確かめる力ごとに 1 本）。準備中の力の番号（e29、e30）は空けておく
+    private static readonly string[] ConfirmedScriptIds = ["e21", "e22", "e23", "e24", "e25", "e26", "e27", "e28"];
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: リポジトリの根拠ありになる台本は、話から確かめる力を一つだけ根拠ありと書き、力ごとに 1 本で、ファイル名にその力の id がある")]
+    public void RepositoryConfirmedEpisodesTargetOneActiveAbility()
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
+        var scripts = EpisodeScript.LoadAll(dir, "validate").Where(s => ConfirmedScriptIds.Contains(s.Id)).ToList();
+
+        Assert.Equal(ConfirmedScriptIds, scripts.Select(s => s.Id));
+        var targets = scripts.Select(s =>
+        {
+            Assert.Equal("concreteEvent", s.Expect);
+            Assert.Null(s.Ask);
+            var target = Assert.Single(s.States!);
+            Assert.Equal(AbilityState.Confirmed, target.Value);
+            Assert.Contains(target.Key, AbilityCatalog.Active);
+            Assert.DoesNotContain(target.Key, s.NotConfirmed);
+            Assert.All(s.Answers, a => Assert.False(a.IsChoice || a.IsCorrection));
+            Assert.Single(Directory.GetFiles(dir, $"{s.Id}-{target.Key.Id}.md"));
+            return target.Key;
+        }).ToList();
+        Assert.Equal(targets.Count, targets.Distinct().Count());
     }
 }
