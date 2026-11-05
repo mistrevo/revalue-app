@@ -576,6 +576,35 @@ public sealed class ClaudeConversationAiTests
         Assert.DoesNotContain("けんか", line);
     }
 
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、行動の文にある条件（いくつもの、変える、など）を本人の言葉が満たすときだけ根拠にすると書いている")]
+    public void ReaderChecksActionConditions()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.Contains("行動の文にある条件", StringComparison.Ordinal));
+
+        Assert.Contains("満たしているときだけ根拠にする", line);
+        Assert.Contains("いくつもの", line);
+        Assert.Contains("変える", line);
+        // 台本（e10、e15、e38）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("締め切り", line);
+        Assert.DoesNotContain("つまらない", line);
+    }
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、本人が話した気づきの中身が行動の文の中身に当たるときだけ根拠にし、相手の事情から相手の様子への気づきを推し量らないと書いている")]
+    public void ReaderMatchesNoticedContent()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.Contains("気づきの中身", StringComparison.Ordinal));
+
+        Assert.Contains("行動の文に書いた中身に当たるときだけ", line);
+        Assert.Contains("相手の事情を話しただけなら", line);
+        // 台本（e21、e26）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("手がふさがって", line);
+        Assert.DoesNotContain("言葉が出てこない", line);
+    }
+
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示に、力の数と、力の名前と行動の番号の決め打ちがない")]
     public void ReaderHasNoHardcodedAbilities()
     {
