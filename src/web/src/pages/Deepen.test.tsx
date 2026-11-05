@@ -349,6 +349,42 @@ describe('Deepen', () => {
     expect(select.value).toBe('')
   })
 
+  it('deepen-2（業務ごとに照らす）: 力の名前のない業務があるときにほかの業務を消すと、送らずにわけを伝えてその業務の直す欄を開き、選び直せば保存できる', async () => {
+    // 一覧は丸ごと送るので、力のない業務が混ざったままだと裏側が断る。送る前に、先に選び直してもらう
+    const legacy: DeepenTask = { ...fakeDraftedTask('d9', { name: '昔の見立ての業務', detail: '前に作った業務', ability: 'balancing-interests', knowledge: '' }), ability: null, abilityName: null, usable: null }
+    const base = ownWithDrafts()
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      deepen: { ...base, content: { ...base.content!, tasks: [legacy, ...base.content!.tasks] } },
+    })
+    renderApp('/deepen')
+
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.removeLabel.replace('{text}', '依頼した人との連絡') }))
+
+    expect(puts(api.calls, '/api/deepen/tasks')).toHaveLength(0)
+    expect(within(tasks).getByText(copy.deepen.taskAbilityMissing.replace('{text}', '昔の見立ての業務'))).toBeInTheDocument()
+    expect(within(tasks).getByRole('article', { name: '依頼した人との連絡' })).toBeInTheDocument()
+    const select = within(tasks).getByLabelText(copy.deepen.taskAbilityLabel) as HTMLSelectElement
+    expect(select.value).toBe('')
+    expect(within(tasks).getByLabelText(copy.deepen.taskNameLabel)).toHaveValue('昔の見立ての業務')
+
+    // 選び直して保存すると、ほかの業務も消せる
+    await userEvent.selectOptions(select, '利害調整力')
+    await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.save }))
+    await waitFor(() => expect(puts(api.calls, '/api/deepen/tasks')).toHaveLength(1))
+    expect(within(tasks).queryByText(copy.deepen.taskAbilityMissing.replace('{text}', '昔の見立ての業務'))).not.toBeInTheDocument()
+    await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.removeLabel.replace('{text}', '依頼した人との連絡') }))
+    await waitFor(() => expect(within(tasks).queryByRole('article', { name: '依頼した人との連絡' })).not.toBeInTheDocument())
+    expect(puts(api.calls, '/api/deepen/tasks').at(-1)).toMatchObject({
+      tasks: [
+        { name: '昔の見立ての業務', ability: 'balancing-interests' },
+        { name: '入力の手順を決める', ability: 'setting-priorities' },
+      ],
+    })
+  })
+
   it('deepen-2（業務ごとに照らす）: 見立ての業務は「AI の見立て（直せます）」と示し、直す・消す・足すができる', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, deepen: ownWithDrafts() })
     renderApp('/deepen')

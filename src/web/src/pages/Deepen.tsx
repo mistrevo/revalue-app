@@ -359,15 +359,29 @@ function TasksSection({
     }
   }
   const current = tasks.map(toRequest)
+  // 使う力が読めない業務（辞書から消えた力）を残したまま送ると、一覧ごと断られる。送らずにわけを伝え、その業務の直す欄へ導く
+  const [missingNotice, setMissingNotice] = useState<string | null>(null)
 
   async function save(next: DeepenTaskRequest[]) {
-    if (await onSave(next)) setEditing(null)
+    const missing = next.findIndex((t) => t.ability === '')
+    if (missing >= 0) {
+      const index = current.indexOf(next[missing])
+      setMissingNotice(copy.deepen.taskAbilityMissing.replace('{text}', next[missing].name))
+      // 書きかけの欄があれば閉じずに残す（書いたものを消さないため）
+      if (editing === null && index >= 0) setEditing(index)
+      return
+    }
+    if (await onSave(next)) {
+      setEditing(null)
+      setMissingNotice(null)
+    }
   }
 
   return (
     <Section title={copy.deepen.tasksTitle}>
       {editable && <p className="-mt-2 text-sm text-muted-foreground">{copy.deepen.draftedTitle}</p>}
       {tasksRejected && <p className="text-sm leading-relaxed">{copy.deepen.tasksRejected}</p>}
+      {missingNotice && <p className="text-sm leading-relaxed">{missingNotice}</p>}
 
       {tasks.length > 0 && (
         <ul className="flex flex-col gap-3">

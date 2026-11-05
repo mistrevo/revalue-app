@@ -399,6 +399,8 @@ export const copy = {
     // まだ確かめていないことの、知識や道具の行。可能性レポート（report.taskKnowledge）と同じ言い方にする（Claude の判断）
     knowledgeLine: '要る知識や道具（{items}）',
     taskNeedName: '業務の名前と、この業務で使う力を選ぶと、保存できます。',
+    // 業務の一覧は丸ごと保存するので、使う力が読めなくなった業務（辞書から消えた力）があると、ほかの業務も保存できない。先にその業務へ導く（Claude の判断）
+    taskAbilityMissing: '先に「{text}」の使う力を選び直してください。選び直すと、ほかの業務も保存できます。',
     edit: '直す',
     remove: '消す',
     editLabel: '「{text}」を直す',
