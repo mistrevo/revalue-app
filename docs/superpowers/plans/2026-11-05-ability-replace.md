@@ -431,11 +431,11 @@ ask: prioritizing.3
 - Modify: `README.md`（芯 1 を「力ごとに核となる行動を 2〜3 つ決めています」にし、例を利害調整力の 3 つの行動に。22 行目の「3 つの力（見立てる、調整する、優先順位をつける）」を、能力辞書の 24 の力（例: 傾聴力、段取り力、不安軽減力）に。評価の数字（87、95 行目付近）は変えない（本物の AI で回したあとにメインのセッションが直す））
 - Modify: `evals/personas/README.md`（163、169 行目の力の id と 3 つの力の説明を、話から確かめる力の id（辞書を見る）に）
 
-- [ ] **Step 1: 直す**
-- [ ] **Step 2: 確かめる**
+- [x] **Step 1: 直す**
+- [x] **Step 2: 確かめる**
   - `git grep -n "見立てる力\|調整する力\|優先順位をつける力\|3 つの力\|3 つの核となる行動\|3 つとも" -- docs/specs docs/prd README.md src tests evals ':!evals/results' ':!evals/personas/how-to-judge.md'` — 残るのは、力と関係のない「3 つ」（選択肢 3 つ、カード 3 枚など）だけ
   - 00-common.md の力の表の id の並びが、`abilities.json` の active の並びと同じ（`node -e` で表の行の id を取り出して比べる）
-- [ ] **Step 3: コミット**（「辞書の力に置き換える: Spec、PRD、README を 24 の力に合わせる（validate-1（すべてそろったときだけ根拠あり））」）
+- [x] **Step 3: コミット**（「辞書の力に置き換える: Spec、PRD、README を 24 の力に合わせる（validate-1（すべてそろったときだけ根拠あり））」）
 
 ## Workflow 1 回目の確認コマンド
 
