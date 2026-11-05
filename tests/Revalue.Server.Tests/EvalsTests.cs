@@ -1113,7 +1113,11 @@ public sealed class EvalsTests
     }
 
     // 根拠ありになる台本（話から確かめる力ごとに 1 本）。準備中の力の番号（e29、e30）は空けておく
-    private static readonly string[] ConfirmedScriptIds = ["e21", "e22", "e23", "e24", "e25", "e26", "e27", "e28"];
+    private static readonly string[] ConfirmedScriptIds =
+    [
+        "e21", "e22", "e23", "e24", "e25", "e26", "e27", "e28",
+        "e31", "e32", "e33", "e34", "e35", "e36", "e37", "e38", "e39", "e40", "e41",
+    ];
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: リポジトリの根拠ありになる台本は、話から確かめる力を一つだけ根拠ありと書き、力ごとに 1 本で、ファイル名にその力の id がある")]
     public void RepositoryConfirmedEpisodesTargetOneActiveAbility()

@@ -582,9 +582,9 @@ ask: prioritizing.3
 | e41-resilience | 回復力 = confirmed | 入園グッズを縫っていてミシンが動かなくなり、残っている作業を整理し直して、手縫いで続ける |
 
 - e33 は、締め切りを確かめた事実だけでは根拠にしない決まり（e19）の対になる。e19 の `notConfirmed` に期限管理力を書いた理由が分かるよう、「どんな例か」に書く
-- [ ] **Step 1: 11 本を書く**
-- [ ] **Step 2: 確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
-- [ ] **Step 3: コミット**（「辞書の力に置き換える: 根拠ありになる台本を 11 本足す（validate-1（すべてそろったときだけ根拠あり）、validate-3（結果で見立てを変えない））」）
+- [x] **Step 1: 11 本を書く**
+- [x] **Step 2: 確かめる** — `dotnet test --filter FullyQualifiedName~EvalsTests`、`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`
+- [x] **Step 3: コミット**（「辞書の力に置き換える: 根拠ありになる台本を 11 本足す（validate-1（すべてそろったときだけ根拠あり）、validate-3（結果で見立てを変えない））」）
 
 ## まとまり F: 一部だけそろう台本と、似た力が並ぶ台本
 
