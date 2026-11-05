@@ -385,24 +385,24 @@ public sealed class ProfileApiTests
     {
         var (factory, ai) = Create();
         var client = await Consenting(factory, "g-13");
-        var first = await FinishedEpisode(client, ai, CoordinatingAll);
-        await FinishedEpisode(client, ai, Candidate(Revalue.Server.Features.Validate.Ability.Prioritizing, 1, "迎えの時間をずらして"));
+        var first = await FinishedEpisode(client, ai, BalancingInterestsAll);
+        await FinishedEpisode(client, ai, Candidate(TestAbilities.SettingPriorities, 1, "迎えの時間をずらして"));
 
         var canDo = (await Get(client)).GetProperty("canDo");
         var seen = ValidateTestKit.Array(canDo, "seen");
         var seenOne = Assert.Single(seen);
-        Assert.Equal("coordinating", seenOne.GetProperty("key").GetString());
-        Assert.Equal("調整する力", seenOne.GetProperty("name").GetString());
+        Assert.Equal("balancing-interests", seenOne.GetProperty("key").GetString());
+        Assert.Equal("利害調整力", seenOne.GetProperty("name").GetString());
         Assert.Equal(first, seenOne.GetProperty("episodeId").GetString());
         Assert.Equal(
             ["夫と母の予定がぶつかって", "二人に電話して", "迎えの時間をずらしてもらいました"],
             ValidateTestKit.Array(seenOne, "quotes").Select(q => q.GetProperty("text").GetString()).ToArray());
 
         var checking = Assert.Single(ValidateTestKit.Array(canDo, "checking"));
-        Assert.Equal("prioritizing", checking.GetProperty("key").GetString());
+        Assert.Equal("setting-priorities", checking.GetProperty("key").GetString());
         Assert.NotEmpty(ValidateTestKit.Array(checking, "quotes"));
         Assert.False(canDo.GetProperty("hasExcluded").GetBoolean());
-        Assert.DoesNotContain("noticing", canDo.GetRawText());
+        Assert.DoesNotContain("noticing-changes", canDo.GetRawText());
     }
 
     [Fact(DisplayName = "profile-2（できることは根拠とつなぐ）: 本人が外した力は、できることに入れず、外した力があることだけを返す")]
@@ -410,16 +410,16 @@ public sealed class ProfileApiTests
     {
         var (factory, ai) = Create();
         var client = await Consenting(factory, "g-14");
-        await FinishedEpisode(client, ai, CoordinatingAll);
+        await FinishedEpisode(client, ai, BalancingInterestsAll);
 
-        var excluded = await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct);
+        var excluded = await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
         Assert.Equal(HttpStatusCode.OK, excluded.StatusCode);
         var canDo = (await Get(client)).GetProperty("canDo");
         Assert.Empty(ValidateTestKit.Array(canDo, "seen"));
         Assert.Empty(ValidateTestKit.Array(canDo, "checking"));
         Assert.True(canDo.GetProperty("hasExcluded").GetBoolean());
 
-        var restored = await client.PostAsync("/api/abilities/coordinating/restore", null, Ct);
+        var restored = await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct);
         Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
         canDo = (await Get(client)).GetProperty("canDo");
         Assert.Single(ValidateTestKit.Array(canDo, "seen"));

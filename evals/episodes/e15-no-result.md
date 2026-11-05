@@ -3,8 +3,8 @@ id: e15
 title: 面談と面接の連絡が重なった朝
 unit: validate
 expect: concreteEvent
-states: prioritizing=confirmed
-notConfirmed: noticing, coordinating
+states: setting-priorities=confirmed
+notConfirmed: noticing-changes, balancing-interests
 ---
 
 # e15 面談と面接の連絡が重なった朝
@@ -13,7 +13,7 @@ notConfirmed: noticing, coordinating
 
 ## どんな例か
 
-優先順位をつける力の 3 つの行動がそろうが、どうなったか（結果）を話さずに終える。結果を話していなくても、根拠ありにできるかを見る。
+優先順位設定力の 3 つの行動がそろうが、どうなったか（結果）を話さずに終える。結果を話していなくても、根拠ありにできるかを見る。
 
 ## 利用者の答え
 

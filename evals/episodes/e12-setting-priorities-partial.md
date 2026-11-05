@@ -3,9 +3,9 @@ id: e12
 title: 夕方の用事の先と後を決める
 unit: validate
 expect: concreteEvent
-states: prioritizing=needsCheck
-notConfirmed: noticing, coordinating
-ask: prioritizing.3
+states: setting-priorities=needsCheck
+notConfirmed: noticing-changes, balancing-interests
+ask: setting-priorities.3
 ---
 
 # e12 夕方の用事の先と後を決める
@@ -14,7 +14,7 @@ ask: prioritizing.3
 
 ## どんな例か
 
-優先順位をつける力の行動のうち、用事が重なったことと、先と後を決めたことは話すが、決めた理由は話さない。要確認にし、足りない行動（決めた理由）だけを聞き返せるかを見る。
+優先順位設定力の行動のうち、用事が重なったことと、先と後を決めたことは話すが、決めた理由は話さない。要確認にし、足りない行動（決めた理由や基準がある）だけを聞き返せるかを見る。
 
 ## 利用者の答え
 

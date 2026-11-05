@@ -25,10 +25,10 @@ dotnet run --project evals/Revalue.Evals -- --unit deepen
 - `[選択]` だけの行は、直前の返事の選択肢の 1 つ目を選んだ答えとして送る。`[選択] 文` は、その文を選んだ答えとして送る
 - `[訂正] 文` は、そこまでの場面に訂正として送る。訂正は答えのあとにまとめて置く
 - 03 validate（確かめる）の例は、先頭に次も書く。`states` と `notConfirmed` の少なくとも一方は要る。話から確かめる力すべての状態は書かない
-  - `states`: 狙った力の、最後に期待する状態（例: `coordinating=confirmed`）
-  - `notConfirmed`: 根拠ありにしてはいけない力（例: `noticing, prioritizing`）。その話にはっきり行動がない力か、推し量りでしか根拠にならない力だけを書く。迷う力は書かない。`*` は、話から確かめるすべての力から、`states` で confirmed の力を除いたもの（どの力も根拠ありにしてはいけない話に使う）
+  - `states`: 狙った力の、最後に期待する状態（例: `balancing-interests=confirmed`）
+  - `notConfirmed`: 根拠ありにしてはいけない力（例: `noticing-changes, setting-priorities`）。その話にはっきり行動がない力か、推し量りでしか根拠にならない力だけを書く。迷う力は書かない。`*` は、話から確かめるすべての力から、`states` で confirmed の力を除いたもの（どの力も根拠ありにしてはいけない話に使う）
   - `statesBefore`: 最初の訂正の直前に期待する、狙った力の状態。訂正のある例だけ
-  - `ask`: 一部だけそろった例で、聞き返してほしい行動（例: `coordinating.3`）
+  - `ask`: 一部だけそろった例で、聞き返してほしい行動（例: `balancing-interests.3`）
 - 台本に書いていない力の状態は、評価では問わない。結果のファイルには、未確認でなかったものだけを載せる
 
 ## 1 件の流し方

@@ -140,13 +140,13 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
             StatesBefore = fields.TryGetValue("statesBefore", out var before) ? ParseStates(id, before) : null,
             NotConfirmed = notConfirmed ?? new HashSet<Ability>(),
             Ask = fields.TryGetValue("ask", out var ask)
-                ? ActionRef.Parse(ask) ?? throw new FormatException($"エピソード {id} の ask「{ask}」を読めません。coordinating.3 の形で書きます。")
+                ? ActionRef.Parse(ask) ?? throw new FormatException($"エピソード {id} の ask「{ask}」を読めません。balancing-interests.3 の形で書きます。")
                 : null,
         };
     }
 
     /// <summary>
-    /// <c>noticing, prioritizing</c> の形か、<c>*</c> を読む。<c>*</c> は、話から確かめるすべての力から、states で confirmed の力を除いたもの。
+    /// <c>noticing-changes, setting-priorities</c> の形か、<c>*</c> を読む。<c>*</c> は、話から確かめるすべての力から、states で confirmed の力を除いたもの。
     /// 知らない力、同じ力の重なり、states で confirmed の力は読めない。
     /// </summary>
     private static HashSet<Ability> ParseNotConfirmed(string id, string text, IReadOnlyDictionary<Ability, AbilityState>? states)
@@ -180,7 +180,7 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
         return abilities.Count > 0 ? abilities : throw new FormatException($"エピソード {id} の notConfirmed に力がありません。");
     }
 
-    /// <summary><c>coordinating=confirmed</c> の形を読む。狙った力だけを書く（1 つ以上）。力の id は能力辞書（abilities.json）で確かめる。</summary>
+    /// <summary><c>balancing-interests=confirmed</c> の形を読む。狙った力だけを書く（1 つ以上）。力の id は能力辞書（abilities.json）で確かめる。</summary>
     private static Dictionary<Ability, AbilityState> ParseStates(string id, string text)
     {
         var states = new Dictionary<Ability, AbilityState>();
@@ -189,7 +189,7 @@ public sealed record EpisodeScript(string Id, string Title, string Unit, string 
             var pair = part.Split('=', StringSplitOptions.TrimEntries);
             if (pair.Length != 2 || !ActionRef.TryParseAbility(pair[0], out var ability) || !TryParseState(pair[1], out var state))
             {
-                throw new FormatException($"エピソード {id} の状態「{part}」を読めません。noticing=confirmed の形で書きます。");
+                throw new FormatException($"エピソード {id} の状態「{part}」を読めません。balancing-interests=confirmed の形で書きます。");
             }
 
             if (!states.TryAdd(ability, state))

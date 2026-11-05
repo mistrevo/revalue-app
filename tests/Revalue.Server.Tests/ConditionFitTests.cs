@@ -13,7 +13,7 @@ public sealed class ConditionFitTests
           "occupations": [
             { "id": "o", "name": "職種", "summary": "説明", "jobtag": { "number": 1, "name": "名" },
               "tasks": [
-                { "id": "t", "name": "業務", "detail": "中身", "jobtagTasks": [1], "ability": "coordinating",
+                { "id": "t", "name": "業務", "detail": "中身", "jobtagTasks": [1], "ability": "balancing-interests",
                   "hoursPerWeek": { "min": {{min}}, "max": {{max}} }, "timeSlots": [{{slots}}], "place": "{{place}}",
                   "hourlyYen": { "min": {{yenMin}}, "max": {{yenMax}} }, "knowledge": [] }
               ] }

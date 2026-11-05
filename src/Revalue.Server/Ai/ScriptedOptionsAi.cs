@@ -13,6 +13,9 @@ public sealed class ScriptedOptionsAi : IOptionsAi
     /// <summary>組み合わせるの役割の名前（Claude の判断）。</summary>
     public const string RoleName = "二つの業務をつなぐ役";
 
+    /// <summary>出せない道の下書きに入れる力。照らし合わせで使わないので、能力辞書の置き換え先の力の id を置く。</summary>
+    private static readonly Ability Unavailable = new("balancing-interests");
+
     public Task<OptionsDraft> DraftAsync(OptionsInputs inputs, OptionCandidates candidates, CancellationToken ct) =>
         Task.FromResult(new OptionsDraft(Choose(inputs, candidates), Combine(inputs, candidates), Create(inputs)));
 
@@ -30,7 +33,7 @@ public sealed class ScriptedOptionsAi : IOptionsAi
             }
         }
 
-        return new ChooseDraft(false, "", [], ActionRef.Key(Ability.Coordinating), "");
+        return new ChooseDraft(false, "", [], ActionRef.Key(Unavailable), "");
     }
 
     private static CombineDraft Combine(OptionsInputs inputs, OptionCandidates candidates)
@@ -57,14 +60,14 @@ public sealed class ScriptedOptionsAi : IOptionsAi
             }
         }
 
-        return new CombineDraft(false, [], "", ActionRef.Key(Ability.Coordinating), "");
+        return new CombineDraft(false, [], "", ActionRef.Key(Unavailable), "");
     }
 
     private static CreateDraft Create(OptionsInputs inputs)
     {
         if (inputs.Conditions is not { } conditions || inputs.Abilities.FirstOrDefault(a => a.Quotes.Count > 0) is not { } ability)
         {
-            return new CreateDraft(false, "", "", "", "", ActionRef.Key(Ability.Coordinating), [], 0, "home", [], "");
+            return new CreateDraft(false, "", "", "", "", ActionRef.Key(Unavailable), [], 0, "home", [], "");
         }
 
         var slot = Enum.GetValues<TimeSlot>().First(conditions.TimeSlots.Contains);

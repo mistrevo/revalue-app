@@ -160,7 +160,7 @@ ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5080 dotnet 
 { "chosen": ["一歩の id", ...], "own": ["自分で書いた一歩", ...], "generatedAt": "..." }
 
 // PUT /api/deepen/tasks（「創る」と自分の案のときだけ。ほかは 409。名前と力は必須）
-{ "tasks": [ { "name": "...", "detail": "...", "ability": "noticing" | "coordinating" | "prioritizing", "knowledge": "..." } ],
+{ "tasks": [ { "name": "...", "detail": "...", "ability": "GET /api/deepen の abilities にある力の key", "knowledge": "..." } ],
   "generatedAt": "..." }
 ```
 

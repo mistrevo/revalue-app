@@ -64,11 +64,11 @@ public sealed class NextStepTests
         return new Kit(store, clock);
     }
 
-    private static readonly Evidence[] CoordinatingAll =
+    private static readonly Evidence[] BalancingInterestsAll =
     [
-        E(Ability.Coordinating, 1, Q1),
-        E(Ability.Coordinating, 2, "二人に電話しました"),
-        E(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました"),
+        E(TestAbilities.BalancingInterests, 1, Q1),
+        E(TestAbilities.BalancingInterests, 2, "二人に電話しました"),
+        E(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました"),
     ];
 
     private static async Task<string> SaveEpisode(Kit kit, string status, DateTimeOffset at)
@@ -84,9 +84,9 @@ public sealed class NextStepTests
             Turns =
             [
                 new Turn { Role = TurnRoles.Assistant, Text = "最近の一日を教えてください。", At = at },
-                new Turn { Role = TurnRoles.User, Text = string.Concat(CoordinatingAll.Select(e => e.Quote + "。")), AnswerKind = AnswerKind.Free, At = at },
+                new Turn { Role = TurnRoles.User, Text = string.Concat(BalancingInterestsAll.Select(e => e.Quote + "。")), AnswerKind = AnswerKind.Free, At = at },
             ],
-            Evidence = status == EpisodeStatus.Finished ? CoordinatingAll : [],
+            Evidence = status == EpisodeStatus.Finished ? BalancingInterestsAll : [],
         };
         await kit.Store.UpsertAsync(episode, Ct);
         return episode.Id;
@@ -94,7 +94,7 @@ public sealed class NextStepTests
 
     private static Task<NextStepResult> Read(Kit kit) => NextStep.ReadAsync(kit.Store, User, Catalog, Ct);
 
-    /// <summary>話し終えた場面（調整する力が見えた力）と条件がある記録。</summary>
+    /// <summary>話し終えた場面（利害調整力が見えた力）と条件がある記録。</summary>
     private static async Task<Kit> Recorded()
     {
         var kit = await Create();
@@ -133,7 +133,7 @@ public sealed class NextStepTests
     public async Task OnlyExcludedMeansTalk()
     {
         var kit = await Recorded();
-        await AbilityBook.SetExcludedAsync(kit.Store, User, Ability.Coordinating, true, kit.Clock, Ct);
+        await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.BalancingInterests, true, kit.Clock, Ct);
 
         Assert.Equal(new NextStepResult(NextStepKind.Talk, null), await Read(kit));
     }

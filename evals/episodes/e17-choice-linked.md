@@ -3,8 +3,8 @@ id: e17
 title: 選んだ答えが本人の話と結びつく
 unit: validate
 expect: concreteEvent
-states: coordinating=confirmed
-notConfirmed: noticing, prioritizing
+states: balancing-interests=confirmed
+notConfirmed: noticing-changes, setting-priorities
 ---
 
 # e17 選んだ答えが本人の話と結びつく
@@ -13,7 +13,7 @@ notConfirmed: noticing, prioritizing
 
 ## どんな例か
 
-自由に書いた出来事に、選んだ答えが結びつく。選んだ答えは、本人が書いたほかの事実と結びついたときだけ根拠にし、選んだ答えだと分かるように示せるかを見る。調整する力の 3 つの行動が、自由に書いた答えと選んだ答えでそろう。
+自由に書いた出来事に、選んだ答えが結びつく。選んだ答えは、本人が書いたほかの事実と結びついたときだけ根拠にし、選んだ答えだと分かるように示せるかを見る。利害調整力の 3 つの行動が、自由に書いた答えと選んだ答えでそろう。
 
 ## 利用者の答え
 

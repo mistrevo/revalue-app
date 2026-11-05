@@ -36,18 +36,20 @@ public static class PromptFiles
     public static string ReaderPrompt() => ReaderPromptText.Value;
 
     /// <summary>
-    /// 読み取りの指示に差し込む、判定に使う力の表。力ごとに、名前、<c>ability</c> に入れる id、<c>action</c> の番号ごとの核となる行動の文。
-    /// 行動の数が力によって違えば、足りない欄は空にする。
+    /// 読み取りの指示に差し込む、話から確かめる力の表。力ごとに、名前、<c>ability</c> に入れる id、<c>action</c> の番号ごとの核となる行動の文。
+    /// 行動の数が力によって違えば、足りない欄は空にする。表の前の文に力の数は書かない（辞書の力が増減しても文を変えずに済むように）。
     /// </summary>
     public static string AbilityTable()
     {
         var abilities = AbilityCatalog.Active;
         var counts = abilities.Select(AbilityCatalog.ActionCount).ToList();
         var (min, max) = (counts.Min(), counts.Max());
-        var actionCount = min == max ? $"{max} つ" : $"{min}〜{max} つ";
+        var actionCount = min == max
+            ? $"どの力も {max} つ"
+            : $"力によって {string.Join(" つか ", Enumerable.Range(min, max - min + 1))} つ";
 
         var sb = new StringBuilder();
-        sb.Append($"見る力は {abilities.Count} つです。力ごとに、核となる行動を {actionCount}決めています。\n\n");
+        sb.Append($"話から確かめる力と、力ごとの核となる行動です。行動の数は{actionCount}です。\n\n");
         sb.Append("| 力 | `ability` |");
         for (var n = 1; n <= max; n++)
         {

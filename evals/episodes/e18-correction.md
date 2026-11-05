@@ -3,9 +3,9 @@ id: e18
 title: 声をかけたのは夫だったと直す
 unit: validate
 expect: correction
-states: coordinating=needsCheck
-notConfirmed: noticing, prioritizing
-statesBefore: coordinating=confirmed
+states: balancing-interests=needsCheck
+notConfirmed: noticing-changes, setting-priorities
+statesBefore: balancing-interests=confirmed
 ---
 
 # e18 声をかけたのは夫だったと直す
@@ -14,7 +14,7 @@ statesBefore: coordinating=confirmed
 
 ## どんな例か
 
-調整する力の 3 つの行動がそろって話し終えたあと、本人が「実家に声をかけたのも、案を出したのも、私ではなく夫でした」と訂正する。訂正の前は根拠あり、訂正のあとは本人から働きかけた行動と案を出した行動がなくなるので要確認に確かめ直せるかを見る。案を出した行動も訂正に含めるのは、「案を出して合わせてもらった」が本人から働きかけた行動として読まれる余地を残さないため。
+利害調整力の 3 つの行動がそろって話し終えたあと、本人が「実家に声をかけたのも、案を出したのも、私ではなく夫でした」と訂正する。訂正の前は根拠あり、訂正のあとは自分から働きかける行動と案を出した行動がなくなるので要確認に確かめ直せるかを見る。案を出した行動も訂正に含めるのは、「案を出して合わせてもらった」が自分から働きかける行動として読まれる余地を残さないため。
 
 ## 利用者の答え
 

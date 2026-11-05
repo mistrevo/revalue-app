@@ -16,7 +16,7 @@ public sealed class EvidenceTests
     private static EvidenceCandidate Candidate(
         string quote, int answer = 1, Ability? ability = null, int action = 1, int @event = 1, bool general = false,
         string linkedQuote = "", int linkedAnswer = 0) =>
-        new(ability ?? Ability.Noticing, action, quote, answer, @event, general, linkedQuote, linkedAnswer);
+        new(ability ?? TestAbilities.NoticingChanges, action, quote, answer, @event, general, linkedQuote, linkedAnswer);
 
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 本人の答えに一字一句含まれる引用だけを残す")]
     public void KeepsOnlyQuotesContainedInAnswers()
@@ -93,20 +93,20 @@ public sealed class EvidenceTests
         Assert.Equal(4, EvidenceChecker.MinQuoteLetters);
         Assert.Empty(EvidenceChecker.Check(turns,
         [
-            Candidate("て", ability: Ability.Prioritizing, action: 1),
-            Candidate("て", ability: Ability.Prioritizing, action: 2),
-            Candidate("て", ability: Ability.Prioritizing, action: 3),
-            Candidate("先に", ability: Ability.Prioritizing, action: 2),
+            Candidate("て", ability: TestAbilities.SettingPriorities, action: 1),
+            Candidate("て", ability: TestAbilities.SettingPriorities, action: 2),
+            Candidate("て", ability: TestAbilities.SettingPriorities, action: 3),
+            Candidate("先に", ability: TestAbilities.SettingPriorities, action: 2),
             // 句読点は数えない（て、先、に の 3 文字）
-            Candidate("て、先に", ability: Ability.Prioritizing, action: 2),
+            Candidate("て、先に", ability: TestAbilities.SettingPriorities, action: 2),
             // 選んだ答えに結びつく言葉も、短すぎれば捨てる
-            Candidate("順番を決めた", answer: 2, ability: Ability.Prioritizing, action: 2, linkedQuote: "先に", linkedAnswer: 1),
+            Candidate("順番を決めた", answer: 2, ability: TestAbilities.SettingPriorities, action: 2, linkedQuote: "先に", linkedAnswer: 1),
         ]));
 
         var kept = EvidenceChecker.Check(turns,
         [
-            Candidate("先に買い", ability: Ability.Prioritizing, action: 2),
-            Candidate("順番を決めた", answer: 2, ability: Ability.Prioritizing, action: 2, linkedQuote: "先に買い物", linkedAnswer: 1),
+            Candidate("先に買い", ability: TestAbilities.SettingPriorities, action: 2),
+            Candidate("順番を決めた", answer: 2, ability: TestAbilities.SettingPriorities, action: 2, linkedQuote: "先に買い物", linkedAnswer: 1),
         ]);
         Assert.Equal(["先に買い", "順番を決めた"], kept.Select(e => e.Quote));
     }
@@ -135,16 +135,16 @@ public sealed class EvidenceTests
 
         EvidenceCandidate[] dropped =
         [
-            Candidate("相手の都合を聞いた", answer: 2, ability: Ability.Coordinating, action: 1),
-            Candidate("相手の都合を聞いた", answer: 2, ability: Ability.Coordinating, action: 1, linkedQuote: "相手の都合を聞いた", linkedAnswer: 2),
-            Candidate("相手の都合を聞いた", answer: 2, ability: Ability.Coordinating, action: 1, linkedQuote: "予定が重なって", linkedAnswer: 1),
-            Candidate("相手の都合を聞いた", answer: 2, ability: Ability.Coordinating, action: 1, linkedQuote: "予定がぶつかって", linkedAnswer: 3),
+            Candidate("相手の都合を聞いた", answer: 2, ability: TestAbilities.BalancingInterests, action: 1),
+            Candidate("相手の都合を聞いた", answer: 2, ability: TestAbilities.BalancingInterests, action: 1, linkedQuote: "相手の都合を聞いた", linkedAnswer: 2),
+            Candidate("相手の都合を聞いた", answer: 2, ability: TestAbilities.BalancingInterests, action: 1, linkedQuote: "予定が重なって", linkedAnswer: 1),
+            Candidate("相手の都合を聞いた", answer: 2, ability: TestAbilities.BalancingInterests, action: 1, linkedQuote: "予定がぶつかって", linkedAnswer: 3),
         ];
         Assert.Empty(EvidenceChecker.Check(turns, dropped));
 
         var kept = EvidenceChecker.Check(turns,
         [
-            Candidate("相手の都合を聞いた", answer: 2, ability: Ability.Coordinating, action: 1, linkedQuote: "夫と私の母の予定がぶつかっていた", linkedAnswer: 1),
+            Candidate("相手の都合を聞いた", answer: 2, ability: TestAbilities.BalancingInterests, action: 1, linkedQuote: "夫と私の母の予定がぶつかっていた", linkedAnswer: 1),
         ]);
 
         var evidence = Assert.Single(kept);
@@ -164,7 +164,7 @@ public sealed class EvidenceTests
             Answered("声をかけたのは夫ではなく、私でした", AnswerKind.Correction),
         ];
 
-        var kept = EvidenceChecker.Check(turns, [Candidate("声をかけたのは夫ではなく、私でした", answer: 2, ability: Ability.Coordinating, action: 2)]);
+        var kept = EvidenceChecker.Check(turns, [Candidate("声をかけたのは夫ではなく、私でした", answer: 2, ability: TestAbilities.BalancingInterests, action: 2)]);
 
         var evidence = Assert.Single(kept);
         Assert.False(evidence.FromChoice);
@@ -188,7 +188,7 @@ public sealed class EvidenceTests
     }
 
     private static Evidence E(int action, string quote, int answer, int @event, int reading) =>
-        new(Ability.Prioritizing, action, quote, answer, @event, false, false, null, reading);
+        new(TestAbilities.SettingPriorities, action, quote, answer, @event, false, false, null, reading);
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: EvidenceSet.Merge は前の読み取りの根拠を消さず、新しい読み取りの根拠を番号ごと足す")]
     public void MergeKeepsKnownAndAddsNewReading()
@@ -226,7 +226,7 @@ public sealed class EvidenceTests
             EvidenceSet.Merge([monday, thursday2, thursday3], [thursdayAgain2, thursdayAgain3]));
 
         // 力が違えば、同じ言葉でも含まれるとはみなさない
-        var coordinating = first with { Ability = Ability.Coordinating };
+        var coordinating = first with { Ability = TestAbilities.BalancingInterests };
         Assert.Equal([coordinating, monday], EvidenceSet.Merge([coordinating], [monday]));
     }
 
@@ -246,7 +246,7 @@ public sealed class EvidenceTests
             E(3, "雨が降りそうだった", answer: 2, @event: 1, reading: 3),
         ];
 
-        var result = AbilityStates.Evaluate(EvidenceSet.Merge(second, third)).Single(r => r.Ability == Ability.Prioritizing);
+        var result = AbilityStates.Evaluate(EvidenceSet.Merge(second, third)).Single(r => r.Ability == TestAbilities.SettingPriorities);
 
         Assert.Equal(AbilityState.NeedsCheck, result.State);
         Assert.Equal([1], result.Missing);

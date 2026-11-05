@@ -62,11 +62,11 @@ public sealed class AbilitiesApiTests
 
     private const string CoordinatingAnswer = "夫と母の予定がぶつかっていたので、二人に電話して、迎えの時間をずらしてもらいました。";
 
-    private static readonly EvidenceCandidate[] CoordinatingAll =
+    private static readonly EvidenceCandidate[] BalancingInterestsAll =
     [
-        Candidate(Features.Validate.Ability.Coordinating, 1, "夫と母の予定がぶつかって"),
-        Candidate(Features.Validate.Ability.Coordinating, 2, "二人に電話して"),
-        Candidate(Features.Validate.Ability.Coordinating, 3, "迎えの時間をずらしてもらいました"),
+        Candidate(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって"),
+        Candidate(TestAbilities.BalancingInterests, 2, "二人に電話して"),
+        Candidate(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました"),
     ];
 
     [Fact(DisplayName = "validate-9（生活での根拠と仕事での発揮を分ける）: 生活の中の状態と根拠を返し、仕事はいつも notChecked")]
@@ -76,15 +76,15 @@ public sealed class AbilitiesApiTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith([.. CoordinatingAll, Candidate(Features.Validate.Ability.Prioritizing, 2, "迎えの時間")]);
+        ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間")]);
 
         await Send(client, id, CoordinatingAnswer);
         var dto = await Abilities(client);
 
-        Assert.Equal(["noticing", "coordinating", "prioritizing"],
+        Assert.Equal(AbilityCatalog.Active.Select(a => a.Id),
             dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
-        var coordinating = Ability(dto, "coordinating");
-        Assert.Equal("調整する力", coordinating.GetProperty("name").GetString());
+        var coordinating = Ability(dto, "balancing-interests");
+        Assert.Equal("利害調整力", coordinating.GetProperty("name").GetString());
         Assert.Equal("confirmed", coordinating.GetProperty("life").GetString());
         Assert.Equal("notChecked", coordinating.GetProperty("work").GetString());
         Assert.Equal(id, coordinating.GetProperty("episodeId").GetString());
@@ -92,12 +92,12 @@ public sealed class AbilitiesApiTests
         Assert.Equal(0, coordinating.GetProperty("hints").GetArrayLength());
         Assert.False(coordinating.GetProperty("excluded").GetBoolean());
 
-        var prioritizing = Ability(dto, "prioritizing");
+        var prioritizing = Ability(dto, "setting-priorities");
         Assert.Equal("needsCheck", prioritizing.GetProperty("life").GetString());
         Assert.Equal("notChecked", prioritizing.GetProperty("work").GetString());
         Assert.Equal(2, prioritizing.GetProperty("hints").GetArrayLength());
 
-        var noticing = Ability(dto, "noticing");
+        var noticing = Ability(dto, "noticing-changes");
         Assert.Equal("notYet", noticing.GetProperty("life").GetString());
         Assert.Equal("notChecked", noticing.GetProperty("work").GetString());
         Assert.Equal(JsonValueKind.Null, noticing.GetProperty("episodeId").ValueKind);
@@ -107,7 +107,7 @@ public sealed class AbilitiesApiTests
         Assert.Equal(2, history.Count);
         Assert.All(history, h => Assert.Equal("talk", h.GetProperty("reason").GetString()));
         Assert.All(history, h => Assert.Equal(id, h.GetProperty("episodeId").GetString()));
-        Assert.Equal("調整する力", history.Single(h => h.GetProperty("key").GetString() == "coordinating").GetProperty("name").GetString());
+        Assert.Equal("利害調整力", history.Single(h => h.GetProperty("key").GetString() == "balancing-interests").GetProperty("name").GetString());
     }
 
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 返す引用は、場面の本人の答えに一字一句含まれる")]
@@ -117,7 +117,7 @@ public sealed class AbilitiesApiTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith([.. CoordinatingAll, Candidate(Features.Validate.Ability.Noticing, 1, "夫と母の予定がぶつかった")]);
+        ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかった")]);
 
         await Send(client, id, CoordinatingAnswer);
         var dto = await Abilities(client);
@@ -131,7 +131,7 @@ public sealed class AbilitiesApiTests
             Assert.Contains(q.GetProperty("text").GetString()!, CoordinatingAnswer, StringComparison.Ordinal);
             Assert.False(q.GetProperty("fromChoice").GetBoolean());
         });
-        Assert.Equal("notYet", Ability(dto, "noticing").GetProperty("life").GetString());
+        Assert.Equal("notYet", Ability(dto, "noticing-changes").GetProperty("life").GetString());
     }
 
     [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 外すと excluded になり履歴に exclude、戻すと restore")]
@@ -141,25 +141,25 @@ public sealed class AbilitiesApiTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
 
-        var excluded = await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct);
+        var excluded = await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
         Assert.Equal(HttpStatusCode.OK, excluded.StatusCode);
         var dto = await excluded.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        Assert.True(Ability(dto, "coordinating").GetProperty("excluded").GetBoolean());
-        Assert.Equal("confirmed", Ability(dto, "coordinating").GetProperty("life").GetString());
+        Assert.True(Ability(dto, "balancing-interests").GetProperty("excluded").GetBoolean());
+        Assert.Equal("confirmed", Ability(dto, "balancing-interests").GetProperty("life").GetString());
         var latest = dto.GetProperty("history")[0];
         Assert.Equal("exclude", latest.GetProperty("reason").GetString());
-        Assert.Equal("coordinating", latest.GetProperty("key").GetString());
+        Assert.Equal("balancing-interests", latest.GetProperty("key").GetString());
         Assert.Equal("confirmed", latest.GetProperty("from").GetString());
         Assert.Equal("confirmed", latest.GetProperty("to").GetString());
-        Assert.True(Ability(await Abilities(client), "coordinating").GetProperty("excluded").GetBoolean());
+        Assert.True(Ability(await Abilities(client), "balancing-interests").GetProperty("excluded").GetBoolean());
 
-        var restored = await client.PostAsync("/api/abilities/coordinating/restore", null, Ct);
+        var restored = await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct);
         Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
         dto = await restored.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        Assert.False(Ability(dto, "coordinating").GetProperty("excluded").GetBoolean());
+        Assert.False(Ability(dto, "balancing-interests").GetProperty("excluded").GetBoolean());
         Assert.Equal("restore", dto.GetProperty("history")[0].GetProperty("reason").GetString());
         Assert.Equal("exclude", dto.GetProperty("history")[1].GetProperty("reason").GetString());
     }
@@ -189,9 +189,9 @@ public sealed class AbilitiesApiTests
         var first = await Consenting(factory, "g-1");
         var second = await Consenting(factory, "g-2");
         var id = await Start(first);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(first, id, CoordinatingAnswer);
-        await first.PostAsync("/api/abilities/noticing/exclude", null, Ct);
+        await first.PostAsync("/api/abilities/noticing-changes/exclude", null, Ct);
 
         var dto = await Abilities(second);
 
@@ -206,8 +206,8 @@ public sealed class AbilitiesApiTests
 
     [Theory(DisplayName = "foundation-2（始める前に保存するものを示す）: 了解していない人は見えた力の API を使えない")]
     [InlineData("GET", "/api/abilities")]
-    [InlineData("POST", "/api/abilities/noticing/exclude")]
-    [InlineData("POST", "/api/abilities/noticing/restore")]
+    [InlineData("POST", "/api/abilities/noticing-changes/exclude")]
+    [InlineData("POST", "/api/abilities/noticing-changes/restore")]
     public async Task ConsentIsRequired(string method, string path)
     {
         var (factory, _) = Create();
@@ -227,15 +227,15 @@ public sealed class AbilitiesApiTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0], BalancingInterestsAll[1]);
         await Send(client, id, CoordinatingAnswer);
-        Assert.Equal("needsCheck", Ability(await Abilities(client), "coordinating").GetProperty("life").GetString());
+        Assert.Equal("needsCheck", Ability(await Abilities(client), "balancing-interests").GetProperty("life").GetString());
 
         var skipped = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
         Assert.Equal(HttpStatusCode.Created, skipped.StatusCode);
 
         var dto = await Abilities(client);
-        var coordinating = Ability(dto, "coordinating");
+        var coordinating = Ability(dto, "balancing-interests");
         Assert.Equal("notYet", coordinating.GetProperty("life").GetString());
         Assert.Equal(0, coordinating.GetProperty("quotes").GetArrayLength());
         var latest = dto.GetProperty("history")[0];
@@ -253,7 +253,7 @@ public sealed class AbilitiesApiTests
         var client = await Consenting(factory, "g-1");
         var store = factory.Services.GetRequiredService<IDataStore>();
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
         await Send(client, id, "もう消えたいと思うことがあります");
@@ -266,7 +266,7 @@ public sealed class AbilitiesApiTests
         Assert.Equal(HttpStatusCode.Created, skipped.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/episodes/{id}", Ct)).StatusCode);
         var dto = await Abilities(client);
-        Assert.Equal("notYet", Ability(dto, "coordinating").GetProperty("life").GetString());
+        Assert.Equal("notYet", Ability(dto, "balancing-interests").GetProperty("life").GetString());
 
         // サインの出た時を、消した場面のあとに残さない。保存した生の中身にも残さない
         var history = dto.GetProperty("history").EnumerateArray().ToList();
@@ -278,7 +278,7 @@ public sealed class AbilitiesApiTests
         Assert.Equal(
             [("skip", "confirmed", "notYet"), ("talk", "notYet", "confirmed")],
             history.Select(h => (h.GetProperty("reason").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString())));
-        Assert.All(history, h => Assert.Equal("coordinating", h.GetProperty("key").GetString()));
+        Assert.All(history, h => Assert.Equal("balancing-interests", h.GetProperty("key").GetString()));
     }
 
     [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 飛ばして消した場面の確かめに使わない履歴を外しても、ほかの場面の履歴とその後の外す・戻すは残す")]
@@ -287,13 +287,13 @@ public sealed class AbilitiesApiTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var finished = await ValidateTestKit.FinishedEpisode(client, ai, Candidate(Features.Validate.Ability.Noticing, 1, "夫と母の予定がぶつかって"));
+        var finished = await ValidateTestKit.FinishedEpisode(client, ai, Candidate(TestAbilities.NoticingChanges, 1, "夫と母の予定がぶつかって"));
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
         await Send(client, id, "もう消えたいと思うことがあります");
-        await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct);
+        await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
 
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
 
@@ -304,10 +304,10 @@ public sealed class AbilitiesApiTests
         // サインのあとに外した行も、サインで下がった状態を読み取れないよう、外した行がなかったときの状態に書き直す
         Assert.Equal(
             [
-                ("coordinating", "skip", "confirmed", "notYet", id),
-                ("coordinating", "exclude", "confirmed", "confirmed", null),
-                ("coordinating", "talk", "notYet", "confirmed", id),
-                ("noticing", "talk", "notYet", "needsCheck", finished),
+                ("balancing-interests", "skip", "confirmed", "notYet", id),
+                ("balancing-interests", "exclude", "confirmed", "confirmed", null),
+                ("balancing-interests", "talk", "notYet", "confirmed", id),
+                ("noticing-changes", "talk", "notYet", "needsCheck", finished),
             ],
             history);
     }
@@ -319,10 +319,10 @@ public sealed class AbilitiesApiTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
         await Abilities(client);
-        await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct);
+        await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
 
         Assert.DoesNotContain(factory.CapturedLogs, l => l.Contains("二人に電話", StringComparison.Ordinal));
     }

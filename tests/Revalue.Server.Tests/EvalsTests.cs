@@ -408,10 +408,10 @@ public sealed class EvalsTests
         title: 確かめの試しの例
         unit: validate
         expect: correction
-        states: coordinating=needsCheck
-        notConfirmed: noticing, prioritizing
-        statesBefore: coordinating=confirmed
-        ask: coordinating.3
+        states: balancing-interests=needsCheck
+        notConfirmed: noticing-changes, setting-priorities
+        statesBefore: balancing-interests=confirmed
+        ask: balancing-interests.3
         ---
 
         ## 利用者の答え
@@ -433,9 +433,9 @@ public sealed class EvalsTests
 
     private static ScriptedAnswer Correction(string text) => new(text, false, IsCorrection: true);
 
-    /// <summary>本人の 1 番目の答えから、調整する力の行動の根拠の候補を返す読み取り。</summary>
+    /// <summary>本人の 1 番目の答えから、利害調整力の行動の根拠の候補を返す読み取り。</summary>
     /// <summary>
-    /// 最初の答えから、調整する力の行動ごとに別々の部分を引く読み取り。行動 1〜3 は <see cref="CoordinatingParts"/> の順。
+    /// 最初の答えから、利害調整力の行動ごとに別々の部分を引く読み取り。行動 1〜3 は <see cref="CoordinatingParts"/> の順。
     /// 最初の答えにその部分がなければ（台本が別の答えなら）、答え全体を引く。
     /// </summary>
     private static Func<IReadOnlyList<Turn>, TurnReading> CoordinatingFromFirstAnswer(params int[] actions) => turns =>
@@ -446,7 +446,7 @@ public sealed class EvalsTests
             actions.Select(a =>
             {
                 var part = CoordinatingParts[a - 1];
-                return new EvidenceCandidate(Ability.Coordinating, a, first.Contains(part, StringComparison.Ordinal) ? part : first, 1, 1, false, "", 0);
+                return new EvidenceCandidate(TestAbilities.BalancingInterests, a, first.Contains(part, StringComparison.Ordinal) ? part : first, 1, 1, false, "", 0);
             }).ToList());
     };
 
@@ -468,10 +468,10 @@ public sealed class EvalsTests
                 new ScriptedAnswer("声をかけたのは私ではなく、夫でした", false, IsCorrection: true),
             ],
             script.Answers);
-        Assert.Equal(AbilityState.NeedsCheck, Assert.Single(script.States!, s => s.Key == Ability.Coordinating).Value);
-        Assert.Equal(new HashSet<Ability> { Ability.Noticing, Ability.Prioritizing }, script.NotConfirmed);
-        Assert.Equal(AbilityState.Confirmed, script.StatesBefore![Ability.Coordinating]);
-        Assert.Equal(new ActionRef(Ability.Coordinating, 3), script.Ask);
+        Assert.Equal(AbilityState.NeedsCheck, Assert.Single(script.States!, s => s.Key == TestAbilities.BalancingInterests).Value);
+        Assert.Equal(new HashSet<Ability> { TestAbilities.NoticingChanges, TestAbilities.SettingPriorities }, script.NotConfirmed);
+        Assert.Equal(AbilityState.Confirmed, script.StatesBefore![TestAbilities.BalancingInterests]);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), script.Ask);
     }
 
     [Fact(DisplayName = "評価: 確かめの例の前書きは、狙った力の期待する状態と、根拠ありにしてはいけない力を読む")]
@@ -480,34 +480,34 @@ public sealed class EvalsTests
         static EpisodeScript Parse(string fields) =>
             EpisodeScript.Parse($"---\nid: e98\ntitle: 試し\nunit: validate\nexpect: concreteEvent\n{fields}\n---\n\n## 利用者の答え\n\n- 昨日のこと\n");
 
-        var one = Parse("states: coordinating=needsCheck");
-        Assert.Equal(new Dictionary<Ability, AbilityState> { [Ability.Coordinating] = AbilityState.NeedsCheck }, one.States);
+        var one = Parse("states: balancing-interests=needsCheck");
+        Assert.Equal(new Dictionary<Ability, AbilityState> { [TestAbilities.BalancingInterests] = AbilityState.NeedsCheck }, one.States);
         Assert.Empty(one.NotConfirmed);
-        Assert.Equal([Ability.Coordinating], one.Listed);
+        Assert.Equal([TestAbilities.BalancingInterests], one.Listed);
 
-        var two = Parse("states: coordinating=confirmed\nnotConfirmed: noticing, prioritizing");
+        var two = Parse("states: balancing-interests=confirmed\nnotConfirmed: noticing-changes, setting-priorities");
         Assert.Equal(AbilityState.Confirmed, Assert.Single(two.States!).Value);
-        Assert.Equal(new HashSet<Ability> { Ability.Noticing, Ability.Prioritizing }, two.NotConfirmed);
-        Assert.Equal(new HashSet<Ability> { Ability.Noticing, Ability.Coordinating, Ability.Prioritizing }, two.Listed);
+        Assert.Equal(new HashSet<Ability> { TestAbilities.NoticingChanges, TestAbilities.SettingPriorities }, two.NotConfirmed);
+        Assert.Equal(new HashSet<Ability> { TestAbilities.NoticingChanges, TestAbilities.BalancingInterests, TestAbilities.SettingPriorities }, two.Listed);
 
         // * は、話から確かめるすべての力から、states で confirmed の力を除いたもの
-        var all = Parse("states: noticing=confirmed, coordinating=needsCheck\nnotConfirmed: *");
-        Assert.Equal(AbilityCatalog.Active.Where(a => a != Ability.Noticing).ToHashSet(), all.NotConfirmed);
+        var all = Parse("states: noticing-changes=confirmed, balancing-interests=needsCheck\nnotConfirmed: *");
+        Assert.Equal(AbilityCatalog.Active.Where(a => a != TestAbilities.NoticingChanges).ToHashSet(), all.NotConfirmed);
         var onlyAll = Parse("notConfirmed: *");
         Assert.Null(onlyAll.States);
         Assert.Equal(AbilityCatalog.Active.ToHashSet(), onlyAll.NotConfirmed);
     }
 
     [Theory(DisplayName = "評価: 知らない力、同じ力の重なり、confirmed と notConfirmed の重なり、states も notConfirmed もない確かめの例は読めない")]
-    [InlineData("states: coordinating=great", false)]
+    [InlineData("states: balancing-interests=great", false)]
     [InlineData("states: cooking=confirmed", false)]
-    [InlineData("states: coordinating=confirmed\nnotConfirmed: cooking", false)]
-    [InlineData("states: coordinating=confirmed, coordinating=needsCheck", false)]
-    [InlineData("states: coordinating=confirmed\nnotConfirmed: noticing, noticing", false)]
-    [InlineData("states: coordinating=confirmed\nnotConfirmed: noticing, coordinating", false)]
-    [InlineData("statesBefore: coordinating=confirmed", false)]
-    [InlineData("states: coordinating=confirmed\nask: coordinating.4", false)]
-    [InlineData("states: coordinating=confirmed", true)]
+    [InlineData("states: balancing-interests=confirmed\nnotConfirmed: cooking", false)]
+    [InlineData("states: balancing-interests=confirmed, balancing-interests=needsCheck", false)]
+    [InlineData("states: balancing-interests=confirmed\nnotConfirmed: noticing-changes, noticing-changes", false)]
+    [InlineData("states: balancing-interests=confirmed\nnotConfirmed: noticing-changes, balancing-interests", false)]
+    [InlineData("statesBefore: balancing-interests=confirmed", false)]
+    [InlineData("states: balancing-interests=confirmed\nask: balancing-interests.4", false)]
+    [InlineData("states: balancing-interests=confirmed", true)]
     public void InvalidValidateFieldsAreRejected(string fields, bool answerAfterCorrection)
     {
         var answers = answerAfterCorrection ? "- 昨日のこと\n- [訂正] 違いました\n- そのあとの答え\n" : "- 昨日のこと\n";
@@ -533,14 +533,14 @@ public sealed class EvalsTests
         // 狙った力（needsCheck）を根拠ありにした例と、根拠ありにしてはいけない力を根拠ありにした例
         var targeted = await Run(
             new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
-            ValidateScript("coordinating=needsCheck", notConfirmed: "noticing", answers: Free(CoordinatingAnswer)));
+            ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer)));
         var listed = await Run(
             new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
-            ValidateScript("noticing=needsCheck", notConfirmed: "coordinating", answers: Free(CoordinatingAnswer)));
+            ValidateScript("noticing-changes=needsCheck", notConfirmed: "balancing-interests", answers: Free(CoordinatingAnswer)));
         var summary = EvalSummary.From([targeted, listed]);
 
-        Assert.Equal(AbilityState.Confirmed, targeted.Final.Single(r => r.Ability == Ability.Coordinating).State);
-        Assert.Equal(AbilityState.Confirmed, listed.Final.Single(r => r.Ability == Ability.Coordinating).State);
+        Assert.Equal(AbilityState.Confirmed, targeted.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
+        Assert.Equal(AbilityState.Confirmed, listed.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
         var gate = Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
         Assert.Equal((2, 4), (gate.Count, gate.Total));
         Assert.True(gate.CountsViolations);
@@ -555,10 +555,10 @@ public sealed class EvalsTests
     {
         var run = await Run(
             new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) },
-            ValidateScript("noticing=needsCheck", notConfirmed: "prioritizing", answers: Free(CoordinatingAnswer)));
+            ValidateScript("noticing-changes=needsCheck", notConfirmed: "setting-priorities", answers: Free(CoordinatingAnswer)));
         var summary = EvalSummary.From([run]);
 
-        Assert.Equal(AbilityState.Confirmed, run.Final.Single(r => r.Ability == Ability.Coordinating).State);
+        Assert.Equal(AbilityState.Confirmed, run.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
         var gate = Assert.Single(summary.Gated, i => i.Name.Contains("褒めすぎ"));
         Assert.Equal((0, 2), (gate.Count, gate.Total));
         var expected = Assert.Single(summary.Reference, i => i.Name.Contains("最後の状態が期待どおりだった力"));
@@ -566,15 +566,15 @@ public sealed class EvalsTests
 
         // 結果のファイルには、台本に書いていない力でも、未確認でなかった力は書く。24 の力をすべては並べない
         var report = ReportWriter.Write(new ReportContext("validate", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), [run], summary, new UsageMeter());
-        Assert.Contains($"| {AbilityText.Name(Ability.Coordinating)} | —（台本に書いていない） |", report);
-        Assert.Contains($"| {AbilityText.Name(Ability.Prioritizing)} | 根拠ありにしてはいけない |", report);
+        Assert.Contains($"| {AbilityText.Name(TestAbilities.BalancingInterests)} | —（台本に書いていない） |", report);
+        Assert.Contains($"| {AbilityText.Name(TestAbilities.SettingPriorities)} | 根拠ありにしてはいけない |", report);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 評価は、そろっている例で Confirmed にした割合を数え、期待どおりなら合格にする")]
     public async Task ConfirmedAsExpectedPasses()
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
-        var script = ValidateScript("coordinating=confirmed", notConfirmed: "noticing, prioritizing", answers: Free(CoordinatingAnswer));
+        var script = ValidateScript("balancing-interests=confirmed", notConfirmed: "noticing-changes, setting-priorities", answers: Free(CoordinatingAnswer));
 
         var summary = EvalSummary.From([await Run(ai, script)]);
 
@@ -589,7 +589,7 @@ public sealed class EvalsTests
     public async Task AskMissingActionIsCounted()
     {
         var script = ValidateScript(
-            "coordinating=needsCheck", notConfirmed: "noticing, prioritizing", ask: "coordinating.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", ask: "balancing-interests.3", answers: Free("夫と義母の都合を聞いて、私から声をかけました。"));
         var judge = new RecordingJudge();
 
         var good = await new EvalRunner(new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2) }, judge, Forbidden()).RunAsync(script, Ct);
@@ -599,9 +599,9 @@ public sealed class EvalsTests
 
         var reply = Assert.Single(good.Replies);
         Assert.Equal(MoveKind.AskMissingAction, reply.Move);
-        Assert.Equal(new ActionRef(Ability.Coordinating, 3), reply.Target);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), reply.Target);
         // 判定役には、聞いてよい行動の手がかりを渡す
-        Assert.Equal(AbilityText.Hint(new ActionRef(Ability.Coordinating, 3)), Assert.Single(judge.Hints));
+        Assert.Equal(AbilityText.Hint(new ActionRef(TestAbilities.BalancingInterests, 3)), Assert.Single(judge.Hints));
 
         var passed = Assert.Single(EvalSummary.From([good]).Gated, i => i.Name.Contains("足りない行動だけを聞き返した"));
         Assert.Equal((1, 1), (passed.Count, passed.Total));
@@ -614,7 +614,7 @@ public sealed class EvalsTests
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 判定役には、足りない行動を聞く一手のときだけ手がかりを渡す")]
     public void JudgeMessageHasHint()
     {
-        var hint = AbilityText.Hint(new ActionRef(Ability.Prioritizing, 3));
+        var hint = AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3));
 
         var withHint = ClaudeJudge.UserMessage([], MoveKind.AskMissingAction, hint, "本文です。", []);
         var without = ClaudeJudge.UserMessage([], MoveKind.AskWhatYouDid, null, "本文です。", []);
@@ -626,7 +626,7 @@ public sealed class EvalsTests
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 評価は、最後の根拠の引用が本人の答えに一字一句含まれるかを数え直す")]
     public void QuotesAreRecounted()
     {
-        var script = ValidateScript("coordinating=needsCheck", notConfirmed: "noticing, prioritizing", answers: Free("朝 8 時に家を出ました。"));
+        var script = ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", answers: Free("朝 8 時に家を出ました。"));
         var turns = new List<Turn>
         {
             new() { Role = TurnRoles.Assistant, Text = DiscoverText.Opening, At = DateTimeOffset.UnixEpoch },
@@ -635,7 +635,7 @@ public sealed class EvalsTests
         EpisodeRun RunWith(string quote) => new(script, [], false, null)
         {
             Turns = turns,
-            Final = AbilityStates.Evaluate([new Evidence(Ability.Coordinating, 1, quote, 1, 1, false, false, null)]),
+            Final = AbilityStates.Evaluate([new Evidence(TestAbilities.BalancingInterests, 1, quote, 1, 1, false, false, null)]),
         };
 
         var exact = EvalSummary.From([RunWith("8 時に家を出ました")]);
@@ -657,15 +657,15 @@ public sealed class EvalsTests
             Reading = turns => new TurnReading(
                 new HashSet<AnswerSignal> { AnswerSignal.ConcreteEvent },
                 turns[^1].AnswerKind == AnswerKind.Correction
-                    ? [new EvidenceCandidate(Ability.Coordinating, 1, "夫と", 1, 1, false, "", 0)]
+                    ? [new EvidenceCandidate(TestAbilities.BalancingInterests, 1, "夫と", 1, 1, false, "", 0)]
                     :
                     [
-                        new EvidenceCandidate(Ability.Coordinating, 1, "て", 1, 1, false, "", 0),
-                        new EvidenceCandidate(Ability.Coordinating, 2, "私から声をかけて", 1, 1, false, "", 0),
+                        new EvidenceCandidate(TestAbilities.BalancingInterests, 1, "て", 1, 1, false, "", 0),
+                        new EvidenceCandidate(TestAbilities.BalancingInterests, 2, "私から声をかけて", 1, 1, false, "", 0),
                     ]),
         };
         var script = ValidateScript(
-            "coordinating=notYet", notConfirmed: "*", answers: [Free(CoordinatingAnswer), Correction("夫と義母に電話したのは私です")]);
+            "balancing-interests=notYet", notConfirmed: "*", answers: [Free(CoordinatingAnswer), Correction("夫と義母に電話したのは私です")]);
 
         var run = await Run(ai, script);
         var summary = EvalSummary.From([run]);
@@ -689,16 +689,16 @@ public sealed class EvalsTests
                 turns[^1].AnswerKind == AnswerKind.Correction ? [1, 3] : [1, 2, 3])(turns),
         };
         var script = ValidateScript(
-            "coordinating=needsCheck", notConfirmed: "noticing, prioritizing",
-            statesBefore: "coordinating=confirmed",
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities",
+            statesBefore: "balancing-interests=confirmed",
             answers: [Free(CoordinatingAnswer), Correction("声をかけたのは私ではなく、夫でした")]);
 
         var run = await Run(ai, script);
         var summary = EvalSummary.From([run]);
 
         Assert.Null(run.Error);
-        Assert.Equal(AbilityState.Confirmed, run.BeforeCorrection!.Single(r => r.Ability == Ability.Coordinating).State);
-        Assert.Equal(AbilityState.NeedsCheck, run.Final.Single(r => r.Ability == Ability.Coordinating).State);
+        Assert.Equal(AbilityState.Confirmed, run.BeforeCorrection!.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
+        Assert.Equal(AbilityState.NeedsCheck, run.Final.Single(r => r.Ability == TestAbilities.BalancingInterests).State);
         var correction = Assert.Single(run.Corrections);
         Assert.Equal("声をかけたのは私ではなく、夫でした", correction.Text);
         Assert.Equal(AnswerKind.Correction, run.Turns[^1].AnswerKind);
@@ -719,7 +719,7 @@ public sealed class EvalsTests
     {
         var ai = new FakeConversationAi { Reading = CoordinatingFromFirstAnswer(1, 2, 3) };
         var script = ValidateScript(
-            "coordinating=needsCheck", notConfirmed: "noticing, prioritizing", answers: [Free(CoordinatingAnswer), Correction("違いました")]);
+            "balancing-interests=needsCheck", notConfirmed: "noticing-changes, setting-priorities", answers: [Free(CoordinatingAnswer), Correction("違いました")]);
         // 1 往復目の返事のあと（次の読み取り = 訂正の読み取り）で失敗させる
         ai.BeforeReply = () =>
         {
@@ -736,15 +736,15 @@ public sealed class EvalsTests
     [Fact(DisplayName = "評価: 汎用の AI との比較は、台本に書いた力だけを数え、挙げた力と引用の違いを同じ物差しで数え、合格の線には入れない")]
     public async Task GenericComparisonIsCounted()
     {
-        var script = ValidateScript("coordinating=needsCheck", notConfirmed: "noticing", answers: Free(CoordinatingAnswer));
+        var script = ValidateScript("balancing-interests=needsCheck", notConfirmed: "noticing-changes", answers: Free(CoordinatingAnswer));
         var run = await Run(new FakeConversationAi(), script);
         var assistant = new FakeGenericAssistant("あなたの強みは調整力です。「都合をうかがった」と話しています。");
-        // 台本に書いていない優先順位をつける力は、挙げていても、引用が一字一句でなくても数えない
+        // 台本に書いていない優先順位設定力は、挙げていても、引用が一字一句でなくても数えない
         var reader = new FakeGenericReader(new GenericReading(
             [
-                new GenericAbility(Ability.Noticing, true, []),
-                new GenericAbility(Ability.Coordinating, true, ["「都合を聞いて」", "都合をうかがった"]),
-                new GenericAbility(Ability.Prioritizing, true, ["朝ごはんを先にした"]),
+                new GenericAbility(TestAbilities.NoticingChanges, true, []),
+                new GenericAbility(TestAbilities.BalancingInterests, true, ["「都合を聞いて」", "都合をうかがった"]),
+                new GenericAbility(TestAbilities.SettingPriorities, true, ["朝ごはんを先にした"]),
             ],
             ""));
 
@@ -816,17 +816,17 @@ public sealed class EvalsTests
         Assert.Null(scripts.Single(s => s.Id == "e16").States);
         Assert.Equal(AbilityCatalog.Active.ToHashSet(), scripts.Single(s => s.Id == "e16").NotConfirmed);
         Assert.Equal(AbilityCatalog.Active.ToHashSet(), scripts.Single(s => s.Id == "e13").NotConfirmed);
-        Assert.Equal(new ActionRef(Ability.Coordinating, 3), scripts.Single(s => s.Id == "e11").Ask);
-        Assert.Equal(new ActionRef(Ability.Prioritizing, 3), scripts.Single(s => s.Id == "e12").Ask);
+        Assert.Equal(new ActionRef(TestAbilities.BalancingInterests, 3), scripts.Single(s => s.Id == "e11").Ask);
+        Assert.Equal(new ActionRef(TestAbilities.SettingPriorities, 3), scripts.Single(s => s.Id == "e12").Ask);
         // validate-1（すべてそろったときだけ根拠あり）: 期限を確かめた事実だけでは、決めた理由として根拠にしない
         var checkedDeadline = scripts.Single(s => s.Id == "e19");
-        Assert.Equal(new ActionRef(Ability.Prioritizing, 3), checkedDeadline.Ask);
-        Assert.Equal(AbilityState.NeedsCheck, checkedDeadline.States![Ability.Prioritizing]);
+        Assert.Equal(new ActionRef(TestAbilities.SettingPriorities, 3), checkedDeadline.Ask);
+        Assert.Equal(AbilityState.NeedsCheck, checkedDeadline.States![TestAbilities.SettingPriorities]);
         Assert.All(scripts.Single(s => s.Id == "e16").Answers, a => Assert.True(a.IsChoice));
         Assert.Contains(scripts.Single(s => s.Id == "e17").Answers, a => a.IsChoice && a.Text.Length > 0);
         var correction = scripts.Single(s => s.Id == "e18");
-        Assert.Equal(AbilityState.Confirmed, correction.StatesBefore![Ability.Coordinating]);
-        Assert.Equal(AbilityState.NeedsCheck, correction.States![Ability.Coordinating]);
+        Assert.Equal(AbilityState.Confirmed, correction.StatesBefore![TestAbilities.BalancingInterests]);
+        Assert.Equal(AbilityState.NeedsCheck, correction.States![TestAbilities.BalancingInterests]);
         Assert.Contains(correction.Answers, a => a.IsCorrection);
         foreach (var file in Directory.GetFiles(dir, "e*.md").Where(f => int.Parse(Path.GetFileName(f)[1..3], System.Globalization.CultureInfo.InvariantCulture) >= 8))
         {

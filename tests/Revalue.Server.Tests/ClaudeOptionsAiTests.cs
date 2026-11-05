@@ -42,7 +42,7 @@ public sealed class ClaudeOptionsAiTests
         new(
             new ProfileConditions(slots ?? [TimeSlot.Daytime, TimeSlot.Evening], hours, place, income),
             true,
-            [new UsableAbility(Ability.Coordinating, state, [E(Ability.Coordinating, 1, Q1), E(Ability.Coordinating, 2, Q2)])],
+            [new UsableAbility(TestAbilities.BalancingInterests, state, [E(TestAbilities.BalancingInterests, 1, Q1), E(TestAbilities.BalancingInterests, 2, Q2)])],
             excluded ?? [],
             ["架空-自分のペースで進められる"],
             [],
@@ -50,11 +50,11 @@ public sealed class ClaudeOptionsAiTests
 
     private static string DraftJson(string reason = "架空の理由") => JsonSerializer.Serialize(new
     {
-        choose = new { made = true, occupationId = "online-secretary", taskIds = new[] { "online-secretary-schedule" }, ability = "coordinating", reason },
-        combine = new { made = false, taskIds = Array.Empty<string>(), roleName = "", ability = "coordinating", reason = "" },
+        choose = new { made = true, occupationId = "online-secretary", taskIds = new[] { "online-secretary-schedule" }, ability = "balancing-interests", reason },
+        combine = new { made = false, taskIds = Array.Empty<string>(), roleName = "", ability = "balancing-interests", reason = "" },
         create = new
         {
-            made = true, title = "架空の題", who = "架空の誰の", trouble = "架空の困りごと", summary = "架空の中身", ability = "coordinating",
+            made = true, title = "架空の題", who = "架空の誰の", trouble = "架空の困りごと", summary = "架空の中身", ability = "balancing-interests",
             quotes = new[] { Q1 }, hoursPerWeek = 5, place = "home", timeSlots = new[] { "daytime" }, reason,
         },
     });
@@ -181,7 +181,7 @@ public sealed class ClaudeOptionsAiTests
         var create = properties.GetProperty("create");
         AssertObject(create, ["made", "title", "who", "trouble", "summary", "ability", "quotes", "hoursPerWeek", "place", "timeSlots", "reason"]);
 
-        string[] abilities = ["noticing", "coordinating", "prioritizing"];
+        var abilities = AbilityCatalog.Active.Select(a => a.Id).ToArray();
         foreach (var card in new[] { "choose", "combine", "create" })
         {
             var cardProperties = properties.GetProperty(card).GetProperty("properties");
@@ -240,19 +240,19 @@ public sealed class ClaudeOptionsAiTests
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: AI に渡す文には、外した力と未確認の力が入らない")]
     public void BriefHasOnlyUsableAbilities()
     {
-        // 見立てる力は本人が外した。優先順位をつける力は未確認なので、使える力に入っていない
-        var inputs = Inputs(excluded: [Ability.Noticing]);
+        // 変化への気づきは本人が外した。優先順位設定力は未確認なので、使える力に入っていない
+        var inputs = Inputs(excluded: [TestAbilities.NoticingChanges]);
         var brief = ClaudeOptionsAi.Brief(inputs, OptionCandidates.From(Catalog, inputs));
 
         var abilities = Section(brief, "abilities");
-        Assert.Contains("coordinating", abilities);
-        Assert.Contains(AbilityText.Name(Ability.Coordinating), abilities);
+        Assert.Contains("balancing-interests", abilities);
+        Assert.Contains(AbilityText.Name(TestAbilities.BalancingInterests), abilities);
         Assert.Contains($"「{Q1}」", abilities);
         Assert.Contains($"「{Q2}」", abilities);
-        Assert.DoesNotContain("noticing", abilities);
-        Assert.DoesNotContain("prioritizing", abilities);
-        Assert.DoesNotContain(AbilityText.Name(Ability.Noticing), abilities);
-        Assert.DoesNotContain(AbilityText.Name(Ability.Prioritizing), abilities);
+        Assert.DoesNotContain("noticing-changes", abilities);
+        Assert.DoesNotContain("setting-priorities", abilities);
+        Assert.DoesNotContain(AbilityText.Name(TestAbilities.NoticingChanges), abilities);
+        Assert.DoesNotContain(AbilityText.Name(TestAbilities.SettingPriorities), abilities);
         Assert.DoesNotContain(ExcludedQuote, brief);
         Assert.DoesNotContain(NoticingQuote, brief);
     }
@@ -262,7 +262,7 @@ public sealed class ClaudeOptionsAiTests
     {
         var inputs = Inputs() with
         {
-            Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.Confirmed, [E(Ability.Coordinating, 2, "架空-頼んだ", true, "架空-姉に電話して")])],
+            Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 2, "架空-頼んだ", true, "架空-姉に電話して")])],
             Wants = ["架空-人の役に立つことをしたい"],
             Agency = "架空-自分で決めて動いた",
         };
@@ -303,7 +303,7 @@ public sealed class ClaudeOptionsAiTests
 
         var draft = ClaudeOptionsAi.ParseDraft(DraftJson("架空の理由-a"));
         Assert.Equal(
-            (true, "online-secretary", "coordinating", "架空の理由-a"),
+            (true, "online-secretary", "balancing-interests", "架空の理由-a"),
             (draft.Choose.Made, draft.Choose.OccupationId, draft.Choose.Ability, draft.Choose.Reason));
         Assert.Equal(["online-secretary-schedule"], draft.Choose.TaskIds);
         Assert.False(draft.Combine.Made);

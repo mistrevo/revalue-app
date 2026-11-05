@@ -86,17 +86,17 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 要確認の力があれば、足りない行動を一つ聞く")]
     public void AsksOneMissingAction()
     {
-        var context = Context(2, [E(Ability.Coordinating, 1, answer: 1), E(Ability.Coordinating, 2, answer: 2)]);
+        var context = Context(2, [E(TestAbilities.BalancingInterests, 1, answer: 1), E(TestAbilities.BalancingInterests, 2, answer: 2)]);
 
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 3)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.BalancingInterests, 3)),
             NextMovePolicy.Decide(Concrete, 2, context));
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 3 つの行動の引用が 1 つの引用の中に収まるときは、ほかの 2 つを含む引用の行動を足りない行動として聞く")]
     public void AsksActionOfContainingQuote()
     {
-        static Evidence Q(int action, string quote) => new(Ability.Coordinating, action, quote, 1, 1, false, false, null);
+        static Evidence Q(int action, string quote) => new(TestAbilities.BalancingInterests, action, quote, 1, 1, false, false, null);
         var context = Context(1,
         [
             Q(1, "歯医者に電話して予約を夕方に変えてもらい"),
@@ -105,7 +105,7 @@ public sealed class NextMovePolicyTests
         ]);
 
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 1)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.BalancingInterests, 1)),
             NextMovePolicy.Decide(Concrete, 1, context));
     }
 
@@ -113,9 +113,9 @@ public sealed class NextMovePolicyTests
     public void SameActionAtMostTwice()
     {
         Assert.Equal(2, NextMovePolicy.MaxAskPerAction);
-        IReadOnlyList<Evidence> evidence = [E(Ability.Noticing, 2)];
-        var first = new ActionRef(Ability.Noticing, 1);
-        var third = new ActionRef(Ability.Noticing, 3);
+        IReadOnlyList<Evidence> evidence = [E(TestAbilities.NoticingChanges, 2)];
+        var first = new ActionRef(TestAbilities.NoticingChanges, 1);
+        var third = new ActionRef(TestAbilities.NoticingChanges, 3);
 
         Assert.Equal(new NextMove(MoveKind.AskMissingAction, first), NextMovePolicy.Decide(Concrete, 3, Context(3, evidence, (first, 1))));
         Assert.Equal(new NextMove(MoveKind.AskMissingAction, third), NextMovePolicy.Decide(Concrete, 3, Context(3, evidence, (first, 2))));
@@ -125,38 +125,38 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: いちばん多くそろった力を先に聞く")]
     public void MostCompleteAbilityFirst()
     {
-        var context = Context(1, [E(Ability.Noticing, 1), E(Ability.Prioritizing, 1), E(Ability.Prioritizing, 3)]);
+        var context = Context(1, [E(TestAbilities.NoticingChanges, 1), E(TestAbilities.SettingPriorities, 1), E(TestAbilities.SettingPriorities, 3)]);
 
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 2)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.SettingPriorities, 2)),
             NextMovePolicy.Decide(Concrete, 1, context));
 
-        // 同じ数なら、力の並び（noticing、coordinating、prioritizing）の順
-        var tie = Context(1, [E(Ability.Prioritizing, 1), E(Ability.Coordinating, 2)]);
+        // 同じ数なら、辞書の順（利害調整力が優先順位設定力より前）
+        var tie = Context(1, [E(TestAbilities.SettingPriorities, 1), E(TestAbilities.BalancingInterests, 2)]);
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 1)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.BalancingInterests, 1)),
             NextMovePolicy.Decide(Concrete, 1, tie));
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: いまの答えの出来事の中で聞く")]
     public void AsksWithinCurrentEvent()
     {
-        // いまの答え（2 番目）は出来事 2 の話。出来事 1 の調整する力ではなく、出来事 2 の見立てる力を聞く
+        // いまの答え（2 番目）は出来事 2 の話。出来事 1 の利害調整力ではなく、出来事 2 の変化への気づきを聞く
         var context = Context(2,
         [
-            E(Ability.Coordinating, 1, @event: 1, answer: 1),
-            E(Ability.Coordinating, 2, @event: 1, answer: 1),
-            E(Ability.Noticing, 1, @event: 2, answer: 2),
+            E(TestAbilities.BalancingInterests, 1, @event: 1, answer: 1),
+            E(TestAbilities.BalancingInterests, 2, @event: 1, answer: 1),
+            E(TestAbilities.NoticingChanges, 1, @event: 2, answer: 2),
         ]);
 
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Noticing, 2)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.NoticingChanges, 2)),
             NextMovePolicy.Decide(Concrete, 2, context));
 
         // いまの答えに根拠がなければ、いちばん新しい出来事で聞く
-        var noneInLatest = Context(3, [E(Ability.Coordinating, 1, @event: 1, answer: 1), E(Ability.Noticing, 1, @event: 2, answer: 2)]);
+        var noneInLatest = Context(3, [E(TestAbilities.BalancingInterests, 1, @event: 1, answer: 1), E(TestAbilities.NoticingChanges, 1, @event: 2, answer: 2)]);
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Noticing, 2)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.NoticingChanges, 2)),
             NextMovePolicy.Decide(Concrete, 3, noneInLatest));
     }
 
@@ -168,45 +168,45 @@ public sealed class NextMovePolicyTests
         // 聞くのは、この場面でまだどこにも話に出ていない行動 3 が先
         IReadOnlyList<Evidence> evidence =
         [
-            E(Ability.Prioritizing, 1, @event: 1, answer: 1) with { Reading = 1 },
-            E(Ability.Prioritizing, 2, @event: 1, answer: 2) with { Reading = 2 },
+            E(TestAbilities.SettingPriorities, 1, @event: 1, answer: 1) with { Reading = 1 },
+            E(TestAbilities.SettingPriorities, 2, @event: 1, answer: 2) with { Reading = 2 },
         ];
-        var third = new ActionRef(Ability.Prioritizing, 3);
+        var third = new ActionRef(TestAbilities.SettingPriorities, 3);
 
         Assert.Equal(new NextMove(MoveKind.AskMissingAction, third), NextMovePolicy.Decide(Concrete, 2, Context(2, evidence)));
 
         // 行動 3 を 2 回聞いたら、別の読み取りで話に出た行動 1 も、いまの出来事の中で聞く
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 1)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.SettingPriorities, 1)),
             NextMovePolicy.Decide(Concrete, 2, Context(2, evidence, (third, 2))));
 
         // いまの答えに根拠がなければ、いちばん新しい読み取りの、番号の大きい出来事で聞く
         var noneInLatest = Context(3,
         [
-            E(Ability.Prioritizing, 1, @event: 2, answer: 1) with { Reading = 1 },
-            E(Ability.Noticing, 1, @event: 1, answer: 2) with { Reading = 2 },
+            E(TestAbilities.SettingPriorities, 1, @event: 2, answer: 1) with { Reading = 1 },
+            E(TestAbilities.NoticingChanges, 1, @event: 1, answer: 2) with { Reading = 2 },
         ]);
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Noticing, 2)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.NoticingChanges, 2)),
             NextMovePolicy.Decide(Concrete, 3, noneInLatest));
     }
 
     [Fact(DisplayName = "validate-10（一般論には具体的な出来事を聞く）: いまの答えが一般論だけなら、足りない行動ではなく具体的な出来事を聞く")]
     public void GeneralOnlyAsksConcreteEventEvenWithEvidence()
     {
-        var context = Context(2, [E(Ability.Coordinating, 1, answer: 2, general: true), E(Ability.Noticing, 1, answer: 1)]);
+        var context = Context(2, [E(TestAbilities.BalancingInterests, 1, answer: 2, general: true), E(TestAbilities.NoticingChanges, 1, answer: 1)]);
 
         Assert.Equal(new NextMove(MoveKind.AskConcreteEvent), NextMovePolicy.Decide(Read(AnswerSignal.GeneralOnly), 2, context));
 
         // 一般論の根拠しかない場面で、具体的な出来事を話していても、一般論の行動は聞き返さない
-        var generalOnly = Context(1, [E(Ability.Coordinating, 1, general: true)]);
+        var generalOnly = Context(1, [E(TestAbilities.BalancingInterests, 1, general: true)]);
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 1, generalOnly));
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: そろった力は聞かない")]
     public void ConfirmedAbilityIsNotAsked()
     {
-        var context = Context(3, [E(Ability.Coordinating, 1, answer: 1), E(Ability.Coordinating, 2, answer: 2), E(Ability.Coordinating, 3, answer: 3)]);
+        var context = Context(3, [E(TestAbilities.BalancingInterests, 1, answer: 1), E(TestAbilities.BalancingInterests, 2, answer: 2), E(TestAbilities.BalancingInterests, 3, answer: 3)]);
 
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 3, context));
     }
@@ -214,32 +214,32 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 場面ですでに根拠ありの力は、新しい読み取りが同じ出来事の行動を落としても聞き直さない")]
     public void ConfirmedInSceneIsNotAskedAgain()
     {
-        // 3 回目の読み取りで調整する力の 3 つがそろった。4 回目の読み取りは、同じ出来事の行動 3 を落とした
+        // 3 回目の読み取りで利害調整力の 3 つがそろった。4 回目の読み取りは、同じ出来事の行動 3 を落とした
         IReadOnlyList<Evidence> evidence =
         [
-            E(Ability.Coordinating, 1, answer: 1) with { Reading = 3 },
-            E(Ability.Coordinating, 2, answer: 2) with { Reading = 3 },
-            E(Ability.Coordinating, 3, answer: 3) with { Reading = 3 },
-            E(Ability.Coordinating, 1, answer: 1) with { Reading = 4 },
-            E(Ability.Coordinating, 2, answer: 4) with { Reading = 4 },
+            E(TestAbilities.BalancingInterests, 1, answer: 1) with { Reading = 3 },
+            E(TestAbilities.BalancingInterests, 2, answer: 2) with { Reading = 3 },
+            E(TestAbilities.BalancingInterests, 3, answer: 3) with { Reading = 3 },
+            E(TestAbilities.BalancingInterests, 1, answer: 1) with { Reading = 4 },
+            E(TestAbilities.BalancingInterests, 2, answer: 4) with { Reading = 4 },
         ];
         Assert.Equal(
             AbilityState.Confirmed,
-            AbilityStates.Evaluate(evidence).Single(r => r.Ability == Ability.Coordinating).State);
+            AbilityStates.Evaluate(evidence).Single(r => r.Ability == TestAbilities.BalancingInterests).State);
 
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 4, Context(4, evidence)));
 
         // 同じ出来事に要確認の力がほかにあれば、そちらの足りない行動を聞く
-        IReadOnlyList<Evidence> withPrioritizing = [.. evidence, E(Ability.Prioritizing, 1, answer: 4) with { Reading = 4 }];
+        IReadOnlyList<Evidence> withPrioritizing = [.. evidence, E(TestAbilities.SettingPriorities, 1, answer: 4) with { Reading = 4 }];
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 2)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.SettingPriorities, 2)),
             NextMovePolicy.Decide(Concrete, 4, Context(4, withPrioritizing)));
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: つらい状態のサイン、締め、家族の病気は、足りない行動より先")]
     public void SaferMovesComeFirst()
     {
-        var context = Context(1, [E(Ability.Coordinating, 1)]);
+        var context = Context(1, [E(TestAbilities.BalancingInterests, 1)]);
 
         Assert.Equal(MoveKind.Distress, NextMovePolicy.Decide(Read(AnswerSignal.Distress, AnswerSignal.ConcreteEvent), 1, context).Kind);
         Assert.Equal(MoveKind.Close, NextMovePolicy.Decide(Concrete, NextMovePolicy.MaxUserTurns, context).Kind);
@@ -257,7 +257,7 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 聞いた回数は、行動を添えた聞き手のターンから数える")]
     public void ContextCountsAskedTargets()
     {
-        var target = new ActionRef(Ability.Coordinating, 3);
+        var target = new ActionRef(TestAbilities.BalancingInterests, 3);
         IReadOnlyList<Turn> turns =
         [
             new() { Role = TurnRoles.Assistant, Text = "q1", Move = "opening", At = At },
@@ -267,7 +267,7 @@ public sealed class NextMovePolicyTests
             new() { Role = TurnRoles.Assistant, Text = "q3", Move = "askMissingAction", Target = target.ToString(), At = At },
             new() { Role = TurnRoles.User, Text = "a3", AnswerKind = AnswerKind.Choice, At = At },
         ];
-        IReadOnlyList<Evidence> evidence = [E(Ability.Coordinating, 1)];
+        IReadOnlyList<Evidence> evidence = [E(TestAbilities.BalancingInterests, 1)];
 
         var context = ValidationContext.From(turns, evidence);
 
@@ -279,7 +279,7 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 訂正で打ち消された行動は、聞いた回数の上限に届いたものとして数える")]
     public void WithdrawnActionsCountAsAskedToTheLimit()
     {
-        var withdrawn = new ActionRef(Ability.Coordinating, 2);
+        var withdrawn = new ActionRef(TestAbilities.BalancingInterests, 2);
         IReadOnlyList<Turn> turns =
         [
             new() { Role = TurnRoles.Assistant, Text = "q1", Move = "opening", At = At },
@@ -287,7 +287,7 @@ public sealed class NextMovePolicyTests
             new() { Role = TurnRoles.Assistant, Text = "q2", Move = "close", At = At },
             new() { Role = TurnRoles.User, Text = "c1", AnswerKind = AnswerKind.Correction, Withdrawn = [withdrawn.ToString(), "cooking.9"], At = At },
         ];
-        IReadOnlyList<Evidence> evidence = [E(Ability.Coordinating, 1), E(Ability.Coordinating, 3)];
+        IReadOnlyList<Evidence> evidence = [E(TestAbilities.BalancingInterests, 1), E(TestAbilities.BalancingInterests, 3)];
 
         var context = ValidationContext.From(turns, evidence);
 
@@ -297,7 +297,7 @@ public sealed class NextMovePolicyTests
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
     }
 
-    /// <summary>話し終えた場面に、続きの問い（調整する力 3 を聞く）と、それへの答えを足したやりとり。</summary>
+    /// <summary>話し終えた場面に、続きの問い（利害調整力 3 を聞く）と、それへの答えを足したやりとり。</summary>
     private static IReadOnlyList<Turn> ResumeAnswered(string answer, AnswerKind kind, string questionMove = EpisodeInsights.ResumeMove) =>
     [
         new() { Role = TurnRoles.Assistant, Text = "q1", Move = "opening", At = At },
@@ -305,13 +305,13 @@ public sealed class NextMovePolicyTests
         new() { Role = TurnRoles.Assistant, Text = "q2", Move = "close", At = At },
         new()
         {
-            Role = TurnRoles.Assistant, Text = "resume", Move = questionMove, Target = "coordinating.3",
+            Role = TurnRoles.Assistant, Text = "resume", Move = questionMove, Target = "balancing-interests.3",
             Choices = AbilityText.ResumeChoices, At = At,
         },
         new() { Role = TurnRoles.User, Text = answer, AnswerKind = kind, At = At },
     ];
 
-    private static readonly IReadOnlyList<Evidence> CoordinatingTwo = [E(Ability.Coordinating, 1), E(Ability.Coordinating, 2)];
+    private static readonly IReadOnlyList<Evidence> CoordinatingTwo = [E(TestAbilities.BalancingInterests, 1), E(TestAbilities.BalancingInterests, 2)];
 
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの問いに「その日のほかのことを話したい」を選んだら、足りない行動ではなく、同じ日のほかの時間や出来事を聞く")]
     public void ResumeChoiceOtherThingsAsksOtherPartOfDay()
@@ -331,7 +331,7 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 続きの決まった選択肢の扱いは、選んだ答えで、直前が続きの問いのときだけ。同じ言葉を書いた答えでは働かない")]
     public void ResumeChoiceOnlyWhenChosenAfterResume()
     {
-        var missing = new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 3));
+        var missing = new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.BalancingInterests, 3));
 
         var written = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceOtherThings, AnswerKind.Free), CoordinatingTwo);
         Assert.False(written.WantsOtherThings);
@@ -343,18 +343,18 @@ public sealed class NextMovePolicyTests
         Assert.Equal(missing, NextMovePolicy.Decide(Concrete, 2, afterAsk));
 
         var writtenNone = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceNone, AnswerKind.Free), CoordinatingTwo);
-        Assert.Equal(1, writtenNone.AskedCounts[new ActionRef(Ability.Coordinating, 3)]);
+        Assert.Equal(1, writtenNone.AskedCounts[new ActionRef(TestAbilities.BalancingInterests, 3)]);
         Assert.Equal(missing, NextMovePolicy.Decide(Concrete, 2, writtenNone));
 
         var noneAfterAsk = ValidationContext.From(
             ResumeAnswered(AbilityText.ResumeChoiceNone, AnswerKind.Choice, "askMissingAction"), CoordinatingTwo);
-        Assert.Equal(1, noneAfterAsk.AskedCounts[new ActionRef(Ability.Coordinating, 3)]);
+        Assert.Equal(1, noneAfterAsk.AskedCounts[new ActionRef(TestAbilities.BalancingInterests, 3)]);
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 続きの問いに「とくに思い当たりません」を選んだら、その問いの行動を聞いた回数の上限として数え、聞き直さない")]
     public void ResumeChoiceNoneStopsAskingThatAction()
     {
-        var target = new ActionRef(Ability.Coordinating, 3);
+        var target = new ActionRef(TestAbilities.BalancingInterests, 3);
         var context = ValidationContext.From(ResumeAnswered(AbilityText.ResumeChoiceNone, AnswerKind.Choice), CoordinatingTwo);
 
         Assert.Equal(NextMovePolicy.MaxAskPerAction, context.AskedCounts[target]);
@@ -380,14 +380,14 @@ public sealed class NextMovePolicyTests
     public void FocusedAbilityIsAskedEvenIfOthersHaveMore()
     {
         var context = Focused(
-            Ability.Noticing, 2,
-            [E(Ability.Noticing, 1), E(Ability.Prioritizing, 1), E(Ability.Prioritizing, 3)],
-            (new ActionRef(Ability.Noticing, 2), 1));
+            TestAbilities.NoticingChanges, 2,
+            [E(TestAbilities.NoticingChanges, 1), E(TestAbilities.SettingPriorities, 1), E(TestAbilities.SettingPriorities, 3)],
+            (new ActionRef(TestAbilities.NoticingChanges, 2), 1));
 
         var move = NextMovePolicy.Decide(Concrete, 2, context);
 
         Assert.Equal(MoveKind.AskMissingAction, move.Kind);
-        Assert.Equal(Ability.Noticing, move.Target!.Ability);
+        Assert.Equal(TestAbilities.NoticingChanges, move.Target!.Ability);
         Assert.Contains(move.Target.Number, new[] { 2, 3 });
     }
 
@@ -395,8 +395,8 @@ public sealed class NextMovePolicyTests
     public void ConfirmedFocusStopsAsking()
     {
         var context = Focused(
-            Ability.Noticing, 3,
-            [E(Ability.Noticing, 1), E(Ability.Noticing, 2), E(Ability.Noticing, 3), E(Ability.Coordinating, 1)]);
+            TestAbilities.NoticingChanges, 3,
+            [E(TestAbilities.NoticingChanges, 1), E(TestAbilities.NoticingChanges, 2), E(TestAbilities.NoticingChanges, 3), E(TestAbilities.BalancingInterests, 1)]);
 
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 3, context));
     }
@@ -405,9 +405,9 @@ public sealed class NextMovePolicyTests
     public void ExhaustedFocusDoesNotMoveToOtherAbility()
     {
         var context = Focused(
-            Ability.Noticing, 5,
-            [E(Ability.Noticing, 1), E(Ability.Coordinating, 1), E(Ability.Coordinating, 2)],
-            (new ActionRef(Ability.Noticing, 2), 2), (new ActionRef(Ability.Noticing, 3), 2));
+            TestAbilities.NoticingChanges, 5,
+            [E(TestAbilities.NoticingChanges, 1), E(TestAbilities.BalancingInterests, 1), E(TestAbilities.BalancingInterests, 2)],
+            (new ActionRef(TestAbilities.NoticingChanges, 2), 2), (new ActionRef(TestAbilities.NoticingChanges, 3), 2));
 
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 5, context));
     }
@@ -415,7 +415,7 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 絞った力の根拠がいまの出来事になければ、ほかの力の足りない行動は聞かない")]
     public void FocusAbsentFromCurrentEventDoesNotAskOthers()
     {
-        var context = Focused(Ability.Noticing, 2, [E(Ability.Noticing, 1, @event: 1, answer: 1), E(Ability.Coordinating, 1, @event: 2, answer: 2)]);
+        var context = Focused(TestAbilities.NoticingChanges, 2, [E(TestAbilities.NoticingChanges, 1, @event: 1, answer: 1), E(TestAbilities.BalancingInterests, 1, @event: 2, answer: 2)]);
 
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
     }
@@ -423,11 +423,11 @@ public sealed class NextMovePolicyTests
     [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: まだ聞き返していない場面では、いまの決め方で一つ選ぶ")]
     public void NoFocusKeepsMostCompleteFirst()
     {
-        var context = Context(1, [E(Ability.Noticing, 1), E(Ability.Prioritizing, 1), E(Ability.Prioritizing, 3)]);
+        var context = Context(1, [E(TestAbilities.NoticingChanges, 1), E(TestAbilities.SettingPriorities, 1), E(TestAbilities.SettingPriorities, 3)]);
 
         Assert.Null(context.Focus);
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 2)),
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.SettingPriorities, 2)),
             NextMovePolicy.Decide(Concrete, 1, context));
     }
 
@@ -438,31 +438,31 @@ public sealed class NextMovePolicyTests
         [
             new() { Role = TurnRoles.Assistant, Text = "q1", Move = "opening", At = At },
             new() { Role = TurnRoles.User, Text = "a1", AnswerKind = AnswerKind.Free, At = At },
-            new() { Role = TurnRoles.Assistant, Text = "q2", Move = "askMissingAction", Target = "coordinating.1", At = At },
+            new() { Role = TurnRoles.Assistant, Text = "q2", Move = "askMissingAction", Target = "balancing-interests.1", At = At },
             new() { Role = TurnRoles.User, Text = "a2", AnswerKind = AnswerKind.Free, At = At },
-            new() { Role = TurnRoles.Assistant, Text = "q3", Move = "askMissingAction", Target = "prioritizing.2", At = At },
+            new() { Role = TurnRoles.Assistant, Text = "q3", Move = "askMissingAction", Target = "setting-priorities.2", At = At },
             new() { Role = TurnRoles.User, Text = "a3", AnswerKind = AnswerKind.Free, At = At },
             new() { Role = TurnRoles.Assistant, Text = "q4", Move = "askWhatYouDid", At = At },
             new() { Role = TurnRoles.User, Text = "a4", AnswerKind = AnswerKind.Free, At = At },
         ];
 
-        Assert.Equal(Ability.Prioritizing, ValidationContext.From(turns, []).Focus);
+        Assert.Equal(TestAbilities.SettingPriorities, ValidationContext.From(turns, []).Focus);
 
         // 行動を添えて聞いていない場面では、絞らない
         Assert.Null(ValidationContext.From(turns.Take(2).ToList(), []).Focus);
 
-        // 続きの問い（調整する力 3 を聞く）で戻った場面では、続きの問いで聞いた力に絞る
+        // 続きの問い（利害調整力 3 を聞く）で戻った場面では、続きの問いで聞いた力に絞る
         IReadOnlyList<Turn> resumed =
         [
             .. turns,
             new() { Role = TurnRoles.Assistant, Text = "q5", Move = "close", At = At },
             new()
             {
-                Role = TurnRoles.Assistant, Text = "resume", Move = EpisodeInsights.ResumeMove, Target = "coordinating.3",
+                Role = TurnRoles.Assistant, Text = "resume", Move = EpisodeInsights.ResumeMove, Target = "balancing-interests.3",
                 Choices = AbilityText.ResumeChoices, At = At,
             },
             new() { Role = TurnRoles.User, Text = "a5", AnswerKind = AnswerKind.Free, At = At },
         ];
-        Assert.Equal(Ability.Coordinating, ValidationContext.From(resumed, []).Focus);
+        Assert.Equal(TestAbilities.BalancingInterests, ValidationContext.From(resumed, []).Focus);
     }
 }

@@ -17,28 +17,30 @@ public sealed class InsightsTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, [.. CoordinatingAll, Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして")]);
+        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間をずらして")]);
 
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
 
         var seen = Assert.Single(Array(insights, "seen"));
-        Assert.Equal("coordinating", seen.GetProperty("key").GetString());
-        Assert.Equal("調整する力", seen.GetProperty("name").GetString());
+        Assert.Equal("balancing-interests", seen.GetProperty("key").GetString());
+        Assert.Equal("利害調整力", seen.GetProperty("name").GetString());
         Assert.Equal(
             ["夫と母の予定がぶつかって", "二人に電話して", "迎えの時間をずらしてもらいました"],
             Array(seen, "quotes").Select(q => q.GetProperty("text").GetString()));
 
         var more = Assert.Single(Array(insights, "moreToHear"));
-        Assert.Equal("prioritizing", more.GetProperty("key").GetString());
-        Assert.Equal("優先順位をつける力", more.GetProperty("name").GetString());
+        Assert.Equal("setting-priorities", more.GetProperty("key").GetString());
+        Assert.Equal("優先順位設定力", more.GetProperty("name").GetString());
         Assert.Equal(["迎えの時間をずらして"], Array(more, "quotes").Select(q => q.GetProperty("text").GetString()));
         Assert.Equal(
-            [AbilityText.Hint(new ActionRef(Ability.Prioritizing, 1)), AbilityText.Hint(new ActionRef(Ability.Prioritizing, 3))],
+            [AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1)), AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3))],
             Array(more, "hints").Select(h => h.GetString()));
 
-        var notYet = Assert.Single(Array(insights, "notYet"));
-        Assert.Equal("noticing", notYet.GetProperty("key").GetString());
-        Assert.Equal("見立てる力", notYet.GetProperty("name").GetString());
+        var notYet = Array(insights, "notYet");
+        Assert.Equal(
+            AbilityCatalog.Active.Where(a => a != TestAbilities.BalancingInterests && a != TestAbilities.SettingPriorities).Select(a => a.Id),
+            notYet.Select(n => n.GetProperty("key").GetString()));
+        Assert.Equal("変化への気づき", notYet.Single(n => n.GetProperty("key").GetString() == "noticing-changes").GetProperty("name").GetString());
         Assert.True(insights.GetProperty("canResume").GetBoolean());
     }
 
@@ -49,13 +51,13 @@ public sealed class InsightsTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await FinishedEpisode(client, ai,
-            Candidate(Ability.Prioritizing, 1, "て"), Candidate(Ability.Prioritizing, 2, "て"), Candidate(Ability.Prioritizing, 3, "て"));
+            Candidate(TestAbilities.SettingPriorities, 1, "て"), Candidate(TestAbilities.SettingPriorities, 2, "て"), Candidate(TestAbilities.SettingPriorities, 3, "て"));
 
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
 
         Assert.Empty(Array(insights, "seen"));
         Assert.Empty(Array(insights, "moreToHear"));
-        Assert.Contains(Array(insights, "notYet"), a => a.GetProperty("key").GetString() == "prioritizing");
+        Assert.Contains(Array(insights, "notYet"), a => a.GetProperty("key").GetString() == "setting-priorities");
         Assert.Empty((await Saved(factory, "g-1", id)).Evidence);
     }
 
@@ -66,7 +68,7 @@ public sealed class InsightsTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, id, CoordinatingAnswer);
 
         Assert.Equal(JsonValueKind.Null, (await GetEpisode(client, id)).GetProperty("insights").ValueKind);
@@ -90,7 +92,7 @@ public sealed class InsightsTests
         Assert.True((await Saved(factory, "g-1", id)).ExcludedFromValidation);
 
         // 「続けて話す」で次の答えを送る。読み取りが根拠の候補を返しても、確かめのための問いは出さず、根拠も保存しない
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0]);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0]);
         await Send(client, id, CoordinatingAnswer);
 
         Assert.Equal(MoveKind.AskWhatYouDid, ai.Moves[^1]);
@@ -104,7 +106,7 @@ public sealed class InsightsTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll.Select(c => c with { General = true }).ToArray());
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll.Select(c => c with { General = true }).ToArray());
 
         var more = Assert.Single(Array((await GetEpisode(client, id)).GetProperty("insights"), "moreToHear"));
 
@@ -118,11 +120,11 @@ public sealed class InsightsTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0]);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0]);
         await Send(client, id, CoordinatingAnswer);
         ai.Reading = _ => ReadingWith(
-            CoordinatingAll[0],
-            new EvidenceCandidate(Ability.Coordinating, 2, "人に頼んだ", 2, 1, false, "二人に電話して", 1));
+            BalancingInterestsAll[0],
+            new EvidenceCandidate(TestAbilities.BalancingInterests, 2, "人に頼んだ", 2, 1, false, "二人に電話して", 1));
         await Send(client, id, "人に頼んだ", "choice");
         await Finish(client, id);
 
@@ -142,9 +144,9 @@ public sealed class InsightsTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var confirmed = await FinishedEpisode(client, ai, CoordinatingAll);
+        var confirmed = await FinishedEpisode(client, ai, BalancingInterestsAll);
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
-        var partial = await FinishedEpisode(client, ai, CoordinatingAll[0]);
+        var partial = await FinishedEpisode(client, ai, BalancingInterestsAll[0]);
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var talking = await Start(client);
 
@@ -184,15 +186,15 @@ public sealed class InsightsTests
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
         Assert.Empty(Array(insights, "seen"));
         var more = Assert.Single(Array(insights, "moreToHear"));
-        Assert.Equal("prioritizing", more.GetProperty("key").GetString());
-        Assert.Equal([AbilityText.Hint(new ActionRef(Ability.Prioritizing, 1))], Array(more, "hints").Select(h => h.GetString()));
-        Assert.Equal(AbilityState.NeedsCheck, AbilityStates.Evaluate((await Saved(factory, "g-1", id)).Evidence).Single(r => r.Ability == Ability.Prioritizing).State);
+        Assert.Equal("setting-priorities", more.GetProperty("key").GetString());
+        Assert.Equal([AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1))], Array(more, "hints").Select(h => h.GetString()));
+        Assert.Equal(AbilityState.NeedsCheck, AbilityStates.Evaluate((await Saved(factory, "g-1", id)).Evidence).Single(r => r.Ability == TestAbilities.SettingPriorities).State);
 
         var abilities = await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct);
-        var prioritizing = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "prioritizing");
+        var prioritizing = Array(abilities, "abilities").Single(a => a.GetProperty("key").GetString() == "setting-priorities");
         Assert.Equal("needsCheck", prioritizing.GetProperty("life").GetString());
 
         static EvidenceCandidate At(int action, string quote, int answer, int @event) =>
-            new(Ability.Prioritizing, action, quote, answer, @event, false, "", 0);
+            new(TestAbilities.SettingPriorities, action, quote, answer, @event, false, "", 0);
     }
 }

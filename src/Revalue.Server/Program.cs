@@ -23,6 +23,8 @@ builder.Services.AddConversationAi(builder.Configuration, builder.Environment);
 builder.Services.Configure<LimitOptions>(builder.Configuration.GetSection("Limits"));
 builder.Services.AddSingleton<ICounter, Counter>();
 builder.Services.AddScoped<TalkStream>();
+// 能力辞書を先に読む。壊れた辞書（話から確かめる力がない、続きの問いがないなど）なら、ここで起動を止める
+builder.Services.AddSingleton(AbilityCatalog.Current);
 builder.Services.AddSingleton(JobCatalog.Load());
 builder.Services.AddSingleton(ForbiddenWordList.Load());
 

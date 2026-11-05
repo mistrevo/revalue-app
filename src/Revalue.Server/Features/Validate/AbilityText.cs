@@ -1,39 +1,12 @@
 namespace Revalue.Server.Features.Validate;
 
 /// <summary>
-/// 力の名前と、核となる行動を普通の言葉にした手がかり、続きを話すときの問い。名前と手がかりは能力辞書（<see cref="AbilityCatalog"/>）から返す。
+/// 力の名前と、核となる行動を普通の言葉にした手がかり、続きを話すときの問い。名前、手がかり、行動ごとの続きの問いは能力辞書（<see cref="AbilityCatalog"/>）から返す。
 /// 画面へは API で渡す。聞き手の AI には、核となる行動の一覧ではなく、手がかりだけを渡す。
 /// 手がかりは、画面の「もう少し聞かせてほしいこと」に前の文脈なしで並ぶので、「そう」のように前を指す言葉を使わず、それだけで意味が通る形にする。
 /// </summary>
 public static class AbilityText
 {
-    /// <summary>
-    /// 続きを話すときの、行動ごとの問い（Claude の判断）。本人がその行動をしたことを前提にせず、「ありましたか」「いましたか」で聞く。
-    /// どの問いにも同じ選択肢（<see cref="ResumeChoices"/>）が自然な答えになるよう、問いの形をそろえる。一度に一つだけ求める。
-    /// 前の場面は、問いの前の映し返しで本人の言葉を示すので、「その日」で指す。
-    /// </summary>
-    private static readonly IReadOnlyDictionary<Ability, string[]> Questions = new Dictionary<Ability, string[]>
-    {
-        [Ability.Noticing] =
-        [
-            "その日、いつもと違うと気づいたことはありましたか？",
-            "その日、いつもと違うと思ったことがあれば、そのとき目に入ったことや耳にしたことはありましたか？",
-            "その日の様子を、いつもや前のときと比べたことはありましたか？",
-        ],
-        [Ability.Coordinating] =
-        [
-            "その日、あなたのほかに、予定や都合が関わっていた人はいましたか？",
-            "その日、だれかに声をかけたり、頼んだりしたことはありましたか？",
-            "その日、みんなの都合を合わせたり、別の案を出したりしたことはありましたか？",
-        ],
-        [Ability.Prioritizing] =
-        [
-            "その日、重なっていた用事はありましたか？",
-            "その日の用事の中で、先にしたことや、後に回したことはありましたか？",
-            "その日、どれを先にするか決めるときに、気にしていたことはありましたか？",
-        ],
-    };
-
     /// <summary>
     /// 続きの選択肢のうち、「していない」を値打ちを下げずに言える答え。続きの問いへの答えにこれを選んだら、
     /// その問いで聞いた行動を、聞いた回数の上限に届いたものとして扱い、聞き直さない（<see cref="Discover.ValidationContext.From"/>。Claude の判断）。
@@ -75,7 +48,7 @@ public static class AbilityText
     /// 続きを話すときの、コードが決めた最初の問い（Claude の判断）。4-rules.md の「対話の決まり」のとおり、
     /// 決まった受け止めの一文（<see cref="ResumeLead"/>）、本人の言葉の映し返し（<see cref="ResumeMirror"/>）、問い一つ、の順。
     /// 問いは、聞く行動があればその行動の問い（<see cref="ResumeAsk"/>）、なければ手がかりを添えない問い（<see cref="ResumeOpenAsk"/>）。
-    /// 映し返す言葉（<paramref name="quote"/>）がなければ、映し返しを書かない。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。
+    /// 映し返す言葉（<paramref name="quote"/>）がなければ、映し返しを書かない。番号が 1〜行動の数でなければ <see cref="ArgumentOutOfRangeException"/>。
     /// </summary>
     public static string ResumeOpening(ActionRef? action, string? quote) =>
         ResumeLead + (string.IsNullOrWhiteSpace(quote) ? NoMirrorAnchor : ResumeMirror(quote)) + (action is null ? ResumeOpenAsk : ResumeAsk(action));
@@ -92,8 +65,13 @@ public static class AbilityText
     /// </summary>
     public const string NoMirrorAnchor = "前に話してくれた日のことです。";
 
-    /// <summary>続きを話すときの、行動ごとの問い。番号が 1〜3 でなければ <see cref="ArgumentOutOfRangeException"/>。</summary>
-    public static string ResumeAsk(ActionRef action) => Pick(Questions, action);
+    /// <summary>
+    /// 続きを話すときの、行動ごとの問い（能力辞書の続きの問い）。本人がその行動をしたことを前提にせず、「ありましたか」「いましたか」で聞く。
+    /// どの問いにも同じ選択肢（<see cref="ResumeChoices"/>）が自然な答えになるよう、問いの形をそろえる。一度に一つだけ求める。
+    /// 前の場面は、問いの前の映し返しで本人の言葉を示すので、「その日」で指す。
+    /// 辞書にない力か、番号が 1〜行動の数でなければ <see cref="ArgumentOutOfRangeException"/>。
+    /// </summary>
+    public static string ResumeAsk(ActionRef action) => AbilityCatalog.ResumeQuestion(action);
 
     /// <summary>
     /// 続きを話すときの、本人の言葉の映し返し。根拠の本人の言葉を「」で囲み、一字一句そのまま示す。
@@ -114,9 +92,4 @@ public static class AbilityText
     /// 問いは後ろの一つだけにするので、ここでは何も求めない（Claude の判断。開発者が確かめる）。
     /// </summary>
     public const string ResumeLead = "続きの話を選んでくれて、ありがとうございます。";
-
-    private static string Pick(IReadOnlyDictionary<Ability, string[]> texts, ActionRef action) =>
-        action.Number >= 1 && action.Number <= AbilityCatalog.ActionCount(action.Ability) && texts.TryGetValue(action.Ability, out var list) && action.Number <= list.Length
-            ? list[action.Number - 1]
-            : throw new ArgumentOutOfRangeException(nameof(action));
 }

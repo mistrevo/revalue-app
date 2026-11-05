@@ -89,7 +89,7 @@ public sealed class ClaudeDeepenAi(
     };
 
     /// <summary>
-    /// AI に渡す 1 つの user メッセージの文。選んだ案、業務の見立てが要るか、条件、記録、3 つの力を、タグで区切って並べる（Claude の判断）。
+    /// AI に渡す 1 つの user メッセージの文。選んだ案、業務の見立てが要るか、条件、記録、話から確かめる力を、タグで区切って並べる（Claude の判断）。
     /// 根拠の本人の言葉、力の状態、カードの理由、収入の目安は入れない。
     /// </summary>
     internal static string Brief(DeepenTarget target, OptionsInputs inputs)

@@ -17,10 +17,10 @@ public sealed class DeepenValidatorTests
     private static IReadOnlyList<StepDraft> GoodSteps(bool demand = false) =>
         [Step("知りたいことを書き出してみる", 1, "home", demand), Step("体験談を読んでみる", 2), Step("一日の流れを書き出してみる", 3)];
 
-    private static QuestionDraft Question(string ability = "coordinating", string situation = "もし同じ日に二つの依頼が届いたら、どうしますか？", string[]? choices = null) =>
+    private static QuestionDraft Question(string ability = "balancing-interests", string situation = "もし同じ日に二つの依頼が届いたら、どうしますか？", string[]? choices = null) =>
         new(situation, ability, choices ?? ["それぞれに期限を聞く", "先に届いた依頼から進める", "まとめて相談する"]);
 
-    private static TaskDraft TaskD(string name = "予定の取りまとめ", string ability = "coordinating", string knowledge = "") =>
+    private static TaskDraft TaskD(string name = "予定の取りまとめ", string ability = "balancing-interests", string knowledge = "") =>
         new(name, "中身です", ability, knowledge);
 
     private static DeepenDraft Draft(IReadOnlyList<StepDraft>? steps = null, IReadOnlyList<QuestionDraft>? questions = null, IReadOnlyList<TaskDraft>? tasks = null) =>
@@ -94,12 +94,12 @@ public sealed class DeepenValidatorTests
     public void CreateNeedsDemandCheck()
     {
         var options = Options(CreateChoice());
-        var (none, rejections) = Build(Draft(steps: GoodSteps(demand: false), tasks: [TaskD(), TaskD("順番決め", "prioritizing")]), options);
+        var (none, rejections) = Build(Draft(steps: GoodSteps(demand: false), tasks: [TaskD(), TaskD("順番決め", "setting-priorities")]), options);
         Assert.True(none.StepsFallback);
         Assert.True(none.Steps[0].DemandCheck);
         Assert.Contains(rejections, r => r is { Part: "steps", Rule: "noDemandCheck" });
 
-        var (ok, _) = Build(Draft(steps: GoodSteps(demand: true), tasks: [TaskD(), TaskD("順番決め", "prioritizing")]), options);
+        var (ok, _) = Build(Draft(steps: GoodSteps(demand: true), tasks: [TaskD(), TaskD("順番決め", "setting-priorities")]), options);
         Assert.False(ok.StepsFallback);
         Assert.True(ok.Steps[0].DemandCheck);
     }
@@ -142,7 +142,7 @@ public sealed class DeepenValidatorTests
     public void VisibleKeepsDemandCheckForCreate()
     {
         var steps = new[] { Step("書き出してみる"), Step("読んでみる", 2), Step("知人に聞いてみる", 3, demand: true) };
-        var (content, _) = Build(Draft(steps: steps, tasks: [TaskD(), TaskD("順番決め", "prioritizing")]), Options(CreateChoice()));
+        var (content, _) = Build(Draft(steps: steps, tasks: [TaskD(), TaskD("順番決め", "setting-priorities")]), Options(CreateChoice()));
         Assert.False(content.StepsFallback);
 
         var visible = DeepenSteps.Visible(content, [], TargetKind.Create, Conditions(hours: 2));
@@ -158,7 +158,7 @@ public sealed class DeepenValidatorTests
         {
             Question(choices: ["一つ", "二つ"]),
             Question(choices: ["同じ", "同じ", "別"]),
-            Question(ability: "noticing"),
+            Question(ability: "noticing-changes"),
             Question(ability: "cooking"),
             Question(situation: ""),
             Question(choices: ["", "二つ", "三つ"]),
@@ -188,7 +188,7 @@ public sealed class DeepenValidatorTests
         Assert.Contains(new DeepenRejection("steps", "assertiveWord"), ar);
 
         var (praise, pr) = Build(
-            Draft(tasks: [TaskD("段取りのプロ"), TaskD("順番決め", "prioritizing")]), Options(CreateChoice()));
+            Draft(tasks: [TaskD("段取りのプロ"), TaskD("順番決め", "setting-priorities")]), Options(CreateChoice()));
         Assert.True(praise.TasksRejected);
         Assert.Contains(new DeepenRejection("tasks", "praiseWord"), pr);
 
@@ -201,7 +201,7 @@ public sealed class DeepenValidatorTests
     public void DraftedTasksRules()
     {
         var own = OwnOptions();
-        var good = new[] { TaskD(), TaskD("順番決め", "prioritizing", "表計算") };
+        var good = new[] { TaskD(), TaskD("順番決め", "setting-priorities", "表計算") };
         var (content, rejections) = Build(Draft(tasks: good), own);
         Assert.Empty(rejections);
         Assert.False(content.TasksRejected);
@@ -235,12 +235,12 @@ public sealed class DeepenValidatorTests
     public void QuestionAbilityFollowsTasks()
     {
         var own = OwnOptions();
-        var tasks = new[] { TaskD(), TaskD("順番決め", "prioritizing") };
+        var tasks = new[] { TaskD(), TaskD("順番決め", "setting-priorities") };
 
-        var (passed, _) = Build(Draft(tasks: tasks, questions: [Question("noticing")]), own);
+        var (passed, _) = Build(Draft(tasks: tasks, questions: [Question("noticing-changes")]), own);
         Assert.Empty(passed.Questions);
 
-        var (rejected, _) = Build(Draft(tasks: [TaskD()], questions: [Question("noticing")]), own);
+        var (rejected, _) = Build(Draft(tasks: [TaskD()], questions: [Question("noticing-changes")]), own);
         Assert.True(rejected.TasksRejected);
         Assert.Single(rejected.Questions);
     }

@@ -37,14 +37,14 @@ public sealed class ReportBuilderTests
         return new Kit(store, clock);
     }
 
-    private static readonly Evidence[] CoordinatingAll =
+    private static readonly Evidence[] BalancingInterestsAll =
     [
-        E(Ability.Coordinating, 1, Q1),
-        E(Ability.Coordinating, 2, "二人に電話しました"),
-        E(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました"),
+        E(TestAbilities.BalancingInterests, 1, Q1),
+        E(TestAbilities.BalancingInterests, 2, "二人に電話しました"),
+        E(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました"),
     ];
 
-    private static readonly Evidence NoticingOne = E(Ability.Noticing, 1, "連絡帳の書き方がいつもと違って");
+    private static readonly Evidence NoticingOne = E(TestAbilities.NoticingChanges, 1, "連絡帳の書き方がいつもと違って");
 
     private static async Task<string> SaveEpisode(
         Kit kit, IReadOnlyList<Evidence> evidence, string status = EpisodeStatus.Finished, string? id = null)
@@ -69,11 +69,11 @@ public sealed class ReportBuilderTests
         return episode.Id;
     }
 
-    /// <summary>「選ぶ」のカードを、いまの記録の力（調整する力が根拠あり）で選んだ案。</summary>
+    /// <summary>「選ぶ」のカードを、いまの記録の力（利害調整力が根拠あり）で選んだ案。</summary>
     private static OptionChoice ChooseConfirmed() =>
         ChooseChoice() with
         {
-            Choose = ChooseChoice().Choose! with { Ability = new CardAbility(Ability.Coordinating, AbilityState.Confirmed, [E(Ability.Coordinating, 1, Q1)]) },
+            Choose = ChooseChoice().Choose! with { Ability = new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1)]) },
         };
 
     private static Task SetConditions(Kit kit, ProfileConditions conditions) =>
@@ -89,8 +89,8 @@ public sealed class ReportBuilderTests
             [],
             false,
             [
-                new DeepenQuestion("q1", "急に予定が変わったら、どうしますか？", Ability.Coordinating, ["相手に聞く", "予定を見直す", "まず待つ"]),
-                new DeepenQuestion("q2", "頼まれごとが重なったら、どうしますか？", Ability.Prioritizing, ["順に並べる", "人に頼む", "まず一つ"]),
+                new DeepenQuestion("q1", "急に予定が変わったら、どうしますか？", TestAbilities.BalancingInterests, ["相手に聞く", "予定を見直す", "まず待つ"]),
+                new DeepenQuestion("q2", "頼まれごとが重なったら、どうしますか？", TestAbilities.SettingPriorities, ["順に並べる", "人に頼む", "まず一つ"]),
             ],
             [
                 new StepCandidate("s1", "求人を 3 つ読む", 1, TaskPlace.Home, false),
@@ -115,11 +115,11 @@ public sealed class ReportBuilderTests
         return content!;
     }
 
-    /// <summary>調整する力が見えた力、見立てる力が確かめ中、優先順位をつける力がまだ聞けていない記録。</summary>
+    /// <summary>利害調整力が見えた力、変化への気づきが確かめ中、優先順位設定力がまだ聞けていない記録。</summary>
     private static async Task<Kit> Recorded()
     {
         var kit = await Create();
-        await SaveEpisode(kit, [.. CoordinatingAll, NoticingOne]);
+        await SaveEpisode(kit, [.. BalancingInterestsAll, NoticingOne]);
         await SetConditions(kit, Conditions());
         await ProfileStore.UpdateAsync(kit.Store, User, p => p with
         {
@@ -135,10 +135,10 @@ public sealed class ReportBuilderTests
         var kit = await Create();
         Assert.Equal((false, (ReportContent?)null, false), await ReportBuilder.BuildAsync(kit.Store, User, Catalog, Ct));
 
-        await SaveEpisode(kit, CoordinatingAll, EpisodeStatus.Talking);
+        await SaveEpisode(kit, BalancingInterestsAll, EpisodeStatus.Talking);
         Assert.False((await ReportBuilder.BuildAsync(kit.Store, User, Catalog, Ct)).Ready);
 
-        await SaveEpisode(kit, CoordinatingAll);
+        await SaveEpisode(kit, BalancingInterestsAll);
         var none = await Build(kit);
         Assert.Null(none.Choice.Kind);
         Assert.Null(none.Thinking);
@@ -159,16 +159,19 @@ public sealed class ReportBuilderTests
 
         var content = await Build(kit);
 
-        Assert.Equal([Ability.Noticing, Ability.Coordinating], content.Abilities.Select(a => a.Ability));
-        Assert.Equal(AbilityState.NeedsCheck, content.Abilities[0].State);
-        Assert.Equal(AbilityState.Confirmed, content.Abilities[1].State);
-        Assert.Equal(NoticingOne.Quote, Assert.Single(content.Abilities[0].Quotes).Quote);
-        Assert.Contains(content.Abilities[1].Quotes, q => q.Quote == Q1);
+        // 並びは辞書の順（利害調整力が変化への気づきより前）
+        Assert.Equal([TestAbilities.BalancingInterests, TestAbilities.NoticingChanges], content.Abilities.Select(a => a.Ability));
+        Assert.Equal(AbilityState.Confirmed, content.Abilities[0].State);
+        Assert.Equal(AbilityState.NeedsCheck, content.Abilities[1].State);
+        Assert.Equal(NoticingOne.Quote, Assert.Single(content.Abilities[1].Quotes).Quote);
+        Assert.Contains(content.Abilities[0].Quotes, q => q.Quote == Q1);
 
-        Assert.Equal([Ability.Prioritizing], content.NotYet.NotHeard);
-        Assert.Equal([Ability.Noticing], content.NotYet.Checking);
+        Assert.Equal(
+            AbilityCatalog.Active.Where(a => a != TestAbilities.BalancingInterests && a != TestAbilities.NoticingChanges),
+            content.NotYet.NotHeard);
+        Assert.Equal([TestAbilities.NoticingChanges], content.NotYet.Checking);
         Assert.False(content.NotYet.HasExcluded);
-        // 日程の調整は調整する力（使える力）なので、力は出さずに知識や道具だけ
+        // 日程の調整は利害調整力（使える力）なので、力は出さずに知識や道具だけ
         var gap = Assert.Single(content.NotYet.TaskGaps);
         Assert.Equal(("日程の調整", (Ability?)null), (gap.TaskName, gap.Ability));
         Assert.Equal(["オンラインの予定表"], gap.Knowledge);
@@ -196,14 +199,15 @@ public sealed class ReportBuilderTests
     {
         var kit = await Recorded();
         await SetChoice(kit, ChooseConfirmed());
-        await AbilityBook.SetExcludedAsync(kit.Store, User, Ability.Coordinating, true, kit.Clock, Ct);
-        await AbilityBook.SetExcludedAsync(kit.Store, User, Ability.Prioritizing, true, kit.Clock, Ct);
+        await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.BalancingInterests, true, kit.Clock, Ct);
+        await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.SettingPriorities, true, kit.Clock, Ct);
 
         var content = await Build(kit);
 
-        Assert.DoesNotContain(content.Abilities, a => a.Ability == Ability.Coordinating);
-        Assert.DoesNotContain(Ability.Coordinating, content.NotYet.Checking);
-        Assert.Empty(content.NotYet.NotHeard);
+        Assert.DoesNotContain(content.Abilities, a => a.Ability == TestAbilities.BalancingInterests);
+        Assert.DoesNotContain(TestAbilities.BalancingInterests, content.NotYet.Checking);
+        Assert.DoesNotContain(TestAbilities.BalancingInterests, content.NotYet.NotHeard);
+        Assert.DoesNotContain(TestAbilities.SettingPriorities, content.NotYet.NotHeard);
         // 選んだ案の業務の力を外していれば、力の名前は出さずに、外したことだけを持つ
         Assert.True(content.NotYet.HasExcluded);
         Assert.All(content.NotYet.TaskGaps, g => Assert.Null(g.Ability));
@@ -224,7 +228,7 @@ public sealed class ReportBuilderTests
         Assert.Null(content.Thinking);
         Assert.Null(content.Steps);
         Assert.Equal((ChoiceKind.Card, CardKind.Combine, "予定をつなぐ人"), (content.Choice.Kind, content.Choice.Card, content.Choice.Title));
-        // 組み合わせるの業務は登録から出す。帳簿の見直しの見立てる力は確かめ中（使える力）なので、知識や道具だけ
+        // 組み合わせるの業務は登録から出す。帳簿の見直しの変化への気づきは確かめ中（使える力）なので、知識や道具だけ
         Assert.Equal(["日程の調整", "帳簿の見直し"], content.NotYet.TaskGaps.Select(g => g.TaskName));
         Assert.All(content.NotYet.TaskGaps, g => Assert.Null(g.Ability));
     }
@@ -233,14 +237,14 @@ public sealed class ReportBuilderTests
     public async Task TaskAbilityNotYetConfirmed()
     {
         var kit = await Create();
-        await SaveEpisode(kit, CoordinatingAll);
+        await SaveEpisode(kit, BalancingInterestsAll);
         await SetConditions(kit, Conditions());
         await SetChoice(kit, CombineChoice());
 
         var content = await Build(kit);
 
         var check = content.NotYet.TaskGaps.Single(g => g.TaskName == "帳簿の見直し");
-        Assert.Equal(Ability.Noticing, check.Ability);
+        Assert.Equal(TestAbilities.NoticingChanges, check.Ability);
         Assert.Equal(["簿記の基礎", "会計ソフト"], check.Knowledge);
     }
 
@@ -291,7 +295,7 @@ public sealed class ReportBuilderTests
 
         var content = await Build(kit);
         Assert.Equal("理由です。", content.Choice.Reason);
-        Assert.Equal((Ability.Coordinating, AbilityState.Confirmed), (content.Choice.Ability!.Ability, content.Choice.Ability.State));
+        Assert.Equal((TestAbilities.BalancingInterests, AbilityState.Confirmed), (content.Choice.Ability!.Ability, content.Choice.Ability.State));
         Assert.Equal(Q1, Assert.Single(content.Choice.Ability.Quotes).Quote);
         Assert.Null(content.Choice.Problem);
         Assert.False(content.Choice.OutsideConditions);
@@ -299,7 +303,7 @@ public sealed class ReportBuilderTests
         await SetConditions(kit, Conditions(hours: 1));
         Assert.True((await Build(kit)).Choice.OutsideConditions);
 
-        await AbilityBook.SetExcludedAsync(kit.Store, User, Ability.Coordinating, true, kit.Clock, Ct);
+        await AbilityBook.SetExcludedAsync(kit.Store, User, TestAbilities.BalancingInterests, true, kit.Clock, Ct);
         var excluded = await Build(kit);
         Assert.Null(excluded.Choice.Reason);
         Assert.Null(excluded.Choice.Ability);
@@ -361,8 +365,8 @@ public sealed class ReportBuilderTests
         var steps = ReportBuilder.SectionHashes(await Build(kit));
         Assert.Equal([ReportSection.Steps], Changed(preferences, steps));
 
-        // 見立てる力の根拠の言葉だけが変わる（状態は確かめ中のまま）
-        await SaveEpisode(kit, [.. CoordinatingAll, NoticingOne with { Quote = "連絡帳の字がいつもより小さくて" }], id: episode);
+        // 変化への気づきの根拠の言葉だけが変わる（状態は確かめ中のまま）
+        await SaveEpisode(kit, [.. BalancingInterestsAll, NoticingOne with { Quote = "連絡帳の字がいつもより小さくて" }], id: episode);
         var quotes = ReportBuilder.SectionHashes(await Build(kit));
         Assert.Contains(ReportSection.Abilities, Changed(steps, quotes));
     }

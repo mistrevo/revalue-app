@@ -190,7 +190,7 @@ ask: prioritizing.3
 - 続きの問いの書き方（いまの 9 つの文と同じ決まり。03-validate.md の「続きを話す」）: 「その日、」で始め、本人がその行動をしたことを前提にせず「ありましたか？」か「いましたか？」で終える。一度に一つだけ求める。考えたかどうかを疑う聞き方（「考えて決めましたか」）をしない。3 つの選択肢（「思い当たることがあります」「とくに思い当たりません」「その日のほかのことを話したい」）がどれも自然な答えになる。手がかりの言葉を下敷きにする。新しく書くのは 21 の力の 47 文（Claude の判断。voice-reviewer が点検し、開発者が確かめる）
 - 準備中の 102 の力には `resumeQuestion` を書かない
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `AbilityCatalogTests`（いまの「3 つの力が enum と同じ順」などを置き換える）
     - `validate-1（すべてそろったときだけ根拠あり）: 辞書は 12 の分類と 126 の力を持ち、話から確かめる力は 24 で、並びは辞書の順` — 24 の id の並びを、上の表と同じ順で確かめる
     - `validate-1（すべてそろったときだけ根拠あり）: どの力も核となる行動が 2〜3 つで、番号は 1 から順` — 行動の数はデータから読む（いまの 1〜3 の決め打ちをやめる。手順 2 の指摘 5）
@@ -205,10 +205,10 @@ ask: prioritizing.3
   - `JobCatalogTests`
     - `options-2（選ぶは登録した職種から）: 12 の業務の使う力は、置き換え先の力の id になっている`
     - いまの `ForbiddenWordsIgnoreAbilityNames` を「優先順位設定力」で確かめる形に直す
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityCatalogTests|FullyQualifiedName~AbilityTextTests|FullyQualifiedName~JobCatalogTests"`
-- [ ] **Step 3: データを入れ、決め打ちを消す**。下書きを写したあと、`node -e` で、分類 12、力 126、active 24、active の行動すべてに `resumeQuestion` があることを確かめる。`Ability.Noticing` などを消し、テストは `TestAbilities` に置き換える。jobs.json と評価のデータの id を付け替える
-- [ ] **Step 4: すべてのテストが通ることを確かめる** — `dotnet test`。期待を変えたテストは、id の置き換えか、辞書の順の違い（Review Focus の「力の並び」）によるものだけかを確かめ、並びで変わったものはコミットメッセージの本文に書く。`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`、`--unit options --dry-run`、`--unit deepen --dry-run` が流れる
-- [ ] **Step 5: コミット**（「辞書の力に置き換える: 能力辞書を 126 項目にし、力の決め打ちを消す（validate-1（すべてそろったときだけ根拠あり）、validate-11（要確認の場面に戻れる））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityCatalogTests|FullyQualifiedName~AbilityTextTests|FullyQualifiedName~JobCatalogTests"`
+- [x] **Step 3: データを入れ、決め打ちを消す**。下書きを写したあと、`node -e` で、分類 12、力 126、active 24、active の行動すべてに `resumeQuestion` があることを確かめる。`Ability.Noticing` などを消し、テストは `TestAbilities` に置き換える。jobs.json と評価のデータの id を付け替える
+- [x] **Step 4: すべてのテストが通ることを確かめる** — `dotnet test`。期待を変えたテストは、id の置き換えか、辞書の順の違い（Review Focus の「力の並び」）によるものだけかを確かめ、並びで変わったものはコミットメッセージの本文に書く。`dotnet run --project evals/Revalue.Evals -- --unit validate --dry-run`、`--unit options --dry-run`、`--unit deepen --dry-run` が流れる
+- [x] **Step 5: コミット**（「辞書の力に置き換える: 能力辞書を 126 項目にし、力の決め打ちを消す（validate-1（すべてそろったときだけ根拠あり）、validate-11（要確認の場面に戻れる））」）
 
 ### Task 3: 行動が 2〜3 つの力で、判定、次の一手、読み取りの指示を合わせる
 

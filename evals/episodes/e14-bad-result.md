@@ -3,8 +3,8 @@ id: e14
 title: 雨で中止になった子ども会の行事
 unit: validate
 expect: concreteEvent
-states: coordinating=confirmed
-notConfirmed: noticing, prioritizing
+states: balancing-interests=confirmed
+notConfirmed: noticing-changes, setting-priorities
 ---
 
 # e14 雨で中止になった子ども会の行事
@@ -13,7 +13,7 @@ notConfirmed: noticing, prioritizing
 
 ## どんな例か
 
-調整する力の 3 つの行動がそろうが、結果は雨で中止になった。結果の良し悪しで見立てを変えず、根拠ありにできるかを見る。
+利害調整力の 3 つの行動がそろうが、結果は雨で中止になった。結果の良し悪しで見立てを変えず、根拠ありにできるかを見る。
 
 ## 利用者の答え
 

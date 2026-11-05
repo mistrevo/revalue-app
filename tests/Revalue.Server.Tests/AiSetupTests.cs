@@ -114,7 +114,7 @@ public sealed class AiSetupTests
         var reading = await new ScriptedConversationAi().ReadAsync(Answer(text), Ct);
 
         Assert.Equal(
-            [new ActionRef(Ability.Prioritizing, 1), new ActionRef(Ability.Prioritizing, 2), new ActionRef(Ability.Prioritizing, 3)],
+            [new ActionRef(TestAbilities.SettingPriorities, 1), new ActionRef(TestAbilities.SettingPriorities, 2), new ActionRef(TestAbilities.SettingPriorities, 3)],
             reading.Candidates!.Select(c => new ActionRef(c.Ability, c.Action)));
         Assert.All(reading.Candidates!, c =>
         {
@@ -148,7 +148,7 @@ public sealed class AiSetupTests
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 偽物の AI の、足りない行動を聞く返事は、その行動を前提にしない問いで聞く")]
     public async Task ScriptedAskMissingActionShowsHint()
     {
-        var target = new ActionRef(Ability.Prioritizing, 3);
+        var target = new ActionRef(TestAbilities.SettingPriorities, 3);
         var splitter = new ReplyStreamSplitter();
         await foreach (var chunk in new ScriptedConversationAi().StreamReplyAsync(Answer("用事が重なった"), new NextMove(MoveKind.AskMissingAction, target), Ct))
         {

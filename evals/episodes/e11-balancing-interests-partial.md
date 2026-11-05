@@ -3,9 +3,9 @@ id: e11
 title: 祖父母の都合を聞いたところまで
 unit: validate
 expect: concreteEvent
-states: coordinating=needsCheck
-notConfirmed: noticing, prioritizing
-ask: coordinating.3
+states: balancing-interests=needsCheck
+notConfirmed: noticing-changes, setting-priorities
+ask: balancing-interests.3
 ---
 
 # e11 祖父母の都合を聞いたところまで
@@ -14,7 +14,7 @@ ask: coordinating.3
 
 ## どんな例か
 
-調整する力の行動のうち、都合の違う 2 者が関わることと、本人から働きかけたことまでは話すが、都合を合わせたことや代わりの案を出したことは話さない。聞かれても「そこまでは覚えていません」と答える。要確認にし、足りない行動（代わりの案を出すか、都合を合わせる）だけを聞き返せるかを見る。
+利害調整力の行動のうち、関わる 2 者以上の、それぞれ違う都合をつかんだことと、自分から働きかけたことまでは話すが、都合を合わせたことや代わりの案を出したことは話さない。聞かれても「そこまでは覚えていません」と答える。要確認にし、足りない行動（代わりの案を出すか、双方の都合を合わせる）だけを聞き返せるかを見る。
 
 ## 利用者の答え
 

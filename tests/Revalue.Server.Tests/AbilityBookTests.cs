@@ -57,11 +57,11 @@ public sealed class AbilityBookTests
         return episode;
     }
 
-    private static readonly Evidence[] CoordinatingAll =
+    private static readonly Evidence[] BalancingInterestsAll =
     [
-        E(Ability.Coordinating, 1, "夫と母の予定がぶつかって"),
-        E(Ability.Coordinating, 2, "二人に電話しました"),
-        E(Ability.Coordinating, 3, "迎えの時間をずらしてもらいました"),
+        E(TestAbilities.BalancingInterests, 1, "夫と母の予定がぶつかって"),
+        E(TestAbilities.BalancingInterests, 2, "二人に電話しました"),
+        E(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました"),
     ];
 
     [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 消した場面の確かめに使わない履歴だけを外し、残っている場面の同じ履歴は残す")]
@@ -71,17 +71,17 @@ public sealed class AbilityBookTests
         await Consent(store);
         Evidence[] noticingAll =
         [
-            E(Ability.Noticing, 1, "顔色がいつもと違うと気づきました"),
-            E(Ability.Noticing, 2, "熱っぽい様子でした"),
-            E(Ability.Noticing, 3, "前の日と比べて元気がありませんでした"),
+            E(TestAbilities.NoticingChanges, 1, "顔色がいつもと違うと気づきました"),
+            E(TestAbilities.NoticingChanges, 2, "熱っぽい様子でした"),
+            E(TestAbilities.NoticingChanges, 3, "前の日と比べて元気がありませんでした"),
         ];
-        // 残る場面: 見立てる力がそろったあと、サインで確かめに使わなくなった
+        // 残る場面: 変化への気づきがそろったあと、サインで確かめに使わなくなった
         var kept = await SaveEpisode(store, clock.GetUtcNow(), noticingAll);
         await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, kept.Id, clock, Ct);
         await store.TryUpdateAsync<EpisodeItem>(User, kept.Id, e => e with { ExcludedFromValidation = true }, Ct);
         await AbilityBook.RecomputeAsync(store, User, ChangeReason.SetAside, kept.Id, clock, Ct);
-        // 消す場面: 調整する力がそろったあと、サインで確かめに使わなくなり、残さずに飛ばした
-        var deleted = await SaveEpisode(store, clock.GetUtcNow().AddMinutes(1), CoordinatingAll);
+        // 消す場面: 利害調整力がそろったあと、サインで確かめに使わなくなり、残さずに飛ばした
+        var deleted = await SaveEpisode(store, clock.GetUtcNow().AddMinutes(1), BalancingInterestsAll);
         await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, deleted.Id, clock, Ct);
         await store.TryUpdateAsync<EpisodeItem>(User, deleted.Id, e => e with { ExcludedFromValidation = true }, Ct);
         await AbilityBook.RecomputeAsync(store, User, ChangeReason.SetAside, deleted.Id, clock, Ct);
@@ -93,10 +93,10 @@ public sealed class AbilityBookTests
 
         Assert.Equal(
             [
-                (Ability.Noticing, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, kept.Id),
-                (Ability.Noticing, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.SetAside, kept.Id),
-                (Ability.Coordinating, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, deleted.Id),
-                (Ability.Coordinating, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.Skip, deleted.Id),
+                (TestAbilities.NoticingChanges, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, kept.Id),
+                (TestAbilities.NoticingChanges, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.SetAside, kept.Id),
+                (TestAbilities.BalancingInterests, AbilityState.NotYet, AbilityState.Confirmed, ChangeReason.Talk, deleted.Id),
+                (TestAbilities.BalancingInterests, AbilityState.Confirmed, AbilityState.NotYet, ChangeReason.Skip, deleted.Id),
             ],
             book.History.Select(h => (h.Ability, h.From, h.To, h.Reason, h.EpisodeId)));
         Assert.Equal(clock.GetUtcNow(), book.History[^1].At);
@@ -112,12 +112,12 @@ public sealed class AbilityBookTests
     {
         var (store, clock) = Create();
         await Consent(store);
-        var first = await SaveEpisode(store, clock.GetUtcNow(), [CoordinatingAll[0], CoordinatingAll[1]]);
+        var first = await SaveEpisode(store, clock.GetUtcNow(), [BalancingInterestsAll[0], BalancingInterestsAll[1]]);
 
         var book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, first.Id, clock, Ct);
 
         var change = Assert.Single(book.History);
-        Assert.Equal(Ability.Coordinating, change.Ability);
+        Assert.Equal(TestAbilities.BalancingInterests, change.Ability);
         Assert.Equal(AbilityState.NotYet, change.From);
         Assert.Equal(AbilityState.NeedsCheck, change.To);
         Assert.Equal(ChangeReason.Talk, change.Reason);
@@ -125,16 +125,16 @@ public sealed class AbilityBookTests
         Assert.Equal(clock.GetUtcNow(), change.At);
 
         clock.Advance(TimeSpan.FromHours(1));
-        await store.UpsertAsync(first with { Evidence = CoordinatingAll }, Ct);
+        await store.UpsertAsync(first with { Evidence = BalancingInterestsAll }, Ct);
         book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Correction, first.Id, clock, Ct);
 
         Assert.Equal(2, book.History.Count);
         var corrected = book.History[^1];
-        Assert.Equal((Ability.Coordinating, AbilityState.NeedsCheck, AbilityState.Confirmed, ChangeReason.Correction),
+        Assert.Equal((TestAbilities.BalancingInterests, AbilityState.NeedsCheck, AbilityState.Confirmed, ChangeReason.Correction),
             (corrected.Ability, corrected.From, corrected.To, corrected.Reason));
         Assert.Equal(clock.GetUtcNow(), corrected.At);
-        Assert.Equal(AbilityState.Confirmed, book.States[Ability.Coordinating]);
-        Assert.Equal(AbilityState.NotYet, book.StateOf(Ability.Noticing));
+        Assert.Equal(AbilityState.Confirmed, book.States[TestAbilities.BalancingInterests]);
+        Assert.Equal(AbilityState.NotYet, book.StateOf(TestAbilities.NoticingChanges));
 
         // 変わらなければ履歴は増えない
         book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, first.Id, clock, Ct);
@@ -144,7 +144,7 @@ public sealed class AbilityBookTests
         var stored = await store.GetAsync<AbilityBookItem>(User, AbilityBookItem.ItemId, Ct);
         Assert.NotNull(stored);
         Assert.Equal(AbilityBookItem.ItemType, stored.Type);
-        Assert.Equal(AbilityState.Confirmed, stored.States[Ability.Coordinating]);
+        Assert.Equal(AbilityState.Confirmed, stored.States[TestAbilities.BalancingInterests]);
         Assert.Equal(2, stored.History.Count);
         Assert.Equal(ChangeReason.Correction, stored.History[^1].Reason);
         var raw = new List<string>();
@@ -153,7 +153,8 @@ public sealed class AbilityBookTests
             raw.Add(json);
         }
 
-        Assert.Contains(raw, j => j.Contains("\"states\":{\"noticing\":\"notYet\",\"coordinating\":\"confirmed\"", StringComparison.Ordinal));
+        Assert.Contains(raw, j => j.Contains("\"states\":{\"info-gathering\":\"notYet\"", StringComparison.Ordinal)
+            && j.Contains("\"balancing-interests\":\"confirmed\"", StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 力の確かめに使わない場面は数えない")]
@@ -161,11 +162,11 @@ public sealed class AbilityBookTests
     {
         var (store, clock) = Create();
         await Consent(store);
-        var episode = await SaveEpisode(store, clock.GetUtcNow(), CoordinatingAll, excluded: true);
+        var episode = await SaveEpisode(store, clock.GetUtcNow(), BalancingInterestsAll, excluded: true);
 
         var book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, episode.Id, clock, Ct);
 
-        Assert.Equal(AbilityState.NotYet, book.StateOf(Ability.Coordinating));
+        Assert.Equal(AbilityState.NotYet, book.StateOf(TestAbilities.BalancingInterests));
         Assert.Empty(book.History);
         var view = AbilityBook.View([episode], book);
         Assert.All(view, v => Assert.Equal(AbilityState.NotYet, v.State));
@@ -177,24 +178,24 @@ public sealed class AbilityBookTests
         var (store, clock) = Create();
         await Consent(store);
         var start = clock.GetUtcNow();
-        var older = await SaveEpisode(store, start, CoordinatingAll);
+        var older = await SaveEpisode(store, start, BalancingInterestsAll);
         var newerConfirmed = await SaveEpisode(store, start.AddDays(1),
         [
-            E(Ability.Coordinating, 1, "姉と兄の都合が合わず"),
-            E(Ability.Coordinating, 2, "私から姉に連絡して"),
-            E(Ability.Coordinating, 3, "週末に二人がそろう日を決めました"),
+            E(TestAbilities.BalancingInterests, 1, "姉と兄の都合が合わず"),
+            E(TestAbilities.BalancingInterests, 2, "私から姉に連絡して"),
+            E(TestAbilities.BalancingInterests, 3, "週末に二人がそろう日を決めました"),
         ]);
-        var newestPartial = await SaveEpisode(store, start.AddDays(2), [E(Ability.Coordinating, 2, "近所の人に頼みました")]);
+        var newestPartial = await SaveEpisode(store, start.AddDays(2), [E(TestAbilities.BalancingInterests, 2, "近所の人に頼みました")]);
 
         var book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, newestPartial.Id, clock, Ct);
         var view = AbilityBook.View([older, newerConfirmed, newestPartial], book);
 
-        var coordinating = view.Single(v => v.Ability == Ability.Coordinating);
+        var coordinating = view.Single(v => v.Ability == TestAbilities.BalancingInterests);
         Assert.Equal(AbilityState.Confirmed, coordinating.State);
         Assert.Equal(newerConfirmed.Id, coordinating.EpisodeId);
         Assert.Equal(["姉と兄の都合が合わず", "私から姉に連絡して", "週末に二人がそろう日を決めました"], coordinating.Shown.Select(e => e.Quote));
         Assert.Empty(coordinating.Hints);
-        Assert.Equal(AbilityState.Confirmed, book.StateOf(Ability.Coordinating));
+        Assert.Equal(AbilityState.Confirmed, book.StateOf(TestAbilities.BalancingInterests));
     }
 
     [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 要確認の力には、足りない行動の手がかりが付く")]
@@ -202,16 +203,16 @@ public sealed class AbilityBookTests
     {
         var (store, clock) = Create();
         await Consent(store);
-        var episode = await SaveEpisode(store, clock.GetUtcNow(), [E(Ability.Prioritizing, 2, "病院を先にしました")]);
+        var episode = await SaveEpisode(store, clock.GetUtcNow(), [E(TestAbilities.SettingPriorities, 2, "病院を先にしました")]);
 
         var view = AbilityBook.View([episode], null);
 
-        var prioritizing = view.Single(v => v.Ability == Ability.Prioritizing);
+        var prioritizing = view.Single(v => v.Ability == TestAbilities.SettingPriorities);
         Assert.Equal(AbilityState.NeedsCheck, prioritizing.State);
         Assert.Equal(
-            [AbilityText.Hint(new ActionRef(Ability.Prioritizing, 1)), AbilityText.Hint(new ActionRef(Ability.Prioritizing, 3))],
+            [AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1)), AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3))],
             prioritizing.Hints);
-        Assert.Equal([Ability.Noticing, Ability.Coordinating, Ability.Prioritizing], view.Select(v => v.Ability));
+        Assert.Equal(AbilityCatalog.Active, view.Select(v => v.Ability));
         Assert.All(view, v => Assert.False(v.Excluded));
     }
 
@@ -222,9 +223,9 @@ public sealed class AbilityBookTests
         await Consent(store);
         for (var i = 0; i < 60; i++)
         {
-            await AbilityBook.SetExcludedAsync(store, User, Ability.Noticing, excluded: true, clock, Ct);
+            await AbilityBook.SetExcludedAsync(store, User, TestAbilities.NoticingChanges, excluded: true, clock, Ct);
             clock.Advance(TimeSpan.FromMinutes(1));
-            await AbilityBook.SetExcludedAsync(store, User, Ability.Noticing, excluded: false, clock, Ct);
+            await AbilityBook.SetExcludedAsync(store, User, TestAbilities.NoticingChanges, excluded: false, clock, Ct);
             clock.Advance(TimeSpan.FromMinutes(1));
         }
 
@@ -239,17 +240,17 @@ public sealed class AbilityBookTests
     {
         var (store, clock) = Create();
         await Consent(store);
-        await SaveEpisode(store, clock.GetUtcNow(), CoordinatingAll);
+        await SaveEpisode(store, clock.GetUtcNow(), BalancingInterestsAll);
 
-        var book = await AbilityBook.SetExcludedAsync(store, User, Ability.Coordinating, excluded: true, clock, Ct);
-        book = await AbilityBook.SetExcludedAsync(store, User, Ability.Coordinating, excluded: true, clock, Ct);
+        var book = await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: true, clock, Ct);
+        book = await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: true, clock, Ct);
 
-        Assert.Contains(Ability.Coordinating, book.Excluded);
+        Assert.Contains(TestAbilities.BalancingInterests, book.Excluded);
         var exclude = Assert.Single(book.History, h => h.Reason == ChangeReason.Exclude);
         Assert.Equal((AbilityState.Confirmed, AbilityState.Confirmed), (exclude.From, exclude.To));
 
-        book = await AbilityBook.SetExcludedAsync(store, User, Ability.Coordinating, excluded: false, clock, Ct);
-        Assert.DoesNotContain(Ability.Coordinating, book.Excluded);
+        book = await AbilityBook.SetExcludedAsync(store, User, TestAbilities.BalancingInterests, excluded: false, clock, Ct);
+        Assert.DoesNotContain(TestAbilities.BalancingInterests, book.Excluded);
         Assert.Single(book.History, h => h.Reason == ChangeReason.Restore);
     }
 
@@ -258,14 +259,14 @@ public sealed class AbilityBookTests
     {
         var (store, clock) = Create();
         await Consent(store);
-        var episode = await SaveEpisode(store, clock.GetUtcNow(), CoordinatingAll);
+        var episode = await SaveEpisode(store, clock.GetUtcNow(), BalancingInterestsAll);
         await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, episode.Id, clock, Ct);
 
         await store.DeleteAllAsync(User, Ct);
 
         await Assert.ThrowsAsync<ConsentMissingException>(() => AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, null, clock, Ct));
         await Assert.ThrowsAsync<ConsentMissingException>(
-            () => AbilityBook.SetExcludedAsync(store, User, Ability.Noticing, excluded: true, clock, Ct));
+            () => AbilityBook.SetExcludedAsync(store, User, TestAbilities.NoticingChanges, excluded: true, clock, Ct));
         Assert.Equal(0, await store.CountAllAsync(User, Ct));
     }
 

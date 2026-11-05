@@ -15,17 +15,21 @@ public sealed class ScriptedDeepenAi : IDeepenAi
     public static readonly IReadOnlyList<string> Choices =
         ["それぞれの相手に、いつまでに要るかを聞く", "先に届いた依頼から進める", "どちらを先にするか、まとめて相談する"];
 
+    // 手元で動かすための偽物なので、能力辞書の置き換え先の力の id を使う
+    private static readonly Ability BalancingInterests = new("balancing-interests");
+    private static readonly Ability SettingPriorities = new("setting-priorities");
+
     public Task<DeepenDraft> DraftAsync(DeepenTarget target, OptionsInputs inputs, CancellationToken ct)
     {
         IReadOnlyList<TaskDraft> tasks = target.Drafts
             ?
             [
-                new TaskDraft("予定や連絡の取りまとめ", "関わる人の予定を聞き、連絡をまとめて伝える", ActionRef.Key(Ability.Coordinating), "メールとカレンダーの道具"),
-                new TaskDraft("頼まれたことの順番決め", "届いた頼みごとを、期限を見て並べる", ActionRef.Key(Ability.Prioritizing), ""),
+                new TaskDraft("予定や連絡の取りまとめ", "関わる人の予定を聞き、連絡をまとめて伝える", ActionRef.Key(BalancingInterests), "メールとカレンダーの道具"),
+                new TaskDraft("頼まれたことの順番決め", "届いた頼みごとを、期限を見て並べる", ActionRef.Key(SettingPriorities), ""),
             ]
             : [];
 
-        var ability = target.Drafts || target.Registered.Count == 0 ? Ability.Coordinating : target.Registered[0].Ability;
+        var ability = target.Drafts || target.Registered.Count == 0 ? BalancingInterests : target.Registered[0].Ability;
         QuestionDraft[] questions = [new QuestionDraft(Situation, ActionRef.Key(ability), Choices)];
 
         var first = target.Kind == TargetKind.Create

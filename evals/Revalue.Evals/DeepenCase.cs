@@ -43,7 +43,7 @@ public sealed record DeepenCase(string Id, string Title, string Profile, Options
 
         var c = raw.Choice;
         // 理由と力は深める評価では使わない。カードの形をそろえるために、空の理由と根拠のない力を置く
-        var ability = new CardAbility(Ability.Coordinating, AbilityState.NeedsCheck, []);
+        var ability = new CardAbility(new Ability("balancing-interests"), AbilityState.NeedsCheck, []);
         var range = new WorkRange(0, 0, 0, 0);
         List<OwnJob> own = [];
         OptionChoice choice;

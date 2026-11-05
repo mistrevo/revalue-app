@@ -1,11 +1,11 @@
 {
   "id": "p01-coordinating-seen",
-  "title": "調整する力が見えた力。週 10 時間、日中と夕方、家だけ",
+  "title": "利害調整力が見えた力。週 10 時間、日中と夕方、家だけ",
   "expect": "allCards",
   "note": "すべて架空。根拠の言葉は evals/episodes/ の架空エピソードの本人の答えから一字一句写した。条件、好み、やりたいこと、主体性も架空で、このハッカソンの期間中に新しく書いた。根拠の言葉の元は e09。",
   "abilities": [
     {
-      "ability": "coordinating",
+      "ability": "balancing-interests",
       "state": "confirmed",
       "quotes": [
         {

@@ -118,7 +118,7 @@ public sealed class DiscoverTextTests
     [InlineData("調整")]
     public void FixedChoicesDoNotLead(string leading)
     {
-        // 「用事が重なる」「家族の予定が重なる」は、優先順位をつける力・調整する力の核となる行動をそのまま並べることになる
+        // 「用事が重なる」「家族の予定が重なる」は、優先順位設定力・利害調整力の核となる行動をそのまま並べることになる
         IEnumerable<string> texts =
         [
             DiscoverText.Opening,

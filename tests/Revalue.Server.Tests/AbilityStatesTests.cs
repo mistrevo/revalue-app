@@ -14,13 +14,13 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Coordinating, 1, 1, answer: 1),
-            E(Ability.Coordinating, 2, 1, answer: 2),
-            E(Ability.Coordinating, 2, 1, answer: 1, quote: "早いほう"),
-            E(Ability.Coordinating, 3, 1, answer: 3),
+            E(TestAbilities.BalancingInterests, 1, 1, answer: 1),
+            E(TestAbilities.BalancingInterests, 2, 1, answer: 2),
+            E(TestAbilities.BalancingInterests, 2, 1, answer: 1, quote: "早いほう"),
+            E(TestAbilities.BalancingInterests, 3, 1, answer: 3),
         ]);
 
-        var coordinating = Of(results, Ability.Coordinating);
+        var coordinating = Of(results, TestAbilities.BalancingInterests);
         Assert.Equal(AbilityState.Confirmed, coordinating.State);
         Assert.Empty(coordinating.Missing);
         Assert.Equal([1, 2, 3], coordinating.Shown.Select(e => e.Action));
@@ -32,12 +32,12 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Coordinating, 1, 1, quote: "歯医者に電話して予約を夕方に変えてもらい"),
-            E(Ability.Coordinating, 2, 1, quote: "歯医者に電話して"),
-            E(Ability.Coordinating, 3, 1, quote: "予約を夕方に変えてもらい"),
+            E(TestAbilities.BalancingInterests, 1, 1, quote: "歯医者に電話して予約を夕方に変えてもらい"),
+            E(TestAbilities.BalancingInterests, 2, 1, quote: "歯医者に電話して"),
+            E(TestAbilities.BalancingInterests, 3, 1, quote: "予約を夕方に変えてもらい"),
         ]);
 
-        var coordinating = Of(results, Ability.Coordinating);
+        var coordinating = Of(results, TestAbilities.BalancingInterests);
         Assert.Equal(AbilityState.NeedsCheck, coordinating.State);
         Assert.Equal([2, 3], coordinating.Shown.Select(e => e.Action));
         Assert.Equal([1], coordinating.Missing);
@@ -45,10 +45,10 @@ public sealed class AbilityStatesTests
         // 3 つが同じ引用でも、根拠ありにしない
         var same = Of(AbilityStates.Evaluate(
         [
-            E(Ability.Noticing, 1, 1, quote: "いつもと違うと思った"),
-            E(Ability.Noticing, 2, 1, quote: "いつもと違うと思った"),
-            E(Ability.Noticing, 3, 1, quote: "いつもと違うと思った"),
-        ]), Ability.Noticing);
+            E(TestAbilities.NoticingChanges, 1, 1, quote: "いつもと違うと思った"),
+            E(TestAbilities.NoticingChanges, 2, 1, quote: "いつもと違うと思った"),
+            E(TestAbilities.NoticingChanges, 3, 1, quote: "いつもと違うと思った"),
+        ]), TestAbilities.NoticingChanges);
         Assert.Equal(AbilityState.NeedsCheck, same.State);
     }
 
@@ -57,13 +57,13 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Coordinating, 1, 1, answer: 1, quote: "歯医者に電話して予約を夕方に変えてもらい"),
-            E(Ability.Coordinating, 1, 1, answer: 2, quote: "夫は夕方まで仕事で、子どもは午後に習い事がありました"),
-            E(Ability.Coordinating, 2, 1, answer: 1, quote: "歯医者に電話して"),
-            E(Ability.Coordinating, 3, 1, answer: 1, quote: "予約を夕方に変えてもらい"),
+            E(TestAbilities.BalancingInterests, 1, 1, answer: 1, quote: "歯医者に電話して予約を夕方に変えてもらい"),
+            E(TestAbilities.BalancingInterests, 1, 1, answer: 2, quote: "夫は夕方まで仕事で、子どもは午後に習い事がありました"),
+            E(TestAbilities.BalancingInterests, 2, 1, answer: 1, quote: "歯医者に電話して"),
+            E(TestAbilities.BalancingInterests, 3, 1, answer: 1, quote: "予約を夕方に変えてもらい"),
         ]);
 
-        var coordinating = Of(results, Ability.Coordinating);
+        var coordinating = Of(results, TestAbilities.BalancingInterests);
         Assert.Equal(AbilityState.Confirmed, coordinating.State);
         Assert.Equal("夫は夕方まで仕事で、子どもは午後に習い事がありました", coordinating.Shown[0].Quote);
     }
@@ -73,11 +73,11 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Noticing, 1, 1), E(Ability.Noticing, 2, 1), E(Ability.Noticing, 3, 1),
-            E(Ability.Noticing, 1, 2), E(Ability.Noticing, 2, 2), E(Ability.Noticing, 3, 2),
+            E(TestAbilities.NoticingChanges, 1, 1), E(TestAbilities.NoticingChanges, 2, 1), E(TestAbilities.NoticingChanges, 3, 1),
+            E(TestAbilities.NoticingChanges, 1, 2), E(TestAbilities.NoticingChanges, 2, 2), E(TestAbilities.NoticingChanges, 3, 2),
         ]);
 
-        Assert.All(Of(results, Ability.Noticing).Shown, e => Assert.Equal(2, e.Event));
+        Assert.All(Of(results, TestAbilities.NoticingChanges).Shown, e => Assert.Equal(2, e.Event));
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 2 つの出来事に分かれてそろうと NeedsCheck のまま")]
@@ -85,12 +85,12 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Coordinating, 1, 1),
-            E(Ability.Coordinating, 2, 1),
-            E(Ability.Coordinating, 3, 2),
+            E(TestAbilities.BalancingInterests, 1, 1),
+            E(TestAbilities.BalancingInterests, 2, 1),
+            E(TestAbilities.BalancingInterests, 3, 2),
         ]);
 
-        var coordinating = Of(results, Ability.Coordinating);
+        var coordinating = Of(results, TestAbilities.BalancingInterests);
         Assert.Equal(AbilityState.NeedsCheck, coordinating.State);
         Assert.Equal([1, 2], coordinating.Shown.Select(e => e.Action));
         Assert.Equal([3], coordinating.Missing);
@@ -101,23 +101,23 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Prioritizing, 1, 1) with { Reading = 1 },
-            E(Ability.Prioritizing, 2, 1) with { Reading = 2 },
-            E(Ability.Prioritizing, 3, 1) with { Reading = 2 },
+            E(TestAbilities.SettingPriorities, 1, 1) with { Reading = 1 },
+            E(TestAbilities.SettingPriorities, 2, 1) with { Reading = 2 },
+            E(TestAbilities.SettingPriorities, 3, 1) with { Reading = 2 },
         ]);
 
-        var prioritizing = Of(results, Ability.Prioritizing);
+        var prioritizing = Of(results, TestAbilities.SettingPriorities);
         Assert.Equal(AbilityState.NeedsCheck, prioritizing.State);
         Assert.Equal([1], prioritizing.Missing);
 
         // 同じ読み取りの同じ出来事に 3 つそろえば Confirmed
         var confirmed = Of(AbilityStates.Evaluate(
         [
-            E(Ability.Prioritizing, 1, 1) with { Reading = 1 },
-            E(Ability.Prioritizing, 1, 1) with { Reading = 2 },
-            E(Ability.Prioritizing, 2, 1) with { Reading = 2 },
-            E(Ability.Prioritizing, 3, 1) with { Reading = 2 },
-        ]), Ability.Prioritizing);
+            E(TestAbilities.SettingPriorities, 1, 1) with { Reading = 1 },
+            E(TestAbilities.SettingPriorities, 1, 1) with { Reading = 2 },
+            E(TestAbilities.SettingPriorities, 2, 1) with { Reading = 2 },
+            E(TestAbilities.SettingPriorities, 3, 1) with { Reading = 2 },
+        ]), TestAbilities.SettingPriorities);
         Assert.Equal(AbilityState.Confirmed, confirmed.State);
         Assert.All(confirmed.Shown, e => Assert.Equal(2, e.Reading));
     }
@@ -127,9 +127,9 @@ public sealed class AbilityStatesTests
     {
         var result = Of(AbilityStates.Evaluate(
         [
-            E(Ability.Noticing, 1, 2) with { Reading = 1 },
-            E(Ability.Noticing, 2, 1) with { Reading = 2 },
-        ]), Ability.Noticing);
+            E(TestAbilities.NoticingChanges, 1, 2) with { Reading = 1 },
+            E(TestAbilities.NoticingChanges, 2, 1) with { Reading = 2 },
+        ]), TestAbilities.NoticingChanges);
 
         Assert.Equal(2, Assert.Single(result.Shown).Reading);
         Assert.Equal([1, 3], result.Missing);
@@ -140,17 +140,17 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Prioritizing, 1, 1, general: true),
-            E(Ability.Prioritizing, 2, 1, general: true),
-            E(Ability.Prioritizing, 3, 1, general: true),
+            E(TestAbilities.SettingPriorities, 1, 1, general: true),
+            E(TestAbilities.SettingPriorities, 2, 1, general: true),
+            E(TestAbilities.SettingPriorities, 3, 1, general: true),
         ]);
 
-        var prioritizing = Of(results, Ability.Prioritizing);
+        var prioritizing = Of(results, TestAbilities.SettingPriorities);
         Assert.Equal(AbilityState.NeedsCheck, prioritizing.State);
         Assert.Equal(3, prioritizing.Shown.Count);
         Assert.Empty(prioritizing.Missing);
 
-        var partial = Of(AbilityStates.Evaluate([E(Ability.Prioritizing, 2, 1, general: true)]), Ability.Prioritizing);
+        var partial = Of(AbilityStates.Evaluate([E(TestAbilities.SettingPriorities, 2, 1, general: true)]), TestAbilities.SettingPriorities);
         Assert.Equal(AbilityState.NeedsCheck, partial.State);
         Assert.Equal([1, 3], partial.Missing);
     }
@@ -160,30 +160,30 @@ public sealed class AbilityStatesTests
     {
         var results = AbilityStates.Evaluate(
         [
-            E(Ability.Noticing, 1, 1),
-            E(Ability.Noticing, 3, 1),
-            E(Ability.Noticing, 2, 2),
-            E(Ability.Noticing, 2, 3, general: true),
+            E(TestAbilities.NoticingChanges, 1, 1),
+            E(TestAbilities.NoticingChanges, 3, 1),
+            E(TestAbilities.NoticingChanges, 2, 2),
+            E(TestAbilities.NoticingChanges, 2, 3, general: true),
         ]);
 
-        var noticing = Of(results, Ability.Noticing);
+        var noticing = Of(results, TestAbilities.NoticingChanges);
         Assert.Equal(AbilityState.NeedsCheck, noticing.State);
         Assert.Equal([2], noticing.Missing);
         Assert.Equal([1, 3], noticing.Shown.Select(e => e.Action));
         Assert.All(noticing.Shown, e => Assert.Equal(1, e.Event));
 
         // 同じ数なら、番号の大きい出来事
-        var tie = Of(AbilityStates.Evaluate([E(Ability.Noticing, 1, 1), E(Ability.Noticing, 2, 2)]), Ability.Noticing);
+        var tie = Of(AbilityStates.Evaluate([E(TestAbilities.NoticingChanges, 1, 1), E(TestAbilities.NoticingChanges, 2, 2)]), TestAbilities.NoticingChanges);
         Assert.Equal([1, 3], tie.Missing);
         Assert.Equal(2, Assert.Single(tie.Shown).Event);
     }
 
-    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 根拠がなければ NotYet、3 つの力は noticing、coordinating、prioritizing の順")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 根拠がなければ NotYet、話から確かめる力は辞書の順")]
     public void NoEvidenceIsNotYetInOrder()
     {
         var results = AbilityStates.Evaluate([]);
 
-        Assert.Equal([Ability.Noticing, Ability.Coordinating, Ability.Prioritizing], results.Select(r => r.Ability));
+        Assert.Equal(AbilityCatalog.Active, results.Select(r => r.Ability));
         Assert.All(results, r =>
         {
             Assert.Equal(AbilityState.NotYet, r.State);

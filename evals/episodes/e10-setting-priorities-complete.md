@@ -3,8 +3,8 @@ id: e10
 title: 朝に用事が 3 つ重なる
 unit: validate
 expect: concreteEvent
-states: prioritizing=confirmed
-notConfirmed: noticing, coordinating
+states: setting-priorities=confirmed
+notConfirmed: noticing-changes, balancing-interests
 ---
 
 # e10 朝に用事が 3 つ重なる
@@ -13,7 +13,7 @@ notConfirmed: noticing, coordinating
 
 ## どんな例か
 
-優先順位をつける力の 3 つの行動（全部はこなせないほど用事が重なる、先と後を具体的に決める、決めた理由がある）が、一つの出来事の中でそろう。根拠ありにし、本人の言葉を引けるかを見る。
+優先順位設定力の 3 つの行動（「全部はこなせないほど用事が重なる」「何を先にし、何を後に回すかを具体的に決める」「決めた理由や基準がある」）が、一つの出来事の中でそろう。根拠ありにし、本人の言葉を引けるかを見る。
 
 ## 利用者の答え
 

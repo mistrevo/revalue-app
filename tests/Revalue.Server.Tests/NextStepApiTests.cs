@@ -54,7 +54,7 @@ public sealed class NextStepApiTests
         var client = await Consenting(kit.Factory, "n-1");
         Assert.Equal(("talk", (string?)null), await Next(client));
 
-        await FinishedEpisode(client, kit.Ai, CoordinatingAll);
+        await FinishedEpisode(client, kit.Ai, BalancingInterestsAll);
         Assert.Equal(("conditions", (string?)null), await Next(client));
 
         await PutOk(client, "/api/profile/conditions", new { timeSlots = new[] { "daytime", "evening" }, hoursPerWeek = 10, place = "homeOnly", monthlyIncome = 5 });

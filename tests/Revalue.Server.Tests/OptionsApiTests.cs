@@ -56,11 +56,11 @@ public sealed class OptionsApiTests
         return (factory, ai, options);
     }
 
-    /// <summary>話し終えた場面（調整する力が根拠あり）と条件のある人。</summary>
+    /// <summary>話し終えた場面（利害調整力が根拠あり）と条件のある人。</summary>
     private static async Task<HttpClient> Ready(RevalueFactory factory, FakeConversationAi ai, string user, EvidenceCandidate[]? candidates = null, object? conditions = null)
     {
         var client = await Consenting(factory, user);
-        await FinishedEpisode(client, ai, candidates ?? CoordinatingAll);
+        await FinishedEpisode(client, ai, candidates ?? BalancingInterestsAll);
         await PutConditions(client, conditions ?? TenHours);
         return client;
     }
@@ -158,15 +158,15 @@ public sealed class OptionsApiTests
     public async Task NeedsCheckAbilityIsEnough()
     {
         var (factory, ai, _) = Setup();
-        // e11 のように、調整する力の核となる行動が 2 つだけそろった場面
-        var client = await Ready(factory, ai, "o-2", CoordinatingAll[..2]);
+        // e11 のように、利害調整力の核となる行動が 2 つだけそろった場面
+        var client = await Ready(factory, ai, "o-2", BalancingInterestsAll[..2]);
 
         Assert.Equal("ready", (await Get(client)).GetProperty("readiness").GetString());
         var dto = await Generate(client);
 
         var ability = dto.GetProperty("cards").GetProperty("choose").GetProperty("ability");
-        Assert.Equal("coordinating", ability.GetProperty("key").GetString());
-        Assert.Equal(AbilityText.Name(Ability.Coordinating), ability.GetProperty("name").GetString());
+        Assert.Equal("balancing-interests", ability.GetProperty("key").GetString());
+        Assert.Equal(AbilityText.Name(TestAbilities.BalancingInterests), ability.GetProperty("name").GetString());
         Assert.Equal("needsCheck", ability.GetProperty("state").GetString());
         Assert.Equal(["夫と母の予定がぶつかって", "二人に電話して"], Array(ability, "quotes").Select(q => q.GetProperty("text").GetString()));
     }
@@ -187,7 +187,7 @@ public sealed class OptionsApiTests
         Assert.Equal("online-secretary-schedule", task.GetProperty("id").GetString());
         Assert.Equal(["daytime", "evening"], Array(task, "timeSlots").Select(s => s.GetString()));
         Assert.Equal("home", task.GetProperty("place").GetString());
-        Assert.Equal("coordinating", task.GetProperty("ability").GetString());
+        Assert.Equal("balancing-interests", task.GetProperty("ability").GetString());
         var range = choose.GetProperty("range");
         Assert.Equal((3, 10), (range.GetProperty("minHours").GetInt32(), range.GetProperty("maxHours").GetInt32()));
         Assert.Equal(2, Array(cards.GetProperty("combine"), "tasks").Length);
@@ -374,7 +374,7 @@ public sealed class OptionsApiTests
         var client = await Ready(factory, ai, "o-10");
         await Generate(client);
 
-        var excluded = await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct);
+        var excluded = await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct);
         Assert.Equal(HttpStatusCode.OK, excluded.StatusCode);
         var dto = await Get(client);
 
@@ -398,9 +398,9 @@ public sealed class OptionsApiTests
         var generated = await Generate(client);
         var chosen = (await ChooseCard(client, "choose", generated)).GetProperty("choice").GetProperty("card");
         Assert.False(chosen.GetProperty("abilityExcluded").GetBoolean());
-        Assert.Equal("coordinating", chosen.GetProperty("choose").GetProperty("ability").GetProperty("key").GetString());
+        Assert.Equal("balancing-interests", chosen.GetProperty("choose").GetProperty("ability").GetProperty("key").GetString());
 
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
         var card = (await Get(client)).GetProperty("choice").GetProperty("card");
 
         Assert.True(card.GetProperty("abilityExcluded").GetBoolean());
@@ -411,7 +411,7 @@ public sealed class OptionsApiTests
         Assert.Equal(JsonValueKind.Null, choose.GetProperty("ability").ValueKind);
         Assert.DoesNotContain("夫と母の予定がぶつかって", card.GetRawText());
 
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/restore", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct)).StatusCode);
         var restored = (await Get(client)).GetProperty("choice").GetProperty("card");
         Assert.False(restored.GetProperty("abilityExcluded").GetBoolean());
         Assert.Equal(chosen.GetProperty("choose").GetRawText(), restored.GetProperty("choose").GetRawText());
@@ -422,14 +422,14 @@ public sealed class OptionsApiTests
     {
         var (factory, ai, _) = Setup();
         var client = await Consenting(factory, "o-19");
-        var id = await FinishedEpisode(client, ai, CoordinatingAll);
+        var id = await FinishedEpisode(client, ai, BalancingInterestsAll);
         await PutConditions(client, TenHours);
         var generated = await Generate(client);
         Assert.Equal("confirmed", generated.GetProperty("cards").GetProperty("choose").GetProperty("ability").GetProperty("state").GetString());
         await ChooseCard(client, "choose", generated);
 
-        // 訂正で場面を読み直すと、調整する力の行動は 1 と 3 だけになり、確かめ中に下がる
-        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[2]);
+        // 訂正で場面を読み直すと、利害調整力の行動は 1 と 3 だけになり、確かめ中に下がる
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll[0], BalancingInterestsAll[2]);
         Assert.Equal(HttpStatusCode.OK, (await Correct(client, id, "電話をしたのは私ではなく、夫でした。")).StatusCode);
         var dto = await Get(client);
 
@@ -468,8 +468,8 @@ public sealed class OptionsApiTests
         var (factory, ai, _) = Setup();
         var client = await Consenting(factory, "o-20");
         // 確かめ中の場面と、あとで印が付く根拠ありの場面
-        await FinishedEpisode(client, ai, Candidate(Ability.Coordinating, 1, "母の予定がぶつかっていた"));
-        var confirmed = await FinishedEpisode(client, ai, CoordinatingAll);
+        await FinishedEpisode(client, ai, Candidate(TestAbilities.BalancingInterests, 1, "母の予定がぶつかっていた"));
+        var confirmed = await FinishedEpisode(client, ai, BalancingInterestsAll);
         await PutConditions(client, TenHours);
         var generated = await Generate(client);
         Assert.Equal("confirmed", generated.GetProperty("cards").GetProperty("combine").GetProperty("ability").GetProperty("state").GetString());
@@ -485,7 +485,7 @@ public sealed class OptionsApiTests
         var chosen = dto.GetProperty("choice").GetProperty("card");
         Assert.True(chosen.GetProperty("abilityChanged").GetBoolean());
         Assert.Equal(ScriptedOptionsAi.RoleName, chosen.GetProperty("combine").GetProperty("roleName").GetString());
-        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        foreach (var quote in BalancingInterestsAll.Select(c => c.Quote))
         {
             Assert.DoesNotContain(quote, dto.GetRawText());
         }
@@ -495,7 +495,7 @@ public sealed class OptionsApiTests
         var ability = regenerated.GetProperty("cards").GetProperty("combine").GetProperty("ability");
         Assert.Equal("needsCheck", ability.GetProperty("state").GetString());
         Assert.Equal(["母の予定がぶつかっていた"], Array(ability, "quotes").Select(q => q.GetProperty("text").GetString()));
-        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        foreach (var quote in BalancingInterestsAll.Select(c => c.Quote))
         {
             Assert.DoesNotContain(quote, regenerated.GetRawText());
         }
@@ -506,11 +506,11 @@ public sealed class OptionsApiTests
     {
         var (factory, ai, options) = Setup();
         var client = await Consenting(factory, "o-24");
-        // 調整する力（場面 1）と、見立てる力（場面 2）。「予定がぶつかっていたので」は見立てる力の根拠にしかない
-        await FinishedEpisode(client, ai, CoordinatingAll);
-        await FinishedEpisode(client, ai, Candidate(Ability.Noticing, 1, "予定がぶつかっていたので"));
+        // 利害調整力（場面 1）と、変化への気づき（場面 2）。「予定がぶつかっていたので」は変化への気づきの根拠にしかない
+        await FinishedEpisode(client, ai, BalancingInterestsAll);
+        await FinishedEpisode(client, ai, Candidate(TestAbilities.NoticingChanges, 1, "予定がぶつかっていたので"));
         await PutConditions(client, TenHours);
-        static string Other(string ability) => ability == "noticing" ? "二人に電話して" : "予定がぶつかっていたので";
+        static string Other(string ability) => ability == "noticing-changes" ? "二人に電話して" : "予定がぶつかっていたので";
         options.Change = d => d with
         {
             Choose = d.Choose with { Reason = $"話してくれた「{Other(d.Choose.Ability)}」ときの動き方を、この仕事に生かせるかもしれません。" },
@@ -529,13 +529,13 @@ public sealed class OptionsApiTests
     {
         var (factory, ai, _) = Setup();
         var client = await Consenting(factory, "o-25");
-        // 根拠のない場面を話し終え、調整する力の 3 つの行動を話している途中の場面から、カードを作って「創る」を選ぶ
+        // 根拠のない場面を話し終え、利害調整力の 3 つの行動を話している途中の場面から、カードを作って「創る」を選ぶ
         var quiet = await Start(client);
         ai.Reading = _ => ReadingWith();
         await Send(client, quiet, "昨日は家で洗濯をして、夕方に買い物に行きました。");
         await Finish(client, quiet);
         var talking = await Start(client);
-        ai.Reading = _ => ReadingWith(CoordinatingAll);
+        ai.Reading = _ => ReadingWith(BalancingInterestsAll);
         await Send(client, talking, CoordinatingAnswer);
         await PutConditions(client, TenHours);
         var generated = await Generate(client);
@@ -548,7 +548,7 @@ public sealed class OptionsApiTests
         // 保存の中身にも、飛ばした場面の言葉を残さない。選んだ案は中身（事業のアイデア）を残し、理由と根拠の言葉を消す
         var item = await factory.Services.GetRequiredService<IDataStore>().GetAsync<OptionsItem>(TestUsers.Key("o-25"), OptionsItem.ItemId, Ct);
         var stored = JsonSerializer.Serialize(item, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
-        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        foreach (var quote in BalancingInterestsAll.Select(c => c.Quote))
         {
             Assert.DoesNotContain(quote, stored);
         }
@@ -567,8 +567,8 @@ public sealed class OptionsApiTests
         var client = await Ready(factory, ai, "o-26");
         options.Change = d =>
         {
-            // AI を待つあいだに、ほかの画面で調整する力を外した
-            Assert.Equal(HttpStatusCode.OK, client.PostAsync("/api/abilities/coordinating/exclude", null, Ct).GetAwaiter().GetResult().StatusCode);
+            // AI を待つあいだに、ほかの画面で利害調整力を外した
+            Assert.Equal(HttpStatusCode.OK, client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct).GetAwaiter().GetResult().StatusCode);
             return d;
         };
 
@@ -576,7 +576,7 @@ public sealed class OptionsApiTests
 
         Assert.Equal("onlyExcluded", generated.GetProperty("readiness").GetString());
         Assert.Equal([("choose", "excluded"), ("combine", "excluded"), ("create", "excluded")], Missing(generated));
-        foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+        foreach (var quote in BalancingInterestsAll.Select(c => c.Quote))
         {
             Assert.DoesNotContain(quote, generated.GetRawText());
         }
@@ -724,7 +724,7 @@ public sealed class OptionsApiTests
         Assert.False(regenerated.GetProperty("cards").GetProperty("stale").GetBoolean());
 
         // 進めないときは、これまでどおり 409
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync("/api/options", null, Ct)).StatusCode);
         Assert.Equal(2, options.Calls);
     }
@@ -739,18 +739,18 @@ public sealed class OptionsApiTests
         foreach (var kind in new[] { "choose", "combine", "create" })
         {
             var chosen = await ChooseCard(client, kind, generated);
-            Assert.Contains(CoordinatingAll[0].Quote, chosen.GetProperty("choice").GetRawText());
+            Assert.Contains(BalancingInterestsAll[0].Quote, chosen.GetProperty("choice").GetRawText());
 
-            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/exclude", null, Ct)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
             var choice = (await Get(client)).GetProperty("choice");
             Assert.True(choice.GetProperty("card").GetProperty("abilityExcluded").GetBoolean());
             Assert.NotEqual(JsonValueKind.Null, choice.GetProperty("card").GetProperty(kind).ValueKind);
-            foreach (var quote in CoordinatingAll.Select(c => c.Quote))
+            foreach (var quote in BalancingInterestsAll.Select(c => c.Quote))
             {
                 Assert.DoesNotContain(quote, choice.GetRawText());
             }
 
-            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/coordinating/restore", null, Ct)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct)).StatusCode);
         }
     }
 

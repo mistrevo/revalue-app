@@ -18,7 +18,7 @@ public sealed class ScriptedOptionsAiTests
     private static Evidence E(Ability ability, int action, string quote) => new(ability, action, quote, 1, 1, false, false, null);
 
     private static OptionsInputs Inputs(int hours = 10, Place place = Place.HomeOnly, TimeSlot[]? slots = null, Ability? ability = null) =>
-        Inputs(hours, place, slots, ability ?? Ability.Coordinating);
+        Inputs(hours, place, slots, ability ?? TestAbilities.BalancingInterests);
 
     private static OptionsInputs Inputs(int hours, Place place, TimeSlot[]? slots, Ability ability) =>
         new(
@@ -31,9 +31,9 @@ public sealed class ScriptedOptionsAiTests
             null);
 
     [Theory(DisplayName = "options-1（3 枚を同じ重さで示す）: 偽物の答えは、照らし合わせを通る 3 枚になる")]
-    [InlineData("coordinating")]
-    [InlineData("noticing")]
-    [InlineData("prioritizing")]
+    [InlineData("balancing-interests")]
+    [InlineData("noticing-changes")]
+    [InlineData("setting-priorities")]
     public async Task ScriptedDraftPassesValidation(string abilityId)
     {
         var ability = new Ability(abilityId);
@@ -59,8 +59,8 @@ public sealed class ScriptedOptionsAiTests
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 偽物は、選んだ答えの言葉を本人が話した言葉として引かず、結びついた本人の言葉を引く")]
     public async Task ScriptedReasonQuotesLinkedWordsForChosenAnswers()
     {
-        var chosen = new Evidence(Ability.Coordinating, 1, "架空-人に頼んだ", 1, 1, false, true, "架空-姉に電話して頼みました");
-        var inputs = Inputs() with { Abilities = [new UsableAbility(Ability.Coordinating, AbilityState.NeedsCheck, [chosen])] };
+        var chosen = new Evidence(TestAbilities.BalancingInterests, 1, "架空-人に頼んだ", 1, 1, false, true, "架空-姉に電話して頼みました");
+        var inputs = Inputs() with { Abilities = [new UsableAbility(TestAbilities.BalancingInterests, AbilityState.NeedsCheck, [chosen])] };
         var candidates = OptionCandidates.From(Catalog, inputs);
 
         var draft = await new ScriptedOptionsAi().DraftAsync(inputs, candidates, Ct);

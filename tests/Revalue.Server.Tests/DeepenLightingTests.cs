@@ -15,7 +15,7 @@ public sealed class DeepenLightingTests
         var lights = DeepenLighting.Light(Target(Options(CombineChoice())), null, inputs);
 
         var schedule = lights.Single(l => l.Id == "online-secretary-schedule");
-        Assert.Equal(Ability.Coordinating, schedule.Usable!.Ability);
+        Assert.Equal(TestAbilities.BalancingInterests, schedule.Usable!.Ability);
         Assert.Equal(inputs.Abilities[0].Quotes, schedule.Usable.Quotes);
         Assert.False(schedule.Drafted);
 
@@ -27,7 +27,7 @@ public sealed class DeepenLightingTests
     [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 本人が外した力の業務は、根拠の言葉を出さずに、まだ確かめていない力として示す")]
     public void ExcludedAbilityIsNotYet()
     {
-        var excluded = Inputs() with { Abilities = [], Excluded = [Ability.Coordinating] };
+        var excluded = Inputs() with { Abilities = [], Excluded = [TestAbilities.BalancingInterests] };
         var lights = DeepenLighting.Light(Target(Options(CombineChoice())), null, excluded);
 
         Assert.Null(lights.Single(l => l.Id == "online-secretary-schedule").Usable);
@@ -39,8 +39,8 @@ public sealed class DeepenLightingTests
         var content = new DeepenContent(
             Now, "b",
             [
-                new DeepenTask("t1", "予定の取りまとめ", "中身", Ability.Coordinating, "表計算"),
-                new DeepenTask("t2", "順番決め", "中身", Ability.Prioritizing, ""),
+                new DeepenTask("t1", "予定の取りまとめ", "中身", TestAbilities.BalancingInterests, "表計算"),
+                new DeepenTask("t2", "順番決め", "中身", TestAbilities.SettingPriorities, ""),
             ],
             false, [], [], false);
         var target = Target(Options(CreateChoice()));
