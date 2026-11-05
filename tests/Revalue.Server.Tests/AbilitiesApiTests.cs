@@ -81,7 +81,7 @@ public sealed class AbilitiesApiTests
         await Send(client, id, CoordinatingAnswer);
         var dto = await Abilities(client);
 
-        Assert.Equal(AbilityCatalog.Active.Select(a => a.Id),
+        Assert.Equal(["balancing-interests", "setting-priorities"],
             dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
         var coordinating = Ability(dto, "balancing-interests");
         Assert.Equal("利害調整力", coordinating.GetProperty("name").GetString());
@@ -96,11 +96,6 @@ public sealed class AbilitiesApiTests
         Assert.Equal("needsCheck", prioritizing.GetProperty("life").GetString());
         Assert.Equal("notChecked", prioritizing.GetProperty("work").GetString());
         Assert.Equal(2, prioritizing.GetProperty("hints").GetArrayLength());
-
-        var noticing = Ability(dto, "noticing-changes");
-        Assert.Equal("notYet", noticing.GetProperty("life").GetString());
-        Assert.Equal("notChecked", noticing.GetProperty("work").GetString());
-        Assert.Equal(JsonValueKind.Null, noticing.GetProperty("episodeId").ValueKind);
 
         // 履歴は新しい順。どれも話した内容から（talk）
         var history = dto.GetProperty("history").EnumerateArray().ToList();
@@ -131,7 +126,50 @@ public sealed class AbilitiesApiTests
             Assert.Contains(q.GetProperty("text").GetString()!, CoordinatingAnswer, StringComparison.Ordinal);
             Assert.False(q.GetProperty("fromChoice").GetBoolean());
         });
-        Assert.Equal("notYet", Ability(dto, "noticing-changes").GetProperty("life").GetString());
+        Assert.DoesNotContain(dto.GetProperty("abilities").EnumerateArray(), a => a.GetProperty("key").GetString() == "noticing-changes");
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: GET /api/abilities は見せた力だけを返し、まだ聞けていない力を並べない")]
+    public async Task ReturnsOnlyShownAbilities()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 1, "迎えの時間をずらして")]);
+
+        await Send(client, id, CoordinatingAnswer);
+        var abilities = (await Abilities(client)).GetProperty("abilities").EnumerateArray().ToList();
+
+        Assert.Equal(["balancing-interests", "noticing-changes"], abilities.Select(a => a.GetProperty("key").GetString()));
+        Assert.DoesNotContain(abilities, a => a.GetProperty("life").GetString() == "notYet");
+        // 根拠の言葉には、その根拠の核となる行動の文が添えてある
+        Assert.Equal(
+            Enumerable.Range(1, 3).Select(n => AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, n))),
+            abilities[0].GetProperty("quotes").EnumerateArray().Select(q => q.GetProperty("action").GetString()));
+    }
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 画面に出さない力は、見えた力の画面にも履歴にも出ない")]
+    public async Task HiddenAbilityIsNotInAbilitiesOrHistory()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await Start(client);
+        // 利害調整力（行動 3 つ）と段取り力（行動 2 つ）が同じ出来事でそろう。同じ分類なので、見せるのは利害調整力だけ
+        ai.Reading = _ => ReadingWith(
+        [
+            .. BalancingInterestsAll,
+            Candidate(TestAbilities.PlanningSteps, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.PlanningSteps, 2, "迎えの時間をずらしてもらいました"),
+        ]);
+
+        await Send(client, id, CoordinatingAnswer);
+        var dto = await Abilities(client);
+
+        Assert.Equal(["balancing-interests"], dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
+        Assert.Equal(["balancing-interests"], dto.GetProperty("history").EnumerateArray().Select(h => h.GetProperty("key").GetString()));
+        Assert.DoesNotContain("planning-steps", dto.GetRawText(), StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 外すと excluded になり履歴に exclude、戻すと restore")]
@@ -234,10 +272,9 @@ public sealed class AbilitiesApiTests
         var skipped = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
         Assert.Equal(HttpStatusCode.Created, skipped.StatusCode);
 
+        // 見せた力がなくなったので、見えた力の画面には出さない（まだ聞けていない力は並べない）
         var dto = await Abilities(client);
-        var coordinating = Ability(dto, "balancing-interests");
-        Assert.Equal("notYet", coordinating.GetProperty("life").GetString());
-        Assert.Equal(0, coordinating.GetProperty("quotes").GetArrayLength());
+        Assert.Empty(dto.GetProperty("abilities").EnumerateArray());
         var latest = dto.GetProperty("history")[0];
         Assert.Equal("skip", latest.GetProperty("reason").GetString());
         Assert.Equal("needsCheck", latest.GetProperty("from").GetString());
@@ -266,7 +303,7 @@ public sealed class AbilitiesApiTests
         Assert.Equal(HttpStatusCode.Created, skipped.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/episodes/{id}", Ct)).StatusCode);
         var dto = await Abilities(client);
-        Assert.Equal("notYet", Ability(dto, "balancing-interests").GetProperty("life").GetString());
+        Assert.Empty(dto.GetProperty("abilities").EnumerateArray());
 
         // サインの出た時を、消した場面のあとに残さない。保存した生の中身にも残さない
         var history = dto.GetProperty("history").EnumerateArray().ToList();

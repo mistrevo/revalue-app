@@ -15,9 +15,9 @@ public sealed record ReportAbilityDto(string Key, string Name, AbilityState Stat
 /// <summary>業務 1 つで、まだ確かめていないこと。<paramref name="AbilityName"/> は、まだ確かめていない力の名前（なければ null）。</summary>
 public sealed record ReportTaskGapDto(string TaskName, string? AbilityName, IReadOnlyList<string> Knowledge);
 
-/// <summary>まだ確かめていないこと。力は名前で返す。</summary>
+/// <summary>まだ確かめていないこと。力は名前で返す。まだ聞けていない力の名前は返さない。</summary>
 public sealed record ReportNotYetDto(
-    IReadOnlyList<string> NotHeard, IReadOnlyList<string> Checking, IReadOnlyList<ReportTaskGapDto> TaskGaps, bool HasExcluded);
+    IReadOnlyList<string> Checking, IReadOnlyList<ReportTaskGapDto> TaskGaps, bool HasExcluded);
 
 /// <summary>5 つの記録（できることは確かめた力の欄と同じなので返さない）。</summary>
 public sealed record ReportRecordsDto(
@@ -158,7 +158,6 @@ public static class ReportEndpoints
 
     private static ReportNotYetDto NotYetDto(ReportNotYet notYet) =>
         new(
-            notYet.NotHeard.Where(AbilityCatalog.IsActive).Select(AbilityText.Name).ToList(),
             notYet.Checking.Where(AbilityCatalog.IsActive).Select(AbilityText.Name).ToList(),
             // 業務の力が辞書の話から確かめる力でなければ、名前なしにする
             notYet.TaskGaps.Select(g => new ReportTaskGapDto(g.TaskName, g.Ability is { } a ? AbilityText.NameOrNull(a) : null, g.Knowledge)).ToList(),

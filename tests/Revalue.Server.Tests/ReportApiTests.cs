@@ -102,9 +102,7 @@ public sealed class ReportApiTests
         var ability = content.GetProperty("abilities")[0];
         Assert.Equal((AbilityText.Name(TestAbilities.BalancingInterests), "confirmed"), (ability.GetProperty("name").GetString(), ability.GetProperty("state").GetString()));
         Assert.Contains(Array(ability, "quotes"), q => q.GetProperty("text").GetString() == "夫と母の予定がぶつかって");
-        Assert.Equal(
-            AbilityCatalog.Active.Where(a => a != TestAbilities.BalancingInterests).Select(AbilityText.Name),
-            Array(content.GetProperty("notYet"), "notHeard").Select(n => n.GetString()));
+        Assert.False(content.GetProperty("notYet").TryGetProperty("notHeard", out _));
         Assert.Equal(JsonValueKind.Null, content.GetProperty("choice").GetProperty("kind").ValueKind);
         Assert.Equal(JsonValueKind.Null, content.GetProperty("thinking").ValueKind);
         Assert.Equal(JsonValueKind.Null, content.GetProperty("steps").ValueKind);
@@ -125,6 +123,29 @@ public sealed class ReportApiTests
         Assert.Equal(2, Number(again));
         Assert.Equal(1, await Reached(client));
         Assert.Equal(2, (await Stored(kit, "r-2"))!.Versions.Count);
+    }
+
+    [Fact(DisplayName = "report-1（一つにまとめて示す）: 確かめた力の欄は見せた力だけで、まだ確かめていないことに、まだ聞けていない力の名前を並べない")]
+    public async Task ReportShowsOnlyShownAbilities()
+    {
+        var kit = Setup();
+        var client = await Consenting(kit.Factory, "r-30");
+        // 利害調整力（行動 3 つ）と段取り力（行動 2 つ）が同じ出来事でそろう。同じ分類なので、見せるのは利害調整力だけ
+        await FinishedEpisode(client, kit.Ai,
+        [
+            .. BalancingInterestsAll,
+            Candidate(TestAbilities.PlanningSteps, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.PlanningSteps, 2, "迎えの時間をずらしてもらいました"),
+        ]);
+        await PutOk(client, "/api/profile/conditions", new { timeSlots = new[] { "daytime", "evening" }, hoursPerWeek = 10, place = "homeOnly", monthlyIncome = 5 });
+
+        var content = (await Get(client)).GetProperty("content");
+
+        Assert.Equal(["balancing-interests"], AbilityKeys(content.GetProperty("abilities")));
+        var notYet = content.GetProperty("notYet");
+        Assert.Equal(["checking", "taskGaps", "hasExcluded"], notYet.EnumerateObject().Select(p => p.Name));
+        Assert.Empty(Array(notYet, "checking"));
+        Assert.DoesNotContain("planning-steps", content.GetRawText(), StringComparison.Ordinal);
     }
 
     [Theory(DisplayName = "report-1（一つにまとめて示す）: カードを選ばずに保留したときと、自分で書いた仕事を選んだときも、開くと「可能性レポートまで進んだ人」を 1 回だけ数える")]

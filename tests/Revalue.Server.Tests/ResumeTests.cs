@@ -631,7 +631,7 @@ public sealed class ResumeTests
         var abilities = await client.GetFromJsonAsync<JsonElement>("/api/abilities", Ct);
         var life = Array(abilities, "abilities").ToDictionary(a => a.GetProperty("key").GetString()!, a => a.GetProperty("life").GetString());
         Assert.Equal("needsCheck", life["balancing-interests"]);
-        Assert.Equal("notYet", life["noticing-changes"]);
+        Assert.False(life.ContainsKey("noticing-changes"));
         Assert.DoesNotContain(
             Array(abilities, "history"),
             h => h.GetProperty("key").GetString() == "balancing-interests" && h.GetProperty("reason").GetString() == "skip");

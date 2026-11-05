@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Profile;
+using Revalue.Server.Features.Validate;
 using static Revalue.Server.Tests.ValidateTestKit;
 
 namespace Revalue.Server.Tests;
@@ -403,6 +404,30 @@ public sealed class ProfileApiTests
         Assert.NotEmpty(ValidateTestKit.Array(checking, "quotes"));
         Assert.False(canDo.GetProperty("hasExcluded").GetBoolean());
         Assert.DoesNotContain("noticing-changes", canDo.GetRawText());
+    }
+
+    [Fact(DisplayName = "profile-2（できることは根拠とつなぐ）: できることには見せた力だけが入り、根拠に行動の文が添えてある")]
+    public async Task CanDoHasOnlyShownAbilitiesWithActionText()
+    {
+        var (factory, ai) = Create();
+        var client = await Consenting(factory, "g-15");
+        // 利害調整力（行動 3 つ）と段取り力（行動 2 つ）が同じ出来事でそろう。同じ分類なので、見せるのは利害調整力だけ
+        await FinishedEpisode(client, ai,
+        [
+            .. BalancingInterestsAll,
+            Candidate(TestAbilities.PlanningSteps, 1, "夫と母の予定がぶつかって"),
+            Candidate(TestAbilities.PlanningSteps, 2, "迎えの時間をずらしてもらいました"),
+        ]);
+
+        var canDo = (await Get(client)).GetProperty("canDo");
+
+        var seen = Assert.Single(ValidateTestKit.Array(canDo, "seen"));
+        Assert.Equal("balancing-interests", seen.GetProperty("key").GetString());
+        Assert.Equal(
+            Enumerable.Range(1, 3).Select(n => AbilityCatalog.ActionText(new ActionRef(TestAbilities.BalancingInterests, n))),
+            ValidateTestKit.Array(seen, "quotes").Select(q => q.GetProperty("action").GetString()));
+        Assert.Empty(ValidateTestKit.Array(canDo, "checking"));
+        Assert.DoesNotContain("planning-steps", canDo.GetRawText(), StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "profile-2（できることは根拠とつなぐ）: 本人が外した力は、できることに入れず、外した力があることだけを返す")]

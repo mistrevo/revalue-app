@@ -1,4 +1,5 @@
 using Revalue.Server.Features.Deepen;
+using Revalue.Server.Features.Discover;
 using Revalue.Server.Features.Options;
 using Revalue.Server.Features.Profile;
 using Revalue.Server.Features.Validate;
@@ -31,6 +32,43 @@ public sealed class DeepenLightingTests
         var lights = DeepenLighting.Light(Target(Options(CombineChoice())), null, excluded);
 
         Assert.Null(lights.Single(l => l.Id == "online-secretary-schedule").Usable);
+    }
+
+    [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 業務の力が画面に出さない力なら、使えるところとして示さない")]
+    public void HiddenAbilityIsNotLit()
+    {
+        // 利害調整力と優先順位設定力（どちらも行動 3 つ、同じ分類）が同じ出来事でそろう。見せるのは辞書の順で前の利害調整力
+        var episode = new EpisodeItem
+        {
+            Id = "episode-1",
+            UserKey = "u",
+            Type = EpisodeItem.ItemType,
+            Status = EpisodeStatus.Finished,
+            StartedAt = Now,
+            FinishedAt = Now,
+            Evidence =
+            [
+                E(TestAbilities.BalancingInterests, 1, Q1),
+                E(TestAbilities.BalancingInterests, 2, Q2),
+                E(TestAbilities.BalancingInterests, 3, "迎えの時間をずらしてもらいました"),
+                E(TestAbilities.SettingPriorities, 1, "用事が三つ重なって"),
+                E(TestAbilities.SettingPriorities, 2, "病院を先にしました"),
+                E(TestAbilities.SettingPriorities, 3, "熱が高かったからです"),
+            ],
+        };
+        var inputs = OptionsInputsReader.From(null, [episode], AbilityBook.View([episode], null), null) with { Conditions = Conditions() };
+        var choice = new OptionChoice(ChoiceKind.Card, Now, CardKind.Choose,
+            new ChooseCard("online-secretary", "オンライン秘書", "要約",
+                [CardTaskOf("online-secretary-schedule"), CardTaskOf("online-secretary-email")], new WorkRange(3, 10, 15000, 80000), "理由です。",
+                new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, [E(TestAbilities.BalancingInterests, 1, Q1)])),
+            null, null, null);
+
+        var lights = DeepenLighting.Light(Target(Options(choice)), null, inputs);
+
+        Assert.Equal(TestAbilities.BalancingInterests, lights.Single(l => l.Id == "online-secretary-schedule").Usable!.Ability);
+        var email = lights.Single(l => l.Id == "online-secretary-email");
+        Assert.Equal(TestAbilities.SettingPriorities, email.Ability);
+        Assert.Null(email.Usable);
     }
 
     [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 「創る」と自分の仕事は、見立ての業務を、見立てと分かる形で照らす")]

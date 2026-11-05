@@ -367,6 +367,55 @@ public sealed class OptionsApiTests
         Assert.Equal(JsonValueKind.Null, (await Get(client)).GetProperty("choice").ValueKind);
     }
 
+    /// <summary>
+    /// 利害調整力と優先順位設定力（どちらも行動 3 つ、同じ分類）が同じ出来事でそろい、変化への気づきが確かめ中の場面。
+    /// 見せるのは辞書の順で前の利害調整力で、優先順位設定力は画面に出さない。
+    /// </summary>
+    private static readonly EvidenceCandidate[] WithHiddenSettingPriorities =
+    [
+        .. BalancingInterestsAll,
+        Candidate(TestAbilities.SettingPriorities, 1, "予定がぶつかっていたので"),
+        Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間をずらして"),
+        Candidate(TestAbilities.SettingPriorities, 3, "二人に電話して、迎え"),
+        Candidate(TestAbilities.NoticingChanges, 1, "電話して、迎えの時間"),
+    ];
+
+    private static List<JsonElement> CardAbilities(JsonElement cards) =>
+        new[] { "choose", "combine", "create" }
+            .Select(kind => cards.GetProperty(kind))
+            .Where(card => card.ValueKind != JsonValueKind.Null && card.GetProperty("ability").ValueKind != JsonValueKind.Null)
+            .Select(card => card.GetProperty("ability"))
+            .ToList();
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 画面に出さない力は、カードの理由に使わない")]
+    public async Task HiddenAbilityIsNotUsedForCards()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Ready(factory, ai, "o-30", WithHiddenSettingPriorities);
+
+        var cards = (await Generate(client)).GetProperty("cards");
+
+        var abilities = CardAbilities(cards);
+        Assert.NotEmpty(abilities);
+        Assert.DoesNotContain(abilities, a => a.GetProperty("key").GetString() == "setting-priorities");
+        Assert.DoesNotContain("予定がぶつかっていたので", cards.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 見せた力を外しても、同じ分類で隠れていた力がカードの理由に出ない")]
+    public async Task ExcludingShownAbilityDoesNotRevealHiddenOne()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Ready(factory, ai, "o-31", WithHiddenSettingPriorities);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
+
+        var cards = (await Generate(client)).GetProperty("cards");
+
+        var abilities = CardAbilities(cards);
+        Assert.NotEmpty(abilities);
+        Assert.All(abilities, a => Assert.Equal("noticing-changes", a.GetProperty("key").GetString()));
+        Assert.DoesNotContain("予定がぶつかっていたので", cards.GetRawText(), StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: カードの力を外すと、作り直すまでそのカードを出さない")]
     public async Task ExcludedAbilityHidesCardUntilRegenerated()
     {

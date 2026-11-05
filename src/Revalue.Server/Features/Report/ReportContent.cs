@@ -44,10 +44,10 @@ public sealed record ReportAbility(Ability Ability, AbilityState State, IReadOnl
 public sealed record ReportTaskGap(string TaskName, Ability? Ability, IReadOnlyList<string> Knowledge);
 
 /// <summary>
-/// まだ確かめていないこと。<paramref name="NotHeard"/> はまだ聞けていない力、<paramref name="Checking"/> は確かめ中の力。
+/// まだ確かめていないこと。<paramref name="Checking"/> は確かめ中の力（本人に見せた力だけ）。まだ聞けていない力の名前は並べない（00-common.md の「力」の「見せる力」）。
 /// <paramref name="HasExcluded"/> は、選んだ案の業務で使う力を本人が外していて、その名前を出していないか。
 /// </summary>
-public sealed record ReportNotYet(IReadOnlyList<Ability> NotHeard, IReadOnlyList<Ability> Checking, IReadOnlyList<ReportTaskGap> TaskGaps, bool HasExcluded);
+public sealed record ReportNotYet(IReadOnlyList<Ability> Checking, IReadOnlyList<ReportTaskGap> TaskGaps, bool HasExcluded);
 
 /// <summary>5 つの記録。できることは確かめた力の欄と同じ中身なので持たない。</summary>
 public sealed record ReportRecords(IReadOnlyList<ProfileEntry> Preferences, IReadOnlyList<ProfileEntry> Wants, ProfileConditions? Conditions, string? Agency);

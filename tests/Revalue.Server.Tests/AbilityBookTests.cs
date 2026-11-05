@@ -168,8 +168,7 @@ public sealed class AbilityBookTests
 
         Assert.Equal(AbilityState.NotYet, book.StateOf(TestAbilities.BalancingInterests));
         Assert.Empty(book.History);
-        var view = AbilityBook.View([episode], book);
-        Assert.All(view, v => Assert.Equal(AbilityState.NotYet, v.State));
+        Assert.Empty(AbilityBook.View([episode], book));
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 場面のうちいちばん進んだ状態を使い、根拠はその状態の新しい場面から")]
@@ -212,8 +211,52 @@ public sealed class AbilityBookTests
         Assert.Equal(
             [AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1)), AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3))],
             prioritizing.Hints);
-        Assert.Equal(AbilityCatalog.Active, view.Select(v => v.Ability));
+        // 見せた力だけを返す（まだ聞けていない力は並べない）
+        Assert.Equal([TestAbilities.SettingPriorities], view.Select(v => v.Ability));
         Assert.All(view, v => Assert.False(v.Excluded));
+    }
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 力の本の状態と履歴は、本人に見せた力だけで決まり、画面に出さない力は未確認のまま")]
+    public async Task BookUsesOnlyShownAbilities()
+    {
+        var (store, clock) = Create();
+        await Consent(store);
+        // 利害調整力と段取り力が同じ出来事でそろう（同じ分類なので、見せるのは行動の多い利害調整力）。
+        // 要確認は 3 つ（変化への気づき 2、要約力 1、傾聴力 1）で、見せるのは変化への気づきと、辞書の順で前の要約力
+        var episode = await SaveEpisode(store, clock.GetUtcNow(),
+        [
+            .. BalancingInterestsAll,
+            E(TestAbilities.PlanningSteps, 1, "することを書き出しました"),
+            E(TestAbilities.PlanningSteps, 2, "迎えを先にすると決めました"),
+            E(TestAbilities.NoticingChanges, 1, "顔色がいつもと違って"),
+            E(TestAbilities.NoticingChanges, 2, "熱があるかもしれないと思って"),
+            E(TestAbilities.Summarizing, 1, "話をまとめて伝えました"),
+            E(TestAbilities.ActiveListening, 1, "先に最後まで聞きました"),
+        ]);
+
+        var book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, episode.Id, clock, Ct);
+
+        Assert.Equal(AbilityState.Confirmed, book.StateOf(TestAbilities.BalancingInterests));
+        Assert.Equal(AbilityState.NeedsCheck, book.StateOf(TestAbilities.NoticingChanges));
+        Assert.Equal(AbilityState.NeedsCheck, book.StateOf(TestAbilities.Summarizing));
+        Assert.Equal(AbilityState.NotYet, book.StateOf(TestAbilities.PlanningSteps));
+        Assert.Equal(AbilityState.NotYet, book.StateOf(TestAbilities.ActiveListening));
+        Assert.Equal(
+            [TestAbilities.Summarizing, TestAbilities.BalancingInterests, TestAbilities.NoticingChanges],
+            book.History.Select(h => h.Ability));
+        Assert.Equal(
+            [TestAbilities.Summarizing, TestAbilities.BalancingInterests, TestAbilities.NoticingChanges],
+            AbilityBook.View([episode], book).Select(v => v.Ability));
+
+        // 別の場面で段取り力を見せると、その場面の状態（確かめ中）になる。隠れていた場面の根拠ありは使わない
+        clock.Advance(TimeSpan.FromDays(1));
+        var later = await SaveEpisode(store, clock.GetUtcNow(), [E(TestAbilities.PlanningSteps, 1, "買うものを書き出しました")]);
+        book = await AbilityBook.RecomputeAsync(store, User, ChangeReason.Talk, later.Id, clock, Ct);
+
+        Assert.Equal(AbilityState.NeedsCheck, book.StateOf(TestAbilities.PlanningSteps));
+        var planning = AbilityBook.View([episode, later], book).Single(v => v.Ability == TestAbilities.PlanningSteps);
+        Assert.Equal((AbilityState.NeedsCheck, later.Id), (planning.State, planning.EpisodeId));
+        Assert.Equal(["買うものを書き出しました"], planning.Shown.Select(e => e.Quote));
     }
 
     [Fact(DisplayName = "validate-8（訂正したら確かめ直す）: 履歴は 100 件まで、古いものから捨てる")]

@@ -166,9 +166,6 @@ public sealed class ReportBuilderTests
         Assert.Equal(NoticingOne.Quote, Assert.Single(content.Abilities[1].Quotes).Quote);
         Assert.Contains(content.Abilities[0].Quotes, q => q.Quote == Q1);
 
-        Assert.Equal(
-            AbilityCatalog.Active.Where(a => a != TestAbilities.BalancingInterests && a != TestAbilities.NoticingChanges),
-            content.NotYet.NotHeard);
         Assert.Equal([TestAbilities.NoticingChanges], content.NotYet.Checking);
         Assert.False(content.NotYet.HasExcluded);
         // 日程の調整は利害調整力（使える力）なので、力は出さずに知識や道具だけ
@@ -206,13 +203,43 @@ public sealed class ReportBuilderTests
 
         Assert.DoesNotContain(content.Abilities, a => a.Ability == TestAbilities.BalancingInterests);
         Assert.DoesNotContain(TestAbilities.BalancingInterests, content.NotYet.Checking);
-        Assert.DoesNotContain(TestAbilities.BalancingInterests, content.NotYet.NotHeard);
-        Assert.DoesNotContain(TestAbilities.SettingPriorities, content.NotYet.NotHeard);
         // 選んだ案の業務の力を外していれば、力の名前は出さずに、外したことだけを持つ
         Assert.True(content.NotYet.HasExcluded);
         Assert.All(content.NotYet.TaskGaps, g => Assert.Null(g.Ability));
         Assert.Null(content.Choice.Ability);
         Assert.Null(content.Choice.Reason);
+    }
+
+    [Fact(DisplayName = "validate-12（本人が見立てを外せる）: 画面に出さない力は、レポートの確かめた力にも選んだ案の理由にも使わない")]
+    public async Task HiddenAbilityIsNotInReport()
+    {
+        var kit = await Create();
+        // 利害調整力と優先順位設定力（どちらも行動 3 つ、同じ分類）が同じ出来事でそろう。見せるのは辞書の順で前の利害調整力
+        await SaveEpisode(kit,
+        [
+            .. BalancingInterestsAll,
+            E(TestAbilities.SettingPriorities, 1, "用事が三つ重なって"),
+            E(TestAbilities.SettingPriorities, 2, "病院を先にしました"),
+            E(TestAbilities.SettingPriorities, 3, "熱が高かったからです"),
+        ]);
+        await SetConditions(kit, Conditions());
+        // 優先順位設定力を理由にしたカードを選んでいた
+        var hiddenChoice = ChooseChoice() with
+        {
+            Choose = ChooseChoice().Choose! with
+            {
+                Ability = new CardAbility(TestAbilities.SettingPriorities, AbilityState.Confirmed, [E(TestAbilities.SettingPriorities, 2, "病院を先にしました")]),
+            },
+        };
+        await SetChoice(kit, hiddenChoice);
+
+        var content = await Build(kit);
+
+        Assert.Equal([TestAbilities.BalancingInterests], content.Abilities.Select(a => a.Ability));
+        Assert.Empty(content.NotYet.Checking);
+        Assert.Null(content.Choice.Ability);
+        Assert.Null(content.Choice.Reason);
+        Assert.Equal(MissingReason.Changed, content.Choice.Problem);
     }
 
     [Fact(DisplayName = "report-1（一つにまとめて示す）: 選び直して深めた中身が古ければ、考え方と一歩を出さない")]
@@ -415,7 +442,6 @@ public sealed class ReportBuilderTests
         var texts = new List<string>();
         Collect(JsonSerializer.SerializeToNode(content, DataConstants.Json), texts);
         var abilities = content.Abilities.Select(a => a.Ability)
-            .Concat(content.NotYet.NotHeard)
             .Concat(content.NotYet.Checking)
             .Concat(content.NotYet.TaskGaps.Where(g => g.Ability is not null).Select(g => g.Ability!.Value))
             .Concat(content.Choice.Ability is { } a ? [a.Ability] : []);

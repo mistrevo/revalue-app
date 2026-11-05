@@ -341,7 +341,7 @@ ask: prioritizing.3
 - Produces: `ReportNotYet(IReadOnlyList<Ability> Checking, IReadOnlyList<ReportTaskGap> TaskGaps, bool HasExcluded)`、`ReportNotYetDto(checking, taskGaps, hasExcluded)`
 - カードの使える力（`OptionsInputs.Abilities`）、5 つの記録の「できること」、深めるの使えるところ、レポートの確かめた力は、どれも `View` から作るので、見せた力だけになる。前に作ったカードの力が見せた力でなくなっていれば、いまの `ProblemIn`（`Changed`）で出さない
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
   - `AbilityBookTests`: `validate-12（本人が見立てを外せる）: 力の本の状態と履歴は、本人に見せた力だけで決まり、画面に出さない力は未確認のまま`
   - `AbilitiesApiTests`
     - `validate-7（見えた力と、もう少し聞きたいことを示す）: GET /api/abilities は見せた力だけを返し、まだ聞けていない力を並べない`
@@ -355,11 +355,11 @@ ask: prioritizing.3
     - `validate-12（本人が見立てを外せる）: 画面に出さない力は、レポートの確かめた力にも選んだ案の理由にも使わない`
   - `DeepenLightingTests`: `deepen-2（業務ごとに照らす）: 業務の力が画面に出さない力なら、使えるところとして示さない`
   - 同じ分類の力が 2 つ根拠ありの場面は、偽物の読み取り（`FakeConversationAi`）で、利害調整力の 3 つと段取り力の 2 つを同じ出来事に返して作る
-- [ ] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityBookTests|FullyQualifiedName~AbilitiesApiTests|FullyQualifiedName~ProfileApiTests|FullyQualifiedName~OptionsApiTests|FullyQualifiedName~Report|FullyQualifiedName~DeepenLightingTests"`
-- [ ] **Step 3: `View` と力の本を見せた力で決めるようにし、レポートのまだ聞けていない力を消す**
-- [ ] **Step 4: Spec を直す** — 03-validate.md「見えた力の画面」の「3 つの力ごとに」を「見せた力ごとに」に、生活の中での状態の言葉から「まだ聞けていない」を外し、見せた力がないときと代わりの一文を書く。API の表の `GET /api/abilities` を「見せた力の…」に、`{name}` を「話から確かめる力の id（ほかは 404）」に。04〜07 は、見せた力だけを使うこと（画面に出さない力は理由にも使わないこと）を、それぞれ 1 文で 00-common.md と 03-validate.md を参照して書く。07-report.md の「まだ聞けていない力」を消し、代わりの一文にする
-- [ ] **Step 5: 確かめる** — `dotnet test`
-- [ ] **Step 6: コミット**（「辞書の力に置き換える: 見えた力、できること、カード、深める、レポートを見せた力だけにする（validate-12（本人が見立てを外せる）、profile-2（できることは根拠とつなぐ）、report-1（一つにまとめて示す））」）
+- [x] **Step 2: テストが失敗することを確かめる** — `dotnet test --filter "FullyQualifiedName~AbilityBookTests|FullyQualifiedName~AbilitiesApiTests|FullyQualifiedName~ProfileApiTests|FullyQualifiedName~OptionsApiTests|FullyQualifiedName~Report|FullyQualifiedName~DeepenLightingTests"`
+- [x] **Step 3: `View` と力の本を見せた力で決めるようにし、レポートのまだ聞けていない力を消す**
+- [x] **Step 4: Spec を直す** — 03-validate.md「見えた力の画面」の「3 つの力ごとに」を「見せた力ごとに」に、生活の中での状態の言葉から「まだ聞けていない」を外し、見せた力がないときと代わりの一文を書く。API の表の `GET /api/abilities` を「見せた力の…」に、`{name}` を「話から確かめる力の id（ほかは 404）」に。04〜07 は、見せた力だけを使うこと（画面に出さない力は理由にも使わないこと）を、それぞれ 1 文で 00-common.md と 03-validate.md を参照して書く。07-report.md の「まだ聞けていない力」を消し、代わりの一文にする
+- [x] **Step 5: 確かめる** — `dotnet test`
+- [x] **Step 6: コミット**（「辞書の力に置き換える: 見えた力、できること、カード、深める、レポートを見せた力だけにする（validate-12（本人が見立てを外せる）、profile-2（できることは根拠とつなぐ）、report-1（一つにまとめて示す））」）
 
 ## まとまり C: 画面、最初の問い、文書
 
