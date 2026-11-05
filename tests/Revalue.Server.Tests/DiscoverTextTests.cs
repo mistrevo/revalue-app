@@ -77,12 +77,24 @@ public sealed class DiscoverTextTests
         Assert.Equal(
             "また、最近のある一日のことを、聞かせてください。特別な日でなくてかまいません。その日の朝起きてから夜までに、どんなことがありましたか？",
             DiscoverText.OpeningAfterDistress);
-        Assert.Equal(["家族と出かけた", "家で過ごした", "人と会った"], DiscoverText.OpeningAfterDistressChoices);
+        Assert.Equal(["買い物に行った", "外を歩いた", "ひとりで過ごした"], DiscoverText.OpeningAfterDistressChoices);
         IEnumerable<string> texts = [DiscoverText.OpeningAfterDistress, .. DiscoverText.OpeningAfterDistressChoices];
         foreach (var heavy in new[] { "気持ち", "うまくいかなかった", "思うように" })
         {
             Assert.All(texts, text => Assert.DoesNotContain(heavy, text, StringComparison.Ordinal));
         }
+    }
+
+    [Theory(DisplayName = "discover-1（具体的な一日を一つ聞く）: つらい状態のサインで終わった人の問いと選択肢は、家族や家を前提にしない")]
+    [InlineData("家族")]
+    [InlineData("家")]
+    [InlineData("夫")]
+    [InlineData("子ども")]
+    public void AfterDistressDoesNotAssumeFamilyOrHome(string word)
+    {
+        // つらい状態のサインには家庭内の暴力や暴言も入る。打ち明けたあとの入口で「家族と」「家で」と出すと、重い場面へ戻すきっかけになりうる
+        IEnumerable<string> texts = [DiscoverText.OpeningAfterDistress, .. DiscoverText.OpeningAfterDistressChoices];
+        Assert.All(texts, text => Assert.DoesNotContain(word, text, StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "discover-3（選んでも書いてもよい）: 決まった選択肢と続け方は、どれも 3 つ")]

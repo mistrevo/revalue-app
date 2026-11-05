@@ -524,8 +524,33 @@ public sealed class ClaudeConversationAiTests
         var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskWhatYouDid);
 
         Assert.DoesNotContain("どうやって", line);
-        Assert.Contains("行動の細部は聞かない", line);
-        Assert.Contains("本人がしたこと、決めたことを聞く", line);
+        Assert.Contains("行動の細部は聞かず", line);
+        Assert.Contains("本人がしたことを聞く", line);
+        // どの力にも寄らない一手なので、優先順位をつける力の 2（先と後を決める）に寄った「決めたこと」を聞かせない
+        Assert.DoesNotContain("決めたこと", line);
+    }
+
+    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 返事の指示は、最初の問いの答えの例を選んだだけの答えに、映し返しを書かず、その日にあったことを一つ聞くと書いている")]
+    public void ListenerAsksWhatHappenedAfterOpeningChoice()
+    {
+        var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskWhatYouDid);
+
+        Assert.Contains("最初の問いの答えの例を選んだだけ", line);
+        Assert.Contains("映し返しを書かず", line);
+        Assert.Contains("その日にどんなことがあったかを一つ聞く", line);
+    }
+
+    [Fact(DisplayName = "validate-3（結果で見立てを変えない）: 返事の指示は、どの一手でも、うまくいかなかった日を選んだ人にも話した人にも、うまくいかなかったわけを聞かないと書いている")]
+    public void ListenerDoesNotProbeWhyItWentWrong()
+    {
+        var listener = PromptFiles.Read(PromptFiles.Listener);
+
+        // 選んだか書いたかで分けない。一手ごとではなく、どの一手にも効く「守ること」に書く
+        var rules = listener[listener.IndexOf("# 守ること", StringComparison.Ordinal)..];
+        var line = rules.Split('\n').Single(l => l.Contains("うまくいかなかったわけ", StringComparison.Ordinal));
+        Assert.Contains("どの一手でも", line);
+        Assert.Contains("選んだ人", line);
+        Assert.Contains("話した人", line);
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 返事の指示は、手がかりについてだけ一つ聞き、したことを前提にせず、答えの例で誘導しないと書いている")]

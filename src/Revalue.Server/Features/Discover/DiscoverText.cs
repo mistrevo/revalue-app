@@ -44,12 +44,14 @@ public static class DiscoverText
     /// <summary>
     /// <see cref="OpeningAfterDistress"/> の選択肢。気持ちの向きではなく、特定の力に寄らない中立な出来事の種類にする。
     /// 「思うようにいかなかった日」のような、重い日を思わせる選択肢を出さないため。
+    /// 家族や家も前提にしない。つらい状態のサインには家庭内の暴力や暴言も入るので、打ち明けたあとの入口で「家族と」「家で」と出すと、
+    /// 重い場面へ戻すきっかけになりうるため（Claude の判断。言葉は開発者と協力者に確かめる）。
     /// </summary>
     public static readonly IReadOnlyList<string> OpeningAfterDistressChoices =
     [
-        "家族と出かけた",
-        "家で過ごした",
-        "人と会った",
+        "買い物に行った",
+        "外を歩いた",
+        "ひとりで過ごした",
     ];
 
     /// <summary>

@@ -200,3 +200,17 @@ git commit -m "優先順位をつける力の 3 つ目を、推し量りで根�
 4. `dotnet run --project evals/Revalue.Evals -- --unit discover` — `evals/criteria.md` の 02 discover（話す）の合格の線をすべて満たす。結果を `evals/results/2026-11-05-discover.md` に残す
 5. `dotnet run --project evals/Revalue.Evals -- --unit validate` — 03 validate（確かめる）の合格の線をすべて満たす。結果を `evals/results/2026-11-05-validate.md` に残す
 6. 言い方を変えたもの（最初の問い、listener.md の 2 か所、reader.md の 1 か所）を、voice-reviewer で点検し、開発者が確かめる項目として残す（`forHuman`）
+
+---
+
+## レビューのあとの直し（2026-11-05）
+
+レビューで出た指摘（すべて should）を、次のように直した。
+
+- `listener.md` の `AskWhatYouDid`（したことを一つ聞く一手）から「決めたこと」を外した。どの力にも寄らない一手なので、優先順位をつける力の 2（先と後を決める）に寄った問いを、手がかりなしで出さないため
+- 「うまくいかなかったわけを聞かない」を、`AskWhatYouDid` から「守ること」へ移し、どの一手でも、選んだ人にも書いた人にも効くようにした（validate-3（結果で見立てを変えない））。`docs/prd/6-quality.md` の行と `docs/specs/02-discover.md` も、選んでも書いても同じにした
+- つらい状態のサインのあとの入口の選択肢（`DiscoverText.OpeningAfterDistressChoices`）を、「家族と出かけた」「家で過ごした」「人と会った」から「買い物に行った」「外を歩いた」「ひとりで過ごした」にした。サインには家庭内の暴力や暴言も入るので、家族や家を前提にしないため（Claude の判断。言葉は開発者と協力者に確かめる）
+- `docs/specs/02-discover.md` の映し返しの決まりと discover-2（受け止めてから一つだけ聞く）に、最初の問いの選択肢を選んだだけの答えには映し返しがなくてよいと書いた
+- discover の台本 `evals/episodes/e20-unexpected-day.md`（最初の問いで「思うようにいかなかった日」を選び、そのあと出来事を書く）を足し、判定役に `noFailureProbe`（うまくいかなかったわけを問い詰めていない）を足した。合格の線は持たせず、参考の数字として残す（Claude の判断）
+
+本物の AI での評価（確認コマンド 4 と 5、Task 3 の Step 2 と Step 5）は、鍵がなく、まだ回せていない。開発者の環境で回し、e19 と e20 の会話記録を読む。
