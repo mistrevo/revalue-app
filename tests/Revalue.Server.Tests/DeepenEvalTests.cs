@@ -85,6 +85,18 @@ public sealed class DeepenEvalTests
         Assert.Throws<FormatException>(() => DeepenCase.Parse("""{"id":"x","title":"x","profile":"p01","choice":{"kind":"unknown"}}""", Catalog));
     }
 
+    [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 評価の選んだ案は、カードに使う業務だけを読み、準備中の業務なら読めない")]
+    public void PreparingTaskCannotBeRead()
+    {
+        var active = DeepenCase.Parse("""{"id":"x","title":"x","profile":"p01","choice":{"kind":"choose","occupationId":"online-secretary","taskIds":["online-secretary-schedule"]}}""", Catalog);
+        Assert.Equal("x", active.Id);
+        var ex = Assert.Throws<FormatException>(() => DeepenCase.Parse(
+            """{"id":"x","title":"x","profile":"p01","choice":{"kind":"choose","occupationId":"insurance-sales","taskIds":["insurance-sales-hearing"]}}""", Catalog));
+        Assert.Contains("準備中", ex.Message);
+        // リポジトリの 7 件は、どれも読める
+        Assert.Equal(Ids.Length, DeepenCase.LoadAll(DeepenDir, Catalog).Count);
+    }
+
     [Fact(DisplayName = "deepen-3（最初の一歩は小さく）: dry-run の評価は、偽物の AI で合格の線をすべて満たす")]
     public async Task DryRunPasses()
     {

@@ -15,16 +15,44 @@ namespace Revalue.Server.Features.Deepen;
 /// <summary>選んだ案。<paramref name="OutsideConditions"/> は、選んだカードがいまの条件に収まらなくなったか（本人が書いた仕事はいつも false）。</summary>
 public sealed record DeepenTargetDto(TargetKind Kind, string Title, bool OutsideConditions);
 
-/// <summary>使える力。<paramref name="State"/> は "confirmed" か "needsCheck"。</summary>
-public sealed record UsableDto(AbilityState State, IReadOnlyList<QuoteDto> Quotes);
+/// <summary>使える力 1 つ。<paramref name="Key"/> と <paramref name="Name"/> は力の key と名前。<paramref name="State"/> は "confirmed" か "needsCheck"。</summary>
+public sealed record UsableDto(string Key, string Name, AbilityState State, IReadOnlyList<QuoteDto> Quotes);
 
 /// <summary>
-/// 業務 1 つの照らし合わせ。<paramref name="Ability"/> は使う力の key。<paramref name="Usable"/> がなければ、まだ確かめていない力。
-/// 使う力が辞書の話から確かめる力でなければ（保存データの古い id など）、<paramref name="Ability"/> と <paramref name="AbilityName"/> は null で、
-/// 使えるところとしても示さない（00-common.md の「力」）。
+/// 業務 1 つの照らし合わせ。<paramref name="Ability"/> は主な力（見立ての業務ならその力）の key。<paramref name="Usable"/> は業務の力のうち本人の使える力
+/// （主な力、補助の力の順）。<paramref name="Usable"/> に主な力がなければ、主な力はまだ確かめていない力。
+/// 主な力が辞書の話から確かめる力でなければ（準備中の力、保存データの古い id など）、<paramref name="Ability"/> と <paramref name="AbilityName"/> は null で、
+/// まだ確かめていない力としても示さない（00-common.md の「力」）。<paramref name="Scene"/> は主な力が使える力のときだけの、力が生きる場面。
+/// <paramref name="Checks"/> は登録の業務の本人に確かめる条件。
 /// </summary>
 public sealed record TaskLightDto(
-    string? Id, string Name, string Detail, string? Ability, string? AbilityName, UsableDto? Usable, IReadOnlyList<string> Knowledge, bool Drafted);
+    string? Id,
+    string Name,
+    string Detail,
+    string? Ability,
+    string? AbilityName,
+    IReadOnlyList<UsableDto> Usable,
+    string? Scene,
+    IReadOnlyList<string> Checks,
+    IReadOnlyList<string> Knowledge,
+    bool Drafted)
+{
+    public static TaskLightDto From(TaskLight t) =>
+        new(
+            t.Id,
+            t.Name,
+            t.Detail,
+            AbilityCatalog.IsActive(t.Ability) ? ActionRef.Key(t.Ability) : null,
+            AbilityText.NameOrNull(t.Ability),
+            t.Usable
+                .Where(u => AbilityCatalog.IsActive(u.Ability))
+                .Select(u => new UsableDto(ActionRef.Key(u.Ability), AbilityText.Name(u.Ability), u.State, QuoteDto.From(u.Quotes)))
+                .ToList(),
+            t.Scene,
+            t.Checks,
+            t.Knowledge,
+            t.Drafted);
+}
 
 public sealed record AnswerDto(string Text, bool FromChoice);
 
@@ -449,17 +477,7 @@ public static class DeepenEndpoints
                 abilities);
         }
 
-        var tasks = DeepenLighting.Light(target, content, state.Inputs)
-            .Select(t => new TaskLightDto(
-                t.Id,
-                t.Name,
-                t.Detail,
-                AbilityCatalog.IsActive(t.Ability) ? ActionRef.Key(t.Ability) : null,
-                AbilityText.NameOrNull(t.Ability),
-                AbilityCatalog.IsActive(t.Ability) && t.Usable is { } u ? new UsableDto(u.State, QuoteDto.From(u.Quotes)) : null,
-                t.Knowledge,
-                t.Drafted))
-            .ToList();
+        var tasks = DeepenLighting.Light(target, content, state.Inputs).Select(TaskLightDto.From).ToList();
         var questions = content.Questions
             .Select(q => new QuestionDto(
                 q.Id,

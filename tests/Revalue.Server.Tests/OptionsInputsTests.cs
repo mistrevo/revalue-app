@@ -15,6 +15,7 @@ public sealed class OptionsInputsTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static readonly ProfileConditions Conditions = new([TimeSlot.Daytime, TimeSlot.Evening], 10, Place.HomeOnly, 5);
+    private static readonly JobCatalog Catalog = JobCatalog.Load();
 
     private static async Task<(InMemoryDataStore Store, FakeTimeProvider Clock)> Create()
     {
@@ -120,15 +121,17 @@ public sealed class OptionsInputsTests
         await ProfileStore.UpdateAsync(store, User, p => p with { Conditions = Conditions }, clock, Ct);
         await SaveEpisode(store, clock.GetUtcNow(), BalancingInterestsAll);
         var before = await OptionsInputsReader.ReadAsync(store, User, Ct);
-        var basis = OptionsInputsReader.Basis(before);
+        var basis = OptionsInputsReader.Basis(before, Catalog);
 
-        Assert.Equal(basis, OptionsInputsReader.Basis(await OptionsInputsReader.ReadAsync(store, User, Ct)));
-        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Conditions = Conditions with { HoursPerWeek = 5 } }));
-        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Preferences = ["家でできる"] }));
-        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Wants = ["人の役に立つ"] }));
-        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Agency = "自分で決めたい" }));
-        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Abilities = [] }));
+        Assert.Equal(basis, OptionsInputsReader.Basis(await OptionsInputsReader.ReadAsync(store, User, Ct), Catalog));
+        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Conditions = Conditions with { HoursPerWeek = 5 } }, Catalog));
+        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Preferences = ["家でできる"] }, Catalog));
+        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Wants = ["人の役に立つ"] }, Catalog));
+        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Agency = "自分で決めたい" }, Catalog));
+        Assert.NotEqual(basis, OptionsInputsReader.Basis(before with { Abilities = [] }, Catalog));
+        // 業務マスターが変わったら、前の業務の力で作ったカードを作り直す（05-options.md の「作り直す」）
+        Assert.NotEqual(basis, OptionsInputsReader.Basis(before, Catalog with { Version = "other" }));
         // まだ聞けていない力（変化への気づき）を外しても、使える力は変わらないので作り直さない。使える力を外したときは、上の Abilities の変化で変わる
-        Assert.Equal(basis, OptionsInputsReader.Basis(before with { Excluded = [TestAbilities.NoticingChanges] }));
+        Assert.Equal(basis, OptionsInputsReader.Basis(before with { Excluded = [TestAbilities.NoticingChanges] }, Catalog));
     }
 }

@@ -5,7 +5,7 @@ using Revalue.Server.Features.Validate;
 namespace Revalue.Server.Features.Report;
 
 /// <summary>
-/// 版に残す選んだ案。理由と、もとにした力と根拠の言葉は持たない（理由は根拠の言葉を引いているため）。
+/// 版に残す選んだ案。理由と、もとにした力と根拠の言葉、力が生きる場面は持たない（理由は根拠の言葉を引いているため。力が生きる場面は理由と同じ扱い）。
 /// 理由と力を出せなかったわけ（外した、記録と合わない）も持たない。「合わない」は力の状態が変わったことを表すため。
 /// </summary>
 public sealed record ReportChoiceSnapshot(
@@ -18,11 +18,17 @@ public sealed record ReportChoiceSnapshot(
     bool DemandNotChecked,
     bool CardsStale);
 
-/// <summary>版に残す、選んだ案の業務 1 つで要る知識や道具。まだ確かめていない力は持たない（力の状態を表すので）。</summary>
-public sealed record ReportSnapshotTaskGap(string TaskName, IReadOnlyList<string> Knowledge);
+/// <summary>
+/// 版に残す、選んだ案の業務 1 つで要る知識や道具と、本人に確かめる条件。まだ確かめていない力は持たない（力の状態を表すので）。
+/// 確かめる条件は業務の値で、本人の状態ではないので残す。確かめる条件を持たない前の保存の版は、空として読む。
+/// </summary>
+public sealed record ReportSnapshotTaskGap(string TaskName, IReadOnlyList<string> Knowledge)
+{
+    public IReadOnlyList<string> Checks { get; init; } = [];
+}
 
 /// <summary>
-/// 版に残す、まだ確かめていないこと。業務に要る知識や道具だけで、まだ聞けていない力と確かめ中の力は持たない。
+/// 版に残す、まだ確かめていないこと。業務に要る知識や道具と、本人に確かめる条件だけで、まだ聞けていない力と確かめ中の力は持たない。
 /// 前の版と見比べて、見立てが下がったと読ませないため。出さないものは保存もしない（07-report.md の「版を残す」）。
 /// </summary>
 public sealed record ReportSnapshotNotYet(IReadOnlyList<ReportSnapshotTaskGap> TaskGaps, bool HasExcluded);
@@ -45,7 +51,10 @@ public sealed record ReportSnapshot(
         return new ReportSnapshot(
             content.Abilities.Select(a => a.Ability).ToList(),
             new ReportSnapshotNotYet(
-                content.NotYet.TaskGaps.Where(g => g.Knowledge.Count > 0).Select(g => new ReportSnapshotTaskGap(g.TaskName, g.Knowledge)).ToList(),
+                content.NotYet.TaskGaps
+                    .Where(g => g.Knowledge.Count > 0 || g.Checks.Count > 0)
+                    .Select(g => new ReportSnapshotTaskGap(g.TaskName, g.Knowledge) { Checks = g.Checks })
+                    .ToList(),
                 content.NotYet.HasExcluded),
             content.Records,
             new ReportChoiceSnapshot(c.Kind, c.Card, c.Title, c.Summary, c.Tasks, c.OutsideConditions, c.DemandNotChecked, c.CardsStale),

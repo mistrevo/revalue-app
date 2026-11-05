@@ -20,6 +20,13 @@ public sealed class RevalueFactory : WebApplicationFactory<Program>
     private readonly Action<IServiceCollection>? _testServices;
     private readonly LogCollector _logs = new();
 
+    static RevalueFactory()
+    {
+        // テストでは裏側を何百回も立ち上げる。立ち上げのたびに設定ファイル（appsettings.json）の変更を見張ると、CI の Linux では
+        // 見張りの数の上限（inotify の 128）に達し、裏側が立ち上がらなくなる。テストでは設定ファイルを読み直さないので、見張りを作らない
+        Environment.SetEnvironmentVariable("DOTNET_hostBuilder__reloadConfigOnChange", "false");
+    }
+
     public RevalueFactory() : this("Testing", new Dictionary<string, string?>(), null)
     {
     }

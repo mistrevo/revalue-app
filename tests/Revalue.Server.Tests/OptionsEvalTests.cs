@@ -1,6 +1,7 @@
 using Revalue.Evals;
 using Revalue.Server.Ai;
 using Revalue.Server.Features.Options;
+using Revalue.Server.Features.Profile;
 using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Tests;
@@ -46,6 +47,29 @@ public sealed class OptionsEvalTests
         Assert.Equal(1, summary.Reference.Single(i => i.Name.StartsWith("照らし合わせの前: 登録していない職種", StringComparison.Ordinal)).Count);
         var gated = summary.Gated.Single(i => i.Name.StartsWith("options-2（選ぶは登録した職種から）", StringComparison.Ordinal));
         Assert.Equal((0, true), (gated.Count, gated.Passed));
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 評価は、準備中の業務の id を返したカードを、登録していない職種として数える")]
+    public async Task CountsPreparingTasksAsUnregistered()
+    {
+        // 保険の営業（業務はすべて準備中）の選ぶと、準備中の業務を入れた組み合わせる
+        var ai = new ChangedAi(d => d with
+        {
+            Choose = d.Choose with { Made = true, OccupationId = "insurance-sales", TaskIds = ["insurance-sales-hearing"] },
+            Combine = d.Combine with { Made = true, TaskIds = [d.Choose.TaskIds[0], "insurance-sales-hearing"] },
+        });
+
+        var run = await Eval(ai).RunAsync(Case("p01-coordinating-seen"), Ct);
+
+        Assert.Null(run.Error);
+        Assert.Equal(2, run.Before.Unregistered);
+        Assert.Null(run.Cards!.Choose);
+        Assert.Null(run.Cards.Combine);
+
+        var shown = new ChooseCard("insurance-sales", "保険の営業", "要約",
+            [new CardTask("insurance-sales-hearing", "insurance-sales", "保険の営業", "業務", "中身", TestAbilities.ActiveListening, [], TaskPlace.Home, [])],
+            new WorkRange(1, 2, 1, 2), "理由です。", new CardAbility(TestAbilities.BalancingInterests, AbilityState.Confirmed, []));
+        Assert.True(OptionsEval.CheckShown(shown, run.Case.Inputs, Catalog, Forbidden()).Unregistered);
     }
 
     [Fact(DisplayName = "options-5（条件の範囲だけ）: 評価は、条件を超える案を照らし合わせの前とあとで分けて数える")]
@@ -157,10 +181,12 @@ public sealed class OptionsEvalTests
         }
 
         Assert.All(runs, r => Assert.Null(r.Error));
-        // 週 1 時間、夜だけの人には、選ぶと組み合わせるの候補がない
+        // 週 1 時間、夜だけの人には、組み合わせるの候補がない（2 つの業務の始めやすさの合計が 1 時間を超える）。
+        // 選ぶの候補は、夜に週 1 時間から家でできる業務だけ
         var tight = runs.Single(r => r.Case.Id == "p03-tight-conditions");
-        Assert.False(tight.Candidates.CanChoose);
-        Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.NoFit), tight.Cards!.Missing);
+        Assert.False(tight.Candidates.CanCombine);
+        Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.NoFit), tight.Cards!.Missing);
+        Assert.All(tight.Candidates.Tasks, t => Assert.True(t.HoursPerWeek.Min <= 1 && t.TimeSlots.Contains(TimeSlot.Night) && t.Place == TaskPlace.Home));
         // 外にも出られる人には、外に出る業務も候補に入る
         Assert.Contains(runs.Single(r => r.Case.Id == "p04-can-go-out").Candidates.Tasks, t => t.Place == TaskPlace.Out);
 
@@ -169,6 +195,8 @@ public sealed class OptionsEvalTests
         Assert.NotNull(summary.Comparison);
 
         var report = OptionsReport.Write(new ReportContext("options", "claude-opus-5-5", DryRun: true, DateTimeOffset.Parse("2026-11-03T12:00:00+09:00")), runs, summary, new UsageMeter());
+        // 記録ごとに、AI に渡した業務の数を参考に書く（入力の長さを見るため）
+        Assert.Contains($"- AI に渡した業務の数（参考）: {tight.Candidates.Tasks.Count}（", report);
         foreach (var name in new[] { "options-2（選ぶは登録した職種から）", "options-4（創るは根拠を引けるときだけ）", "options-5（条件の範囲だけ）", "options-7（1 場面で進める）", "options-8（理由は本人の言葉とつなぐ）" })
         {
             Assert.Contains(name, report);

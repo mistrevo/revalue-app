@@ -38,10 +38,13 @@ public enum ReportSection
 public sealed record ReportAbility(Ability Ability, AbilityState State, IReadOnlyList<Evidence> Quotes);
 
 /// <summary>
-/// 選んだ案の業務 1 つで、まだ確かめていないこと。<paramref name="Ability"/> は、業務で使う力が使える力でなく、本人が外してもいないとき。
-/// <paramref name="Knowledge"/> は業務に要る知識や道具。
+/// 選んだ案の業務 1 つで、まだ確かめていないこと。<paramref name="Ability"/> は、業務の主な力が話から確かめる力で、使える力でなく、本人が外してもいないとき。
+/// 補助の力は並べない。<paramref name="Knowledge"/> は業務に要る知識や道具、<paramref name="Checks"/> は業務の本人に確かめる条件。
 /// </summary>
-public sealed record ReportTaskGap(string TaskName, Ability? Ability, IReadOnlyList<string> Knowledge);
+public sealed record ReportTaskGap(string TaskName, Ability? Ability, IReadOnlyList<string> Knowledge, IReadOnlyList<string> Checks);
+
+/// <summary>選んだ案の業務 1 つで、カードに使った力が業務のどこで生きるか（力が生きる場面）。<paramref name="TaskName"/> はカードの写しの業務の名前。</summary>
+public sealed record ReportScene(string TaskName, string Scene);
 
 /// <summary>
 /// まだ確かめていないこと。<paramref name="Checking"/> は確かめ中の力（本人に見せた力だけ）。まだ聞けていない力の名前は並べない（00-common.md の「力」の「見せる力」）。
@@ -58,6 +61,7 @@ public sealed record ReportRecords(IReadOnlyList<ProfileEntry> Preferences, IRea
 /// <paramref name="Reason"/> と <paramref name="Ability"/> はカードの理由と、もとにした力と根拠の言葉で、いまの記録で使えるときだけ入る。
 /// 使えないときは <paramref name="Problem"/> に理由。<paramref name="OutsideConditions"/> は選んだ案がいまの条件に収まらないか（本人が書いた仕事は false）。
 /// <paramref name="CardsStale"/> は、05 のカードを作ったあとに元の記録が変わったか。
+/// <paramref name="Scenes"/> は、理由と力を出すときの「選ぶ」「組み合わせる」で、カードに使った力を主な力に持つ業務の力が生きる場面。
 /// </summary>
 public sealed record ReportChoice(
     ChoiceKind? Kind,
@@ -70,7 +74,8 @@ public sealed record ReportChoice(
     MissingReason? Problem,
     bool OutsideConditions,
     bool DemandNotChecked,
-    bool CardsStale);
+    bool CardsStale,
+    IReadOnlyList<ReportScene> Scenes);
 
 /// <summary>仮の場面の問いと、本人の答え。</summary>
 public sealed record ReportThought(string Situation, string Answer, bool FromChoice);

@@ -115,7 +115,7 @@ public sealed class ReportApiTests
         await ChooseCard(client);
         var chosen = await Get(client);
         Assert.Equal("card", chosen.GetProperty("content").GetProperty("choice").GetProperty("kind").GetString());
-        Assert.Equal("オンライン秘書", chosen.GetProperty("content").GetProperty("choice").GetProperty("title").GetString());
+        Assert.Equal("経理事務", chosen.GetProperty("content").GetProperty("choice").GetProperty("title").GetString());
         Assert.Equal(2, Number(chosen));
         Assert.Equal(1, await Reached(client));
 
@@ -367,6 +367,49 @@ public sealed class ReportApiTests
         }
     }
 
+    [Fact(DisplayName = "report-1（一つにまとめて示す）: 選んだ案に力が生きる場面を、まだ確かめていないことの業務に本人に確かめる条件を返し、前の版には力が生きる場面を残さない")]
+    public async Task ChoiceScenesAndTaskChecks()
+    {
+        var ai = new FakeConversationAi();
+        // 出張や会食の手配（主な力は利害調整力）と支払いの予定の管理（利害調整力は補助の力）を、利害調整力で組み合わせる
+        var options = new FakeOptionsAi
+        {
+            Change = d => d with
+            {
+                Combine = d.Combine with { Made = true, TaskIds = ["online-secretary-arrangement", "accounting-payables"], Ability = "balancing-interests" },
+            },
+        };
+        var factory = new RevalueFactory().WithTestServices(services =>
+        {
+            services.AddSingleton<IConversationAi>(ai);
+            services.AddSingleton<IOptionsAi>(options);
+            services.AddSingleton<IDeepenAi>(new FakeDeepenAi());
+        });
+        var kit = new Kit(factory, ai);
+        var client = await Ready(kit, "r-scenes");
+        await ChooseCard(client, "combine");
+
+        var dto = await Get(client);
+        var catalog = Revalue.Server.Features.Options.JobCatalog.Load();
+        var arrangement = catalog.FindTask("online-secretary-arrangement")!;
+
+        var choice = dto.GetProperty("content").GetProperty("choice");
+        var scene = Assert.Single(Array(choice, "scenes"));
+        Assert.Equal((arrangement.Name, arrangement.Scene), (scene.GetProperty("taskName").GetString(), scene.GetProperty("scene").GetString()));
+
+        var gaps = Array(dto.GetProperty("content").GetProperty("notYet"), "taskGaps");
+        Assert.NotEmpty(gaps);
+        Assert.All(gaps, g => Assert.Equal(
+            catalog.AllTasks.Single(t => t.Name == g.GetProperty("taskName").GetString()).Checks,
+            Array(g, "checks").Select(c => c.GetString())));
+
+        var snapshot = dto.GetProperty("current").GetProperty("snapshot");
+        Assert.False(snapshot.GetProperty("choice").TryGetProperty("scenes", out _));
+        Assert.All(Array(snapshot.GetProperty("notYet"), "taskGaps"), g => Assert.Equal(JsonValueKind.Array, g.GetProperty("checks").ValueKind));
+        var stored = JsonSerializer.Serialize((await Stored(kit, "r-scenes"))!, Revalue.Server.Data.DataConstants.Json);
+        Assert.DoesNotContain(arrangement.Scene, stored, StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "report-3（版を残す）: いま外している力は、前の版にも出さない")]
     public async Task ExcludedAbilityIsHiddenInPreviousVersions()
     {
@@ -463,7 +506,7 @@ public sealed class ReportApiTests
         {
             Assert.DoesNotContain("目印", line);
             Assert.DoesNotContain("夫と母の予定がぶつかって", line);
-            Assert.DoesNotContain("オンライン秘書", line);
+            Assert.DoesNotContain("経理事務", line);
         }
     }
 

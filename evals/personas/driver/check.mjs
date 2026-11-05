@@ -14,8 +14,9 @@ const jobs = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/Revalue.Server/Feat
 const LEAK_WORDS = { e: ['眠れなく', '投げ出', '消えてしまいたい', 'しんどい'] };
 const lines = [];
 const out = t => { console.log(t); lines.push(t); };
-const taskIds = new Map(); for (const o of jobs.occupations) for (const t of o.tasks) taskIds.set(t.id, { ...t, occ: o.name });
-const occNames = new Set(jobs.occupations.map(o => o.name));
+// カードに使う（active）業務だけを登録として数える。準備中の業務と、カードに使う業務のない職種は、登録していないものとして数える
+const taskIds = new Map(); for (const o of jobs.occupations) for (const t of o.tasks) if (t.status === 'active') taskIds.set(t.id, { ...t, occ: o.name });
+const occNames = new Set(jobs.occupations.filter(o => o.tasks.some(t => t.status === 'active')).map(o => o.name));
 const stateWords = ['根拠あり', '要確認', '未確認'];
 const praise = ['素晴らしい', 'すごい', 'すばらしい', '立派', '完璧', '才能', 'さすが', '向いています', '向いている', 'ぴったり', '間違いなく', 'おすすめ'];
 const SLOT = { morning: 1, daytime: 1, evening: 1, night: 1 };

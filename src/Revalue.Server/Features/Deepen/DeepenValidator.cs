@@ -95,7 +95,8 @@ public static class DeepenValidator
             }
         }
 
-        var allowed = (target.Drafts ? tasks.Select(t => t.Ability) : target.Registered.Select(t => t.Ability)).Distinct().ToHashSet();
+        // 登録の業務なら、業務の主な力と補助の力のうち話から確かめる力のどれか
+        var allowed = (target.Drafts ? tasks.Select(t => t.Ability) : target.Registered.SelectMany(t => t.ActiveAbilities)).Distinct().ToHashSet();
         if (allowed.Count == 0)
         {
             allowed = [.. AbilityCatalog.Active];

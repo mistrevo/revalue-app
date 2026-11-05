@@ -139,7 +139,7 @@ public static partial class OptionsValidator
     {
         var rejections = new List<CardRejection>();
         var missing = new List<MissingCard>();
-        var basis = OptionsInputsReader.Basis(inputs);
+        var basis = OptionsInputsReader.Basis(inputs, catalog);
 
         if (inputs.Conditions is not { } conditions)
         {
@@ -200,7 +200,8 @@ public static partial class OptionsValidator
     /// <summary>
     /// 保存したカードを、いまの記録で見せられるものだけにする。外した力、使えなくなった力、力の状態か根拠の言葉がいまの記録と合わなくなった力
     /// （<see cref="CardAbility.ProblemIn"/>）、いまの条件に収まらなくなった業務のカードは出さず、理由を <see cref="OptionCards.Missing"/> に足す。
-    /// 業務の時間帯と幅は、いまの条件で計算し直す。
+    /// 「選ぶ」と「組み合わせる」で、業務がいまの業務マスターの力とつながらなくなったカード（<see cref="Connects"/>）も、記録が変わったときと
+    /// 同じ理由で出さない。業務の時間帯と幅は、いまの条件で計算し直す。
     /// </summary>
     public static OptionCards ForDisplay(OptionCards cards, OptionsInputs inputs, JobCatalog catalog)
     {
@@ -242,6 +243,11 @@ public static partial class OptionsValidator
                 Hide(CardKind.Choose, MissingReason.Rejected);
                 choose = null;
             }
+            else if (!Connects(tasks, choose.Ability, inputs))
+            {
+                Hide(CardKind.Choose, MissingReason.Changed);
+                choose = null;
+            }
             else if (!tasks.All(t => ConditionFit.Fits(t, c)))
             {
                 Hide(CardKind.Choose, MissingReason.NoFit);
@@ -264,6 +270,11 @@ public static partial class OptionsValidator
             else if (Resolve(combine.Tasks, catalog) is not { } tasks)
             {
                 Hide(CardKind.Combine, MissingReason.Rejected);
+                combine = null;
+            }
+            else if (!Connects(tasks, combine.Ability, inputs))
+            {
+                Hide(CardKind.Combine, MissingReason.Changed);
                 combine = null;
             }
             else if (!ConditionFit.CombineFits(tasks, c))
@@ -307,6 +318,14 @@ public static partial class OptionsValidator
         _ => true,
     };
 
+    /// <summary>
+    /// カードの業務が、いまの業務マスターと記録でつながっているか。カードの力がどれかの業務の力にあり、どの業務も使える力のどれかにつながる
+    /// （05-options.md の「AI が書いた中身をコードで確かめる」と options-3（組み合わせるは登録した業務から））。業務マスターで業務の力が変わったときと、
+    /// 本人が力を外して作り直すまでのあいだに、理由が業務とかけ離れたカードを出さないため（Claude の判断）。
+    /// </summary>
+    private static bool Connects(IReadOnlyList<JobTask> tasks, CardAbility ability, OptionsInputs inputs) =>
+        tasks.Any(t => t.Uses(ability.Ability)) && tasks.All(t => inputs.Abilities.Any(a => t.Uses(a.Ability)));
+
     private static bool CreateFits(CreateCard create, ProfileConditions c) =>
         create.HoursPerWeek <= c.HoursPerWeek
         && ConditionFit.PlaceFits(create.Place, c.Place)
@@ -320,9 +339,10 @@ public static partial class OptionsValidator
     private static List<CardTask> WithUsableSlots(IReadOnlyList<CardTask> cardTasks, IReadOnlyList<JobTask> tasks, ProfileConditions c) =>
         cardTasks.Select((t, i) => t with { TimeSlots = ConditionFit.UsableSlots(tasks[i], c) }).ToList();
 
+    /// <summary>カードの業務を、いまのカードに使う業務で引く。登録にないか準備中の業務があれば null。</summary>
     private static List<JobTask>? Resolve(IReadOnlyList<CardTask> cardTasks, JobCatalog catalog)
     {
-        var tasks = cardTasks.Select(t => catalog.FindTask(t.TaskId)).ToList();
+        var tasks = cardTasks.Select(t => catalog.FindActiveTask(t.TaskId)).ToList();
         return tasks.Any(t => t is null) ? null : tasks.Select(t => t!).ToList();
     }
 
@@ -356,7 +376,7 @@ public static partial class OptionsValidator
                 return "abilityNotUsable";
             }
 
-            if (found.All(t => t.Ability != ability.Ability))
+            if (!found.Any(t => t.Uses(ability.Ability)))
             {
                 return "abilityNotInTasks";
             }
@@ -407,7 +427,7 @@ public static partial class OptionsValidator
                 return "abilityNotUsable";
             }
 
-            if (found.All(t => t.Ability != ability.Ability))
+            if (!found.Any(t => t.Uses(ability.Ability)))
             {
                 return "abilityNotInTasks";
             }
@@ -514,7 +534,7 @@ public static partial class OptionsValidator
         {
             var occupation = catalog.OccupationOf(task);
             return new CardTask(
-                task.Id, occupation.Id, occupation.Name, task.Name, task.Detail, task.Ability,
+                task.Id, occupation.Id, occupation.Name, task.Name, task.Detail, task.Abilities.Main,
                 ConditionFit.UsableSlots(task, conditions), task.Place, task.Knowledge);
         }
 

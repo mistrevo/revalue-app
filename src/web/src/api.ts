@@ -422,6 +422,8 @@ export type CardTask = {
   ability: AbilityKey | null
   timeSlots: TimeSlot[]
   place: TaskPlace
+  /** 力が生きる場面。使った力を主な力に持つ業務で、理由と力を出すときだけ来る（なければ null）。 */
+  scene: string | null
 }
 
 /** 週あたりの時間の幅と、収入の目安（円、1 か月を 4 週として）。 */
@@ -558,16 +560,22 @@ export type TargetKind = CardKind | 'own'
 export type DeepenTarget = { kind: TargetKind; title: string; outsideConditions: boolean }
 
 /**
- * 業務 1 つの照らし合わせ。usable がなければ、その業務で使う力はまだ確かめていない。drafted は AI の見立て（本人が直せる）。
- * 業務の力が辞書の話から確かめる力でなければ（保存データの古い id など）、ability と abilityName は null。
+ * 業務 1 つの照らし合わせ。ability と abilityName は業務の主な力。usable は業務の力のうち本人の使える力の一覧（主な力、補助の力の順）。
+ * usable に主な力がなければ、主な力はまだ確かめていない。drafted は AI の見立て（本人が直せる）。
+ * 主な力が辞書の話から確かめる力でなければ（準備中の力、保存データの古い id など）、ability と abilityName は null。
+ * scene は主な力が使える力のときだけの、力が生きる場面。checks は登録の業務の本人に確かめる条件。
  */
+export type DeepenUsable = { key: AbilityKey; name: string; state: 'confirmed' | 'needsCheck'; quotes: Quote[] }
+
 export type DeepenTask = {
   id: string | null
   name: string
   detail: string
   ability: AbilityKey | null
   abilityName: string | null
-  usable: { state: 'confirmed' | 'needsCheck'; quotes: Quote[] } | null
+  usable: DeepenUsable[]
+  scene: string | null
+  checks: string[]
   knowledge: string[]
   drafted: boolean
 }
@@ -658,7 +666,10 @@ export type ReportSection = 'abilities' | 'notYet' | 'records' | 'choice' | 'thi
 export type ReportAbility = { key: AbilityKey; name: string; state: 'confirmed' | 'needsCheck'; quotes: Quote[] }
 
 /** 選んだ案の業務 1 つで、まだ確かめていないこと。abilityName は、まだ確かめていない力の名前（なければ null）。 */
-export type ReportTaskGap = { taskName: string; abilityName: string | null; knowledge: string[] }
+export type ReportTaskGap = { taskName: string; abilityName: string | null; knowledge: string[]; checks: string[] }
+
+/** 選んだ案の業務 1 つの、力が生きる場面。 */
+export type ReportScene = { taskName: string; scene: string }
 
 /** まだ確かめていないこと。力は名前で来る。hasExcluded は、業務で使う力を本人が外していて、その名前を出していないか。 */
 export type ReportNotYet = { checking: string[]; taskGaps: ReportTaskGap[]; hasExcluded: boolean }
@@ -687,6 +698,8 @@ export type ReportChoice = {
   outsideConditions: boolean
   demandNotChecked: boolean
   cardsStale: boolean
+  /** 力が生きる場面。理由と力を出すときだけ来る。 */
+  scenes: ReportScene[]
 }
 
 export type ReportThought = { situation: string; answer: string; fromChoice: boolean }
@@ -708,16 +721,16 @@ export type ReportContent = {
 
 /**
  * 版の中の、まだ確かめていないこと。力の状態を表す行（まだ聞けていない力、確かめ中の力、業務で使う力のうち確かめていない力）は来ず、
- * 業務に要る知識や道具だけが来る。
+ * 業務に要る知識や道具と、本人に確かめる条件だけが来る。
  */
-export type ReportSnapshotNotYet = { taskGaps: { taskName: string; knowledge: string[] }[]; hasExcluded: boolean }
+export type ReportSnapshotNotYet = { taskGaps: { taskName: string; knowledge: string[]; checks: string[] }[]; hasExcluded: boolean }
 
 /** 版に残した中身。根拠の言葉、選んだ案の理由、力の状態は持たない。 */
 export type ReportSnapshot = {
   abilities: { key: AbilityKey; name: string }[]
   notYet: ReportSnapshotNotYet
   records: ReportRecords
-  choice: Omit<ReportChoice, 'reason' | 'ability' | 'problem'>
+  choice: Omit<ReportChoice, 'reason' | 'ability' | 'problem' | 'scenes'>
   thinking: ReportThought[] | null
   steps: ReportStep[] | null
 }

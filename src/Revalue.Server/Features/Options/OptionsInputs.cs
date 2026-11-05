@@ -96,11 +96,12 @@ public static class OptionsInputsReader
         : Readiness.NeedsAbility;
 
     /// <summary>
-    /// カードを作ったときの元の記録の指紋。使える力（力、状態、根拠の言葉と選んだ答えか・結びついた言葉）、条件、好み、やりたいこと、主体性を、
-    /// 決まった順の JSON にして SHA-256 の 16 進にする。外した力そのものは入れない。使える力を外せば使える力の一覧が変わるので指紋も変わり、
-    /// カードの理由に使えない力（まだ聞けていない力）を外したり戻したりしただけでは、AI を呼んで作り直さないため（05-options.md の「作り直す」）。
+    /// カードを作ったときの元の記録の指紋。使える力（力、状態、根拠の言葉と選んだ答えか・結びついた言葉）、条件、好み、やりたいこと、主体性と、
+    /// 業務マスターの版（<see cref="JobCatalog.Version"/>）を、決まった順の JSON にして SHA-256 の 16 進にする。外した力そのものは入れない。
+    /// 使える力を外せば使える力の一覧が変わるので指紋も変わり、カードの理由に使えない力（まだ聞けていない力）を外したり戻したりしただけでは、
+    /// AI を呼んで作り直さないため。業務マスターが変わったら、前の業務の力で作ったカードを作り直す（05-options.md の「作り直す」）。
     /// </summary>
-    public static string Basis(OptionsInputs inputs)
+    public static string Basis(OptionsInputs inputs, JobCatalog catalog)
     {
         var basis = new
         {
@@ -122,6 +123,7 @@ public static class OptionsInputsReader
             preferences = inputs.Preferences,
             wants = inputs.Wants,
             agency = inputs.Agency,
+            jobs = catalog.Version,
         };
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(basis)))).ToLowerInvariant();
     }

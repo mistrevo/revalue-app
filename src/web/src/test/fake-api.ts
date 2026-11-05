@@ -200,6 +200,7 @@ export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCar
     ability: 'balancing-interests' as const,
     timeSlots: ['daytime' as const],
     place: 'home' as const,
+    scene: null,
   }
   return {
     generatedAt: '2026-11-03T06:00:00Z',
@@ -225,6 +226,7 @@ export function fakeOptionCards(overrides: Partial<OptionCards> = {}): OptionCar
           ability: 'balancing-interests',
           timeSlots: ['daytime'],
           place: 'home',
+          scene: null,
         },
       ],
       range: { minHours: 6, maxHours: 10, minMonthlyYen: 31000, maxMonthlyYen: 76000 },
@@ -290,7 +292,9 @@ export function fakeDeepenContent(overrides: Partial<DeepenContent> = {}): Deepe
         detail: '関わる人と連絡を取り合って、会う日時を決める',
         ability: 'balancing-interests',
         abilityName: '利害調整力',
-        usable: { state: 'confirmed', quotes: FAKE_BALANCING_QUOTES },
+        usable: [{ key: 'balancing-interests', name: '利害調整力', state: 'confirmed', quotes: FAKE_BALANCING_QUOTES }],
+        scene: null,
+        checks: [],
         knowledge: ['表計算'],
         drafted: false,
       },
@@ -300,7 +304,9 @@ export function fakeDeepenContent(overrides: Partial<DeepenContent> = {}): Deepe
         detail: '行き先と予算を聞いて、移動と店の候補をまとめる',
         ability: 'noticing-changes',
         abilityName: '変化への気づき',
-        usable: null,
+        usable: [],
+        scene: null,
+        checks: [],
         knowledge: [],
         drafted: false,
       },
@@ -359,8 +365,8 @@ export function fakeReportContent(overrides: Partial<ReportContent> = {}): Repor
     notYet: {
       checking: ['優先順位設定力'],
       taskGaps: [
-        { taskName: '日程の調整', abilityName: null, knowledge: ['表計算'] },
-        { taskName: '出張や会食の手配', abilityName: '変化への気づき', knowledge: [] },
+        { taskName: '日程の調整', abilityName: null, knowledge: ['表計算'], checks: [] },
+        { taskName: '出張や会食の手配', abilityName: '変化への気づき', knowledge: [], checks: [] },
       ],
       hasExcluded: false,
     },
@@ -383,6 +389,7 @@ export function fakeReportContent(overrides: Partial<ReportContent> = {}): Repor
       outsideConditions: false,
       demandNotChecked: false,
       cardsStale: false,
+      scenes: [],
     },
     thinking: [
       { situation: '3 人の会議の日程を決めてほしいと頼まれましたが、1 人から返事が来ません。', answer: FAKE_DEEPEN_CHOICES[0], fromChoice: true },
@@ -402,8 +409,8 @@ export function fakeReportSnapshot(content: ReportContent): ReportSnapshot {
     abilities: content.abilities.map((a) => ({ key: a.key, name: a.name })),
     notYet: {
       taskGaps: content.notYet.taskGaps
-        .filter((g) => g.knowledge.length > 0)
-        .map((g) => ({ taskName: g.taskName, knowledge: g.knowledge })),
+        .filter((g) => g.knowledge.length > 0 || g.checks.length > 0)
+        .map((g) => ({ taskName: g.taskName, knowledge: g.knowledge, checks: g.checks })),
       hasExcluded: content.notYet.hasExcluded,
     },
     records: content.records,
@@ -442,7 +449,12 @@ export function fakeDraftedTask(id: string, task: DeepenTaskRequest): DeepenTask
     detail: task.detail,
     ability: task.ability,
     abilityName: FAKE_ABILITY_NAMES[task.ability],
-    usable: task.ability === 'balancing-interests' ? { state: 'confirmed', quotes: FAKE_BALANCING_QUOTES } : null,
+    usable:
+      task.ability === 'balancing-interests'
+        ? [{ key: 'balancing-interests', name: FAKE_ABILITY_NAMES[task.ability], state: 'confirmed', quotes: FAKE_BALANCING_QUOTES }]
+        : [],
+    scene: null,
+    checks: [],
     knowledge: task.knowledge === '' ? [] : [task.knowledge],
     drafted: true,
   }

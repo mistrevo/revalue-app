@@ -10,12 +10,14 @@ public sealed class ConditionFitTests
         var json = $$"""
         {
           "source": { "text": "出典", "url": "https://example.com", "note": "注" },
+          "domains": [ { "id": "d", "name": "領域" } ],
           "occupations": [
-            { "id": "o", "name": "職種", "summary": "説明", "jobtag": { "number": 1, "name": "名" },
+            { "id": "o", "name": "職種", "domain": "d", "summary": "説明", "jobtag": { "number": 1, "name": "名" },
               "tasks": [
-                { "id": "t", "name": "業務", "detail": "中身", "jobtagTasks": [1], "ability": "balancing-interests",
+                { "id": "t", "name": "業務", "detail": "中身", "status": "active", "needsReview": false, "jobtagTasks": [1],
+                  "abilities": { "main": "balancing-interests", "sub": [] }, "scene": "場面",
                   "hoursPerWeek": { "min": {{min}}, "max": {{max}} }, "timeSlots": [{{slots}}], "place": "{{place}}",
-                  "hourlyYen": { "min": {{yenMin}}, "max": {{yenMax}} }, "knowledge": [] }
+                  "hourlyYen": { "min": {{yenMin}}, "max": {{yenMax}} }, "knowledge": [], "trial": "試し方", "checks": [] }
               ] }
           ]
         }

@@ -164,7 +164,7 @@ public sealed class ClaudeDeepenAiTests
         var choose = Section(ClaudeDeepenAi.Brief(Target(Options(ChooseChoice())), RecordInputs()), "target");
         Assert.Contains("choose", choose);
         Assert.Contains("オンライン秘書", choose);
-        var task = Catalog.FindTask("online-secretary-schedule")!;
+        var task = Catalog.FindTask("online-secretary-arrangement")!;
         Assert.Contains(task.Name, choose);
         Assert.Contains(task.Detail, choose);
         Assert.Contains("balancing-interests", choose);
@@ -186,6 +186,47 @@ public sealed class ClaudeDeepenAiTests
         var own = Section(ClaudeDeepenAi.Brief(Target(OwnOptions("架空のメモ-9c1d")), RecordInputs()), "target");
         Assert.Contains("地域の窓口の手伝い", own);
         Assert.Contains("架空のメモ-9c1d", own);
+    }
+
+    [Fact(DisplayName = "deepen-3（最初の一歩は小さく）: 登録した業務の小さな試し方を、一歩の手がかりとして AI に渡す")]
+    public void BriefHasTrials()
+    {
+        var combine = Section(ClaudeDeepenAi.Brief(Target(Options(CombineChoice())), RecordInputs()), "target");
+        foreach (var id in new[] { "online-secretary-arrangement", "accounting-check" })
+        {
+            Assert.Contains($"  小さな試し方の例: {Catalog.FindTask(id)!.Trial}\n", combine);
+        }
+
+        // 見立ての業務を書く案には、登録の業務の試し方を渡さない
+        foreach (var options in new[] { Options(CreateChoice()), OwnOptions() })
+        {
+            Assert.DoesNotContain("小さな試し方の例", ClaudeDeepenAi.Brief(Target(options), RecordInputs()));
+        }
+    }
+
+    [Fact(DisplayName = "deepen-6（仮の場面での考え方を聞く）: 登録した業務の使う力は、話から確かめる主な力と補助の力を渡し、準備中の力を渡さない")]
+    public void BriefHasActiveTaskAbilities()
+    {
+        var schedule = Section(ClaudeDeepenAi.Brief(Target(Options(ChooseChoice(taskId: "online-secretary-schedule"))), RecordInputs()), "target");
+        var abilities = Catalog.FindTask("online-secretary-schedule")!.Abilities.All;
+        Assert.Contains(
+            "  使う力: " + string.Join("、", abilities.Select(a => $"{ActionRef.Key(a)}（{AbilityText.Name(a)}）")) + "\n", schedule);
+
+        // 課題の原因の見当づくり: 主な力（原因分析力）と補助の力の仮説思考力は準備中。違和感察知力だけを渡す
+        var cause = Section(ClaudeDeepenAi.Brief(Target(Options(ChooseChoice(taskId: "planning-cause-hypothesis"))), RecordInputs()), "target");
+        Assert.Contains("  使う力: sensing-incongruity（違和感察知力）\n", cause);
+        Assert.DoesNotContain("cause-analysis", cause);
+        Assert.DoesNotContain("hypothesis-thinking", cause);
+    }
+
+    [Fact(DisplayName = "deepen-3（最初の一歩は小さく）: 深める指示は、問いの力を業務の主な力か補助の力から選び、小さな試し方の例を一歩の手がかりにしてよいと書く")]
+    public void PromptMentionsTaskAbilitiesAndTrials()
+    {
+        var prompt = PromptFiles.Read(PromptFiles.Deepen);
+
+        Assert.Contains("主な力", prompt);
+        Assert.Contains("補助の力", prompt);
+        Assert.Contains("小さな試し方の例", prompt);
     }
 
     [Fact(DisplayName = "deepen-2（業務ごとに照らす）: 「創る」と自分の仕事のときだけ、業務の見立てを求める")]

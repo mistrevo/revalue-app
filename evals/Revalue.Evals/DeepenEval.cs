@@ -161,23 +161,35 @@ public sealed class DeepenEval(IDeepenAi ai, IDeepenJudge judge, JobCatalog cata
         foreach (var light in lights)
         {
             sb.AppendLine($"- {light.Name}{(light.Detail.Length == 0 ? "" : $"（{light.Detail}）")}");
-            if (light.Usable is { } usable)
+            // 使える力は主な力、補助の力の順にすべて並べる。話から確かめる力でない力（準備中の力など）は名前を出さない
+            foreach (var usable in light.Usable.Where(u => AbilityCatalog.IsActive(u.Ability)))
             {
                 var state = usable.State == AbilityState.Confirmed ? "あなたの話から見えた力" : "確かめ中";
-                sb.AppendLine($"  - 使えるところ: {AbilityText.Name(light.Ability)}（{state}）");
+                sb.AppendLine($"  - 使えるところ: {AbilityText.Name(usable.Ability)}（{state}）");
                 foreach (var quote in usable.Quotes)
                 {
                     sb.AppendLine(quote.FromChoice ? $"    - 「{quote.Quote}」（選んだ答え）" : $"    - 「{quote.Quote}」");
                 }
             }
-            else
+
+            if (light.Scene is { } scene)
             {
-                sb.AppendLine($"  - まだ確かめていないこと: この業務で使う{AbilityText.Name(light.Ability)}は、まだ確かめていません。");
+                sb.AppendLine($"  - 力が生きる場面: {scene}");
+            }
+
+            if (!light.MainUsable && AbilityText.NameOrNull(light.Ability) is { } name)
+            {
+                sb.AppendLine($"  - まだ確かめていないこと: この業務で使う{name}は、まだ確かめていません。");
             }
 
             foreach (var knowledge in light.Knowledge)
             {
                 sb.AppendLine($"  - まだ確かめていないこと: {knowledge}");
+            }
+
+            if (light.Checks.Count > 0)
+            {
+                sb.AppendLine($"  - まだ確かめていないこと: 確かめておきたいこと（{string.Join("、", light.Checks)}）");
             }
         }
 

@@ -453,10 +453,14 @@ function TasksSection({
 function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
   const id = useId()
   const knowledge = task.knowledge.filter((k) => k.trim() !== '')
+  const checks = task.checks.filter((c) => c.trim() !== '')
+  // 主な力が使える力の一覧にあるか。補助の力の「まだ確かめていない」は並べない
+  const mainUsable = task.ability !== null && task.usable.some((u) => u.key === task.ability)
   const notYet = [
-    // 力の名前がない業務（力が辞書にない）は、まだ確かめていない力の行を出さない
-    ...(task.usable || task.abilityName === null ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]),
+    // 主な力の名前がない業務（準備中の力、力が辞書にない）は、まだ確かめていない力の行を出さない
+    ...(mainUsable || task.abilityName === null ? [] : [copy.deepen.abilityNotYet.replace('{name}', task.abilityName)]),
     ...(knowledge.length > 0 ? [copy.deepen.knowledgeLine.replace('{items}', knowledge.join('、'))] : []),
+    ...(checks.length > 0 ? [copy.deepen.checksLine.replace('{items}', checks.join('、'))] : []),
   ]
   return (
     <article aria-labelledby={id} className="flex min-w-0 flex-col gap-2 rounded-lg bg-muted/40 px-3 py-3 text-sm leading-relaxed">
@@ -466,14 +470,23 @@ function TaskCard({ task, actions }: { task: DeepenTask; actions: ReactNode }) {
         </h3>
         {task.detail && <p className="break-words">{task.detail}</p>}
       </div>
-      {task.usable && (
+      {task.usable.length > 0 && (
         <div>
           <p className="text-muted-foreground">{copy.deepen.usableTitle}</p>
-          <p className="mt-1 flex flex-wrap items-baseline gap-x-2">
-            <span className="font-semibold">{task.abilityName}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.deepen.abilityStates[task.usable.state]}</span>
-          </p>
-          <QuoteList quotes={task.usable.quotes} paired={task.usable.state === 'confirmed'} />
+          <ul className="mt-1 flex flex-col gap-2">
+            {task.usable.map((u) => (
+              <li key={u.key}>
+                <p className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-semibold" data-testid="usable-ability">
+                    {u.name}
+                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.deepen.abilityStates[u.state]}</span>
+                </p>
+                <QuoteList quotes={u.quotes} paired={u.state === 'confirmed'} />
+              </li>
+            ))}
+          </ul>
+          {mainUsable && task.scene && <p className="mt-1">{copy.deepen.sceneLine.replace('{scene}', task.scene)}</p>}
         </div>
       )}
       {notYet.length > 0 && (

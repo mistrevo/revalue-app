@@ -25,10 +25,12 @@ public sealed class ScriptedOptionsAi : IOptionsAi
         {
             foreach (var occupation in candidates.Occupations)
             {
-                var task = occupation.Tasks.FirstOrDefault(t => UsableOf(inputs, t.Ability) is not null);
-                if (task is not null)
+                foreach (var task in occupation.Tasks)
                 {
-                    return new ChooseDraft(true, occupation.Id, [task.Id], ActionRef.Key(task.Ability), Reason(UsableOf(inputs, task.Ability)!, task.Name));
+                    if (UsableIn(inputs, task) is { } usable)
+                    {
+                        return new ChooseDraft(true, occupation.Id, [task.Id], ActionRef.Key(usable.Ability), Reason(usable, task.Name));
+                    }
                 }
             }
         }
@@ -51,10 +53,10 @@ public sealed class ScriptedOptionsAi : IOptionsAi
                         continue;
                     }
 
-                    var used = UsableOf(inputs, a.Ability) is not null ? a : UsableOf(inputs, b.Ability) is not null ? b : null;
-                    if (used is not null)
+                    var used = UsableIn(inputs, a) is not null ? a : UsableIn(inputs, b) is not null ? b : null;
+                    if (used is not null && UsableIn(inputs, used) is { } usable)
                     {
-                        return new CombineDraft(true, [a.Id, b.Id], RoleName, ActionRef.Key(used.Ability), Reason(UsableOf(inputs, used.Ability)!, used.Name));
+                        return new CombineDraft(true, [a.Id, b.Id], RoleName, ActionRef.Key(usable.Ability), Reason(usable, used.Name));
                     }
                 }
             }
@@ -85,8 +87,9 @@ public sealed class ScriptedOptionsAi : IOptionsAi
             Reason(ability, "この事業のアイデア"));
     }
 
-    private static UsableAbility? UsableOf(OptionsInputs inputs, Ability ability) =>
-        inputs.Abilities.FirstOrDefault(a => a.Ability == ability && a.Quotes.Count > 0);
+    /// <summary>業務の力（主な力、補助の力の順）のうち、根拠の言葉のある使える力の最初のもの。</summary>
+    private static UsableAbility? UsableIn(OptionsInputs inputs, JobTask task) =>
+        task.ActiveAbilities.Select(ability => inputs.Abilities.FirstOrDefault(a => a.Ability == ability && a.Quotes.Count > 0)).FirstOrDefault(a => a is not null);
 
     /// <summary>
     /// 理由。カードに添える最初の根拠の言葉だけを引く（Prompts/options.md の「理由」）。選んだ答えの言葉は、本人が話した言葉として引かず、

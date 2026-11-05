@@ -571,6 +571,7 @@ function Tasks({ tasks, withOccupation }: { tasks: CardTask[]; withOccupation: b
             <p className="font-medium">{withOccupation ? `${task.name}（${task.occupationName}）` : task.name}</p>
             <p>{task.detail}</p>
             <p className="text-muted-foreground">{`${slotsText(task.timeSlots)}、${copy.options.placeValues[task.place]}`}</p>
+            {task.scene && <p>{copy.options.sceneLine.replace('{scene}', task.scene)}</p>}
           </li>
         ))}
       </ul>

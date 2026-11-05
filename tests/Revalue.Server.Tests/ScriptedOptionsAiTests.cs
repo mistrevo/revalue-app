@@ -74,12 +74,13 @@ public sealed class ScriptedOptionsAiTests
     [Fact(DisplayName = "options-4（創るは根拠を引けるときだけ）: 偽物は、候補で作れないカードを作らないと答え、創るは本人の条件の中で作る")]
     public async Task ScriptedDraftRespectsCandidates()
     {
-        // 週 1 時間、夜だけ: 条件に合う業務がない
+        // 経理事務と採用事務だけで、週 1 時間、夜だけ: 条件に合う業務がない
+        var catalog = Catalog with { Occupations = Catalog.Occupations.Where(o => o.Id is "accounting-clerk" or "recruiting-clerk").ToList() };
         var inputs = Inputs(hours: 1, slots: [TimeSlot.Night]);
-        var candidates = OptionCandidates.From(Catalog, inputs);
+        var candidates = OptionCandidates.From(catalog, inputs);
 
         var draft = await new ScriptedOptionsAi().DraftAsync(inputs, candidates, Ct);
-        var (cards, rejections) = OptionsValidator.Build(draft, candidates, inputs, Catalog, Forbidden, Now);
+        var (cards, rejections) = OptionsValidator.Build(draft, candidates, inputs, catalog, Forbidden, Now);
 
         Assert.False(draft.Choose.Made);
         Assert.False(draft.Combine.Made);

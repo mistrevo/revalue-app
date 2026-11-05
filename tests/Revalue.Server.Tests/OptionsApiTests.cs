@@ -183,14 +183,17 @@ public sealed class OptionsApiTests
         Assert.False(cards.GetProperty("stale").GetBoolean());
         Assert.Empty(Missing(all));
         var choose = cards.GetProperty("choose");
-        Assert.Equal("オンライン秘書", choose.GetProperty("occupationName").GetString());
+        // 偽物の AI は、業務マスターの最初の職種（経理事務）から、利害調整力につながる最初の業務（支払いの予定の管理。2〜8 時間）を選ぶ
+        Assert.Equal("経理事務", choose.GetProperty("occupationName").GetString());
         var task = Assert.Single(Array(choose, "tasks"));
-        Assert.Equal("online-secretary-schedule", task.GetProperty("id").GetString());
+        Assert.Equal("accounting-payables", task.GetProperty("id").GetString());
         Assert.Equal(["daytime", "evening"], Array(task, "timeSlots").Select(s => s.GetString()));
         Assert.Equal("home", task.GetProperty("place").GetString());
-        Assert.Equal("balancing-interests", task.GetProperty("ability").GetString());
+        // 業務の写しの力は、業務の主な力（段取り力）。カードの力は補助の力の利害調整力
+        Assert.Equal("planning-steps", task.GetProperty("ability").GetString());
+        Assert.Equal("balancing-interests", choose.GetProperty("ability").GetProperty("key").GetString());
         var range = choose.GetProperty("range");
-        Assert.Equal((3, 10), (range.GetProperty("minHours").GetInt32(), range.GetProperty("maxHours").GetInt32()));
+        Assert.Equal((2, 8), (range.GetProperty("minHours").GetInt32(), range.GetProperty("maxHours").GetInt32()));
         Assert.Equal(2, Array(cards.GetProperty("combine"), "tasks").Length);
         Assert.Equal("home", cards.GetProperty("create").GetProperty("place").GetString());
         Assert.Equal(5, all.GetProperty("monthlyIncome").GetInt32());
@@ -217,6 +220,94 @@ public sealed class OptionsApiTests
         Assert.Equal(JsonValueKind.Null, dto.GetProperty("cards").GetProperty("choose").ValueKind);
         Assert.Equal([("choose", "rejected")], Missing(dto));
         Assert.NotEqual(JsonValueKind.Null, dto.GetProperty("cards").GetProperty("combine").ValueKind);
+    }
+
+    [Fact(DisplayName = "options-2（選ぶは登録した職種から）: 前に保存したカードの業務が準備中なら、そのカードは出さず、選んだ案の中身は残す")]
+    public async Task SavedCardWithPreparingTaskIsHidden()
+    {
+        var (factory, ai, _) = Setup();
+        var client = await Ready(factory, ai, "o-prep");
+        await ChooseCard(client, "choose", await Generate(client));
+
+        // 保存したカードと選んだ案の業務を、いまは準備中の業務（保険の営業の、はじめての面談での聞き取り）に置き換える
+        static ChooseCard Preparing(ChooseCard card) => card with
+        {
+            OccupationId = "insurance-sales",
+            OccupationName = "保険の営業",
+            Tasks = [card.Tasks[0] with { TaskId = "insurance-sales-hearing", OccupationId = "insurance-sales", OccupationName = "保険の営業", Name = "はじめての面談での聞き取り" }],
+        };
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        await store.TryUpdateAsync<OptionsItem>(TestUsers.Key("o-prep"), OptionsItem.ItemId, item => item with
+        {
+            Cards = item.Cards! with { Choose = Preparing(item.Cards.Choose!) },
+            Choice = item.Choice! with { Choose = Preparing(item.Choice.Choose!) },
+        }, Ct);
+
+        var dto = await Get(client);
+
+        Assert.Equal(JsonValueKind.Null, dto.GetProperty("cards").GetProperty("choose").ValueKind);
+        Assert.Contains(("choose", "rejected"), Missing(dto));
+        var chosen = dto.GetProperty("choice").GetProperty("card").GetProperty("choose");
+        Assert.Equal("insurance-sales-hearing", Assert.Single(Array(chosen, "tasks")).GetProperty("id").GetString());
+        Assert.Equal("はじめての面談での聞き取り", chosen.GetProperty("tasks")[0].GetProperty("name").GetString());
+        // 選んだ案の業務が準備中になったときは、いまの条件に収まっていないときと同じ印を付ける（05-options.md の「本人が選ぶ」）
+        Assert.True(dto.GetProperty("choice").GetProperty("card").GetProperty("outsideConditions").GetBoolean());
+    }
+
+    [Fact(DisplayName = "options-10（力が生きる場面を添える）: カードの業務のうち、使った力を主な力に持つ業務にだけ、力が生きる場面を添える")]
+    public async Task SceneIsAddedOnlyForMainAbility()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Ready(factory, ai, "o-scene");
+        var catalog = factory.Services.GetRequiredService<JobCatalog>();
+        // 選ぶ: 出張や会食の手配（主な力が利害調整力）と、会議や面会の日程調整（利害調整力は補助の力）
+        // 組み合わせる: 会議や面会の日程調整と、面接の日程調整（どちらも利害調整力は補助の力）
+        options.Change = d => d with
+        {
+            Choose = d.Choose with { OccupationId = "online-secretary", TaskIds = ["online-secretary-arrangement", "online-secretary-schedule"], Ability = "balancing-interests" },
+            Combine = d.Combine with { TaskIds = ["online-secretary-schedule", "recruiting-interview-schedule"], Ability = "balancing-interests" },
+        };
+
+        var cards = (await Generate(client)).GetProperty("cards");
+
+        var choose = Array(cards.GetProperty("choose"), "tasks");
+        Assert.Equal(catalog.FindTask("online-secretary-arrangement")!.Scene, choose[0].GetProperty("scene").GetString());
+        Assert.Equal(JsonValueKind.Null, choose[1].GetProperty("scene").ValueKind);
+        Assert.All(Array(cards.GetProperty("combine"), "tasks"), t => Assert.Equal(JsonValueKind.Null, t.GetProperty("scene").ValueKind));
+    }
+
+    [Fact(DisplayName = "options-10（力が生きる場面を添える）: 選んだ案の力を外したときと、記録と合わなくなったときは、力が生きる場面も出さない")]
+    public async Task SceneIsHiddenWhenAbilityIsNotShown()
+    {
+        var (factory, ai, options) = Setup();
+        var client = await Ready(factory, ai, "o-scene-2");
+        var scene = factory.Services.GetRequiredService<JobCatalog>().FindTask("online-secretary-arrangement")!.Scene;
+        options.Change = d => d with
+        {
+            Choose = d.Choose with { OccupationId = "online-secretary", TaskIds = ["online-secretary-arrangement"], Ability = "balancing-interests" },
+        };
+        var chosen = (await ChooseCard(client, "choose", await Generate(client))).GetProperty("choice").GetProperty("card").GetProperty("choose");
+        Assert.Equal(scene, Assert.Single(Array(chosen, "tasks")).GetProperty("scene").GetString());
+
+        // validate-12（本人が見立てを外せる）: 外すと、選んだ案の理由と力と一緒に、力が生きる場面も出さない。戻すとまた出す
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/exclude", null, Ct)).StatusCode);
+        var excluded = (await Get(client)).GetProperty("choice").GetProperty("card").GetProperty("choose");
+        Assert.Equal(JsonValueKind.Null, excluded.GetProperty("ability").ValueKind);
+        Assert.Equal(JsonValueKind.Null, Assert.Single(Array(excluded, "tasks")).GetProperty("scene").ValueKind);
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/abilities/balancing-interests/restore", null, Ct)).StatusCode);
+        var included = (await Get(client)).GetProperty("choice").GetProperty("card").GetProperty("choose");
+        Assert.Equal(scene, Assert.Single(Array(included, "tasks")).GetProperty("scene").GetString());
+
+        // 記録と合わなくなった（選んだ案の写しの状態が、いまの記録と違う）ときも出さない
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        await store.TryUpdateAsync<OptionsItem>(TestUsers.Key("o-scene-2"), OptionsItem.ItemId, item => item with
+        {
+            Choice = item.Choice! with { Choose = item.Choice.Choose! with { Ability = item.Choice.Choose.Ability with { State = AbilityState.NeedsCheck } } },
+        }, Ct);
+        var changed = (await Get(client)).GetProperty("choice").GetProperty("card");
+        Assert.True(changed.GetProperty("abilityChanged").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, Assert.Single(Array(changed.GetProperty("choose"), "tasks")).GetProperty("scene").ValueKind);
     }
 
     [Fact(DisplayName = "options-6（本人が選ぶ、保留する、自分で書く）: カードを選び、作り直しても選んだ案はそのまま残る")]
@@ -455,7 +546,7 @@ public sealed class OptionsApiTests
 
         Assert.True(card.GetProperty("abilityExcluded").GetBoolean());
         var choose = card.GetProperty("choose");
-        Assert.Equal("オンライン秘書", choose.GetProperty("occupationName").GetString());
+        Assert.Equal("経理事務", choose.GetProperty("occupationName").GetString());
         Assert.Single(Array(choose, "tasks"));
         Assert.Equal(JsonValueKind.Null, choose.GetProperty("reason").ValueKind);
         Assert.Equal(JsonValueKind.Null, choose.GetProperty("ability").ValueKind);
@@ -494,7 +585,7 @@ public sealed class OptionsApiTests
         var chosen = dto.GetProperty("choice").GetProperty("card");
         Assert.False(chosen.GetProperty("abilityExcluded").GetBoolean());
         Assert.True(chosen.GetProperty("abilityChanged").GetBoolean());
-        Assert.Equal("オンライン秘書", chosen.GetProperty("choose").GetProperty("occupationName").GetString());
+        Assert.Equal("経理事務", chosen.GetProperty("choose").GetProperty("occupationName").GetString());
         Assert.Equal(JsonValueKind.Null, chosen.GetProperty("choose").GetProperty("reason").ValueKind);
         Assert.Equal(JsonValueKind.Null, chosen.GetProperty("choose").GetProperty("ability").ValueKind);
         Assert.DoesNotContain("夫と母の予定がぶつかって", chosen.GetRawText());
@@ -686,13 +777,13 @@ public sealed class OptionsApiTests
         var client = await Ready(factory, ai, "o-11");
         await Generate(client);
 
-        // 週 10 時間 → 3 時間、日中と夕方 → 日中だけ: 選ぶ（3 時間から、日中と夕方）は収まり、組み合わせる（3 + 2 時間から）と創る（10 時間）は収まらない
+        // 週 10 時間 → 3 時間、日中と夕方 → 日中だけ: 選ぶ（2 時間から、日中と夕方）は収まり、組み合わせる（2 つの業務の合計）と創る（10 時間）は収まらない
         await PutConditions(client, Conditions(3, ["daytime"]));
         var narrowed = await Get(client);
         var cards = narrowed.GetProperty("cards");
         Assert.True(cards.GetProperty("stale").GetBoolean());
         var range = cards.GetProperty("choose").GetProperty("range");
-        Assert.Equal((3, 3), (range.GetProperty("minHours").GetInt32(), range.GetProperty("maxHours").GetInt32()));
+        Assert.Equal((2, 3), (range.GetProperty("minHours").GetInt32(), range.GetProperty("maxHours").GetInt32()));
         // 業務の時間帯も、もう使えない夕方は出さない
         var task = Assert.Single(Array(cards.GetProperty("choose"), "tasks"));
         Assert.Equal(["daytime"], Array(task, "timeSlots").Select(s => s.GetString()));
@@ -854,7 +945,7 @@ public sealed class OptionsApiTests
         {
             Assert.DoesNotContain("目印", line);
             Assert.DoesNotContain("迎えの時間をずらしてもらいました", line);
-            Assert.DoesNotContain("オンライン秘書", line);
+            Assert.DoesNotContain("経理事務", line);
         }
     }
 
