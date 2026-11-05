@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Tests;
@@ -186,6 +187,26 @@ public sealed class AbilityTextTests
             Assert.DoesNotMatch(@"^(そう|それ|そのとき|そこ|あの|あれ|この)", h);
             Assert.DoesNotContain("（", h, StringComparison.Ordinal);
         });
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 手がかりは一つのことだけを求め、問いの言葉（何、だれ、どこ、いつ、どう、どんな など）を二つ並べない")]
+    public void HintsAskOneThing()
+    {
+        // 聞き手は手がかりについて問いを一つだけ作る。問いの言葉が二つある手がかりは、一度に二つ聞く問いになりやすい（芯 3（AI が聞き手になる））。
+        // 置き換え先の 3 つの力は、前からの手がかりを一字一句引き継ぐので除く（AbilityCatalogTests で確かめている）
+        Ability[] inherited = [TestAbilities.NoticingChanges, TestAbilities.BalancingInterests, TestAbilities.SettingPriorities];
+        var askWords = new Regex("何|だれ|誰|どこ|いつ(?!も)|どう|どんな|どれ|どの|どちら|なぜ");
+
+        Assert.All(AllActions().Where(a => !inherited.Contains(a.Ability)).Select(AbilityText.Hint), h =>
+            Assert.True(askWords.Matches(h).Count <= 1, h));
+    }
+
+    [Fact(DisplayName = "validate-6（否定の言葉を使わない）: 手がかりと続きの問いは、本人が言っていない「つまずき」で、その日を言い表さない")]
+    public void HintsAndQuestionsDoNotPresumeStumbling()
+    {
+        // 足りない行動は番号の順に聞くので、うまくいかなかった状況を本人が打ち消したあとにも、次の行動の問いが出ることがある
+        Assert.All(AllActions().SelectMany(a => new[] { AbilityText.Hint(a), AbilityText.ResumeAsk(a) }), t =>
+            Assert.DoesNotContain("つまず", t, StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 行動の呼び名は balancing-interests.3 の形で、読み戻せる")]
