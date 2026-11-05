@@ -164,13 +164,13 @@ public sealed class EvalSummary
         gated.AddRange(
         [
             new(
-                "validate-1（3 つともそろったときだけ根拠あり）: 褒めすぎ（根拠ありにしてはいけない力を根拠ありにした）",
+                "validate-1（すべてそろったときだけ根拠あり）: 褒めすぎ（根拠ありにしてはいけない力を根拠ありにした）",
                 overPraise, notConfirmed.Count, "0 件", overPraise == 0, CountsViolations: true),
             new(
                 "validate-4（根拠は本人の言葉）: 根拠の引用が、本人の発言と一字一句同じ",
                 verbatim, shown.Count, "すべて", verbatim == shown.Count),
             new(
-                "validate-1（3 つともそろったときだけ根拠あり）: そろっている例で、根拠ありにした（結果が悪い例、結果を話していない例を含む）",
+                "validate-1（すべてそろったときだけ根拠あり）: そろっている例で、根拠ありにした（結果が悪い例、結果を話していない例を含む）",
                 confirmed, expectedConfirmed.Count, "9 割以上", confirmed * 10 >= expectedConfirmed.Count * 9),
             new(
                 "validate-2（足りない行動だけ聞き返す）: 一部だけそろった例で、足りない行動だけを聞き返した",

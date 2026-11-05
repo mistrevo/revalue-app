@@ -231,7 +231,7 @@ public sealed class ClaudeConversationAiTests
         | 優先順位をつける力 | `prioritizing` | 全部はこなせないほど用事が重なる | 何を先にし、何を後に回すかを具体的に決める | 決めた理由や基準がある |
         """;
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りの指示の力の表は、判定に使う力からコードが作って差し込み、いまの表と一字一句同じ")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示の力の表は、判定に使う力からコードが作って差し込み、いまの表と一字一句同じ")]
     public void ReaderPromptInsertsAbilityTableFromData()
     {
         var file = PromptFiles.Read(PromptFiles.Reader);
@@ -249,7 +249,7 @@ public sealed class ClaudeConversationAiTests
         Assert.Equal(prompt, PromptFiles.ReaderPrompt());
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りのシステムプロンプトは、力の表を差し込んだ指示")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りのシステムプロンプトは、力の表を差し込んだ指示")]
     public async Task ReadRequestUsesReaderPromptWithTable()
     {
         var (ai, http, _) = Create(HttpStatusCode.OK, MessageJson(ReadingJson, "end_turn"));
@@ -545,7 +545,7 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("（訂正）", reader);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りの指示は、優先順位をつける力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りの指示は、優先順位をつける力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
     public void ReaderDoesNotInferPrioritizingReason()
     {
         var reader = PromptFiles.Read(PromptFiles.Reader);

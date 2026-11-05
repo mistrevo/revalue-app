@@ -156,7 +156,7 @@ public sealed class AbilityBookTests
         Assert.Contains(raw, j => j.Contains("\"states\":{\"noticing\":\"notYet\",\"coordinating\":\"confirmed\"", StringComparison.Ordinal));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 力の確かめに使わない場面は数えない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 力の確かめに使わない場面は数えない")]
     public async Task ExcludedEpisodesAreNotCounted()
     {
         var (store, clock) = Create();
@@ -171,7 +171,7 @@ public sealed class AbilityBookTests
         Assert.All(view, v => Assert.Equal(AbilityState.NotYet, v.State));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 場面のうちいちばん進んだ状態を使い、根拠はその状態の新しい場面から")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 場面のうちいちばん進んだ状態を使い、根拠はその状態の新しい場面から")]
     public async Task MostAdvancedStateWithNewestEvidence()
     {
         var (store, clock) = Create();

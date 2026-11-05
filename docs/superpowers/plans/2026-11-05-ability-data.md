@@ -93,10 +93,10 @@
 - Modify: `docs/specs/00-common.md`（判定に使う力の表を置き、`abilities.json` が正だと書く）、`docs/specs/06-deepen.md`（応答に足した一覧）
 - Test: 画面のテスト（`npm --prefix src/web test`）、`EvalsTests.cs`、`DeepenApiTests.cs`
 
-- [ ] **Step 1: 失敗するテストを書く** — `GET /api/deepen` が `abilities` を返す（裏側の結合テスト）。画面の深めるのテストで、選べる力が API の一覧から出る
-- [ ] **Step 2〜4: 実装して、裏側と画面のテストが通ることを確かめる**。`grep -rn "noticing\|coordinating\|prioritizing" src/web/src` が、テストの偽のデータ以外で 0 件
-- [ ] **Step 5: 呼び名をそろえる** — PRD で validate-1 の呼び名を「validate-1（すべてそろったときだけ根拠あり）」に変えた。`docs/specs/`、テストの `DisplayName`、`evals/`（criteria.md、判定役、`ReportWriter` などの文字列）の「validate-1（3 つともそろったときだけ根拠あり）」を、すべて新しい呼び名にする。`evals/results/` の過去の結果は書き換えない。`grep -rn "3 つともそろったときだけ" docs/specs tests evals --include=*.md --include=*.cs` が、`evals/results/` 以外で 0 件
-- [ ] **Step 6: コミット**
+- [x] **Step 1: 失敗するテストを書く** — `GET /api/deepen` が `abilities` を返す（裏側の結合テスト）。画面の深めるのテストで、選べる力が API の一覧から出る
+- [x] **Step 2〜4: 実装して、裏側と画面のテストが通ることを確かめる**。`grep -rn "noticing\|coordinating\|prioritizing" src/web/src` が、テストの偽のデータ以外で 0 件
+- [x] **Step 5: 呼び名をそろえる** — PRD で validate-1 の呼び名を「validate-1（すべてそろったときだけ根拠あり）」に変えた。`docs/specs/`、テストの `DisplayName`、`evals/`（criteria.md、判定役、`ReportWriter` などの文字列）の「validate-1（3 つともそろったときだけ根拠あり）」を、すべて新しい呼び名にする。`evals/results/` の過去の結果は書き換えない。`grep -rn "3 つともそろったときだけ" docs/specs tests evals --include=*.md --include=*.cs` が、`evals/results/` 以外で 0 件
+- [x] **Step 6: コミット**
 
 ## 確認コマンド
 

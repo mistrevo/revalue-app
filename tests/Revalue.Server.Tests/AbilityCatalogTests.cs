@@ -26,7 +26,7 @@ public sealed class AbilityCatalogTests
         }
         """;
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 判定に使う力は、見立てる力、調整する力、優先順位をつける力の順に並ぶ")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 判定に使う力は、見立てる力、調整する力、優先順位をつける力の順に並ぶ")]
     public void ActiveAbilitiesKeepTheOrder()
     {
         Assert.Equal(
@@ -40,7 +40,7 @@ public sealed class AbilityCatalogTests
             new[] { Ability.Prioritizing, Ability.Noticing, Ability.Coordinating }.Order().ToList());
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 力ごとの核となる行動の数はデータから読み、いまは 3 つずつ")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 力ごとの核となる行動の数はデータから読み、いまは 3 つずつ")]
     public void ActionCountComesFromData()
     {
         Assert.All(AbilityCatalog.Active, a => Assert.Equal(3, AbilityCatalog.ActionCount(a)));
@@ -94,7 +94,7 @@ public sealed class AbilityCatalogTests
         Assert.Throws<ArgumentOutOfRangeException>(() => AbilityCatalog.Name(new Ability("cooking")));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 辞書のデータは、12 の分類があり、力の id と分類がそろっている")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 辞書のデータは、12 の分類があり、力の id と分類がそろっている")]
     public void SharedDataIsWellFormed()
     {
         var catalog = AbilityCatalog.Current;
@@ -105,7 +105,7 @@ public sealed class AbilityCatalogTests
         Assert.All(catalog.Entries, e => Assert.False(string.IsNullOrWhiteSpace(e.Reason)));
     }
 
-    [Theory(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 核となる行動が 2〜3 つでない力は、読み込みで止める")]
+    [Theory(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 核となる行動が 2〜3 つでない力は、読み込みで止める")]
     [InlineData(1)]
     [InlineData(4)]
     [InlineData(0)]
@@ -114,7 +114,7 @@ public sealed class AbilityCatalogTests
         Assert.Throws<InvalidOperationException>(() => AbilityCatalog.Load(Json(AbilityJson("a", actions))));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 行動が 2 つの力は読める")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 行動が 2 つの力は読める")]
     public void LoadAcceptsTwoActions()
     {
         var catalog = AbilityCatalog.Load(Json(AbilityJson("a", 2), AbilityJson("b", 3)));
@@ -123,7 +123,7 @@ public sealed class AbilityCatalogTests
         Assert.Equal(3, catalog.ActionCountOf(new Ability("b")));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: id の重なり、ない分類、番号の抜けは、読み込みで止める")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: id の重なり、ない分類、番号の抜けは、読み込みで止める")]
     public void LoadRejectsBrokenData()
     {
         Assert.Throws<InvalidOperationException>(() => AbilityCatalog.Load(Json(AbilityJson("a"), AbilityJson("a"))));
@@ -134,7 +134,7 @@ public sealed class AbilityCatalogTests
         Assert.Throws<InvalidOperationException>(() => AbilityCatalog.Load(Json(AbilityJson("A b"))));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 準備中の力は、判定に使う力に入らない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 準備中の力は、判定に使う力に入らない")]
     public void PreparingAbilitiesAreNotActive()
     {
         var catalog = AbilityCatalog.Load(Json(AbilityJson("a"), AbilityJson("b", status: "preparing"), AbilityJson("c", category: "coordination-execution")));
@@ -144,7 +144,7 @@ public sealed class AbilityCatalogTests
         Assert.Equal(3, catalog.Entries.Count);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 辞書にない力の根拠と、行動の数を超える番号は、例外にせずに数えない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 辞書にない力の根拠と、行動の数を超える番号は、例外にせずに数えない")]
     public void UnknownAbilitiesAreIgnored()
     {
         var old = new Ability("old-ability");

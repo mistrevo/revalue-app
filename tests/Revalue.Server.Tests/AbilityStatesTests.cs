@@ -9,7 +9,7 @@ public sealed class AbilityStatesTests
 
     private static AbilityResult Of(IReadOnlyList<AbilityResult> results, Ability ability) => results.Single(r => r.Ability == ability);
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 同じ出来事に 3 つそろうと Confirmed")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 同じ出来事に 3 つそろうと Confirmed")]
     public void ThreeInOneEventConfirms()
     {
         var results = AbilityStates.Evaluate(
@@ -27,7 +27,7 @@ public sealed class AbilityStatesTests
         Assert.Equal("早いほう", coordinating.Shown[1].Quote);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 3 つの行動の引用が 1 つの引用の中にすべて収まるときは、ほかの 2 つを含む引用を数えず、根拠ありにしない")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 3 つの行動の引用が 1 つの引用の中にすべて収まるときは、ほかの 2 つを含む引用を数えず、根拠ありにしない")]
     public void OneSpanCoveringAllThreeDoesNotConfirm()
     {
         var results = AbilityStates.Evaluate(
@@ -52,7 +52,7 @@ public sealed class AbilityStatesTests
         Assert.Equal(AbilityState.NeedsCheck, same.State);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: ほかの 2 つを含む引用の行動に、別の部分の根拠もあれば、そちらで根拠ありにする")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: ほかの 2 つを含む引用の行動に、別の部分の根拠もあれば、そちらで根拠ありにする")]
     public void ContainerWithAnotherQuoteStillConfirms()
     {
         var results = AbilityStates.Evaluate(
@@ -68,7 +68,7 @@ public sealed class AbilityStatesTests
         Assert.Equal("夫は夕方まで仕事で、子どもは午後に習い事がありました", coordinating.Shown[0].Quote);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: そろう出来事が複数あれば、番号の大きい出来事の根拠を出す")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: そろう出来事が複数あれば、番号の大きい出来事の根拠を出す")]
     public void LaterCompleteEventIsShown()
     {
         var results = AbilityStates.Evaluate(
@@ -80,7 +80,7 @@ public sealed class AbilityStatesTests
         Assert.All(Of(results, Ability.Noticing).Shown, e => Assert.Equal(2, e.Event));
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 2 つの出来事に分かれてそろうと NeedsCheck のまま")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 2 つの出来事に分かれてそろうと NeedsCheck のまま")]
     public void SplitAcrossEventsNeedsCheck()
     {
         var results = AbilityStates.Evaluate(
@@ -96,7 +96,7 @@ public sealed class AbilityStatesTests
         Assert.Equal([3], coordinating.Missing);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 同じ番号でも読み取りが違えば別の出来事として扱い、NeedsCheck のまま")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 同じ番号でも読み取りが違えば別の出来事として扱い、NeedsCheck のまま")]
     public void SameEventNumberFromDifferentReadingsNeedsCheck()
     {
         var results = AbilityStates.Evaluate(
@@ -178,7 +178,7 @@ public sealed class AbilityStatesTests
         Assert.Equal(2, Assert.Single(tie.Shown).Event);
     }
 
-    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 根拠がなければ NotYet、3 つの力は noticing、coordinating、prioritizing の順")]
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 根拠がなければ NotYet、3 つの力は noticing、coordinating、prioritizing の順")]
     public void NoEvidenceIsNotYetInOrder()
     {
         var results = AbilityStates.Evaluate([]);

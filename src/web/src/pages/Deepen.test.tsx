@@ -66,6 +66,22 @@ function ownWithDrafts() {
 }
 
 describe('Deepen', () => {
+  it('deepen-2（業務ごとに照らす）: 業務の力の選択肢は、裏側が返した力の一覧から出る（画面は力の id を知らない）', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      deepen: { ...ownWithDrafts(), abilities: [{ key: 'sample-ability-a', name: '架空の力 A' }, { key: 'sample-ability-b', name: '架空の力 B' }] },
+    })
+    renderApp('/deepen')
+    const tasks = await screen.findByRole('region', { name: copy.deepen.tasksTitle })
+    await userEvent.click(within(tasks).getByRole('button', { name: copy.deepen.editLabel.replace('{text}', '入力の手順を決める') }))
+    const select = within(tasks).getByLabelText(copy.deepen.taskAbilityLabel)
+    const options = within(select).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toContain('架空の力 A')
+    expect(options).toContain('架空の力 B')
+    expect(options).not.toContain('見立てる力')
+  })
+
   it('deepen-1（選んだ 1 案だけ深める）: 選んだ案がないときと保留のときは、仕事の選択肢への道を一つだけ出す', async () => {
     for (const [readiness, text] of [
       ['noChoice', copy.deepen.noChoice],

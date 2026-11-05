@@ -50,7 +50,12 @@ public sealed record DeepenContentDto(
 /// 深める API が返すもの。進めないときは <paramref name="Target"/> と <paramref name="Content"/> が null。まだ深めていなければ <paramref name="Content"/> が null。
 /// <paramref name="RetryPaused"/> は、いまの選んだ案で AI が失敗したか断ったか。初めて深めるときの失敗も伝えるため、中身の外にも持つ。
 /// </summary>
-public sealed record DeepenDto(DeepenReadiness Readiness, DeepenTargetDto? Target, DeepenContentDto? Content, bool RetryPaused);
+/// <param name="Abilities">業務の見立てで選べる力（辞書の判定に使う力。辞書の順）。選んだ案がなくても返す。</param>
+public sealed record DeepenDto(
+    DeepenReadiness Readiness, DeepenTargetDto? Target, DeepenContentDto? Content, bool RetryPaused, IReadOnlyList<DeepenAbilityDto> Abilities);
+
+/// <summary>業務の見立てで選べる力。<paramref name="Key"/> は辞書の id。</summary>
+public sealed record DeepenAbilityDto(string Key, string Name);
 
 public sealed record TaskRequest(string? Name, string? Detail, string? Ability, string? Knowledge);
 
@@ -409,9 +414,10 @@ public static class DeepenEndpoints
 
     private static DeepenDto Dto(DeepenState state, JobCatalog catalog)
     {
+        var abilities = AbilityCatalog.Active.Select(a => new DeepenAbilityDto(a.Id, AbilityCatalog.Name(a))).ToList();
         if (state.Target is not { } target)
         {
-            return new DeepenDto(state.Readiness, null, null, false);
+            return new DeepenDto(state.Readiness, null, null, false, abilities);
         }
 
         var conditions = state.Inputs.Conditions!;
@@ -423,7 +429,7 @@ public static class DeepenEndpoints
         if (state.Item is not { Content: { } content } item)
         {
             // 初めて深めるときに失敗していたら、画面が「もう一度作る」を出せるように伝える
-            return new DeepenDto(state.Readiness, targetDto, null, state.Item?.FailedBasis == target.Basis);
+            return new DeepenDto(state.Readiness, targetDto, null, state.Item?.FailedBasis == target.Basis, abilities);
         }
 
         var stale = content.Basis != target.Basis;
@@ -434,7 +440,8 @@ public static class DeepenEndpoints
                 state.Readiness,
                 targetDto,
                 new DeepenContentDto(content.GeneratedAt, true, item.FailedBasis == target.Basis, [], false, [], [], false, false, []),
-                item.FailedBasis == target.Basis);
+                item.FailedBasis == target.Basis,
+                abilities);
         }
 
         var tasks = DeepenLighting.Light(target, content, state.Inputs)
@@ -474,6 +481,7 @@ public static class DeepenEndpoints
                 content.StepsFallback,
                 content.Steps.Any(s => !StepFit.Fits(s, conditions) && !item.ChosenStepIds.Contains(s.Id)),
                 item.OwnSteps),
-            false);
+            false,
+            abilities);
     }
 }
