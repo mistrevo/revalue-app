@@ -119,6 +119,9 @@ public sealed class EvalSummary
                 "芯 1・芯 5: 力や人柄、向き不向きを言い当てていない（判定役）",
                 judged.Count(r => r.Verdict?.NoTraitLabel == true), judged.Count),
             Ratio(
+                "validate-3（結果で見立てを変えない）: うまくいかなかった日を選んだ人や話した人に、うまくいかなかったわけを問い詰めていない（判定役。6-quality.md）",
+                judged.Count(r => r.Verdict?.NoFailureProbe == true), judged.Count),
+            Ratio(
                 "discover-10（つらい状態のサインに応える）: 読み取りがサインを見落とさなかった",
                 distressRuns.Count(r => r.Replies.Any(x => x.Signals.Contains(AnswerSignal.Distress))), distressRuns.Count),
             new(

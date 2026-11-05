@@ -45,6 +45,42 @@ public static class DiscoverEndpoints
     /// <summary>一覧に出す、最初の答えの書き出しの長さ（文字）。</summary>
     public const int PreviewLength = 30;
 
+    /// <summary>
+    /// 新しい場面の最初の問いと選択肢を、組で選ぶ（discover-1）。本人が答えた話し終えた場面（訂正は答えに数えない）のうち、
+    /// いちばん新しく話し終えたものが、つらい状態のサインで力の確かめに使わない場面なら、気持ちを聞かない問い。
+    /// ほかに答えた場面があれば「また」と添えた問い。なければ初めての問い。
+    /// 「いちばん新しい」は、話し終えた時刻（続きを話した場面も、話し終えた時刻で並ぶ）で見る。
+    /// 並べ方はホームの次にできること（NextStep.LastEndedWithDistress）と同じだが、見分ける条件は違う。
+    /// ホームは最後のターンがサインへの応えかで見るのに対し、ここは力の確かめに使わない印で見る。
+    /// サインのあと「続けて話す」を選んでふつうに締めた場面も、重い日に話を戻さない側に入れるため（Claude の判断）。
+    /// </summary>
+    public static (string Question, IReadOnlyList<string> Choices) ChooseOpening(IEnumerable<EpisodeItem> episodes)
+    {
+        var latest = episodes
+            .Where(e => e.Status == EpisodeStatus.Finished
+                && e.Turns.Any(t => t.Role == TurnRoles.User && t.AnswerKind != AnswerKind.Correction))
+            .OrderByDescending(e => e.FinishedAt ?? e.StartedAt)
+            .FirstOrDefault();
+        return latest switch
+        {
+            null => (DiscoverText.Opening, DiscoverText.OpeningChoices),
+            { ExcludedFromValidation: true } => (DiscoverText.OpeningAfterDistress, DiscoverText.OpeningAfterDistressChoices),
+            _ => (DiscoverText.OpeningAnotherDay, DiscoverText.OpeningChoices),
+        };
+    }
+
+    /// <summary>
+    /// 飛ばしたあとの新しい場面の問いと選択肢を、組で選ぶ（discover-5）。ふだんは、飛ばしたあとの問い（<see cref="DiscoverText.AfterSkip"/>）。
+    /// 飛ばした場面につらい状態のサインが出ていたら（力の確かめに使わない印。サインのあとの「この話は残さずに、別の話にする」もここを通る）、
+    /// つらい状態のサインのあとの入口と同じ問いと選択肢にする。サインには家庭内の暴力や暴言も入るので、打ち明けた直後に、
+    /// 家族や家の中の場面（「家族とゆっくり過ごした」、ごはんの前後）を出さないため（Claude の判断）。
+    /// 続きを話している場面を飛ばしたときも、戻す前の場面の印で見る（続きの中でサインが出ていれば入る）。
+    /// </summary>
+    public static (string Question, IReadOnlyList<string> Choices) ChooseAfterSkip(EpisodeItem skipped) =>
+        skipped.ExcludedFromValidation
+            ? (DiscoverText.OpeningAfterDistress, DiscoverText.OpeningAfterDistressChoices)
+            : (DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices);
+
     public static void Map(RouteGroupBuilder api)
     {
         var episodes = api.MapGroup("/episodes").RequireConsent();
@@ -62,13 +98,9 @@ public static class DiscoverEndpoints
         episodes.MapPost("/", async (HttpContext http, IDataStore store, TimeProvider time, CancellationToken ct) =>
         {
             var userKey = http.User.GetUserKey()!;
-            // 本人が答えた話し終えた場面があれば、「また」と添えた最初の問いで尋ねる（訂正は答えに数えない）
-            var answered = (await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct))
-                .Any(e => e.Status == EpisodeStatus.Finished
-                    && e.Turns.Any(t => t.Role == TurnRoles.User && t.AnswerKind != AnswerKind.Correction));
-            var opening = answered ? DiscoverText.OpeningAnotherDay : DiscoverText.Opening;
+            var (opening, choices) = ChooseOpening(await store.ListByTypeAsync<EpisodeItem>(userKey, EpisodeItem.ItemType, ct));
             var outcome = await EpisodeStarter.StartAsync(
-                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), opening, DiscoverText.OpeningChoices, "opening"), ct);
+                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), opening, choices, "opening"), ct);
             return Started(outcome);
         });
 
@@ -193,8 +225,9 @@ public static class DiscoverEndpoints
             await ReportScrub.TryAfterSkipAsync(store, userKey, skipped!, time, loggers.CreateLogger(typeof(ReportScrub)), ct);
 
             // 消したあと、ほかの画面で新しい場面が始まっていたら、2 つ目は作らずに 409 でその場面を知らせる
+            var (question, choices) = ChooseAfterSkip(skipped!);
             var outcome = await EpisodeStarter.StartAsync(
-                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices, "afterSkip"), ct);
+                store, userKey, () => EpisodeItem.Start(userKey, time.GetUtcNow(), question, choices, "afterSkip"), ct);
             return Started(outcome);
         });
     }

@@ -158,7 +158,7 @@ public sealed class ResumeTests
         Assert.False(after.ExcludedFromValidation);
     }
 
-    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いの行動を避けて、ほかの要確認の力の足りない行動を聞く。避けた行動も、続きの中でまた聞ける")]
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 答えずに区切った問いの行動を避けて、ほかの要確認の力の足りない行動を聞く。続きの中では、続きの問いで聞いた力に絞る（revisit-4（いまの話を聞き切る））")]
     public async Task ResumeAsksNextActionAndAvoidedActionStaysAskable()
     {
         var (factory, ai) = Create();
@@ -177,11 +177,27 @@ public sealed class ResumeTests
             AbilityText.ResumeOpening(new ActionRef(Ability.Prioritizing, 1), "迎えの時間をずらして"),
             question.GetProperty("text").GetString());
 
-        // 聞いた回数の数え方は変えないので、調整する力 3 はまだ 1 回。続きの答えのあと、いつもの決まりでもう一度聞ける
+        // 続きの問いで聞いた力（優先順位をつける力）に絞る。調整する力 3 はまだ 1 回しか聞いていないが、続きの答えのあと、そちらへは移らない
+        ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして"));
+        await Send(client, id, "少し覚えています");
+
+        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 1)), ai.NextMoves[^1]);
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 続きの問いで聞いた力の根拠が続きの答えの出来事になければ、答えずに区切った別の力の行動へは移らない")]
+    public async Task ResumeFocusDoesNotReturnToAvoidedAbility()
+    {
+        var (factory, ai) = Create();
+        await using var _f = factory;
+        var client = await Consenting(factory, "g-1");
+        var id = await FinishedEpisode(client, ai,
+            CoordinatingAll[0], CoordinatingAll[1], Candidate(Ability.Prioritizing, 2, "迎えの時間をずらして"));
+        Assert.Equal("prioritizing.1", Array(await Json(await Resume(client, id)), "turns")[^1].GetProperty("target").GetString());
+
         ai.Reading = _ => ReadingWith(CoordinatingAll[0], CoordinatingAll[1]);
         await Send(client, id, "少し覚えています");
 
-        Assert.Equal(new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Coordinating, 3)), ai.NextMoves[^1]);
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), ai.NextMoves[^1]);
     }
 
     [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 問いを足さずに続きを開くとき、印を書き換える直前にほかの画面で印が変わったら、話し終えた状態に戻す")]
@@ -561,7 +577,7 @@ public sealed class ResumeTests
                 h.GetProperty("key").GetString(), h.GetProperty("from").GetString(), h.GetProperty("to").GetString(), h.GetProperty("reason").GetString())));
     }
 
-    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 続きでつらい状態のサインが出た場面を飛ばすと、続きは残さず、力の確かめに使わない印は残す")]
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 続きでつらい状態のサインが出た場面を飛ばすと、続きは残さず、力の確かめに使わない印は残し、つらい状態のサインのあとの入口と同じ問いで始める")]
     public async Task SkipAfterResumeWithDistressKeepsMark()
     {
         var (factory, ai) = Create();
@@ -574,7 +590,13 @@ public sealed class ResumeTests
         ai.Reading = _ => new TurnReading(new HashSet<AnswerSignal> { AnswerSignal.Distress }, []);
         await Send(client, id, "最近ずっと眠れなくて、つらいです");
 
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync($"/api/episodes/{id}/skip", null, Ct)).StatusCode);
+        var skip = await client.PostAsync($"/api/episodes/{id}/skip", null, Ct);
+        Assert.Equal(HttpStatusCode.Created, skip.StatusCode);
+
+        // 続きの中でサインが出た場面を飛ばしたあとも、つらい状態のサインのあとの入口と同じ問いで始める（discover-5（つらい話は飛ばせる））
+        var next = (await Json(skip)).GetProperty("turns")[0];
+        Assert.Equal(DiscoverText.OpeningAfterDistress, next.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.OpeningAfterDistressChoices, next.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
 
         var after = await Saved(factory, "g-1", id);
         Assert.Equal(EpisodeStatus.Finished, after.Status);

@@ -504,6 +504,55 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("（訂正）", reader);
     }
 
+    [Fact(DisplayName = "validate-1（3 つともそろったときだけ根拠あり）: 読み取りの指示は、優先順位をつける力の 3 を、本人が理由や基準を言葉にしたときだけ根拠にし、事実から推し量らないと書いている")]
+    public void ReaderDoesNotInferPrioritizingReason()
+    {
+        var reader = PromptFiles.Read(PromptFiles.Reader);
+        var rules = reader[reader.IndexOf("## 根拠にしないもの", StringComparison.Ordinal)..reader.IndexOf("## 選んだ答え", StringComparison.Ordinal)];
+        var line = rules.Split('\n').Single(l => l.StartsWith("- 優先順位をつける力の 3", StringComparison.Ordinal));
+
+        Assert.Contains("理由や基準を言葉にしているときだけ根拠にする", line);
+        Assert.Contains("理由を推し量らない", line);
+        // 台本（e19）の答えの言葉を、指示に写さない
+        Assert.DoesNotContain("締め切り", line);
+        Assert.DoesNotContain("サイト", line);
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 返事の指示は、本人がしたことを聞く一手で、移動の手段や持ち物の中身のような行動の細部を聞かないと書いている")]
+    public void ListenerDoesNotAskActionDetails()
+    {
+        var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskWhatYouDid);
+
+        Assert.DoesNotContain("どうやって", line);
+        Assert.Contains("行動の細部は聞かず", line);
+        Assert.Contains("本人がしたことを聞く", line);
+        // どの力にも寄らない一手なので、優先順位をつける力の 2（先と後を決める）に寄った「決めたこと」を聞かせない
+        Assert.DoesNotContain("決めたこと", line);
+    }
+
+    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 返事の指示は、最初の問いの答えの例を選んだだけの答えに、映し返しを書かず、その日にあったことを一つ聞くと書いている")]
+    public void ListenerAsksWhatHappenedAfterOpeningChoice()
+    {
+        var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskWhatYouDid);
+
+        Assert.Contains("最初の問いの答えの例を選んだだけ", line);
+        Assert.Contains("映し返しを書かず", line);
+        Assert.Contains("その日にどんなことがあったかを一つ聞く", line);
+    }
+
+    [Fact(DisplayName = "validate-3（結果で見立てを変えない）: 返事の指示は、どの一手でも、うまくいかなかった日を選んだ人にも話した人にも、うまくいかなかったわけを聞かないと書いている")]
+    public void ListenerDoesNotProbeWhyItWentWrong()
+    {
+        var listener = PromptFiles.Read(PromptFiles.Listener);
+
+        // 選んだか書いたかで分けない。一手ごとではなく、どの一手にも効く「守ること」に書く
+        var rules = listener[listener.IndexOf("# 守ること", StringComparison.Ordinal)..];
+        var line = rules.Split('\n').Single(l => l.Contains("うまくいかなかったわけ", StringComparison.Ordinal));
+        Assert.Contains("どの一手でも", line);
+        Assert.Contains("選んだ人", line);
+        Assert.Contains("話した人", line);
+    }
+
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 返事の指示は、手がかりについてだけ一つ聞き、したことを前提にせず、答えの例で誘導しないと書いている")]
     public void ListenerDescribesAskMissingAction()
     {

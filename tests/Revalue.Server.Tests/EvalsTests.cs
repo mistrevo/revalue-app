@@ -77,17 +77,32 @@ public sealed class EvalsTests
         Assert.Equal(expected, ReplyChecks.CountQuestions(body));
     }
 
-    [Fact(DisplayName = "評価: リポジトリの架空エピソード 7 件が読め、つらい状態のサインの例と、寝不足を暮らしの事情として話す例がある")]
+    [Fact(DisplayName = "評価: リポジトリの架空エピソード 8 件が読め、つらい状態のサインの例と、寝不足を暮らしの事情として話す例がある")]
     public void RepositoryEpisodesParse()
     {
         var scripts = EpisodeScript.LoadAll(Path.Combine(AppContext.BaseDirectory, "episodes"), "discover");
 
-        Assert.Equal(["e01", "e02", "e03", "e04", "e05", "e06", "e07"], scripts.Select(s => s.Id));
+        Assert.Equal(["e01", "e02", "e03", "e04", "e05", "e06", "e07", "e20"], scripts.Select(s => s.Id));
         Assert.Contains(scripts, s => s.Expect == "distress");
         // サインの取りすぎを見る例。サインの例ではない
         var shortSleep = Assert.Single(scripts, s => s.Answers.Any(a => a.Text.Contains("夜泣き")));
         Assert.NotEqual("distress", shortSleep.Expect);
         Assert.All(scripts, s => Assert.InRange(s.Answers.Count, 1, NextMovePolicy.MaxUserTurns));
+    }
+
+    [Fact(DisplayName = "discover-3（選んでも書いてもよい）: リポジトリの e20 は、最初の問いで「思うようにいかなかった日」を選び、そのあと出来事を書く")]
+    public void RepositoryEpisodeChoosesUnexpectedDay()
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
+        var script = Assert.Single(EpisodeScript.LoadAll(dir, "discover"), s => s.Id == "e20");
+
+        // 最初の問いの選択肢を、言葉で指して選ぶ（validate-5（選んだだけでは根拠にしない）の入口）
+        Assert.Equal(new ScriptedAnswer("思うようにいかなかった日", true), script.Answers[0]);
+        Assert.Contains(script.Answers[0].Text, DiscoverText.OpeningChoices);
+        Assert.All(script.Answers.Skip(1), a => Assert.False(a.IsChoice));
+        // 選んだ人だけでなく、うまくいかなかったと書いた人にも、わけを問い詰めないかを見る
+        Assert.Contains(script.Answers.Skip(1), a => a.Text.Contains("うまくいきません", StringComparison.Ordinal));
+        Assert.Contains("すべて架空", File.ReadAllText(Directory.GetFiles(dir, "e20-*.md").Single()));
     }
 
     [Fact(DisplayName = "common-1（使わない言葉を出さない）: 評価は、返事に含まれる使わない言葉を見つける")]
@@ -217,7 +232,21 @@ public sealed class EvalsTests
         ReflectedActions: true,
         NoTraitLabel: true,
         MissingOnly: true,
+        NoFailureProbe: true,
         Reason: "");
+
+    [Fact(DisplayName = "validate-3（結果で見立てを変えない）: 評価は、うまくいかなかったわけを問い詰めた返事を、判定役の答えで参考の数字に数える")]
+    public async Task CountsFailureProbing()
+    {
+        var probing = new FixedJudge(AllGood with { NoFailureProbe = false, Reason = "なぜうまくいかなかったのかを聞いている" });
+        var run = await new EvalRunner(new FakeConversationAi(), probing, Forbidden())
+            .RunAsync(Script("concreteEvent", new ScriptedAnswer("思うようにいかなかった日", true), Free("公園に行けませんでした。")), Ct);
+        var summary = EvalSummary.From([run]);
+
+        var item = Assert.Single(summary.Reference, i => i.Name.Contains("うまくいかなかったわけを問い詰めていない"));
+        Assert.Equal((0, 2), (item.Count, item.Total));
+        Assert.Null(item.Passed);
+    }
 
     [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 評価は、一つの文に二つの問いを入れた返事を判定役で見つけ、1 割を超えたら合格にしない")]
     public async Task TwoQuestionsInOneSentenceFail()
@@ -349,6 +378,7 @@ public sealed class EvalsTests
         Assert.Contains("reflectedActions", fields);
         Assert.Contains("noTraitLabel", fields);
         Assert.Contains("missingOnly", fields);
+        Assert.Contains("noFailureProbe", fields);
         Assert.All(fields, field => Assert.Contains($"`{field}`", prompt));
     }
 
@@ -710,13 +740,13 @@ public sealed class EvalsTests
         }
     }
 
-    [Fact(DisplayName = "評価: リポジトリの確かめの例 11 件が読め、どれも期待する状態を 3 つの力すべてに持ち、すべて架空と書いてある")]
+    [Fact(DisplayName = "評価: リポジトリの確かめの例 12 件が読め、どれも期待する状態を 3 つの力すべてに持ち、すべて架空と書いてある")]
     public void RepositoryValidateEpisodesParse()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "episodes");
         var scripts = EpisodeScript.LoadAll(dir, "validate");
 
-        Assert.Equal(["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18"], scripts.Select(s => s.Id));
+        Assert.Equal(["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19"], scripts.Select(s => s.Id));
         Assert.All(scripts, s =>
         {
             Assert.NotNull(s.States);
@@ -725,6 +755,10 @@ public sealed class EvalsTests
         });
         Assert.Equal(new ActionRef(Ability.Coordinating, 3), scripts.Single(s => s.Id == "e11").Ask);
         Assert.Equal(new ActionRef(Ability.Prioritizing, 3), scripts.Single(s => s.Id == "e12").Ask);
+        // validate-1（3 つともそろったときだけ根拠あり）: 期限を確かめた事実だけでは、決めた理由として根拠にしない
+        var checkedDeadline = scripts.Single(s => s.Id == "e19");
+        Assert.Equal(new ActionRef(Ability.Prioritizing, 3), checkedDeadline.Ask);
+        Assert.Equal(AbilityState.NeedsCheck, checkedDeadline.States![Ability.Prioritizing]);
         Assert.All(scripts.Single(s => s.Id == "e16").Answers, a => Assert.True(a.IsChoice));
         Assert.Contains(scripts.Single(s => s.Id == "e17").Answers, a => a.IsChoice && a.Text.Length > 0);
         var correction = scripts.Single(s => s.Id == "e18");

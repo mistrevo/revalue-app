@@ -42,7 +42,7 @@ public sealed class EpisodeTests
         }, Ct);
     }
 
-    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 新しい場面は、最近の具体的な一日を尋ねる問いで始まる")]
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 新しい場面は、最近の、気持ちが動いた日を一つ尋ねる問いで始まる")]
     public async Task NewEpisodeStartsWithConcreteDayQuestion()
     {
         await using var factory = new RevalueFactory();
@@ -58,6 +58,7 @@ public sealed class EpisodeTests
         Assert.Equal("assistant", first.GetProperty("role").GetString());
         Assert.Equal(DiscoverText.Opening, first.GetProperty("text").GetString());
         Assert.DoesNotContain("強み", first.GetProperty("text").GetString());
+        Assert.Contains("気持ちが動いた日", first.GetProperty("text").GetString(), StringComparison.Ordinal);
         Assert.Equal(DiscoverText.OpeningChoices, first.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
         Assert.Equal(3, DiscoverText.OpeningChoices.Count);
     }
@@ -93,6 +94,61 @@ public sealed class EpisodeTests
         var turn = (await Start(client)).GetProperty("turns")[0];
 
         Assert.Equal(DiscoverText.Opening, turn.GetProperty("text").GetString());
+    }
+
+    /// <summary>保存先に、本人が答えた話し終えた場面を直接書く。<paramref name="excluded"/> は、つらい状態のサインで力の確かめに使わない印。</summary>
+    private static async Task AddFinishedEpisode(RevalueFactory factory, string principalId, DateTimeOffset at, bool excluded)
+    {
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        await store.UpsertAsync(new EpisodeItem
+        {
+            Id = EpisodeItem.NewId(),
+            UserKey = TestUsers.Key(principalId),
+            Type = EpisodeItem.ItemType,
+            Status = EpisodeStatus.Finished,
+            StartedAt = at,
+            FinishedAt = at.AddMinutes(10),
+            ExcludedFromValidation = excluded,
+            Turns =
+            [
+                new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.Opening, Choices = DiscoverText.OpeningChoices, Move = "opening", At = at },
+                new Turn { Role = TurnRoles.User, Text = "架空の答え。昨日は朝から子どもの支度をした", AnswerKind = AnswerKind.Free, At = at },
+                excluded
+                    ? new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.DistressText, Move = TalkStream.MoveName(MoveKind.Distress), At = at }
+                    : new Turn { Role = TurnRoles.Assistant, Text = "架空の返事。話してくれてありがとうございます。", Move = "close", At = at },
+            ],
+        }, Ct);
+    }
+
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: いちばん新しい話し終えた場面がつらい状態のサインで終わっていれば、新しい場面は気持ちを聞かない問いで始まる")]
+    public async Task AfterDistressEpisodeStartsWithoutFeelings()
+    {
+        await using var factory = new RevalueFactory();
+        var client = await Consenting(factory, "g-1");
+        var now = factory.Clock.GetUtcNow();
+        await AddFinishedEpisode(factory, "g-1", now.AddDays(-2), excluded: false);
+        await AddFinishedEpisode(factory, "g-1", now.AddDays(-1), excluded: true);
+
+        var turn = (await Start(client)).GetProperty("turns")[0];
+
+        Assert.Equal(DiscoverText.OpeningAfterDistress, turn.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.OpeningAfterDistressChoices, turn.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
+        Assert.Equal("opening", turn.GetProperty("move").GetString());
+    }
+
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: つらい状態のサインの場面のあとに、ふつうに話し終えた場面があれば、「また」の気持ちの問いに戻る")]
+    public async Task NormalEpisodeAfterDistressReturnsToAnotherDay()
+    {
+        await using var factory = new RevalueFactory();
+        var client = await Consenting(factory, "g-1");
+        var now = factory.Clock.GetUtcNow();
+        await AddFinishedEpisode(factory, "g-1", now.AddDays(-2), excluded: true);
+        await AddFinishedEpisode(factory, "g-1", now.AddDays(-1), excluded: false);
+
+        var turn = (await Start(client)).GetProperty("turns")[0];
+
+        Assert.Equal(DiscoverText.OpeningAnotherDay, turn.GetProperty("text").GetString());
+        Assert.Equal(DiscoverText.OpeningChoices, turn.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
     }
 
     [Fact(DisplayName = "discover-6（一場面ずつ区切り、続きから話せる）: 途中の場面があると新しく始められない")]

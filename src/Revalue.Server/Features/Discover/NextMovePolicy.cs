@@ -47,11 +47,20 @@ public sealed record NextMove(MoveKind Kind, ActionRef? Target = null);
 /// 上限（<see cref="NextMovePolicy.MaxAskPerAction"/>）として数える。
 /// </param>
 /// <param name="WantsOtherThings">いまの答えが、続きの問いに「その日のほかのことを話したい」を選んだものか。</param>
+/// <param name="Focus">
+/// この場面で聞き返す力（revisit-4（いまの話を聞き切る））。いちばん新しく行動を添えた聞き手のターン（足りない行動を聞く一手と、続きの問い）の力。
+/// まだ行動を添えて聞いていない場面では null。
+/// </param>
 public sealed record ValidationContext(
-    IReadOnlyList<Evidence> Evidence, int LatestAnswer, IReadOnlyDictionary<ActionRef, int> AskedCounts, bool WantsOtherThings = false)
+    IReadOnlyList<Evidence> Evidence,
+    int LatestAnswer,
+    IReadOnlyDictionary<ActionRef, int> AskedCounts,
+    bool WantsOtherThings = false,
+    Ability? Focus = null)
 {
     /// <summary>
     /// ターンから文脈を作る。聞いた回数は、行動を添えた聞き手のターン（足りない行動を聞く一手と、続きを話すときの問い）から数える。
+    /// そのうちいちばん新しいターンの力を、この場面で聞き返す力（<see cref="Focus"/>）にする。
     /// 続きの問いも同じ行動を聞いているので数に入れる（問い詰めないため。Claude の判断）。
     /// 訂正で打ち消された行動（訂正のターンの <see cref="Turn.Withdrawn"/>）は、本人がもう答えたので、聞いた回数の上限に届いたものとして数える（Claude の判断）。
     /// 続きの問いへの答えに、決まった選択肢を選んだときは次のように扱う（03-validate.md の「続きを話す」。Claude の判断）。
@@ -62,11 +71,13 @@ public sealed record ValidationContext(
     public static ValidationContext From(IReadOnlyList<Turn> turns, IReadOnlyList<Evidence> evidence)
     {
         var asked = new Dictionary<ActionRef, int>();
+        Ability? focus = null;
         foreach (var turn in turns)
         {
             if (turn.Role == TurnRoles.Assistant && ActionRef.Parse(turn.Target) is { } target)
             {
                 asked[target] = asked.GetValueOrDefault(target) + 1;
+                focus = target.Ability;
             }
         }
 
@@ -94,7 +105,7 @@ public sealed record ValidationContext(
             }
         }
 
-        return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked, wantsOtherThings);
+        return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked, wantsOtherThings, focus);
     }
 
     /// <summary>
@@ -192,6 +203,9 @@ public static class NextMovePolicy
     /// （一般論だけには具体的な出来事を聞く（validate-10）。分からない・何もないには答えやすい場面を聞き、問い詰めない）。
     /// いまの出来事の中で 3 つそろっていない力のうち、行動の多い力（同じ数なら <see cref="Ability"/> の順）の足りない行動を、
     /// <see cref="AbilityStates.AskOrder"/> の順に見て、聞いた回数が上限に届いていないもの。場面全体ですでに根拠ありの力は聞かない。
+    /// 一度聞き返した力（<see cref="ValidationContext.Focus"/>）があれば、その場面ではその力だけを聞く。その力が根拠ありになるか、
+    /// いまの出来事にその力の根拠がないか、聞ける行動がなくなったら、ほかの力の足りない行動は聞かない
+    /// （revisit-4（いまの話を聞き切る）。一つの場面で力をまたいで問いを重ねず、本人の話を聞き切るため）。
     /// </summary>
     private static ActionRef? MissingActionToAsk(TurnReading reading, ValidationContext? validation)
     {
@@ -220,9 +234,15 @@ public static class NextMovePolicy
             .Where(r => r.State == AbilityState.Confirmed)
             .Select(r => r.Ability)
             .ToHashSet();
+        if (validation.Focus is { } focused && confirmed.Contains(focused))
+        {
+            return null;
+        }
+
         var currentEvent = pool.Select(e => (e.Reading, e.Event)).Max();
         var candidates = specific
             .Where(e => (e.Reading, e.Event) == currentEvent && !confirmed.Contains(e.Ability))
+            .Where(e => validation.Focus is not { } only || e.Ability == only)
             .GroupBy(e => e.Ability)
             .Select(g => (Ability: g.Key, Actions: AbilityStates.Counted(g).Select(e => e.Action).ToHashSet()))
             .Where(c => c.Actions.Count < ActionRef.ActionsPerAbility)

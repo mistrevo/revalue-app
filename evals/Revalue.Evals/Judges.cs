@@ -20,6 +20,7 @@ public sealed record JudgeVerdict(
     bool ReflectedActions,
     bool NoTraitLabel,
     bool MissingOnly,
+    bool NoFailureProbe,
     string Reason);
 
 /// <summary>返事を判定する役。答えられなかったときは null を返す（評価では、問題があったと数える）。</summary>
@@ -37,7 +38,7 @@ public sealed class DryRunJudge : IReplyJudge
 {
     public Task<JudgeVerdict?> JudgeAsync(
         IReadOnlyList<Turn> conversation, MoveKind move, string? hint, string reply, IReadOnlyList<string> choices, CancellationToken ct) =>
-        Task.FromResult<JudgeVerdict?>(new JudgeVerdict(true, true, true, true, true, true, true, true, true, true, true, ""));
+        Task.FromResult<JudgeVerdict?>(new JudgeVerdict(true, true, true, true, true, true, true, true, true, true, true, true, ""));
 }
 
 /// <summary>Claude の判定役。構造化出力（effort high）で、項目ごとに true か false を受け取る。</summary>
@@ -48,7 +49,7 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
     private static readonly string[] BooleanFields =
     [
         "acknowledgedFirst", "singleQuestion", "concreteQuestion", "easierScene", "noInventedActions", "noIllnessDetails", "noOverPraise",
-        "noDismissal", "reflectedActions", "noTraitLabel", "missingOnly",
+        "noDismissal", "reflectedActions", "noTraitLabel", "missingOnly", "noFailureProbe",
     ];
 
     public async Task<JudgeVerdict?> JudgeAsync(
@@ -83,6 +84,7 @@ public sealed class ClaudeJudge(AnthropicClient client, string model, string pro
             return new JudgeVerdict(
                 Get("acknowledgedFirst"), Get("singleQuestion"), Get("concreteQuestion"), Get("easierScene"), Get("noInventedActions"),
                 Get("noIllnessDetails"), Get("noOverPraise"), Get("noDismissal"), Get("reflectedActions"), Get("noTraitLabel"), Get("missingOnly"),
+                Get("noFailureProbe"),
                 root.GetProperty("reason").GetString() ?? "");
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)
