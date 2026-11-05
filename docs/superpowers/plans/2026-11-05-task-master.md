@@ -368,19 +368,19 @@ public sealed record TaskLightDto(
 **Interfaces:**
 - Consumes: Task 1〜4 のすべて。保存データは、データの置き場に直接置いてから API を呼ぶ（`LegacyAbilityDataTests.cs` と同じやり方）
 
-- [ ] **Step 1: 失敗するテスト（か、通ることを確かめるテスト）を書く**（`SavedTaskDataTests.cs`。置くものは、いまの 12 業務の id と前の名前「日程の調整」「月の締めの手伝い」を持つ「選ぶ」と「組み合わせる」のカード、その「選ぶ」を選んだ案、その案で深めた中身（前の `Basis` のまま）、レポートの版 1 つ）
+- [x] **Step 1: 失敗するテスト（か、通ることを確かめるテスト）を書く**（`SavedTaskDataTests.cs`。置くものは、いまの 12 業務の id と前の名前「日程の調整」「月の締めの手伝い」を持つ「選ぶ」と「組み合わせる」のカード、その「選ぶ」を選んだ案、その案で深めた中身（前の `Basis` のまま）、レポートの版 1 つ）
   - `options-8（理由は本人の言葉とつなぐ）: 業務マスターに置き換える前に保存したカードと選んだ案は、写しの名前のまま出し、時間帯と収入はいまの業務マスターの値で計算し直す` — `GET /api/options` が 200。収入の目安は時給の下限 1,300 円で計算した値
   - `deepen-2（業務ごとに照らす）: 前に選んだ案の業務は、いまの業務マスターの名前と力で照らし、深めた中身を作り直さない` — `GET /api/deepen` が 200 で、`stale` が false、業務の名前は「会議や面会の日程調整」
   - `report-3（版を残す）: 前の版を持つ人のレポートは開け、前の版はそのまま残る` — `GET /api/report` が 200、前の版の数が減らない
   - `DeepenEvalTests`: `deepen-2（業務ごとに照らす）: 評価の選んだ案は、カードに使う業務だけを読み、準備中の業務なら読めない`。リポジトリの d01〜d07 がすべて読める
-- [ ] **Step 2: テストを回す** — `dotnet test --filter "FullyQualifiedName~SavedTaskDataTests|FullyQualifiedName~DeepenEvalTests"`。通らなければ、superpowers:systematic-debugging で原因を調べてから直す（直す所は Task 1〜4 のコード）
-- [ ] **Step 3: 評価のデータ、criteria.md、00-common.md、README.md を直す**
-- [ ] **Step 4: 確かめる**
+- [x] **Step 2: テストを回す** — `dotnet test --filter "FullyQualifiedName~SavedTaskDataTests|FullyQualifiedName~DeepenEvalTests"`。通らなければ、superpowers:systematic-debugging で原因を調べてから直す（直す所は Task 1〜4 のコード）
+- [x] **Step 3: 評価のデータ、criteria.md、00-common.md、README.md を直す**
+- [x] **Step 4: 確かめる**
   - `dotnet test`、`dotnet run --project evals/Revalue.Evals -- --unit options --dry-run`、`--unit deepen --dry-run`
   - `git grep -n "3 職種\|職種ごとに業務が 4\|オンライン秘書、経理事務、採用事務の" -- docs/specs docs/prd README.md src tests evals ':!evals/results'` が 0 件
   - `git grep -n "日程の調整\|月の締めの手伝い\|帳簿の見直し\|請求と入金の確認\|求人の準備\|応募の受付と整理" -- evals ':!evals/results' ':!evals/personas/how-to-judge.md'` が 0 件（保存データのテストの値は tests の中なので当たらない。how-to-judge.md の「カードの見込み」は手順 5 で書き直す）
   - Task 1 の Step 4 の写しの確かめを回し直し、同じ結果になる
-- [ ] **Step 5: コミット**（「業務マスター: 前の保存データを確かめ、評価のデータと文書を業務マスターに合わせる（options-8（理由は本人の言葉とつなぐ）、deepen-2（業務ごとに照らす）、report-3（版を残す））」）
+- [x] **Step 5: コミット**（「業務マスター: 前の保存データを確かめ、評価のデータと文書を業務マスターに合わせる（options-8（理由は本人の言葉とつなぐ）、deepen-2（業務ごとに照らす）、report-3（版を残す））」）
 
 ## 確認コマンド
 

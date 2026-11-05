@@ -198,7 +198,7 @@ AI の言い方は、AI 同士の判定だけで確定しない。結果のフ�
 ### 選んだ案の書き方
 
 - `evals/deepen/d01-*.json` 〜 `d07-*.json` に、架空の選んだ案を 1 件ずつ置く。`id`、`title`、組にする記録（`profile`。`evals/profiles/` の id）、選んだ案（`choice`）を書く
-- `choice` の `kind` は `choose`（`occupationId` と `taskIds`）、`combine`（`roleName` と `taskIds`）、`create`（`create` に題、誰の、困りごと、中身、週あたりの時間、場所、時間帯）、`own`（`own` に名前とメモ）のどれか。職種と業務の id は登録（`jobs.json`）にあるものだけ
+- `choice` の `kind` は `choose`（`occupationId` と `taskIds`）、`combine`（`roleName` と `taskIds`）、`create`（`create` に題、誰の、困りごと、中身、週あたりの時間、場所、時間帯）、`own`（`own` に名前とメモ）のどれか。職種と業務の id は登録（`jobs.json`）にあるものだけで、業務はカードに使う（`active`）ものだけ
 - 「選ぶ」「組み合わせる」「創る」、本人が書いた仕事のどれも 1 件以上含める。週 1 時間・夜だけの記録（p03）と、外にも出られる記録（p04）も含める
 - どれも架空にし、`note` に「すべて架空」と書く
 

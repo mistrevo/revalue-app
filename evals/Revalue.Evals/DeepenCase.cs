@@ -90,7 +90,7 @@ public sealed record DeepenCase(string Id, string Title, string Profile, Options
 
         return taskIds.Select(taskId =>
         {
-            var task = catalog.FindTask(taskId) ?? throw new FormatException($"{id}: 登録にない業務 {taskId} です。");
+            var task = catalog.FindActiveTask(taskId) ?? throw new FormatException($"{id}: 登録にないか、準備中の業務 {taskId} です。");
             var occupation = catalog.OccupationOf(task);
             return new CardTask(task.Id, occupation.Id, occupation.Name, task.Name, task.Detail, task.Abilities.Main, task.TimeSlots, task.Place, task.Knowledge);
         }).ToList();
