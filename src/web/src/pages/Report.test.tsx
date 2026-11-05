@@ -181,6 +181,15 @@ describe('Report', () => {
     expect(notYet).toHaveTextContent(copy.profile.excludedNote)
   })
 
+  it('report-1（一つにまとめて示す）: 確かめた力の欄に力がないときは、「ほかの力も」と言わず、話を重ねると見えてくると添える', async () => {
+    installFakeApi({ loggedIn: true, consented: true, report: fakeReport({ content: fakeReportContent({ abilities: [] }) }) })
+    renderApp('/report')
+
+    const notYet = await screen.findByRole('region', { name: copy.report.sections.notYet })
+    expect(notYet).toHaveTextContent(copy.insights.nothingYetNote)
+    expect(notYet).not.toHaveTextContent(copy.insights.moreNote)
+  })
+
   it('report-1（一つにまとめて示す）: まだ聞けていない力の名前を並べず、代わりの一文を添える', async () => {
     installFakeApi({ loggedIn: true, consented: true, report: fakeReport() })
     renderApp('/report')
