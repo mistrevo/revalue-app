@@ -371,4 +371,98 @@ public sealed class NextMovePolicyTests
         Assert.Equal(NextMovePolicy.MaxAskPerAction, ValidationContext.From(later, CoordinatingTwo).AskedCounts[target]);
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 3, ValidationContext.From(later, CoordinatingTwo)));
     }
+
+    /// <summary>絞る力（<paramref name="focus"/>）を持つ確かめの文脈。</summary>
+    private static ValidationContext Focused(Ability focus, int latestAnswer, IReadOnlyList<Evidence> evidence, params (ActionRef Target, int Count)[] asked) =>
+        Context(latestAnswer, evidence, asked) with { Focus = focus };
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 一度聞き返した力があれば、ほかの力に行動が多くても、その力の足りない行動を聞く")]
+    public void FocusedAbilityIsAskedEvenIfOthersHaveMore()
+    {
+        var context = Focused(
+            Ability.Noticing, 2,
+            [E(Ability.Noticing, 1), E(Ability.Prioritizing, 1), E(Ability.Prioritizing, 3)],
+            (new ActionRef(Ability.Noticing, 2), 1));
+
+        var move = NextMovePolicy.Decide(Concrete, 2, context);
+
+        Assert.Equal(MoveKind.AskMissingAction, move.Kind);
+        Assert.Equal(Ability.Noticing, move.Target!.Ability);
+        Assert.Contains(move.Target.Number, new[] { 2, 3 });
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 絞った力が根拠ありになったら、ほかの力の足りない行動は聞かない")]
+    public void ConfirmedFocusStopsAsking()
+    {
+        var context = Focused(
+            Ability.Noticing, 3,
+            [E(Ability.Noticing, 1), E(Ability.Noticing, 2), E(Ability.Noticing, 3), E(Ability.Coordinating, 1)]);
+
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 3, context));
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 絞った力の行動を聞き切ったら、ほかの力に移らない")]
+    public void ExhaustedFocusDoesNotMoveToOtherAbility()
+    {
+        var context = Focused(
+            Ability.Noticing, 5,
+            [E(Ability.Noticing, 1), E(Ability.Coordinating, 1), E(Ability.Coordinating, 2)],
+            (new ActionRef(Ability.Noticing, 2), 2), (new ActionRef(Ability.Noticing, 3), 2));
+
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 5, context));
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 絞った力の根拠がいまの出来事になければ、ほかの力の足りない行動は聞かない")]
+    public void FocusAbsentFromCurrentEventDoesNotAskOthers()
+    {
+        var context = Focused(Ability.Noticing, 2, [E(Ability.Noticing, 1, @event: 1, answer: 1), E(Ability.Coordinating, 1, @event: 2, answer: 2)]);
+
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: まだ聞き返していない場面では、いまの決め方で一つ選ぶ")]
+    public void NoFocusKeepsMostCompleteFirst()
+    {
+        var context = Context(1, [E(Ability.Noticing, 1), E(Ability.Prioritizing, 1), E(Ability.Prioritizing, 3)]);
+
+        Assert.Null(context.Focus);
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(Ability.Prioritizing, 2)),
+            NextMovePolicy.Decide(Concrete, 1, context));
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 絞る力は、いちばん新しく行動を添えて聞いた力。続きの問いも数に入る")]
+    public void FocusIsLatestAskedAbility()
+    {
+        IReadOnlyList<Turn> turns =
+        [
+            new() { Role = TurnRoles.Assistant, Text = "q1", Move = "opening", At = At },
+            new() { Role = TurnRoles.User, Text = "a1", AnswerKind = AnswerKind.Free, At = At },
+            new() { Role = TurnRoles.Assistant, Text = "q2", Move = "askMissingAction", Target = "coordinating.1", At = At },
+            new() { Role = TurnRoles.User, Text = "a2", AnswerKind = AnswerKind.Free, At = At },
+            new() { Role = TurnRoles.Assistant, Text = "q3", Move = "askMissingAction", Target = "prioritizing.2", At = At },
+            new() { Role = TurnRoles.User, Text = "a3", AnswerKind = AnswerKind.Free, At = At },
+            new() { Role = TurnRoles.Assistant, Text = "q4", Move = "askWhatYouDid", At = At },
+            new() { Role = TurnRoles.User, Text = "a4", AnswerKind = AnswerKind.Free, At = At },
+        ];
+
+        Assert.Equal(Ability.Prioritizing, ValidationContext.From(turns, []).Focus);
+
+        // 行動を添えて聞いていない場面では、絞らない
+        Assert.Null(ValidationContext.From(turns.Take(2).ToList(), []).Focus);
+
+        // 続きの問い（調整する力 3 を聞く）で戻った場面では、続きの問いで聞いた力に絞る
+        IReadOnlyList<Turn> resumed =
+        [
+            .. turns,
+            new() { Role = TurnRoles.Assistant, Text = "q5", Move = "close", At = At },
+            new()
+            {
+                Role = TurnRoles.Assistant, Text = "resume", Move = EpisodeInsights.ResumeMove, Target = "coordinating.3",
+                Choices = AbilityText.ResumeChoices, At = At,
+            },
+            new() { Role = TurnRoles.User, Text = "a5", AnswerKind = AnswerKind.Free, At = At },
+        ];
+        Assert.Equal(Ability.Coordinating, ValidationContext.From(resumed, []).Focus);
+    }
 }

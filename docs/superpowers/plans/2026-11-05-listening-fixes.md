@@ -106,7 +106,7 @@ git commit -m "最初の問いを、気持ちが動いた日を聞く形にす�
 - Consumes: `ActionRef`（`Ability` と行動の番号）、`Turn.Target`（聞いた行動。`ActionRef.Parse` で読む）
 - Produces: `ValidationContext` の位置引数の最後に `Ability? Focus = null`。`ValidationContext.From(turns, evidence)` が、この場面でいちばん新しく行動を添えた聞き手のターン（足りない行動を聞く一手と、続きの問い）の力を `Focus` に入れる
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `NextMovePolicyTests.cs`:
 - `revisit-4（いまの話を聞き切る）: 一度聞き返した力があれば、ほかの力に行動が多くても、その力の足りない行動を聞く` — 根拠: 見立てる力の 1、優先順位をつける力の 1 と 3。`Focus = Ability.Noticing`、見立てる力の 2 を 1 回聞いた。期待: `AskMissingAction`、見立てる力の行動（2 か 3）
@@ -115,29 +115,29 @@ git commit -m "最初の問いを、気持ちが動いた日を聞く形にす�
 - `revisit-4（いまの話を聞き切る）: まだ聞き返していない場面では、いまの決め方で一つ選ぶ` — `Focus = null` で、いまの `MostCompleteAbilityFirst` と同じ結果
 - `revisit-4（いまの話を聞き切る）: 絞る力は、いちばん新しく行動を添えて聞いた力` — `ValidationContext.From` に、調整する力の 1 を聞いたターン、そのあと優先順位をつける力の 2 を聞いたターンを渡す。`Focus == Ability.Prioritizing`。続きの問い（`Move = EpisodeInsights.ResumeMove`、`Target` あり）も数に入る
 
-- [ ] **Step 2: テストが失敗することを確かめる**
+- [x] **Step 2: テストが失敗することを確かめる**
 
 Run: `dotnet test --filter "FullyQualifiedName~NextMovePolicyTests"`
 Expected: 新しいテストが FAIL（`Focus` がない）
 
-- [ ] **Step 3: `Focus` を足して、`MissingActionToAsk` で絞る**
+- [x] **Step 3: `Focus` を足して、`MissingActionToAsk` で絞る**
 
 `Focus` があるとき: その力が場面全体で根拠ありなら null を返す。そうでなければ、いまの出来事の候補をその力だけにする（いまの出来事にその力の根拠がなければ null）。`Focus` がないときは、いまの決め方のまま。`MissingActionToAsk` の `<summary>` に revisit-4 を書き足す。
 
-- [ ] **Step 4: 聞き手の指示を直す**
+- [x] **Step 4: 聞き手の指示を直す**
 
 `listener.md` の `AskWhatYouDid` の例から「どうやって〜しましたか？」を外し、1 文足す: 移動の手段、食べたものや持ち物の中身のような、行動の細部は聞かない。その出来事の中で、本人がしたこと、決めたことを聞く。
 
-- [ ] **Step 5: Spec を直す**
+- [x] **Step 5: Spec を直す**
 
 `docs/specs/03-validate.md` の validate-2 の基準の最後に足す: 「一度聞き返した力があれば、その場面ではその力だけを聞き返す。その力が根拠ありになるか、聞ける行動がなくなったら、ほかの力の足りない行動は聞かない（revisit-4（いまの話を聞き切る）を、08 revisit（別の日に話す）より先にここで作る）」。確かめ方に、次の一手の単体テストを足す
 
-- [ ] **Step 6: テストが通ることを確かめる**
+- [x] **Step 6: テストが通ることを確かめる**
 
 Run: `dotnet test`
 Expected: すべて PASS。いまの validate-2 のテストのうち、聞いた回数を渡すもの（`SameActionAtMostTwice` など）は、同じ力の中で動くので変えずに通る。通らないテストがあれば、revisit-4 で振る舞いが変わったものかを確かめ、変わったものだけを期待値ごと直す
 
-- [ ] **Step 7: コミット**
+- [x] **Step 7: コミット**
 
 ```bash
 git add src/Revalue.Server tests/Revalue.Server.Tests docs/specs/03-validate.md
