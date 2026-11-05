@@ -1082,12 +1082,13 @@ public sealed class EvalsTests
         var scripts = EpisodeScript.LoadAll(dir, "validate");
 
         Assert.Equal(
-            ["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19", .. ConfirmedScriptIds],
+            ["e08", "e09", "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19", .. ConfirmedScriptIds, .. PartialScriptIds, SimilarScriptId],
             scripts.Select(s => s.Id));
         Assert.All(scripts, s =>
         {
             Assert.NotEmpty(s.Listed);
-            Assert.True(s.States is null || s.States.Count == 1, $"{s.Id} の states は狙った力だけ");
+            // 似た力が並ぶ台本だけ、同じ分類の 2 つの力を狙う
+            Assert.True(s.States is null || s.States.Count == (s.Id == SimilarScriptId ? 2 : 1), $"{s.Id} の states は狙った力だけ");
             Assert.InRange(s.Answers.Count(a => !a.IsCorrection), 4, 7);
         });
         // どの力も根拠ありにしてはいけない話は、notConfirmed: *
@@ -1118,6 +1119,102 @@ public sealed class EvalsTests
         "e21", "e22", "e23", "e24", "e25", "e26", "e27", "e28",
         "e31", "e32", "e33", "e34", "e35", "e36", "e37", "e38", "e39", "e40", "e41",
     ];
+
+    // 分類ごとの一部だけそろう台本。仮説思考力の台本の番号（e45）は、力が準備中なので空けておく。調整・実行・仕組み化は e11、e12、e19 がある
+    private static readonly string[] PartialScriptIds = ["e42", "e43", "e44", "e46", "e47", "e48", "e49"];
+
+    private const string SimilarScriptId = "e50";
+
+    private static IReadOnlyList<EpisodeScript> ValidateScripts() =>
+        EpisodeScript.LoadAll(Path.Combine(AppContext.BaseDirectory, "episodes"), "validate");
+
+    [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 話から確かめる力それぞれに、根拠ありになる台本が 1 本以上ある")]
+    public void EveryActiveAbilityHasConfirmedScript()
+    {
+        var scripts = ValidateScripts();
+
+        foreach (var ability in AbilityCatalog.Active)
+        {
+            Assert.True(
+                scripts.Any(s => s.States is { } states && states.TryGetValue(ability, out var state) && state == AbilityState.Confirmed),
+                $"{AbilityText.Name(ability)} の根拠ありになる台本がない");
+        }
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 話から確かめる力のある分類それぞれに、一部だけそろう台本（ask あり）が 1 本以上ある")]
+    public void EveryActiveCategoryHasPartialScript()
+    {
+        var scripts = ValidateScripts();
+        var categories = AbilityCatalog.Active.Select(AbilityCatalog.Category).Distinct().ToList();
+
+        Assert.NotEmpty(categories);
+        foreach (var category in categories)
+        {
+            Assert.True(
+                scripts.Any(s => s.Ask is { } ask && AbilityCatalog.Category(ask.Ability) == category && s.States![ask.Ability] == AbilityState.NeedsCheck),
+                $"分類 {category} の、一部だけそろう台本がない");
+        }
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 同じ分類の 2 つの力が根拠ありになる台本が 1 本以上ある")]
+    public void SomeScriptHasTwoConfirmedAbilitiesInOneCategory()
+    {
+        var similar = ValidateScripts().Where(s => s.States is { } states
+            && states.Where(p => p.Value == AbilityState.Confirmed).GroupBy(p => AbilityCatalog.Category(p.Key)).Any(g => g.Count() >= 2)).ToList();
+
+        var script = Assert.Single(similar);
+        Assert.Equal(SimilarScriptId, script.Id);
+        Assert.Equal(new HashSet<Ability> { new("summarizing"), new("active-listening") }, script.States!.Keys.ToHashSet());
+    }
+
+    [Fact(DisplayName = "評価: リポジトリの確かめの例の ask の行動は、states で needsCheck の力のもので、行動の番号がその力にある")]
+    public void RepositoryAskTargetsNeedsCheckAbility()
+    {
+        var withAsk = ValidateScripts().Where(s => s.Ask is not null).ToList();
+
+        Assert.True(withAsk.Count >= 3 + PartialScriptIds.Length);
+        Assert.All(withAsk, s =>
+        {
+            Assert.Equal(AbilityState.NeedsCheck, s.States![s.Ask!.Ability]);
+            Assert.InRange(s.Ask.Number, 1, AbilityCatalog.ActionCount(s.Ask.Ability));
+            Assert.Contains(s.Ask.Ability, AbilityCatalog.Active);
+        });
+        Assert.Equal(PartialScriptIds, withAsk.Select(s => s.Id).Where(PartialScriptIds.Contains));
+    }
+
+    [Fact(DisplayName = "評価: 台本の答えに、狙った力の核となる行動の文と手がかりを、そのまま写していない")]
+    public void ScriptAnswersDoNotCopyActionTextOrHint()
+    {
+        foreach (var script in ValidateScripts().Where(s => s.States is not null))
+        {
+            var answers = string.Concat(script.Answers.Select(a => a.Text));
+            foreach (var ability in script.States!.Keys.Where(AbilityCatalog.IsActive))
+            {
+                for (var n = 1; n <= AbilityCatalog.ActionCount(ability); n++)
+                {
+                    var action = new ActionRef(ability, n);
+                    Assert.DoesNotContain(AbilityCatalog.ActionText(action), answers);
+                    Assert.DoesNotContain(AbilityCatalog.Hint(action), answers);
+                }
+            }
+        }
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 一部だけそろう台本は、足りない行動の手がかりになる話を、どの答えでもしていない")]
+    public void PartialScriptsKeepMissingActionUnsaid()
+    {
+        var scripts = ValidateScripts().Where(s => PartialScriptIds.Contains(s.Id)).ToList();
+
+        Assert.Equal(PartialScriptIds, scripts.Select(s => s.Id));
+        Assert.All(scripts, s =>
+        {
+            Assert.Equal("concreteEvent", s.Expect);
+            Assert.Single(s.States!);
+            Assert.NotNull(s.Ask);
+            Assert.Single(Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "episodes"), $"{s.Id}-{s.Ask!.Ability.Id}-partial.md"));
+            Assert.All(s.Answers, a => Assert.False(a.IsChoice || a.IsCorrection));
+        });
+    }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: リポジトリの根拠ありになる台本は、話から確かめる力を一つだけ根拠ありと書き、力ごとに 1 本で、ファイル名にその力の id がある")]
     public void RepositoryConfirmedEpisodesTargetOneActiveAbility()
