@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Revalue.Server.Data;
+using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Options;
 
@@ -56,12 +57,31 @@ public sealed record OptionChoice(
     /// 選んだカードの理由と、もとにした力と根拠の言葉を、いまの記録では使えないときの理由。使えるなら null（カードを選んでいなければ null）。
     /// 本人があとで力を外したら <see cref="MissingReason.Excluded"/>、力の状態か根拠の言葉がいまの記録と合わなくなったら
     /// <see cref="MissingReason.Changed"/>（<see cref="CardAbility.ProblemIn"/>）。どちらのときも、選んだ案の中身（職種や業務、時間、場所、
-    /// 事業のアイデア）は残し、理由と、もとにした力と根拠の言葉は使わない。元の場面を飛ばしたとき（<see cref="SourceRemoved"/>）も
+    /// 事業のアイデア）は残し、理由と、もとにした力と根拠の言葉は使わない。元の場面を飛ばしたとき（<see cref="SourceRemoved"/>）と、
+    /// 「選ぶ」「組み合わせる」の業務がいまの業務マスターでカードの力を使わなくなったとき（<see cref="TasksDropAbility"/>）も
     /// <see cref="MissingReason.Changed"/>。06 deepen と 07 report も同じ
     /// （05-options.md の「本人が選ぶ」。戻ればまた使う）。
     /// </summary>
-    public MissingReason? AbilityProblem(OptionsInputs inputs) =>
-        ChosenAbility() is not { } ability ? null : SourceRemoved ? MissingReason.Changed : ability.ProblemIn(inputs);
+    public MissingReason? AbilityProblem(OptionsInputs inputs, JobCatalog catalog) =>
+        ChosenAbility() is not { } ability ? null
+        : SourceRemoved ? MissingReason.Changed
+        : ability.ProblemIn(inputs) ?? (TasksDropAbility(ability, catalog) ? MissingReason.Changed : null);
+
+    /// <summary>
+    /// 選んだ「選ぶ」「組み合わせる」の業務がどれも業務マスターにあり、どの業務もカードの力を使わなくなったか。業務マスターを置き換える前に選んだ案で、
+    /// 理由が業務とかけ離れたまま出ないため（Claude の判断）。業務が業務マスターにないときは、確かめられないので false。
+    /// 話から確かめる力でないカードの力は、もともと理由を出さないので false。
+    /// </summary>
+    private bool TasksDropAbility(CardAbility ability, JobCatalog catalog)
+    {
+        if (!AbilityCatalog.IsActive(ability.Ability) || (Choose?.Tasks ?? Combine?.Tasks) is not { Count: > 0 } cardTasks)
+        {
+            return false;
+        }
+
+        var tasks = cardTasks.Select(t => catalog.FindTask(t.TaskId)).ToList();
+        return tasks.All(t => t is not null) && !tasks.Any(t => t!.Uses(ability.Ability));
+    }
 }
 
 /// <summary>利用者ごとに 1 件（id は固定）の、仕事のカード、本人が書いた仕事、選んだ案。</summary>

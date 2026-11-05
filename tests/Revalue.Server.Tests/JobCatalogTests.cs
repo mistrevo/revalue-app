@@ -152,7 +152,7 @@ public sealed class JobCatalogTests
         }
     }
 
-    [Fact(DisplayName = "deepen-3（最初の一歩は小さく）: 小さな試し方は、一歩で落とす言葉（応募、契約、購入など）を含まない")]
+    [Fact(DisplayName = "options-9（業務マスターの形を守る）: 小さな試し方は、一歩で落とす言葉（応募、契約、購入など）を含まない")]
     public void TrialsHaveNoPushyWords()
     {
         var catalog = JobCatalog.Load();
@@ -295,4 +295,17 @@ public sealed class JobCatalogTests
 
     [Fact(DisplayName = "options-9（業務マスターの形を守る）: JSON でないデータも読み込みで止める")]
     public void NotJsonStopsLoading() => Assert.Throws<InvalidOperationException>(() => JobCatalog.Parse("not json"));
+
+    [Fact(DisplayName = "options-9（業務マスターの形を守る）: 業務マスターの版は jobs.json の中身から決まり、中身が変われば変わる")]
+    public void VersionFollowsTheContent()
+    {
+        var catalog = JobCatalog.Load();
+        using var stream = typeof(JobCatalog).Assembly.GetManifestResourceStream("jobs.json")!;
+        using var reader = new StreamReader(stream);
+        var json = reader.ReadToEnd();
+
+        Assert.Equal(64, catalog.Version.Length);
+        Assert.Equal(catalog.Version, JobCatalog.Parse(json).Version);
+        Assert.NotEqual(catalog.Version, JobCatalog.Parse(json.Replace("帳簿と口座の照合", "帳簿と口座の突き合わせ")).Version);
+    }
 }

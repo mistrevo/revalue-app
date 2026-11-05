@@ -397,7 +397,7 @@ public sealed class ReportBuilderTests
         Assert.False(content.Choice.CardsStale);
 
         var inputs = await OptionsInputsReader.ReadAsync(kit.Store, User, Ct);
-        await OptionsStore.UpdateAsync(kit.Store, User, o => o with { Cards = new OptionCards(Now, OptionsInputsReader.Basis(inputs), null, null, null, []) }, kit.Clock, Ct);
+        await OptionsStore.UpdateAsync(kit.Store, User, o => o with { Cards = new OptionCards(Now, OptionsInputsReader.Basis(inputs, Catalog), null, null, null, []) }, kit.Clock, Ct);
         Assert.False((await Build(kit)).Choice.CardsStale);
 
         await OptionsStore.UpdateAsync(kit.Store, User, o => o with { Cards = new OptionCards(Now, "older", null, null, null, []) }, kit.Clock, Ct);

@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Revalue.Server.Ai;
 using Revalue.Server.Data;
 using Revalue.Server.Features.Options;
 using Revalue.Server.Features.Profile;
+using Revalue.Server.Features.Report;
 using Revalue.Server.Features.Validate;
 using static Revalue.Server.Tests.ValidateTestKit;
 
@@ -155,5 +157,41 @@ public sealed class SavedTaskDataTests
         Assert.True(third.GetProperty("current").GetProperty("number").GetInt32() >= currentNumber);
         // 選んだ案の業務の名前は、写しのまま
         Assert.Contains("日程の調整", Array(third.GetProperty("content").GetProperty("choice"), "tasks").Select(t => t.GetString()));
+    }
+
+    [Fact(DisplayName = "report-3（版を残す）: 確かめる条件を持たない前の形の版も開け、その版の確かめる条件は空で返る")]
+    public async Task OldSnapshotWithoutChecksReadsAsEmpty()
+    {
+        var (factory, ai) = Setup();
+        await using var _f = factory;
+        var client = await SavedUser(factory, ai, "saved-4");
+        await Ok(client.PostAsync("/api/deepen", null, Ct));
+        Assert.True((await Json(await client.GetAsync("/api/report", Ct))).GetProperty("ready").GetBoolean());
+
+        // 第 1 版を、確かめる条件（checks）を持たない前の保存の形にする。保存の JSON から消して、読み直したものを置く
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var removed = 0;
+        Assert.NotNull(await store.TryUpdateAsync<ReportItem>(TestUsers.Key("saved-4"), ReportItem.ItemId, item =>
+        {
+            var node = JsonSerializer.SerializeToNode(item, DataConstants.Json)!;
+            foreach (var gap in node["versions"]!.AsArray().SelectMany(v => v!["snapshot"]!["notYet"]!["taskGaps"]!.AsArray()))
+            {
+                removed += gap!.AsObject().Remove("checks") ? 1 : 0;
+            }
+
+            return node.Deserialize<ReportItem>(DataConstants.Json)!;
+        }, Ct));
+        Assert.True(removed > 0);
+
+        // 条件を変えて第 2 版を作る。前の形の第 1 版は、確かめる条件を空の配列で返す
+        await Ok(client.PutAsJsonAsync(
+            "/api/profile/conditions", new { timeSlots = new[] { "daytime", "evening" }, hoursPerWeek = 5, place = "homeOnly", monthlyIncome = 5 }, Ct));
+        var response = await client.GetAsync("/api/report", Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var report = await Json(response);
+        var first = Assert.Single(Array(report, "previous"), v => v.GetProperty("number").GetInt32() == 1);
+        var gaps = Array(first.GetProperty("snapshot").GetProperty("notYet"), "taskGaps");
+        Assert.NotEmpty(gaps);
+        Assert.All(gaps, g => Assert.Empty(Array(g, "checks")));
     }
 }

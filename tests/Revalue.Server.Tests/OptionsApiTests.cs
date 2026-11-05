@@ -250,6 +250,8 @@ public sealed class OptionsApiTests
         var chosen = dto.GetProperty("choice").GetProperty("card").GetProperty("choose");
         Assert.Equal("insurance-sales-hearing", Assert.Single(Array(chosen, "tasks")).GetProperty("id").GetString());
         Assert.Equal("はじめての面談での聞き取り", chosen.GetProperty("tasks")[0].GetProperty("name").GetString());
+        // 選んだ案の業務が準備中になったときは、いまの条件に収まっていないときと同じ印を付ける（05-options.md の「本人が選ぶ」）
+        Assert.True(dto.GetProperty("choice").GetProperty("card").GetProperty("outsideConditions").GetBoolean());
     }
 
     [Fact(DisplayName = "options-10（力が生きる場面を添える）: カードの業務のうち、使った力を主な力に持つ業務にだけ、力が生きる場面を添える")]

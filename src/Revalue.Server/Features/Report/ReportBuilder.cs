@@ -132,7 +132,7 @@ public static class ReportBuilder
 
     private static ReportChoice Choice(OptionsItem? options, OptionsInputs inputs, JobCatalog catalog)
     {
-        var cardsStale = options?.Cards is { } cards && cards.Basis != OptionsInputsReader.Basis(inputs);
+        var cardsStale = options?.Cards is { } cards && cards.Basis != OptionsInputsReader.Basis(inputs, catalog);
         var none = new ReportChoice(null, null, null, null, [], null, null, null, false, false, cardsStale, []);
 
         switch (options?.Choice)
@@ -149,7 +149,7 @@ public static class ReportBuilder
                     : none;
 
             case { Kind: ChoiceKind.Card, Card: { } kind } choice:
-                var problem = choice.AbilityProblem(inputs);
+                var problem = choice.AbilityProblem(inputs, catalog);
                 var outside = inputs.Conditions is { } conditions && !OptionsValidator.ChosenFits(choice, conditions, catalog);
                 var (title, summary, cardTasks, reason) = choice switch
                 {

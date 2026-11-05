@@ -58,7 +58,7 @@ Dockerfile                        画面を作る → 裏側を publish → 実�
 src/Revalue.Server/               ASP.NET Core
   Program.cs
   Features/<まとまり>/            機能のまとまりごとのフォルダ。PRD のまとまりの名前にそろえる（Foundation、Discover、Validate、Profile、Options、Deepen、Report）
-  Features/Options/jobs.json      登録した職種と業務のデータ。job tag（厚生労働省の職業情報提供サイト）のダウンロードデータを加工したもの。出典つき
+  Features/Options/jobs.json      業務マスター（領域、職種、業務）。協力者へのインタビューをもとに書き起こし、job tag（厚生労働省の職業情報提供サイト）の職業とタスクの番号を持つ。出典つき
   Ai/                             Claude の呼び出し
   Ai/Prompts/*.md                 プロンプト（日本語）。評価からも同じファイルを読む
   Data/                           Cosmos DB と、テスト用のインメモリの保存先

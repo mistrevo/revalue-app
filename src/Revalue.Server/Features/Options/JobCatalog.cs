@@ -96,6 +96,12 @@ public sealed partial record JobCatalog(JobSource Source, IReadOnlyList<JobDomai
 {
     private const string ResourceName = "jobs.json";
 
+    /// <summary>
+    /// 業務マスターの版。読んだ jobs.json の中身の SHA-256 の 16 進。カードの元の記録の指紋に入れ、業務マスターが変わったらカードを作り直すために使う
+    /// （05-options.md の「作り直す」）。<see cref="Parse"/> を通らずに作ったときは空。
+    /// </summary>
+    public string Version { get; init; } = "";
+
     public static JobCatalog Load()
     {
         using var stream = typeof(JobCatalog).Assembly.GetManifestResourceStream(ResourceName)
@@ -116,7 +122,7 @@ public sealed partial record JobCatalog(JobSource Source, IReadOnlyList<JobDomai
                 root.GetProperty("domains").EnumerateArray().Select(d => new JobDomain(Str(d, "id"), Str(d, "name"))).ToList(),
                 root.GetProperty("occupations").EnumerateArray().Select(ParseOccupation).ToList());
             catalog.Check();
-            return catalog;
+            return catalog with { Version = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json))).ToLowerInvariant() };
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or InvalidCastException)
         {

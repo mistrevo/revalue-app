@@ -12,10 +12,10 @@ using Revalue.Server.Features.Validate;
 
 namespace Revalue.Server.Features.Options;
 
-/// <summary>カードの業務。<paramref name="Ability"/> は使う力の key。辞書の話から確かめる力でなければ（保存データの古い id など）null。</summary>
 /// <summary>
-/// カードの業務。<paramref name="Scene"/> は力が生きる場面で、カードの理由と力を出すときに、カードに使った力を主な力に持つ業務にだけ添える
-/// （options-10（力が生きる場面を添える））。ほかは null。
+/// カードの業務。<paramref name="Ability"/> は、カードを作ったときの業務の主な力の写し（key）。辞書の話から確かめる力でなければ
+/// （準備中の力や、保存データの古い id など）null。<paramref name="Scene"/> は力が生きる場面で、カードの理由と力を出すときに、
+/// カードに使った力を主な力に持つ業務にだけ添える（options-10（力が生きる場面を添える））。ほかは null。
 /// </summary>
 public sealed record CardTaskDto(
     string Id, string OccupationName, string Name, string Detail, string? Ability, IReadOnlyList<TimeSlot> TimeSlots, TaskPlace Place, string? Scene);
@@ -134,7 +134,7 @@ public static class OptionsEndpoints
             {
                 logger.LogWarning("Drafting the options ended with {Kind} after {ElapsedMs} ms.", e.Kind, watch.ElapsedMilliseconds);
                 // 同じ記録のあいだは、開いたときに自動で作り直さないよう、失敗した記録の指紋だけを残す。カードと選んだ案は変えない
-                var failed = OptionsInputsReader.Basis(inputs);
+                var failed = OptionsInputsReader.Basis(inputs, catalog);
                 await OptionsStore.UpdateAsync(store, userKey, item => item with { FailedBasis = failed }, time, ct);
                 return Problems.Create(
                     StatusCodes.Status503ServiceUnavailable,
@@ -156,7 +156,7 @@ public static class OptionsEndpoints
 
             // AI を待つあいだに、ほかの画面で記録が変わっているかもしれない。答えは、読み直したいまの記録で見せられるものだけにする
             var current = await OptionsInputsReader.ReadAsync(store, userKey, ct);
-            var currentBasis = OptionsInputsReader.Basis(current);
+            var currentBasis = OptionsInputsReader.Basis(current, catalog);
 
             // 作っているあいだに、ほかの要求（別のタブ）が同じ元の記録か、いまの記録でカードを作って保存していたら、そちらを残す。
             // 同じ記録のまま案を入れ替えず、遅れて終わった古い記録のカードで新しいカードを上書きしない（05-options.md の「作り直す」）
@@ -179,7 +179,7 @@ public static class OptionsEndpoints
                 var inputs = await OptionsInputsReader.ReadAsync(store, userKey, http.RequestAborted);
                 if (OptionsInputsReader.Check(inputs) == Readiness.Ready
                     && await store.GetAsync<OptionsItem>(userKey, OptionsItem.ItemId, http.RequestAborted) is { Cards: { } cards } item
-                    && cards.Basis == OptionsInputsReader.Basis(inputs))
+                    && cards.Basis == OptionsInputsReader.Basis(inputs, http.RequestServices.GetRequiredService<JobCatalog>()))
                 {
                     return TypedResults.Ok(Dto(item, inputs, http.RequestServices.GetRequiredService<JobCatalog>()));
                 }
@@ -404,7 +404,7 @@ public static class OptionsEndpoints
         if (item?.Cards is { } stored)
         {
             var shown = OptionsValidator.ForDisplay(stored, inputs, catalog);
-            var basis = OptionsInputsReader.Basis(inputs);
+            var basis = OptionsInputsReader.Basis(inputs, catalog);
             var stale = shown.Basis != basis;
             cards = new OptionCardsDto(
                 shown.GeneratedAt,
@@ -422,7 +422,7 @@ public static class OptionsEndpoints
                 c.Kind,
                 c.At,
                 c is { Kind: ChoiceKind.Card, Card: { } kind }
-                    ? ChosenDto(c, kind, c.AbilityProblem(inputs), inputs.Conditions is { } conditions && !OptionsValidator.ChosenFits(c, conditions, catalog), catalog)
+                    ? ChosenDto(c, kind, c.AbilityProblem(inputs, catalog), inputs.Conditions is { } conditions && !OptionsValidator.ChosenFits(c, conditions, catalog), catalog)
                     : null,
                 ownJobs.FirstOrDefault(j => c.Kind == ChoiceKind.Own && j.Id == c.OwnJobId) is { } own ? OwnDto(own) : null)
             : null;

@@ -409,7 +409,7 @@ public sealed class OptionsValidatorTests
         Assert.Equal("", gone.Choice.Create!.Reason);
         Assert.Empty(gone.Choice.Create.Ability.Quotes);
         Assert.Equal(cards.Create!.Title, gone.Choice.Create.Title);
-        Assert.Equal(MissingReason.Changed, gone.Choice.AbilityProblem(inputs));
+        Assert.Equal(MissingReason.Changed, gone.Choice.AbilityProblem(inputs, Catalog));
         var raw = new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
         Assert.Contains(Q1, JsonSerializer.Serialize(item, raw));
         var serialized = JsonSerializer.Serialize(gone, raw);
@@ -422,9 +422,9 @@ public sealed class OptionsValidatorTests
     {
         var inputs = Inputs();
         // 変化への気づきはまだ聞けていない（使える力の一覧にない）。外しても戻しても、AI を呼んで作り直す理由にならない
-        Assert.Equal(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(inputs with { Excluded = [TestAbilities.NoticingChanges] }));
+        Assert.Equal(OptionsInputsReader.Basis(inputs, Catalog), OptionsInputsReader.Basis(inputs with { Excluded = [TestAbilities.NoticingChanges] }, Catalog));
         // 使える力を外すと、使える力の一覧が変わるので指紋も変わる
-        Assert.NotEqual(OptionsInputsReader.Basis(inputs), OptionsInputsReader.Basis(Inputs(excluded: [TestAbilities.BalancingInterests], usable: [])));
+        Assert.NotEqual(OptionsInputsReader.Basis(inputs, Catalog), OptionsInputsReader.Basis(Inputs(excluded: [TestAbilities.BalancingInterests], usable: []), Catalog));
     }
 
     [Fact(DisplayName = "options-8（理由は本人の言葉とつなぐ）: 理由の「」の言葉が、根拠の言葉の一部でも、空白と記号を除いて 4 文字に満たないカードは出さない")]
@@ -705,7 +705,7 @@ public sealed class OptionsValidatorTests
     {
         var inputs = Inputs();
         var (cards, _) = Build(Draft(), inputs);
-        Assert.Equal(OptionsInputsReader.Basis(inputs), cards.Basis);
+        Assert.Equal(OptionsInputsReader.Basis(inputs, Catalog), cards.Basis);
 
         foreach (var now in new[]
         {
@@ -716,7 +716,34 @@ public sealed class OptionsValidatorTests
         })
         {
             Assert.Contains(OptionsValidator.ForDisplay(cards, now, Catalog).Missing, m => m.Reason == MissingReason.Changed);
-            Assert.NotEqual(cards.Basis, OptionsInputsReader.Basis(now));
+            Assert.NotEqual(cards.Basis, OptionsInputsReader.Basis(now, Catalog));
         }
+    }
+
+    [Fact(DisplayName = "options-3（組み合わせるは登録した業務から）: 見せ直すとき、業務がいまの業務マスターと記録の力とつながらなくなったカードは出さず、選んだ案は理由と力を出さない")]
+    public void CardsWhoseTasksNoLongerConnectAreHidden()
+    {
+        var inputs = Inputs(usable: [TestAbilities.BalancingInterests, TestAbilities.NoticingChanges]);
+        var (cards, rejections) = Build(Draft(combine: GoodCombine() with { TaskIds = ["online-secretary-schedule", "accounting-check"] }), inputs);
+        Assert.Empty(rejections);
+        Assert.NotNull(OptionsValidator.ForDisplay(cards, inputs, Catalog).Combine);
+
+        // 変化への気づきを外した。作り直すまでのあいだ、どの使える力ともつながらない「帳簿と口座の照合」を含む組み合わせるは出さない
+        var excluded = OptionsValidator.ForDisplay(cards, Inputs(usable: [TestAbilities.BalancingInterests], excluded: [TestAbilities.NoticingChanges]), Catalog);
+        Assert.Null(excluded.Combine);
+        Assert.Contains(new MissingCard(CardKind.Combine, MissingReason.Changed), excluded.Missing);
+        Assert.NotNull(excluded.Choose);
+
+        // 業務マスターを置き換える前に作ったカード。請求書の作成と送付は、いまは変化への気づきを使わない
+        var noticing = new CardAbility(TestAbilities.NoticingChanges, AbilityState.NeedsCheck, [E(TestAbilities.NoticingChanges, 1, "予定を見比べました")]);
+        var old = cards.Choose! with { Tasks = [cards.Choose.Tasks[0] with { TaskId = "accounting-invoice" }], Ability = noticing };
+        Assert.Null(noticing.ProblemIn(inputs));
+        var shown = OptionsValidator.ForDisplay(cards with { Choose = old }, inputs, Catalog);
+        Assert.Null(shown.Choose);
+        Assert.Contains(new MissingCard(CardKind.Choose, MissingReason.Changed), shown.Missing);
+
+        // 選んだ案は中身を残し、理由と力を出さない。業務の力とつながっていれば出す
+        Assert.Equal(MissingReason.Changed, new OptionChoice(ChoiceKind.Card, Now, CardKind.Choose, old, null, null, null).AbilityProblem(inputs, Catalog));
+        Assert.Null(new OptionChoice(ChoiceKind.Card, Now, CardKind.Choose, cards.Choose, null, null, null).AbilityProblem(inputs, Catalog));
     }
 }
