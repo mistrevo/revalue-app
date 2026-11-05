@@ -26,6 +26,15 @@ public static class TestAbilities
     /// <summary>段取り力（行動 2 つ。分類は調整・実行・仕組み化）。</summary>
     public static readonly Ability PlanningSteps = new("planning-steps");
 
+    /// <summary>論点整理力（行動 3 つ。分類は対話・コミュニケーション）。</summary>
+    public static readonly Ability OrganizingIssues = new("organizing-issues");
+
+    /// <summary>共感力（行動 2 つ。分類は共感・安心・対人支援）。</summary>
+    public static readonly Ability Empathy = new("empathy");
+
+    /// <summary>粘り強さ（行動 2 つ。分類は実行・挑戦）。</summary>
+    public static readonly Ability Persistence = new("persistence");
+
     /// <summary>辞書から消えた力の id（<c>noticing</c>、<c>coordinating</c>、<c>prioritizing</c> など）を持つ値。保存データの古い id を作る。</summary>
     public static Ability Old(string id) => new(id);
 }

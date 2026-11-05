@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +18,8 @@ public sealed class InsightsTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間をずらして")]);
+        // もう少し聞かせてほしいことに出すのは、利害調整力と分類の違う変化への気づき（同じ分類の力は、そろっても見えた力に出ないので出さない）
+        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 2, "迎えの時間をずらして")]);
 
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
 
@@ -29,11 +31,11 @@ public sealed class InsightsTests
             Array(seen, "quotes").Select(q => q.GetProperty("text").GetString()));
 
         var more = Assert.Single(Array(insights, "moreToHear"));
-        Assert.Equal("setting-priorities", more.GetProperty("key").GetString());
-        Assert.Equal("優先順位設定力", more.GetProperty("name").GetString());
+        Assert.Equal("noticing-changes", more.GetProperty("key").GetString());
+        Assert.Equal("変化への気づき", more.GetProperty("name").GetString());
         Assert.Equal(["迎えの時間をずらして"], Array(more, "quotes").Select(q => q.GetProperty("text").GetString()));
         Assert.Equal(
-            [AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 1)), AbilityText.Hint(new ActionRef(TestAbilities.SettingPriorities, 3))],
+            [AbilityText.Hint(new ActionRef(TestAbilities.NoticingChanges, 1)), AbilityText.Hint(new ActionRef(TestAbilities.NoticingChanges, 3))],
             Array(more, "hints").Select(h => h.GetString()));
 
         // 話から確かめる力が多いので、まだ聞けていない力の名前は並べない（4-rules.md の「画面での見せ方」）
@@ -47,7 +49,7 @@ public sealed class InsightsTests
         var (factory, ai) = Create();
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
-        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間をずらして")]);
+        var id = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 2, "迎えの時間をずらして")]);
 
         var insights = (await GetEpisode(client, id)).GetProperty("insights");
 
@@ -57,7 +59,7 @@ public sealed class InsightsTests
             Array(seen, "quotes").Select(q => q.GetProperty("action").GetString()));
         var more = Assert.Single(Array(insights, "moreToHear"));
         Assert.Equal(
-            [AbilityCatalog.ActionText(new ActionRef(TestAbilities.SettingPriorities, 2))],
+            [AbilityCatalog.ActionText(new ActionRef(TestAbilities.NoticingChanges, 2))],
             Array(more, "quotes").Select(q => q.GetProperty("action").GetString()));
     }
 
@@ -181,7 +183,7 @@ public sealed class InsightsTests
         Assert.Equal("二人に電話して", quotes[1].GetProperty("linkedText").GetString());
     }
 
-    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 一覧の canResume は、要確認の力がある話し終えた場面だけ true")]
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 一覧の canResume は、もう少し聞かせてほしいことに出した力がある話し終えた場面だけ true")]
     public async Task ListHasCanResume()
     {
         var (factory, ai) = Create();
@@ -191,12 +193,18 @@ public sealed class InsightsTests
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var partial = await FinishedEpisode(client, ai, BalancingInterestsAll[0]);
         factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        // 利害調整力（行動 3 つ）がそろい、同じ分類の段取り力（行動 2 つ）は 1 つ。段取り力はそろっても見えた力に出せないので、続きでは聞かない
+        var hiddenOnly = await FinishedEpisode(client, ai, [.. BalancingInterestsAll, Candidate(TestAbilities.PlanningSteps, 1, "二人に電話して")]);
+        factory.Clock.Advance(TimeSpan.FromMinutes(1));
         var talking = await Start(client);
 
         var list = await client.GetFromJsonAsync<JsonElement[]>("/api/episodes", Ct);
 
         var canResume = list!.ToDictionary(e => e.GetProperty("id").GetString()!, e => e.GetProperty("canResume").GetBoolean());
-        Assert.Equal(new Dictionary<string, bool> { [confirmed] = false, [partial] = true, [talking] = false }, canResume);
+        Assert.Equal(
+            new Dictionary<string, bool> { [confirmed] = false, [partial] = true, [hiddenOnly] = false, [talking] = false }, canResume);
+        Assert.False((await GetEpisode(client, hiddenOnly)).GetProperty("insights").GetProperty("canResume").GetBoolean());
+        Assert.Equal(HttpStatusCode.Conflict, (await Resume(client, hiddenOnly)).StatusCode);
     }
 
     [Fact(DisplayName = "validate-1（すべてそろったときだけ根拠あり）: 読み取りが出来事の番号を振り直しても、別の日の行動を同じ出来事としてそろえない")]

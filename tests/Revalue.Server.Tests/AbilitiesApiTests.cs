@@ -76,13 +76,13 @@ public sealed class AbilitiesApiTests
         await using var _f = factory;
         var client = await Consenting(factory, "g-1");
         var id = await Start(client);
-        ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.SettingPriorities, 2, "迎えの時間")]);
+        ai.Reading = _ => ReadingWith([.. BalancingInterestsAll, Candidate(TestAbilities.NoticingChanges, 2, "迎えの時間")]);
 
         await Send(client, id, CoordinatingAnswer);
         await ValidateTestKit.Finish(client, id);
         var dto = await Abilities(client);
 
-        Assert.Equal(["balancing-interests", "setting-priorities"],
+        Assert.Equal(["balancing-interests", "noticing-changes"],
             dto.GetProperty("abilities").EnumerateArray().Select(a => a.GetProperty("key").GetString()));
         var coordinating = Ability(dto, "balancing-interests");
         Assert.Equal("利害調整力", coordinating.GetProperty("name").GetString());
@@ -93,10 +93,10 @@ public sealed class AbilitiesApiTests
         Assert.Equal(0, coordinating.GetProperty("hints").GetArrayLength());
         Assert.False(coordinating.GetProperty("excluded").GetBoolean());
 
-        var prioritizing = Ability(dto, "setting-priorities");
-        Assert.Equal("needsCheck", prioritizing.GetProperty("life").GetString());
-        Assert.Equal("notChecked", prioritizing.GetProperty("work").GetString());
-        Assert.Equal(2, prioritizing.GetProperty("hints").GetArrayLength());
+        var noticing = Ability(dto, "noticing-changes");
+        Assert.Equal("needsCheck", noticing.GetProperty("life").GetString());
+        Assert.Equal("notChecked", noticing.GetProperty("work").GetString());
+        Assert.Equal(2, noticing.GetProperty("hints").GetArrayLength());
 
         // 履歴は新しい順。どれも話した内容から（talk）
         var history = dto.GetProperty("history").EnumerateArray().ToList();

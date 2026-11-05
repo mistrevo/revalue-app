@@ -229,11 +229,11 @@ public sealed class NextMovePolicyTests
 
         Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 4, Context(4, evidence)));
 
-        // 同じ出来事に要確認の力がほかにあれば、そちらの足りない行動を聞く
-        IReadOnlyList<Evidence> withPrioritizing = [.. evidence, E(TestAbilities.SettingPriorities, 1, answer: 4) with { Reading = 4 }];
+        // 同じ出来事に要確認の力がほかにあれば、そちらの足りない行動を聞く（そろえば見えた力に出せる、ほかの分類の力）
+        IReadOnlyList<Evidence> withNoticing = [.. evidence, E(TestAbilities.NoticingChanges, 1, answer: 4) with { Reading = 4 }];
         Assert.Equal(
-            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.SettingPriorities, 2)),
-            NextMovePolicy.Decide(Concrete, 4, Context(4, withPrioritizing)));
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.NoticingChanges, 2)),
+            NextMovePolicy.Decide(Concrete, 4, Context(4, withNoticing)));
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: つらい状態のサイン、締め、家族の病気は、足りない行動より先")]
@@ -462,6 +462,40 @@ public sealed class NextMovePolicyTests
         Assert.Equal(
             new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.BalancingInterests, 3)),
             NextMovePolicy.Decide(Concrete, 2, other));
+    }
+
+    [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 同じ分類で行動の多い力がそろった出来事では、そろっても見えた力に出ない力の足りない行動を聞かない")]
+    public void DoesNotAskAbilityThatCannotBeSeen()
+    {
+        // 利害調整力（行動 3 つ）がそろった出来事で、同じ分類の段取り力（行動 2 つ）の 1 つだけがある
+        var evidence = new[]
+        {
+            E(TestAbilities.BalancingInterests, 1), E(TestAbilities.BalancingInterests, 2), E(TestAbilities.BalancingInterests, 3),
+            E(TestAbilities.PlanningSteps, 1),
+        };
+
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 1, Context(1, evidence)));
+
+        // ほかの分類の要確認の力があれば、そちらを聞く
+        Assert.Equal(
+            new NextMove(MoveKind.AskMissingAction, new ActionRef(TestAbilities.NoticingChanges, 2)),
+            NextMovePolicy.Decide(Concrete, 1, Context(1, [.. evidence, E(TestAbilities.NoticingChanges, 1)])));
+    }
+
+    [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: 聞き返していた力が、同じ分類のほかの力がそろって見えた力に出なくなったら、その場面ではもう聞き返さない")]
+    public void FocusThatCannotBeSeenStopsAsking()
+    {
+        // 段取り力の 2 つ目を聞いたあと、答えから同じ出来事の利害調整力の 3 つがそろった
+        var context = Focused(
+            TestAbilities.PlanningSteps, 2,
+            [
+                E(TestAbilities.PlanningSteps, 1, answer: 1),
+                E(TestAbilities.BalancingInterests, 1, answer: 2), E(TestAbilities.BalancingInterests, 2, answer: 2),
+                E(TestAbilities.BalancingInterests, 3, answer: 2),
+            ],
+            (new ActionRef(TestAbilities.PlanningSteps, 2), 1));
+
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, context));
     }
 
     [Fact(DisplayName = "revisit-4（いまの話を聞き切る）: まだ聞き返していない場面では、いまの決め方で一つ選ぶ")]

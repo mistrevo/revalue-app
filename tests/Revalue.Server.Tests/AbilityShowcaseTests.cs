@@ -56,6 +56,50 @@ public sealed class AbilityShowcaseTests
         Assert.All(showcase.Seen, r => Assert.Equal(AbilityState.Confirmed, r.State));
     }
 
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: 見えた力は場面全体でも 3 つまで。そろった行動の多い力、同じなら辞書の順で選び、辞書の順に並べる")]
+    public void SeenIsAtMostThreeInTheScene()
+    {
+        // 5 つの分類で 1 つずつ根拠あり: 要約力（2）、利害調整力（3）、変化への気づき（3）、共感力（2）、粘り強さ（2）
+        Ability[] abilities =
+            [TestAbilities.Summarizing, TestAbilities.BalancingInterests, TestAbilities.NoticingChanges, TestAbilities.Empathy, TestAbilities.Persistence];
+        Assert.Equal(5, abilities.Select(AbilityCatalog.Category).Distinct().Count());
+        var evidence = abilities.SelectMany(a => All(a)).ToList();
+
+        var showcase = AbilityShowcase.Of([], evidence);
+
+        Assert.Equal(3, AbilityShowcase.MaxSeen);
+        Assert.Equal(
+            [TestAbilities.Summarizing, TestAbilities.BalancingInterests, TestAbilities.NoticingChanges],
+            showcase.Seen.Select(r => r.Ability));
+    }
+
+    [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: そろっても見えた力に出ない力は、もう少し聞かせてほしいことに入れない")]
+    public void MoreToHearSkipsAbilitiesThatCannotBeSeen()
+    {
+        // 利害調整力（3）がそろっている。同じ分類の段取り力（2）は、2 つそろっても見えた力に出ない
+        List<Evidence> sameCategory = [.. All(TestAbilities.BalancingInterests), E(TestAbilities.PlanningSteps, 1), E(TestAbilities.NoticingChanges, 1)];
+        var results = AbilityStates.Evaluate(sameCategory);
+
+        Assert.False(AbilityShowcase.CouldBeSeen(TestAbilities.PlanningSteps, results));
+        Assert.True(AbilityShowcase.CouldBeSeen(TestAbilities.NoticingChanges, results));
+        Assert.Equal([TestAbilities.NoticingChanges], AbilityShowcase.Of([], sameCategory).MoreToHear.Select(r => r.Ability));
+
+        // 行動の数が同じなら、辞書の順で前の力はそろえば入れ替わって出せる。後の力は出せない
+        Assert.True(AbilityShowcase.CouldBeSeen(
+            TestAbilities.Summarizing, AbilityStates.Evaluate([.. All(TestAbilities.ActiveListening), E(TestAbilities.Summarizing, 1)])));
+        Assert.False(AbilityShowcase.CouldBeSeen(
+            TestAbilities.ActiveListening, AbilityStates.Evaluate([.. All(TestAbilities.Summarizing), E(TestAbilities.ActiveListening, 1)])));
+
+        // 場面全体の上限: 行動 3 つの力が 3 つの分類でそろっていれば、ほかの分類の行動 2 つの力は出せない
+        List<Evidence> full =
+        [
+            .. All(TestAbilities.OrganizingIssues), .. All(TestAbilities.BalancingInterests), .. All(TestAbilities.NoticingChanges),
+            E(TestAbilities.Empathy, 1),
+        ];
+        Assert.False(AbilityShowcase.CouldBeSeen(TestAbilities.Empathy, AbilityStates.Evaluate(full)));
+        Assert.Empty(AbilityShowcase.Of([], full).MoreToHear);
+    }
+
     [Fact(DisplayName = "validate-7（見えた力と、もう少し聞きたいことを示す）: もう少し聞かせてほしいことは 2 つまでで、聞き返した力を先にする")]
     public void MoreToHearIsAtMostTwoWithFocusFirst()
     {

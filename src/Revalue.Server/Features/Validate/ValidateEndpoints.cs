@@ -104,9 +104,12 @@ public static class EpisodeInsights
             .ToList();
     }
 
-    /// <summary>続きを話せるか: 話し終えた、印がない、要確認の力が 1 つ以上ある。</summary>
+    /// <summary>
+    /// 続きを話せるか: 話し終えた、印がない、「もう少し聞かせてほしいこと」に出した力が 1 つ以上ある。
+    /// 要確認でも、そろって見えた力に出せない力しかない場面は、続きで聞く力がないので続きを話せない（<see cref="AbilityShowcase.CouldBeSeen"/>）。
+    /// </summary>
     public static bool CanResume(EpisodeItem episode) =>
-        IsCheckable(episode) && AbilityStates.Evaluate(episode.Evidence).Any(r => r.State == AbilityState.NeedsCheck);
+        IsCheckable(episode) && Showcase(episode).MoreToHear.Count > 0;
 
     /// <summary>根拠が一般論だけの要確認の力か。一般論だけでは、どの日のことかが決まらないので、足りない行動は聞かず、具体的な出来事を一つ聞く。</summary>
     public static bool IsGeneralOnly(AbilityResult result) =>
