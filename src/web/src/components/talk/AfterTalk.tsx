@@ -19,14 +19,23 @@ type ShownStep = 'conditions' | 'options' | 'deepen' | 'report'
 
 /**
  * 区切ったあとのトークの続き（common-3（次にできることを一つ示す））。見えた力のカードのあとに置く。
- * 聞き手の側に「次は、どれにしますか？」を出し、次にできること・「別の日のことを話す」・「今日はここまで」を、答えの例と同じ形のボタンで並べる。
+ * 聞き手の側に、受け止める一文と「このあと、どうしますか？」を出し、次にできること・「別の日のことを話す」・「今日はここまで」を、
+ * 答えの例と同じ形のボタンで並べる。answered（本人が一度でも答えた場面）でなければ、話してくれたことへのお礼は言わない。
  * 次にできることを読めなかったときは、残りの 2 つだけ出す。「今日はここまで」は何も送らず、何も保存しない。
  * distress（この場面がつらい状態のサインに応えたところで終わっているか、力の確かめに使わない印が付いている）のときは、
  * 問いもボタンも出さず、先へ進むことを勧めない。サインのあと「続けて話す」を選んで区切った場面も、打ち明けた直後なので同じにする。
  * 目立たせない「別の日のことを話す」だけを置く（discover-10（つらい状態のサインに応える））。
  * refreshKey が変わったら（読み取りを直したときなど）、次にできることを読み直す。
  */
-export function AfterTalk({ distress, refreshKey }: { distress: boolean; refreshKey?: unknown }) {
+export function AfterTalk({
+  distress,
+  answered,
+  refreshKey,
+}: {
+  distress: boolean
+  answered: boolean
+  refreshKey?: unknown
+}) {
   const { start, starting, failed } = useStartEpisode()
 
   const startFailed = failed && (
@@ -47,15 +56,25 @@ export function AfterTalk({ distress, refreshKey }: { distress: boolean; refresh
       </div>
     )
   }
-  return <NextChoices refreshKey={refreshKey} start={start} starting={starting} startFailed={startFailed} />
+  return (
+    <NextChoices
+      question={answered ? copy.talk.afterQuestion : copy.talk.afterQuestionUnanswered}
+      refreshKey={refreshKey}
+      start={start}
+      starting={starting}
+      startFailed={startFailed}
+    />
+  )
 }
 
 function NextChoices({
+  question,
   refreshKey,
   start,
   starting,
   startFailed,
 }: {
+  question: string
   refreshKey?: unknown
   start: () => void
   starting: boolean
@@ -82,7 +101,7 @@ function NextChoices({
   if (done) {
     return (
       <div className="flex flex-col gap-3">
-        <Bubble role="assistant">{copy.talk.afterQuestion}</Bubble>
+        <Bubble role="assistant">{question}</Bubble>
         <Bubble role="user">{copy.talk.doneForToday}</Bubble>
         <Bubble role="assistant">{copy.talk.doneForTodayReply}</Bubble>
       </div>
@@ -92,7 +111,7 @@ function NextChoices({
   const to = next.step === null ? null : nextStepPath({ step: next.step, episodeId: null })
   return (
     <div className="flex flex-col gap-3">
-      <Bubble role="assistant">{copy.talk.afterQuestion}</Bubble>
+      <Bubble role="assistant">{question}</Bubble>
       {next.loaded && (
         <div role="group" aria-label={copy.talk.nextLabel} className="flex flex-wrap gap-2">
           {next.step !== null && to !== null && (

@@ -35,6 +35,18 @@ describe('copy', () => {
     expect(copy.talk.rest).not.toMatch(/続け|戻/)
   })
 
+  it('common-3（次にできることを一つ示す）: 区切ったあとの聞き手の問いは、受け止める一文から始め、並べたボタンのどれかを選ぶ前提にしない', () => {
+    // 聞き手の吹き出しで出すので、ほかの返事と同じく、受け止めてから一つだけ聞く（芯 3（AI が聞き手になる））
+    expect(copy.talk.afterQuestion).toMatch(/^話してくれて、ありがとうございます。/)
+    for (const question of [copy.talk.afterQuestion, copy.talk.afterQuestionUnanswered]) {
+      expect(question).toMatch(/このあと、どうしますか？$/)
+      expect(question).not.toContain('どれに')
+      expect(question.match(/？/g)).toHaveLength(1)
+    }
+    // 一度も答えずに区切った場面では、話してくれたことへのお礼を言わない（話していないことを受け止めない）
+    expect(copy.talk.afterQuestionUnanswered).not.toMatch(/話して|ありがとう/)
+  })
+
   it('discover-5（つらい話は飛ばせる）: 飛ばす前の確かめに「消す」を使わない', () => {
     // つらい状態のサインのあとにも出る確かめなので、「消えたい」と書いた人に「消して」を重ねない
     expect(copy.talk.skipQuestion).not.toContain('消')

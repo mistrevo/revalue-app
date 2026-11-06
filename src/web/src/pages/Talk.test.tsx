@@ -774,13 +774,15 @@ describe('Talk', () => {
     await waitFor(() => expect(api.calls.filter((c) => c.url.endsWith('/corrections'))).toHaveLength(1))
   })
 
-  it('common-3（次にできることを一つ示す）: 区切ったあと、次にできることのボタンと「別の日のことを話す」「今日はここまで」が出る', async () => {
+  it('common-3（次にできることを一つ示す）: 区切ったあと、聞き手が受け止めてから聞き、次にできることのボタンと「別の日のことを話す」「今日はここまで」が出る', async () => {
     const api = setup()
     api.state.nextStep = { step: 'options', episodeId: null }
 
+    await typeAndSend('パート先に電話して、休みをもらいました')
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
 
     expect(await screen.findByText(copy.talk.afterQuestion)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestionUnanswered)).not.toBeInTheDocument()
     const next = await screen.findByRole('group', { name: copy.talk.nextLabel })
     expect(within(next).getByRole('link', { name: copy.home.next.options })).toHaveAttribute('href', '/options')
     expect(within(next).getByRole('button', { name: copy.talk.anotherDay })).toBeInTheDocument()
@@ -790,6 +792,22 @@ describe('Talk', () => {
     // 話す画面では、ほかの画面の下に出す「次にできること」の囲みを重ねない
     expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
+  })
+
+  it('common-3（次にできることを一つ示す）: 一度も答えずに区切った場面では、話してくれたことへのお礼を言わずに聞く', async () => {
+    const api = setup()
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    expect(await screen.findByText(copy.talk.afterQuestionUnanswered)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(await screen.findByRole('group', { name: copy.talk.nextLabel })).toBeInTheDocument()
+
+    // 「今日はここまで」のあとも、同じ問いが残る
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.doneForToday }))
+    expect(await screen.findByText(copy.talk.doneForTodayReply)).toBeInTheDocument()
+    expect(screen.getByText(copy.talk.afterQuestionUnanswered)).toBeInTheDocument()
   })
 
   it('common-3（次にできることを一つ示す）: 次にできることが talk のときは、「別の日のことを話す」を重ねない', async () => {

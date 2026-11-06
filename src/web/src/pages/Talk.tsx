@@ -530,7 +530,12 @@ function TalkScreen({ id }: { id: string }) {
         {/* つらい状態のサインに応えたところで終わった場面と、力の確かめに使わない印が付いた場面（サインのあと続けて話して区切った場面）では、
             先へ進む道を勧めない。開いたときの行き先（talk-target.ts）と同じ印で見る（Claude の判断） */}
         {!talking && (
-          <AfterTalk distress={notice?.kind === 'distress' || episode.excludedFromValidation} refreshKey={episode.insights} />
+          <AfterTalk
+            distress={notice?.kind === 'distress' || episode.excludedFromValidation}
+            // 一度も答えずに区切った場面では、話してくれたことへのお礼を言わない（訂正は答えに数えない）
+            answered={episode.turns.some((turn) => turn.role === 'user' && turn.answerKind !== 'correction')}
+            refreshKey={episode.insights}
+          />
         )}
 
         {actionFailed && (
