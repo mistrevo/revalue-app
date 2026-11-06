@@ -39,9 +39,10 @@ export function Episodes() {
         <ul className="mt-6 flex flex-col gap-3">
           {state.episodes.map((episode) => (
             <li key={episode.id}>
+              {/* マウスを載せたら枠だけ変える。行の中に accent の文字があり、accent と tint は文字の組にしない（00-common.md の「見た目」） */}
               <Link
                 to={`/talk/${episode.id}`}
-                className="block rounded-2xl border bg-surface px-4 py-3 transition-colors hover:bg-tint focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                className="block rounded-2xl border bg-surface px-4 py-3 transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
               >
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>{formatDay(episode.startedAt)}</span>

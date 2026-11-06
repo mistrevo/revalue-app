@@ -129,10 +129,10 @@
 - 暗い画面は、スマホや PC の設定（`prefers-color-scheme`）に合わせて自動で切り替える。手で切り替えるスイッチは置かない。設定を読めないときは明るい画面にする
 - 選んだ色と、話す画面の書きかけ（[02-discover.md](02-discover.md)）は、その端末のブラウザ（`localStorage`）にだけ残し、サーバーへ送らない。アプリが残すのは、見分ける ID と話した内容だけ、という決まりを守るため。書きかけは、最後に書いてから 30 日で捨て、ログアウトと全部消すときにも消す。読めないとき、書けないとき（ブラウザが保存を止めているときなど）は、いつもの色で出し、画面を止めない（Claude の判断）
 - どの色でも、明るい画面と暗い画面の両方で、次の組がコントラスト比（WCAG の AA）を満たす（Claude の判断）
-  - 4.5 以上: text と ground・surface・field・tile（メニュー板のタイル）、muted と ground・surface・field（見えた力のカードの中の行動の文）・chip（日付の札）、onTint と tint、onAccent と accent、accent と surface（選択肢の文字）
+  - 4.5 以上: text と ground・surface・field・tile（メニュー板のタイル）、muted と ground・surface・field（見えた力のカードの中の行動の文）・chip（日付の札）、onTint と tint、onAccent と accent、accent と surface（選択肢の文字）・ground（案内の名前）
   - 3 以上: 入力欄の枠（fieldBorder と field・surface）、アイコンの accent と tint・tile
   - 対象にしない: 文字のあるボタンの枠（文字でボタンと分かるため）、区切りの線（border）、点線の「それ以外（自分で書く）」の枠
-  - 文字と地の組は、上で確かめた組から選ぶ。マウスを載せたときの地と文字も同じ。accent と tile、accent と tint は、色によって 4.5 に届かないので、文字の組にしない（accent の文字のボタンは、マウスを載せたら tint の地に onTint の文字にする）
+  - 文字と地の組は、上で確かめた組から選ぶ。マウスを載せたときの地と文字も同じ。accent と tile、accent と tint は、色によって 4.5 に届かないので、文字の組にしない（accent の文字のボタンは、マウスを載せたら tint の地に onTint の文字にする。中に accent の文字がある行やカードは、マウスを載せたら地を変えず、枠を accent にする）
 
 ### 次にできること
 

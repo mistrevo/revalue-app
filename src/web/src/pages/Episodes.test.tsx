@@ -79,6 +79,22 @@ describe('Episodes', () => {
     expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
+  it('common-5（どの色でも読める）: マウスを載せても行の地は surface のまま。accent の札と「続きから話せる」を tint の地に載せない', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [{ ...answered('episode-1', '2026-11-01T03:00:00Z', 'talking', '公園で子どもと遊んだ'), insights: fakeInsights({ canResume: true }) }],
+    })
+    renderApp('/episodes')
+
+    const link = await screen.findByRole('link', { name: /公園で子どもと遊んだ/ })
+    // 行の中には accent の文字（話している途中の札、続きから話せる）がある。accent と tint は 4.5 に届かない色がある（00-common.md の「見た目」）
+    expect(link.querySelector('.text-primary')).not.toBeNull()
+    expect(link.className).toContain('bg-surface')
+    expect(link.className).not.toMatch(/hover:bg-/)
+    expect(link.className).toContain('hover:border-primary')
+  })
+
   it('validate-11（要確認の場面に戻れる）: 続きを話せる場面に「もう少し聞かせてほしいことがあります」と添える', async () => {
     installFakeApi({
       loggedIn: true,

@@ -5,6 +5,7 @@ import { LOGOUT_URL } from '@/api'
 import { copy } from '@/copy'
 import { installFakeApi } from '@/test/fake-api'
 import { readDraft, writeDraft } from '@/lib/drafts'
+import { PALETTE_STORAGE_KEY } from '@/lib/palette'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
@@ -119,6 +120,8 @@ describe('Settings', () => {
     expect(within(group).getAllByRole('radio')).toHaveLength(6)
     await userEvent.click(within(group).getByRole('radio', { name: 'さくら' }))
     expect(document.documentElement.dataset.palette).toBe('rose')
+    // 開き直したときの選択は、この端末に残した値から出る
+    expect(localStorage.getItem(PALETTE_STORAGE_KEY)).toBe('rose')
     unmount()
     renderApp('/settings')
     expect(await screen.findByRole('radio', { name: 'さくら' })).toHaveAttribute('aria-checked', 'true')

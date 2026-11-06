@@ -26,6 +26,8 @@ const TEXT_PAIRS = [
   ['onTint', 'tint'],
   ['onAccent', 'accent'],
   ['accent', 'surface'],
+  // 案内の名前「RE:VALUE」
+  ['accent', 'ground'],
 ] as const
 const UI_PAIRS = [
   ['fieldBorder', 'field'],
@@ -129,6 +131,14 @@ describe('choosePalette', () => {
     choosePalette('blue')
     listener!({ matches: true })
     expect(document.documentElement.style.getPropertyValue('--rv-accent')).toBe(PALETTES.blue.dark.accent)
+    stop()
+  })
+
+  it('common-5（どの色でも読める）: 選んだ色はこの端末に残り、開き直すと選んだ色で出る', () => {
+    choosePalette('rose')
+    expect(readPalette()).toBe('rose')
+    const stop = startPalette()
+    expect(document.documentElement.dataset.palette).toBe('rose')
     stop()
   })
 
