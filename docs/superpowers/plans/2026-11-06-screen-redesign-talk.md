@@ -436,7 +436,7 @@ git commit -m "区切ったら、見えた力をトークの中のカードで�
 **Files:**
 - Modify: `docs/specs/00-common.md`、`docs/specs/01-foundation.md`、`docs/specs/02-discover.md`、`docs/specs/03-validate.md`、`docs/specs/04-profile.md`、`docs/specs/05-options.md`、`docs/specs/06-deepen.md`、`docs/specs/07-report.md`、`docs/specs/00-tech-stack.md`（フォントの包み）、`docs/prd/3-features.md`、`evals/personas/how-to-judge.md`、`evals/personas/people/e-sayaka.md`
 
-- [ ] **Step 1: Spec を、いまの正しい姿に直す**（経緯は書かない。CLAUDE.md の書き方に従う）
+- [x] **Step 1: Spec を、いまの正しい姿に直す**（経緯は書かない。CLAUDE.md の書き方に従う）
   - `00-common.md` の「画面」
     - 見た目の決まりを足す: 太めの丸ゴシック、6 色の役割と名前、暗い画面は端末の設定に合わせる、選んだ色と書きかけは端末のブラウザにだけ残す、コントラストの組（設計の 1 章の箇条のとおり）
     - 左上の「RE:VALUE」の行き先を `/talk` に。話す画面では上の帯がその代わり
@@ -460,22 +460,22 @@ git commit -m "区切ったら、見えた力をトークの中のカードで�
   - `00-tech-stack.md`: 画面の依存に `@fontsource/m-plus-rounded-1c` を書き、Geist を外す
   - `3-features.md` の revisit-5（また話せると一言添える）の「ホームを開いたとき」を「アプリを開いたとき」に
   - ペルソナの資料: 「ホームから続きを」を「開くと話していた場面が出る」「トークから」に直す
-- [ ] **Step 2: 呼び名の数を確かめる**
+- [x] **Step 2: 呼び名の数を確かめる**
 
 Run: `grep -rn "common-4（どの画面からもホームへ戻れ" src tests docs` と `grep -rn "/home\b" src/web/src --include=*.tsx --include=*.ts`
 Expected: 1 つ目は 0 件。2 つ目は `App.tsx` の `/home` を `/talk` へ送る 1 件と、そのテストだけ
 
-- [ ] **Step 3: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、`http://localhost:5080/.auth/login/google?dev_user=redesign-check` を開いてログインする（開発用の偽物のログイン。`evals/personas/README.md`）。サーバーは終わったら止める）
+- [x] **Step 3: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、`http://localhost:5080/.auth/login/google?dev_user=redesign-check` を開いてログインする（開発用の偽物のログイン。`evals/personas/README.md`）。サーバーは終わったら止める）
   - 幅 320px、375px×667px、375px×812px、1280px で、`/talk` の最初の問い、話している途中（メニュー板を開いた形）、区切ったとき
   - 横にはみ出さない（`document.documentElement.scrollWidth <= innerWidth`）。入力欄と「送る」が見えて押せる
   - `emulate_media` で `prefers-color-scheme: dark` にして、同じ 3 場面
   - 写真は `evals/results/` に置かない（スクラッチに置く）。気づいた崩れは直してから次へ
-- [ ] **Step 4: 全部のテストを流す**
+- [x] **Step 4: 全部のテストを流す**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests`、`npm --prefix src/web test`、`npm --prefix src/web run build`、`node --test .claude/hooks/guard.test.mjs`
 Expected: すべて PASS
 
-- [ ] **Step 5: コミット**
+- [x] **Step 5: コミット**
 
 ```bash
 git add docs src evals/personas/how-to-judge.md evals/personas/people/e-sayaka.md

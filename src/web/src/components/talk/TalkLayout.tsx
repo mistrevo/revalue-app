@@ -50,7 +50,8 @@ export function TalkLayout({ children, footer, menuHidden = false }: { children:
             <h1 className="text-[13px] text-muted-foreground">{copy.talk.title}</h1>
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">{children}</div>
+        {/* relative: 読み上げ用の見えない文字（sr-only は absolute）を、この中に収める。ないと、ページ全体が縦に伸びて動く */}
+        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">{children}</div>
         {footer !== undefined && <div className="shrink-0 border-t border-border bg-surface px-3 pt-2 pb-2.5">{footer}</div>}
         {!wide && <MenuBoard variant="bottom" hidden={menuHidden} />}
       </div>

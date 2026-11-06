@@ -496,7 +496,7 @@ function TalkScreen({ id }: { id: string }) {
                   variant="outline"
                   onClick={() => setCorrecting(true)}
                   disabled={busy}
-                  className="h-auto min-h-12 w-full rounded-[14px] border-[1.5px] border-primary py-2 text-[15px] whitespace-normal text-primary sm:w-auto sm:flex-1"
+                  className="h-auto min-h-12 w-full rounded-[14px] border-[1.5px] border-primary bg-surface py-2 text-[15px] whitespace-normal text-primary hover:bg-tint dark:bg-surface dark:hover:bg-tint sm:w-auto sm:flex-1"
                 >
                   {copy.insights.correct}
                 </Button>
