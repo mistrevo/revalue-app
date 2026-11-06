@@ -10,8 +10,9 @@ const MAX_INPUT_HEIGHT = 160
 
 /**
  * 入力の帯。入力欄（1 行から、書くと広がる）と丸い「送る」ボタン。actions（「ここで区切る」「この話は飛ばす」、
- * または飛ばすときの確かめ）は入力欄のすぐ上に置く。書きかけがあるあいだは、残っていることを下に小さく出す
- * （discover-11（書きかけを残す））。返事を待つあいだ（sending）は、入力欄を読むだけにする。送った答えの書きかけを
+ * または飛ばすときの確かめ）は入力欄のすぐ上に置く。draftKept（書きかけがその端末のブラウザに残っている）のあいだだけ、
+ * 残っていることを下に小さく出す（discover-11（書きかけを残す））。ブラウザが保存を止めているときは残らないので出さない。
+ * 返事を待つあいだ（sending）は、入力欄を読むだけにする。送った答えの書きかけを
  * 送れたときに消し、送れなかったときに入力欄へ戻すので、待つあいだに書いた文があると、知らせずに消したり入れ替えたりしてしまうため
  * （Claude の判断）。フォーカスとキーボードは外さない。
  */
@@ -20,6 +21,7 @@ export function AnswerBar({
   onChange,
   onSend,
   sending,
+  draftKept,
   disabled = false,
   actions,
   inputRef,
@@ -29,6 +31,7 @@ export function AnswerBar({
   onChange: (value: string) => void
   onSend: () => void
   sending: boolean
+  draftKept: boolean
   disabled?: boolean
   actions?: ReactNode
   inputRef: RefObject<HTMLTextAreaElement | null>
@@ -47,7 +50,7 @@ export function AnswerBar({
     return () => window.removeEventListener('resize', fit)
   }, [value, inputRef])
 
-  const hasDraft = value.trim() !== ''
+  const hasText = value.trim() !== ''
 
   return (
     <div className="flex flex-col gap-2">
@@ -79,13 +82,13 @@ export function AnswerBar({
         <button
           type="submit"
           aria-label={copy.talk.send}
-          disabled={sending || !hasDraft}
+          disabled={sending || !hasText}
           className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
         >
           <ArrowRight aria-hidden className="size-[22px]" strokeWidth={2.2} />
         </button>
       </form>
-      {hasDraft && (
+      {hasText && draftKept && (
         <p className="ml-4 flex items-center gap-1 text-xs leading-relaxed text-muted-foreground">
           <Check aria-hidden className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} />
           <span>{copy.talk.draftKept}</span>

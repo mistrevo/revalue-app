@@ -88,6 +88,23 @@ describe('drafts', () => {
     expect(localStorage.getItem('revalue.palette')).toBe('rose')
   })
 
+  it('discover-11（書きかけを残す）: 残せたかどうかを返す。残せたときだけ、画面は「残っています」と伝える', () => {
+    expect(writeDraft('episode-1', 'パート先に電話して、')).toBe(true)
+    // 空白だけにしたら消すので、残っていない
+    expect(writeDraft('episode-1', '  ')).toBe(false)
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    expect(writeDraft('episode-1', 'パート先に電話して、')).toBe(false)
+    expect(readDraft('episode-1')).toBe('')
+  })
+
+  it('discover-11（書きかけを残す）: 書いても読み戻せないブラウザ（保存を黙って捨てる）では、残せなかったと返す', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
+    expect(writeDraft('episode-1', 'パート先に電話して、')).toBe(false)
+  })
+
   it('discover-11（書きかけを残す）: 保存できないブラウザでも投げない', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked')

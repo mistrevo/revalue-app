@@ -52,6 +52,8 @@ function TalkScreen({ id }: { id: string }) {
   const [notice, setNotice] = useState<SupportNotice | null>(null)
   // 書きかけは、場面ごとにその端末のブラウザへ残し、開き直したら入力欄に戻す（discover-11（書きかけを残す））
   const [input, setInput] = useState(() => readDraft(id))
+  // 書きかけがブラウザに残っているか。ブラウザが保存を止めているときは残らないので、残っているとは伝えない
+  const [draftKept, setDraftKept] = useState(() => input.trim() !== '')
   // 入力欄に文字を打っているあいだは、メニュー板を隠す（キーボードとぶつからないように）
   const [typing, setTyping] = useState(false)
   const menuTimer = useRef<number | undefined>(undefined)
@@ -167,7 +169,10 @@ function TalkScreen({ id }: { id: string }) {
             current && { ...current, status: done.status, turns: [...current.turns, userTurn, reply], notice: distress },
           )
           // 送れた書いた答えの書きかけは消す。選んで送ったときは、入力欄に残っている書きかけをそのまま残す
-          if (kind === 'free') clearDraft(id)
+          if (kind === 'free') {
+            clearDraft(id)
+            setDraftKept(false)
+          }
           setNotice(distress)
           // 締めの返事で話し終えたら、見えたことを読み直す
           if (done.status === 'finished') reloadEpisode()
@@ -298,7 +303,7 @@ function TalkScreen({ id }: { id: string }) {
 
   function changeInput(value: string) {
     setInput(value)
-    writeDraft(id, value)
+    setDraftKept(writeDraft(id, value))
   }
 
   // 入力欄から離れたら、少し待ってからメニュー板を戻す
@@ -349,6 +354,7 @@ function TalkScreen({ id }: { id: string }) {
             onChange={changeInput}
             onSend={() => void send(input, 'free')}
             sending={sending}
+            draftKept={draftKept}
             actions={actions}
             inputRef={inputRef}
             onFocusChange={focusChanged}

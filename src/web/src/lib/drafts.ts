@@ -39,17 +39,23 @@ export function readDraft(episodeId: string): string {
   }
 }
 
-/** 書きかけを、書いた時刻と一緒に残す。空白だけなら消す。 */
-export function writeDraft(episodeId: string, text: string): void {
+/**
+ * 書きかけを、書いた時刻と一緒に残す。空白だけなら消す。
+ * 残せたかを返す（空白だけで消したときと、ブラウザが保存を止めているときは false）。書いたあとに読み戻して確かめる。
+ * 画面は、残せたときだけ「書きかけは残っています」と伝える。残らないのに「閉じても大丈夫」と受け取って閉じ、書いた文を失わないため。
+ */
+export function writeDraft(episodeId: string, text: string): boolean {
   if (text.trim() === '') {
     clearDraft(episodeId)
-    return
+    return false
   }
   try {
-    const stored: Stored = { text, at: Date.now() }
-    localStorage.setItem(DRAFT_PREFIX + episodeId, JSON.stringify(stored))
+    const serialized = JSON.stringify({ text, at: Date.now() } satisfies Stored)
+    localStorage.setItem(DRAFT_PREFIX + episodeId, serialized)
+    return localStorage.getItem(DRAFT_PREFIX + episodeId) === serialized
   } catch {
     // 保存できないブラウザでは、残らないだけ
+    return false
   }
 }
 

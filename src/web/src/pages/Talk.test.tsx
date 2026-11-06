@@ -954,6 +954,63 @@ describe('Talk', () => {
     expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
   })
 
+  it('discover-11（書きかけを残す）: 使いすぎで止められたら（429）、入力欄にも保存にも残る', async () => {
+    const api = setup()
+    api.state.reply = {
+      status: 429,
+      body: { type: '/problems/daily-limit', status: 429, resetAt: '2026-11-03T15:00:00Z' },
+    }
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.limit.title)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+    expect(screen.getByText(copy.talk.draftKept)).toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: ほかの画面で飛ばされた場面に送ったら（404）、入力欄にも保存にも残る', async () => {
+    const api = setup()
+    await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    api.state.episodes = []
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+  })
+
+  it('discover-11（書きかけを残す）: 返事を流しているあいだに閉じられたと知らされたら（closed）、入力欄にも保存にも残る', async () => {
+    const api = setup()
+    api.state.reply = [{ event: 'error', data: { kind: 'closed' } }]
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+  })
+
+  it('discover-11（書きかけを残す）: ほかの画面で区切られた場面に送ったら（409）、保存に残り、続きを話すと入力欄に戻る', async () => {
+    const api = setup()
+    await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    // 開いたあとに、ほかの画面で区切られた（続きを話せる場面）
+    api.state.episodes[0].status = 'finished'
+    api.state.episodes[0].finishedAt = '2026-11-03T01:10:00Z'
+    api.state.episodes[0].insights = fakeInsights()
+    api.state.reply = { status: 409, body: { type: '/problems/episode-finished', status: 409 } }
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+    // 話し終えた場面には入力の帯を出さない。続きを話すと、入力欄に戻る
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: copy.talk.inputLabel })).not.toBeInTheDocument())
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.resume }))
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+  })
+
   it('discover-11（書きかけを残す）: 返事を待つあいだは入力欄に書き足せず、送れたあとに開き直しても、画面と残した書きかけがそろう', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode()] })
     api.state.manualStream = true
@@ -1024,6 +1081,35 @@ describe('Talk', () => {
     expect(await screen.findByText(FAKE_AFTER_SKIP)).toBeInTheDocument()
     expect(readDraft('episode-1')).toBe('')
     expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('')
+  })
+
+  it('discover-11（書きかけを残す）: ブラウザが保存を止めているときは、「書きかけは残っています」と言わない', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    setup()
+
+    const input = await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    await userEvent.type(input, 'パート先に電話して、')
+
+    // 書いた文は入力欄にあり、送れる。ただ、閉じたら残らないので、残っているとは伝えない
+    expect(input).toHaveValue('パート先に電話して、')
+    expect(screen.getByRole('button', { name: copy.talk.send })).toBeEnabled()
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: ブラウザが保存を止めているときは、送れなかった答えを入力欄に戻しても、「書きかけは残っています」と言わない', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const api = setup()
+    api.state.reply = { status: 500, body: {} }
+
+    await typeAndSend('パート先に電話して、')
+
+    expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、')
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
   })
 
   it('discover-11（書きかけを残す）: 保存できないブラウザでも、話す画面が出て送れる', async () => {
