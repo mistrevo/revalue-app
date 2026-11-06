@@ -761,6 +761,23 @@ describe('Talk', () => {
     expect(card.textContent).not.toMatch(/[✓✔☑]|済|[0-9０-９]+\s*(点|%|％)|[0-9]+\s*\/\s*[0-9]+/)
   })
 
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: カードの中の力の名前は、本人の言葉より大きな字にしない（ふつうの太字にとどめる）', async () => {
+    setup(finishedWithInsights())
+
+    const card = await screen.findByRole('region', { name: copy.insights.cardLabel })
+    // 本人の言葉は 15px。力の名前は見出しの大きさにせず、それより小さい字（14px）の太字にする
+    for (const [name, quote] of [
+      ['利害調整力', '「班の 2 家族の都合を聞きました」'],
+      ['優先順位設定力', '「用事が重なっていました」'],
+    ]) {
+      const heading = within(card).getByRole('heading', { level: 3, name })
+      expect(heading.className).toContain('text-sm')
+      expect(heading.className).not.toMatch(/\btext-(base|lg|xl|2xl)\b/)
+      expect(heading.className).not.toMatch(/\bfont-(extrabold|black)\b/)
+      expect(within(card).getByText(quote).closest('li')!.className).toContain('text-[15px]')
+    }
+  })
+
   it('validate-8（訂正したら確かめ直す）: カードの中から、読み取りを直せる', async () => {
     const api = setup(finishedWithInsights())
 

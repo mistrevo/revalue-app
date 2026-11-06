@@ -8,7 +8,8 @@ import { copy } from '@/copy'
  * 先頭に、AI の読み取りであることと、本人が直せることを添える。
  * 見えた力、もう少し聞かせてほしいことの順に出し、最後に代わりの一文を添える（「まだ聞けていない力」の名前は並べない）。中身のない見出しは出さない。
  * 見えた力は、核となる行動の文と本人の言葉を組にして出す。もう少し聞かせてほしいことは、組にせず本人の言葉と手がかりだけにする。
- * 状態の呼び名やチェック表、点数は出さない。星のような評価や格付けを思わせる印も付けず、力の名前は本人の言葉より目立たせない
+ * 状態の呼び名やチェック表、点数は出さない。星のような評価や格付けを思わせる印も付けず、力の名前は本人の言葉より目立たせない。
+ * 名前は本人の言葉（15px）より小さい 14px のふつうの太字にし、見出しの大きさにしない
  * （本人の言葉を根拠にした読み取りで、判定の結果ではないため。Claude の判断）。
  * children（読み取りを直す、続きを話す、まとめて見る）は、カードの中の最後に置く。
  */
@@ -23,7 +24,7 @@ export function Insights({ insights, children }: { insights: EpisodeInsights; ch
         <Section title={copy.insights.seenTitle} Icon={Sprout}>
           {insights.seen.map((ability) => (
             <div key={ability.key}>
-              <h3 className="text-base leading-snug font-bold">{ability.name}</h3>
+              <h3 className="text-sm leading-snug font-bold">{ability.name}</h3>
               <QuoteList quotes={ability.quotes} paired boxed />
             </div>
           ))}
@@ -34,7 +35,7 @@ export function Insights({ insights, children }: { insights: EpisodeInsights; ch
         <Section title={copy.insights.moreTitle} Icon={MessageCircle}>
           {insights.moreToHear.map((ability) => (
             <div key={ability.key}>
-              <h3 className="text-base leading-snug font-bold">{ability.name}</h3>
+              <h3 className="text-sm leading-snug font-bold">{ability.name}</h3>
               <QuoteList quotes={ability.quotes} boxed />
               <Hints hints={ability.hints} />
             </div>
