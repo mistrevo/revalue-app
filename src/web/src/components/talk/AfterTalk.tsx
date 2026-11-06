@@ -8,7 +8,7 @@ import { Bubble } from './Bubble'
 
 /** 次の一手のボタン。答えの例と同じ枠と色で、言葉の長さに合わせた丸い形にする（モック talkend.html）。 */
 const NEXT_BUTTON =
-  'inline-flex min-h-11 max-w-full min-w-0 items-center rounded-full border-[1.5px] border-primary bg-surface px-4 py-1.5 text-left text-[15px] leading-snug font-bold break-words text-primary outline-none hover:bg-tint focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
+  'inline-flex min-h-11 max-w-full min-w-0 items-center rounded-full border-[1.5px] border-primary bg-surface px-4 py-1.5 text-left text-[15px] leading-snug font-bold break-words text-primary outline-none hover:bg-tint hover:text-on-tint focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
 /** 「今日はここまで」と、つらい状態のサインのあとの「別の日のことを話す」。目立たせない。 */
 const QUIET_BUTTON =
   'inline-flex min-h-11 max-w-full min-w-0 items-center rounded-full px-4 py-1.5 text-left text-[15px] leading-snug font-bold break-words text-muted-foreground outline-none hover:bg-chip focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'

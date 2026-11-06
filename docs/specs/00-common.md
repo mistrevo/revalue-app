@@ -132,7 +132,7 @@
   - 4.5 以上: text と ground・surface・field・tile（メニュー板のタイル）、muted と ground・surface・field（見えた力のカードの中の行動の文）・chip（日付の札）、onTint と tint、onAccent と accent、accent と surface（選択肢の文字）
   - 3 以上: 入力欄の枠（fieldBorder と field・surface）、アイコンの accent と tint・tile
   - 対象にしない: 文字のあるボタンの枠（文字でボタンと分かるため）、区切りの線（border）、点線の「それ以外（自分で書く）」の枠
-  - 文字と地の組は、上で確かめた組から選ぶ。accent と tile は、色によって 4.5 に届かないので、文字の組にしない
+  - 文字と地の組は、上で確かめた組から選ぶ。マウスを載せたときの地と文字も同じ。accent と tile、accent と tint は、色によって 4.5 に届かないので、文字の組にしない（accent の文字のボタンは、マウスを載せたら tint の地に onTint の文字にする）
 
 ### 次にできること
 

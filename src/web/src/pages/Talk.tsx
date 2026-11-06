@@ -518,14 +518,14 @@ function TalkScreen({ id }: { id: string }) {
                   variant="outline"
                   onClick={() => setCorrecting(true)}
                   disabled={busy}
-                  className="h-auto min-h-12 w-full rounded-[14px] border-[1.5px] border-primary bg-surface py-2 text-[15px] whitespace-normal text-primary hover:bg-tint dark:bg-surface dark:hover:bg-tint sm:w-auto sm:flex-1"
+                  className="h-auto min-h-12 w-full rounded-[14px] border-[1.5px] border-primary bg-surface py-2 text-[15px] whitespace-normal text-primary hover:bg-tint hover:text-on-tint dark:bg-surface dark:hover:bg-tint sm:w-auto sm:flex-1"
                 >
                   {copy.insights.correct}
                 </Button>
                 {/* 文字と地の組は、色のテストで確かめている on-tint と tint にする（みかんの accent と tile は 4.5 に届かない） */}
                 <Link
                   to="/abilities"
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-[14px] bg-tint px-3 py-2 text-center text-[15px] font-bold text-on-tint outline-none hover:bg-chip focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-auto sm:flex-1"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-[14px] bg-tint px-3 py-2 text-center text-[15px] font-bold text-on-tint outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-auto sm:flex-1"
                 >
                   {copy.insights.seeAll}
                 </Link>

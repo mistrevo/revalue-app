@@ -61,6 +61,8 @@ describe('Start', () => {
     for (const when of ['送る', '区切る', '飛ばす', '全部消す', 'ログアウト', '30 日']) {
       expect(notSaved.body).toContain(when)
     }
+    // 家族と共用する端末では、次に開いた人の目に入りうることも、了解する前に伝える
+    expect(notSaved.body).toContain('ほかの人も使う')
     expect(screen.getByText(notSaved.body)).toBeInTheDocument()
   })
 

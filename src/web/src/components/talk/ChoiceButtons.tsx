@@ -3,7 +3,7 @@ import { copy } from '@/copy'
 
 /** 答えの例のボタン。AI の答えの例と、区切ったあとの次の一手で同じ見た目にする。 */
 export const CHOICE_BUTTON =
-  'min-h-[52px] min-w-0 rounded-[14px] border-[1.5px] border-primary bg-surface px-3 py-1.5 text-left text-sm leading-snug font-bold break-words text-primary outline-none hover:bg-tint focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
+  'min-h-[52px] min-w-0 rounded-[14px] border-[1.5px] border-primary bg-surface px-3 py-1.5 text-left text-sm leading-snug font-bold break-words text-primary outline-none hover:bg-tint hover:text-on-tint focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
 
 /**
  * 答えの例（discover-3（選んでも書いてもよい））。5 つ以上（最初の問いの 9 つ）なら 2 列の格子、4 つ以下なら折り返して横に並べる。
