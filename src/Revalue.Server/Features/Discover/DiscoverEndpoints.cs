@@ -88,9 +88,10 @@ public static class DiscoverEndpoints
     /// つらい状態のサインのあとの入口と同じ問いと選択肢にする。サインには家庭内の暴力や暴言も入るので、打ち明けた直後に、
     /// 家族や家の中の場面（「家族とゆっくり過ごした」、ごはんの前後）を出さないため（Claude の判断）。
     /// 続きを話している場面を飛ばしたときも、戻す前の場面の印で見る（続きの中でサインが出ていれば入る）。
+    /// 最初の問いに「腹が立った・納得できなかったこと」を選んだ場面を飛ばしたときも、同じ問いと選択肢にする。腹が立った相手が家族のこともあるため（Claude の判断）。
     /// </summary>
     public static (string Question, IReadOnlyList<string> Choices) ChooseAfterSkip(EpisodeItem skipped) =>
-        skipped.ExcludedFromValidation
+        skipped.ExcludedFromValidation || ValidationContext.OpenedWithAnger(skipped.Turns)
             ? (DiscoverText.OpeningAfterDistress, DiscoverText.OpeningAfterDistressChoices)
             : (DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices);
 

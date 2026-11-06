@@ -51,12 +51,18 @@ public sealed record NextMove(MoveKind Kind, ActionRef? Target = null);
 /// この場面で聞き返す力（revisit-4（いまの話を聞き切る））。いちばん新しく行動を添えた聞き手のターン（足りない行動を聞く一手と、続きの問い）の力。
 /// まだ行動を添えて聞いていない場面では null。
 /// </param>
+/// <param name="AngerOpening">
+/// 最初の問いに「腹が立った・納得できなかったこと」（<see cref="DiscoverText.OpeningChoiceAnger"/>）を選んで答えた場面か。
+/// そうなら足りない行動を聞き返さない。手がかりには相手の人の事情や気持ちを聞くものがあり、腹が立った相手のことを聞くと、
+/// 相手を理解すべきだったと諭すように聞こえるため。本人が自分から話した行動は拾う（Claude の判断）。
+/// </param>
 public sealed record ValidationContext(
     IReadOnlyList<Evidence> Evidence,
     int LatestAnswer,
     IReadOnlyDictionary<ActionRef, int> AskedCounts,
     bool WantsOtherThings = false,
-    Ability? Focus = null)
+    Ability? Focus = null,
+    bool AngerOpening = false)
 {
     /// <summary>
     /// ターンから文脈を作る。聞いた回数は、行動を添えた聞き手のターン（足りない行動を聞く一手と、続きを話すときの問い）から数える。
@@ -105,8 +111,17 @@ public sealed record ValidationContext(
             }
         }
 
-        return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked, wantsOtherThings, focus);
+        return new ValidationContext(evidence, turns.Count(t => t.Role == TurnRoles.User), asked, wantsOtherThings, focus, OpenedWithAnger(turns));
     }
+
+    /// <summary>
+    /// 最初の問い（聞き手のターンの一手が opening）への答えが、「腹が立った・納得できなかったこと」を選んだものか。
+    /// 選んだ答え（<see cref="AnswerKind.Choice"/>）で、言葉が一字一句同じときだけ。
+    /// </summary>
+    public static bool OpenedWithAnger(IReadOnlyList<Turn> turns) =>
+        turns.Count > 1
+        && turns[0] is { Role: TurnRoles.Assistant, Move: "opening" }
+        && turns[1] is { Role: TurnRoles.User, AnswerKind: AnswerKind.Choice, Text: DiscoverText.OpeningChoiceAnger };
 
     /// <summary>
     /// 続きの問い（<paramref name="question"/>）に、続きの決まった選択肢を選んで答えた（<paramref name="answer"/>）ならその言葉。ほかは null。
@@ -210,7 +225,7 @@ public static class NextMovePolicy
     /// </summary>
     private static ActionRef? MissingActionToAsk(TurnReading reading, ValidationContext? validation)
     {
-        if (validation is null)
+        if (validation is null or { AngerOpening: true })
         {
             return null;
         }

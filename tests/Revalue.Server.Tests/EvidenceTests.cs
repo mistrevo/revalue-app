@@ -18,6 +18,29 @@ public sealed class EvidenceTests
         string linkedQuote = "", int linkedAnswer = 0) =>
         new(ability ?? TestAbilities.NoticingChanges, action, quote, answer, @event, general, linkedQuote, linkedAnswer);
 
+    [Fact(DisplayName = "validate-5（選んだだけでは根拠にしない）: 最初の問いの気持ちの選択肢を選んだ答えは、結びつく言葉があっても根拠にしない")]
+    public void OpeningFeelingChoiceIsNeverEvidence()
+    {
+        // 「気づいた・考えさせられたこと」の「気づく」は、核となる行動にも出てくる言葉。選んだ気持ちから力を決めない
+        IReadOnlyList<Turn> turns =
+        [
+            Asked(DiscoverText.Opening, [.. DiscoverText.OpeningChoices]),
+            Answered("気づいた・考えさせられたこと", AnswerKind.Choice),
+            Asked("それは、どんな出来事でしたか？"),
+            Answered("朝、子どもの顔色がいつもと違うと気づきました"),
+        ];
+
+        var kept = EvidenceChecker.Check(turns,
+        [
+            Candidate("気づいた・考えさせられたこと", answer: 1, linkedQuote: "顔色がいつもと違う", linkedAnswer: 2),
+            Candidate("顔色がいつもと違う", answer: 2),
+        ]);
+
+        var evidence = Assert.Single(kept);
+        Assert.Equal(2, evidence.Answer);
+        Assert.False(evidence.FromChoice);
+    }
+
     [Fact(DisplayName = "validate-4（根拠は本人の言葉）: 本人の答えに一字一句含まれる引用だけを残す")]
     public void KeepsOnlyQuotesContainedInAnswers()
     {
