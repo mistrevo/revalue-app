@@ -5,7 +5,6 @@ import { copy } from '@/copy'
 import { Abilities } from '@/pages/Abilities'
 import { Deepen } from '@/pages/Deepen'
 import { Episodes } from '@/pages/Episodes'
-import { Home } from '@/pages/Home'
 import { Landing } from '@/pages/Landing'
 import { Options } from '@/pages/Options'
 import { Profile } from '@/pages/Profile'
@@ -13,10 +12,12 @@ import { Report } from '@/pages/Report'
 import { Settings } from '@/pages/Settings'
 import { Start } from '@/pages/Start'
 import { Talk } from '@/pages/Talk'
+import { TalkEntry } from '@/pages/TalkEntry'
 
 /**
  * 画面の切り替え。/.auth/* はここに置かない（組み込み認証へページごと移動するため）。
  * RequireUser には画面ごとに key を付け、画面が変わるたびにログインと了解の状態を読み直す。
+ * /talk は開いたときの入口で、行き先（途中の場面、いちばん新しく話し終えた場面、新しい場面）を決めて /talk/:id へ進む。
  */
 export function AppRoutes() {
   return (
@@ -40,15 +41,17 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/home"
+        path="/talk"
         element={
-          <PageTitle title={copy.titles.home}>
-            <RequireUser key="home" consent>
-              <Home />
+          <PageTitle title={copy.titles.talk}>
+            <RequireUser key="talk-entry" consent>
+              <TalkEntry />
             </RequireUser>
           </PageTitle>
         }
       />
+      {/* 古いリンク（ホーム）を生かす */}
+      <Route path="/home" element={<Navigate to="/talk" replace />} />
       <Route
         path="/talk/:id"
         element={

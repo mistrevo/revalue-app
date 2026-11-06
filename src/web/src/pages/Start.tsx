@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { LOGOUT_URL, postConsent } from '@/api'
+import { postConsent } from '@/api'
+import { LogoutLink } from '@/components/LogoutLink'
 import { useMe } from '@/components/me-context'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
@@ -31,7 +32,7 @@ export function Start() {
   }, [location.pathname, location.state, navigate])
 
   if (me.consented) {
-    return <Navigate to="/home" replace />
+    return <Navigate to="/talk" replace />
   }
 
   async function agree() {
@@ -39,7 +40,7 @@ export function Start() {
     setFailed(false)
     try {
       await postConsent(me.currentVersion)
-      navigate('/home')
+      navigate('/talk')
     } catch {
       setFailed(true)
       setSending(false)
@@ -75,9 +76,9 @@ export function Start() {
         <Button size="lg" className="w-full sm:w-auto sm:px-6" onClick={agree} disabled={sending}>
           {copy.start.agree}
         </Button>
-        {/* 了解しない人の出口。ログアウトは組み込み認証へページごと移動する */}
+        {/* 了解しない人の出口。ログアウトは組み込み認証へページごと移動し、その端末の書きかけも消す */}
         <Button asChild size="lg" variant="ghost" className="h-auto w-full py-2 whitespace-normal sm:w-auto">
-          <a href={LOGOUT_URL}>{copy.start.decline}</a>
+          <LogoutLink>{copy.start.decline}</LogoutLink>
         </Button>
       </div>
     </Page>

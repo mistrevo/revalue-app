@@ -46,6 +46,8 @@ export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {
     ],
     notice: null,
     insights: null,
+    // 裏側と同じく、つらい状態のサインに応えたターンがあれば、力の確かめに使わない印を付ける
+    excludedFromValidation: (overrides.turns ?? []).some((t) => t.role === 'assistant' && t.move === 'distress'),
     ...overrides,
   }
 }
@@ -498,6 +500,8 @@ export type FakeStream = { send: (event: string, data: unknown) => void; close: 
 export function installFakeApi(initial: {
   loggedIn: boolean
   consented: boolean
+  /** 了解していない人が、前の版で了解した記録を持っているときの、その版（「はじめに」の中身を変えて版を上げたあと）。 */
+  consentVersion?: string | null
   episodes?: Episode[]
   profile?: Profile
   options?: Options
@@ -508,6 +512,8 @@ export function installFakeApi(initial: {
   const state = {
     loggedIn: initial.loggedIn,
     consented: initial.consented,
+    /** 前の版で了解した記録の版。了解し直すか、全部消すと、なくなる。 */
+    oldConsentVersion: initial.consented ? null : (initial.consentVersion ?? null),
     episodes: [...(initial.episodes ?? [])],
     /** 次に答えを送ったときの応答。イベントの並びか、流れを始める前に断る応答。 */
     reply: replyEvents(['受け止めました。', 'そのとき何をしましたか？'], ['段取りを考えた', '人に頼んだ', '手を動かした']) as
@@ -515,6 +521,8 @@ export function installFakeApi(initial: {
       | { status: number; body: unknown },
     /** true なら、答えを送ったときの流れをテストが streams から少しずつ送る。 */
     manualStream: false,
+    /** 入れると、答えを送ったときの応答をこの約束が済むまで待たせる（返事を待つあいだの画面を見るため）。 */
+    replyGate: null as Promise<void> | null,
     /**
      * 飛ばしたときに、ほかの画面で始まっていた場面の id。入れると、飛ばした場面を消したうえで、
      * 新しい場面を作らずに 409（その場面の id 付き）を返す。
@@ -558,7 +566,8 @@ export function installFakeApi(initial: {
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
-  const currentVersion = '2026-11-02'
+  /** 了解の版。裏側の ConsentInfo.CurrentVersion にそろえる。 */
+  const currentVersion = '2026-11-06'
   let nextId = 100
 
   const json = (status: number, body: unknown) =>
@@ -574,9 +583,12 @@ export function installFakeApi(initial: {
     id: e.id,
     status: e.status,
     startedAt: e.startedAt,
+    finishedAt: e.finishedAt ?? null,
     userTurnCount: e.turns.filter((t) => t.role === 'user').length,
     preview: e.turns.find((t) => t.role === 'user')?.text.slice(0, 30) ?? '',
     canResume: e.status === 'finished' && (e.insights?.canResume ?? false),
+    // 裏側は場面に付けた印を返す。偽物では、印か、つらい状態のサインに応えたターンがあるかで見る（テストがターンを直接書いたときのため）
+    excludedFromValidation: e.excludedFromValidation || e.turns.some((t) => t.role === 'assistant' && t.move === 'distress'),
   })
 
   const sseResponse = (events: FakeEvent[]) =>
@@ -609,22 +621,33 @@ export function installFakeApi(initial: {
     if (url === '/api/me' && method === 'GET') {
       return json(200, {
         consented: state.consented,
-        consentVersion: state.consented ? currentVersion : null,
+        consentVersion: state.consented ? currentVersion : state.oldConsentVersion,
         currentVersion,
       })
     }
     if (url === '/api/consent' && method === 'POST') {
+      // 裏側と同じく、いまの版でなければ了解として残さない
+      if ((body as { version?: unknown } | undefined)?.version !== currentVersion) {
+        return json(400, { type: '/problems/invalid-consent-version', status: 400 })
+      }
       state.consented = true
+      state.oldConsentVersion = null
       return new Response(null, { status: 204 })
     }
     if (url === '/api/me' && method === 'DELETE') {
       state.consented = false
+      state.oldConsentVersion = null
       state.episodes = []
       state.profile = fakeProfile()
       state.options = fakeOptions()
       state.deepen = fakeDeepen({ readiness: 'noChoice', target: null })
       state.report = fakeReport({ ready: false, content: null, current: null })
       return new Response(null, { status: 204 })
+    }
+
+    // 裏側と同じく、了解していない人（前の版で了解した人も）には、了解の要る API を使わせない
+    if (!state.consented) {
+      return json(403, { type: '/problems/consent-required', status: 403 })
     }
 
     if (url === '/api/next-step' && method === 'GET') {
@@ -909,6 +932,7 @@ export function installFakeApi(initial: {
             { role: 'assistant', text: FAKE_DISTRESS_TEXT, move: 'distress', at: '2026-11-03T04:00:01Z' },
           ]
           episode.insights = null
+          episode.excludedFromValidation = true
           episode.notice = {
             kind: 'distress',
             text: FAKE_DISTRESS_TEXT,
@@ -948,6 +972,7 @@ export function installFakeApi(initial: {
         return json(201, next)
       }
       if (action === 'messages' && method === 'POST') {
+        if (state.replyGate) await state.replyGate
         if (!Array.isArray(state.reply)) return json(state.reply.status, state.reply.body)
         if (state.manualStream) return manualResponse()
         recordRound(episode, body as { text: string; kind: 'free' | 'choice' }, state.reply)
@@ -995,6 +1020,8 @@ export function installFakeApi(initial: {
     ]
     episode.status = done.status
     episode.notice = distress
+    // 裏側と同じく、サインに応えた場面には、力の確かめに使わない印が付き、そのあと続けて話しても外れない
+    if (distress) episode.excludedFromValidation = true
   }
 
   vi.stubGlobal('fetch', fetchMock)

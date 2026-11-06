@@ -92,7 +92,7 @@
   - `startPalette(): () => void`（読む → 端末の設定（`matchMedia('(prefers-color-scheme: dark)')`）で当てる → 設定が変わったら当て直す。`matchMedia` がなければ明るい画面。戻り値は購読の解除）
   - CSS の色名（Tailwind）: `ground`、`surface`、`tint`、`on-tint`、`tile`、`chip`、`field`、`field-border`（`bg-tint`、`text-on-tint` などで使える）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 // contrast.test.ts
@@ -140,12 +140,12 @@ it('common-5（どの色でも読める）: 端末の設定を読めない（mat
 })
 ```
 
-- [ ] **Step 2: テストが失敗するのを見る**
+- [x] **Step 2: テストが失敗するのを見る**
 
 Run: `npm --prefix src/web test -- palette contrast`
 Expected: FAIL（`palette.ts` と `contrast.ts` がない）
 
-- [ ] **Step 3: `contrast.ts` と `palette.ts` を書き、`index.css` と `main.tsx` をつなぐ**
+- [x] **Step 3: `contrast.ts` と `palette.ts` を書き、`index.css` と `main.tsx` をつなぐ**
 
 - `palette.ts` の明るい画面は、上の「色の値」の表のとおり。暗い画面は Global Constraints のとおりに作る
 - `index.css`
@@ -155,12 +155,12 @@ Expected: FAIL（`palette.ts` と `contrast.ts` がない）
   - `@theme inline` に `--color-ground`、`--color-surface`、`--color-tint`、`--color-on-tint`、`--color-tile`、`--color-chip`、`--color-field`、`--color-field-border` を足す
 - `main.tsx` は、描く前に `startPalette()` を呼ぶ
 
-- [ ] **Step 4: テストが通るのを見る**
+- [x] **Step 4: テストが通るのを見る**
 
 Run: `npm --prefix src/web test -- palette contrast` と `npm --prefix src/web run build`
 Expected: PASS。ビルドが通る
 
-- [ ] **Step 5: コミット**
+- [x] **Step 5: コミット**
 
 ```bash
 git add src/web/src/lib/palette.ts src/web/src/lib/contrast.ts src/web/src/lib/palette.test.ts src/web/src/lib/contrast.test.ts src/web/src/index.css src/web/src/main.tsx src/web/package.json src/web/package-lock.json
@@ -177,7 +177,7 @@ git commit -m "見た目の土台を作る。太めの丸ゴシック、6 色の
 **Interfaces:**
 - Produces: `GET /api/episodes` の各要素に `finishedAt`（話し終えていなければ `null`）。`EpisodeSummary.finishedAt?: string | null`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `EpisodeTests.cs` の一覧のテスト（`discover-8（話した出来事が残る）`、`older` を区切って `newer` を始めるもの）に足す:
 
@@ -186,19 +186,19 @@ Assert.Equal(JsonValueKind.Null, list[0].GetProperty("finishedAt").ValueKind);
 Assert.Equal(JsonValueKind.String, list[1].GetProperty("finishedAt").ValueKind);
 ```
 
-- [ ] **Step 2: 失敗するのを見る**
+- [x] **Step 2: 失敗するのを見る**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests --filter-class "*EpisodeTests"`
 Expected: FAIL（`finishedAt` がない）
 
-- [ ] **Step 3: `EpisodeSummaryDto` の最後に `DateTimeOffset? FinishedAt` を足し、`e.FinishedAt` を渡す。画面の型と偽物も合わせる**
+- [x] **Step 3: `EpisodeSummaryDto` の最後に `DateTimeOffset? FinishedAt` を足し、`e.FinishedAt` を渡す。画面の型と偽物も合わせる**
 
-- [ ] **Step 4: 通るのを見る**
+- [x] **Step 4: 通るのを見る**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests --filter-class "*EpisodeTests"` と `npm --prefix src/web test`
 Expected: PASS
 
-- [ ] **Step 5: コミット**
+- [x] **Step 5: コミット**
 
 ```bash
 git add src/Revalue.Server/Features/Discover/DiscoverEndpoints.cs tests/Revalue.Server.Tests/EpisodeTests.cs src/web/src/api.ts src/web/src/test/fake-api.ts
@@ -214,7 +214,7 @@ git commit -m "場面の一覧に、話し終えた時刻を足す。開いた�
 **Interfaces:**
 - Produces: `DRAFT_PREFIX = 'revalue.draft.'`、`readDraft(episodeId: string): string`（なければ `''`）、`writeDraft(episodeId: string, text: string): void`（空白だけなら消す）、`clearDraft(episodeId: string): void`、`clearAllDrafts(): void`（`DRAFT_PREFIX` で始まるものだけ消す）。どれも例外を投げない
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 it('discover-11（書きかけを残す）: 場面ごとに残り、読み直せる', () => {
@@ -242,10 +242,10 @@ it('discover-11（書きかけを残す）: 保存できないブラウザでも
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: FAIL
-- [ ] **Step 3: `drafts.ts` を書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: FAIL
+- [x] **Step 3: `drafts.ts` を書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add src/web/src/lib/drafts.ts src/web/src/lib/drafts.test.ts
@@ -279,7 +279,7 @@ git commit -m "書きかけを、場面ごとにその端末のブラウザへ�
   - 設定: 「全部消す」が済んだときと、ログアウトのリンクを押したとき（ページを離れる前の `onClick`）に `clearAllDrafts()` を呼ぶ
   - `copy.home` のうち、次にできることの言葉（`copy.home.next`）は `NextStepLink` と Task 6 が使うので残す。ホームの画面だけで使っていた言葉（あいさつ、ほかの画面の見出し、各画面へのリンクの言葉、`titles.home`）は消す
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 // talk-target.test.ts（純粋な関数）
@@ -323,10 +323,10 @@ it('foundation-3（いつでも全部消せる）: 全部消すと、その端�
 
 ほかの画面のテストで、「ホームへ戻る」のリンクを `href="/home"` で確かめているものは、「トークに戻る」と `/talk` に直す（common-4 の題を変えるので、テスト名も「common-4（どの画面からもトークへ戻れ、幅に収まる）」にそろえる）。
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test` / Expected: 新しいテストが FAIL（`/talk` のルートがない、行き先が `/home`）
-- [ ] **Step 3: 上の Interfaces のとおりに書く。`Home.tsx` と `Home.test.tsx` を消す**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**（Spec は Task 7 で直す。PR は Spec とそろえてから main に入れる）
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test` / Expected: 新しいテストが FAIL（`/talk` のルートがない、行き先が `/home`）
+- [x] **Step 3: 上の Interfaces のとおりに書く。`Home.tsx` と `Home.test.tsx` を消す**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**（Spec は Task 7 で直す。PR は Spec とそろえてから main に入れる）
 
 ```bash
 git add -A src/web
@@ -356,7 +356,7 @@ git commit -m "開いたらトークが出るようにし、ホームをなく�
     - 返事を待つあいだの `copy.talk.waiting` は、聞き手の側の吹き出しで出す
     - いまの話す画面の下の「ホームへ戻る」は消す（メニュー板と、Task 6 のボタンがその役をする）
 
-- [ ] **Step 1: 失敗するテストを書く**（`Talk.test.tsx` に足す。いまのテストは、見つけ方（role と名前）が変わる所だけ直し、確かめる中身は変えない）
+- [x] **Step 1: 失敗するテストを書く**（`Talk.test.tsx` に足す。いまのテストは、見つけ方（role と名前）が変わる所だけ直し、確かめる中身は変えない）
 
 ```ts
 it('discover-11（書きかけを残す）: 書いている途中で閉じても、開き直すと入力欄に戻り、残っていることを伝える')
@@ -377,10 +377,10 @@ it('discover-12（開くとトークが出る）: 入力欄に文字を打って
 //   メニューを開く → 入力欄をクリック → メニュー（nav）が見えない → 入力欄から離れる（Tab）→ 見える
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk MenuBoard` / Expected: 新しいテストが FAIL
-- [ ] **Step 3: 部品を書き、`Talk.tsx` を部品で組み直す。`TalkEntry` の `rest` も `TalkLayout` で出す。見た目はモック `talkopen.html`、`talkmid.html`、`menutalk.html` に合わせる（色は Tailwind の色名で。値を書き込まない）**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk MenuBoard` / Expected: 新しいテストが FAIL
+- [x] **Step 3: 部品を書き、`Talk.tsx` を部品で組み直す。`TalkEntry` の `rest` も `TalkLayout` で出す。見た目はモック `talkopen.html`、`talkmid.html`、`menutalk.html` に合わせる（色は Tailwind の色名で。値を書き込まない）**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
@@ -404,7 +404,7 @@ git commit -m "話す画面を LINE のトークの形にする。選択肢の�
     - `distress` が true（この場面がつらい状態のサインに応えたところで終わっている。いまの `notice?.kind === 'distress'` と同じ見分け方）: `copy.talk.afterQuestion` もボタンも出さず、相談先の案内のあとに、目立たせない `copy.talk.anotherDay` だけ
   - いまの話す画面の下の `NextStepLink` は、この部品に置き換える（話す画面では使わない）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 it('validate の「話し終えたとき」: 区切ると、見えた力がトークの中のカードに出て、核となる行動と本人の言葉が組になっている')
@@ -421,10 +421,10 @@ it('discover-10（つらい状態のサインに応える）: つらい状態の
 //   notice が distress の話し終えた場面 → copy.talk.afterQuestion が出ない。copy.home.next.* のボタンが出ない。copy.talk.anotherDay が 1 つ
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk` / Expected: 新しいテストが FAIL
-- [ ] **Step 3: 書く。見た目はモック `talkend.html` に合わせる**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk` / Expected: 新しいテストが FAIL
+- [x] **Step 3: 書く。見た目はモック `talkend.html` に合わせる**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
@@ -436,7 +436,7 @@ git commit -m "区切ったら、見えた力をトークの中のカードで�
 **Files:**
 - Modify: `docs/specs/00-common.md`、`docs/specs/01-foundation.md`、`docs/specs/02-discover.md`、`docs/specs/03-validate.md`、`docs/specs/04-profile.md`、`docs/specs/05-options.md`、`docs/specs/06-deepen.md`、`docs/specs/07-report.md`、`docs/specs/00-tech-stack.md`（フォントの包み）、`docs/prd/3-features.md`、`evals/personas/how-to-judge.md`、`evals/personas/people/e-sayaka.md`
 
-- [ ] **Step 1: Spec を、いまの正しい姿に直す**（経緯は書かない。CLAUDE.md の書き方に従う）
+- [x] **Step 1: Spec を、いまの正しい姿に直す**（経緯は書かない。CLAUDE.md の書き方に従う）
   - `00-common.md` の「画面」
     - 見た目の決まりを足す: 太めの丸ゴシック、6 色の役割と名前、暗い画面は端末の設定に合わせる、選んだ色と書きかけは端末のブラウザにだけ残す、コントラストの組（設計の 1 章の箇条のとおり）
     - 左上の「RE:VALUE」の行き先を `/talk` に。話す画面では上の帯がその代わり
@@ -460,22 +460,22 @@ git commit -m "区切ったら、見えた力をトークの中のカードで�
   - `00-tech-stack.md`: 画面の依存に `@fontsource/m-plus-rounded-1c` を書き、Geist を外す
   - `3-features.md` の revisit-5（また話せると一言添える）の「ホームを開いたとき」を「アプリを開いたとき」に
   - ペルソナの資料: 「ホームから続きを」を「開くと話していた場面が出る」「トークから」に直す
-- [ ] **Step 2: 呼び名の数を確かめる**
+- [x] **Step 2: 呼び名の数を確かめる**
 
 Run: `grep -rn "common-4（どの画面からもホームへ戻れ" src tests docs` と `grep -rn "/home\b" src/web/src --include=*.tsx --include=*.ts`
 Expected: 1 つ目は 0 件。2 つ目は `App.tsx` の `/home` を `/talk` へ送る 1 件と、そのテストだけ
 
-- [ ] **Step 3: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、`http://localhost:5080/.auth/login/google?dev_user=redesign-check` を開いてログインする（開発用の偽物のログイン。`evals/personas/README.md`）。サーバーは終わったら止める）
+- [x] **Step 3: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、`http://localhost:5080/.auth/login/google?dev_user=redesign-check` を開いてログインする（開発用の偽物のログイン。`evals/personas/README.md`）。サーバーは終わったら止める）
   - 幅 320px、375px×667px、375px×812px、1280px で、`/talk` の最初の問い、話している途中（メニュー板を開いた形）、区切ったとき
   - 横にはみ出さない（`document.documentElement.scrollWidth <= innerWidth`）。入力欄と「送る」が見えて押せる
   - `emulate_media` で `prefers-color-scheme: dark` にして、同じ 3 場面
   - 写真は `evals/results/` に置かない（スクラッチに置く）。気づいた崩れは直してから次へ
-- [ ] **Step 4: 全部のテストを流す**
+- [x] **Step 4: 全部のテストを流す**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests`、`npm --prefix src/web test`、`npm --prefix src/web run build`、`node --test .claude/hooks/guard.test.mjs`
 Expected: すべて PASS
 
-- [ ] **Step 5: コミット**
+- [x] **Step 5: コミット**
 
 ```bash
 git add docs src evals/personas/how-to-judge.md evals/personas/people/e-sayaka.md

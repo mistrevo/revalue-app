@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Navigate } from 'react-router'
 import { getMe, LOGIN_URL, type Me } from '@/api'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,10 @@ import { copy } from '@/copy'
 
 type LoginState = { kind: 'loading' } | { kind: 'ready'; me: Me | null }
 
-/** 案内。ログインしていなくても見られる。先に「あなたの言葉が根拠」「決めるのはあなた」を伝える。 */
+/**
+ * 案内。ログインしていなくても見られる。先に「あなたの言葉が根拠」「決めるのはあなた」を伝える。
+ * ログインした人は、了解していればトーク（/talk）へ、了解していなければはじめに（/start）へ送る（開いたらトークが出るように）。
+ */
 export function Landing() {
   const [login, setLogin] = useState<LoginState>({ kind: 'loading' })
 
@@ -21,6 +24,10 @@ export function Landing() {
       active = false
     }
   }, [])
+
+  if (login.kind === 'ready' && login.me !== null) {
+    return <Navigate to={login.me.consented ? '/talk' : '/start'} replace />
+  }
 
   return (
     <Page>
@@ -68,17 +75,10 @@ function StartAction({ login }: { login: LoginState }) {
   if (login.kind === 'loading') {
     return null
   }
-  if (login.me === null) {
-    // ログインは組み込み認証へページごと移動する。画面の切り替え（Link）で横取りしない
-    return (
-      <Button asChild size="lg" className="w-full sm:w-auto sm:px-6">
-        <a href={LOGIN_URL}>{copy.landing.login}</a>
-      </Button>
-    )
-  }
+  // ログインは組み込み認証へページごと移動する。画面の切り替え（Link）で横取りしない
   return (
     <Button asChild size="lg" className="w-full sm:w-auto sm:px-6">
-      <Link to={login.me.consented ? '/home' : '/start'}>{copy.landing.continue}</Link>
+      <a href={LOGIN_URL}>{copy.landing.login}</a>
     </Button>
   )
 }

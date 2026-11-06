@@ -258,7 +258,7 @@ export function Deepen() {
           <Link to="/report">{copy.deepen.toReport}</Link>
         </Button>
         <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/home">{copy.deepen.backHome}</Link>
+          <Link to="/talk">{copy.nav.backToTalk}</Link>
         </Button>
       </div>
     </Page>

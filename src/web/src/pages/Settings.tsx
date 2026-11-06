@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { deleteMe, LOGOUT_URL } from '@/api'
+import { deleteMe } from '@/api'
+import { LogoutLink } from '@/components/LogoutLink'
 import { useMe } from '@/components/me-context'
+import { clearAllDrafts } from '@/lib/drafts'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 
-/** 設定。全部消すと、ログアウト。全部消すときは、ブラウザの確認ダイアログを使わず画面の中で確かめる。 */
+/**
+ * 設定。全部消すと、ログアウト。全部消すときは、ブラウザの確認ダイアログを使わず画面の中で確かめる。
+ * 全部消したときと、ログアウトするときは、その端末に残した書きかけもすべて消す。
+ */
 export function Settings() {
   const me = useMe()
   const navigate = useNavigate()
@@ -19,6 +24,7 @@ export function Settings() {
     setFailed(false)
     try {
       await deleteMe()
+      clearAllDrafts()
       // はじめにの画面で、消し終えたことを一度だけ伝える
       navigate('/start', { replace: true, state: { deleted: true } })
     } catch {
@@ -71,12 +77,12 @@ export function Settings() {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         {me.consented && (
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link to="/home">{copy.settings.backHome}</Link>
+            <Link to="/talk">{copy.nav.backToTalk}</Link>
           </Button>
         )}
-        {/* ログアウトは組み込み認証へページごと移動する */}
+        {/* ログアウトは組み込み認証へページごと移動し、その端末の書きかけも消す */}
         <Button asChild variant="ghost" className="w-full sm:w-auto">
-          <a href={LOGOUT_URL}>{copy.settings.logout}</a>
+          <LogoutLink>{copy.settings.logout}</LogoutLink>
         </Button>
       </div>
     </Page>

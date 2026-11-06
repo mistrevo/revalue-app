@@ -18,6 +18,19 @@ export function formatDay(at: string): string {
   return copy.episodes.date.replace('{month}', parts.month ?? '').replace('{day}', parts.day ?? '')
 }
 
+const jstDayWeekday = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short' })
+
+/** 日時（ISO 8601）を、日本時間の「11月6日（木）」の形にする（話す画面の日付の札）。読めなければ空の文字。 */
+export function formatDayChip(at: string): string {
+  const date = new Date(at)
+  if (Number.isNaN(date.getTime())) return ''
+  const parts = Object.fromEntries(jstDayWeekday.formatToParts(date).map((part) => [part.type, part.value]))
+  return copy.talk.dateChip
+    .replace('{month}', parts.month ?? '')
+    .replace('{day}', parts.day ?? '')
+    .replace('{weekday}', parts.weekday ?? '')
+}
+
 /** 次に送れる時刻（ISO 8601）を、日本時間の「11 月 3 日の 0 時（日本時間）」の形にする。 */
 export function formatResetTime(resetAt: string): string {
   const date = new Date(resetAt)

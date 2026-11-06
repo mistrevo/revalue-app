@@ -192,7 +192,7 @@ export function Profile() {
 
       <div className="mt-6">
         <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/home">{copy.profile.backHome}</Link>
+          <Link to="/talk">{copy.nav.backToTalk}</Link>
         </Button>
       </div>
     </Page>
@@ -400,7 +400,7 @@ function EntryPicker({
 
 /**
  * できること。見えた力も確かめ中の力も外した力もないときは、「ない」とは言わずに何が入るかを伝え、直す道の代わりに
- * 「話す」のあるホームへの道を置く。外した力しかないときは、外した注記と、戻せる見えた力の画面への道だけを出す（Claude の判断）。
+ * トークへの道を置く。外した力しかないときは、外した注記と、戻せる見えた力の画面への道だけを出す（Claude の判断）。
  */
 function CanDoSection({ canDo }: { canDo: ProfileData['canDo'] }) {
   const empty = canDo.seen.length === 0 && canDo.checking.length === 0 && !canDo.hasExcluded
@@ -412,7 +412,7 @@ function CanDoSection({ canDo }: { canDo: ProfileData['canDo'] }) {
       {empty && <p className="text-sm leading-relaxed text-muted-foreground">{copy.profile.canDoEmpty}</p>}
       {canDo.hasExcluded && <p className="text-sm leading-relaxed text-muted-foreground">{copy.profile.excludedNote}</p>}
       {empty ? (
-        <Link to="/home" className={linkClass}>
+        <Link to="/talk" className={linkClass}>
           {copy.profile.canDoTalk}
         </Link>
       ) : (

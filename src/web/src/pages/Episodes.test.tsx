@@ -49,7 +49,7 @@ describe('Episodes', () => {
 
     await userEvent.click(await screen.findByRole('link', { name: /公園で子どもと遊んだ/ }))
 
-    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(screen.getByText('公園で子どもと遊んだ')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
@@ -76,7 +76,7 @@ describe('Episodes', () => {
     api.state.episodes = []
     renderApp('/episodes')
     expect(await screen.findByText(copy.episodes.empty)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.episodes.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('validate-11（要確認の場面に戻れる）: 続きを話せる場面に「もう少し聞かせてほしいことがあります」と添える', async () => {

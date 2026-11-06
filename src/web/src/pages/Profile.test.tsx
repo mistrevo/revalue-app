@@ -246,8 +246,8 @@ describe('Profile', () => {
     expect(within(canDo).getByText(copy.profile.canDoEmpty)).toBeInTheDocument()
     expect(canDo).not.toHaveTextContent('まだありません')
     expect(within(canDo).queryByText(copy.profile.excludedNote)).not.toBeInTheDocument()
-    // 次にできることは話すこと。直す力がないので、見えた力の画面で直す道の代わりに、「話す」のあるホームへの道を置く
-    expect(within(canDo).getByRole('link', { name: copy.profile.canDoTalk })).toHaveAttribute('href', '/home')
+    // 次にできることは話すこと。直す力がないので、見えた力の画面で直す道の代わりに、トークへの道を置く
+    expect(within(canDo).getByRole('link', { name: copy.profile.canDoTalk })).toHaveAttribute('href', '/talk')
     expect(within(canDo).queryByRole('link', { name: copy.profile.openAbilities })).not.toBeInTheDocument()
   })
 

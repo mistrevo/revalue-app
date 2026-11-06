@@ -31,7 +31,7 @@ describe('NextStepLink', () => {
     expect(within(region).getByText(copy.home.next.anywhere)).toBeInTheDocument()
   })
 
-  it('common-3（次にできることを一つ示す）、discover-1（具体的な一日を一つ聞く）: talk は、ホームを経ずにその場で新しい場面を始める', async () => {
+  it('common-3（次にできることを一つ示す）、discover-1（具体的な一日を一つ聞く）: talk は、ほかの画面を経ずにその場で新しい場面を始める', async () => {
     const api = installFakeApi({
       loggedIn: true,
       consented: true,

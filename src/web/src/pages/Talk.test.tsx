@@ -20,10 +20,13 @@ import {
   installFakeApi,
   replyEvents,
 } from '@/test/fake-api'
+import { readDraft, writeDraft } from '@/lib/drafts'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+  localStorage.clear()
 })
 
 const messages = (api: ReturnType<typeof installFakeApi>) =>
@@ -33,6 +36,15 @@ function setup(episode = fakeEpisode()) {
   const api = installFakeApi({ loggedIn: true, consented: true, episodes: [episode] })
   renderApp(`/talk/${episode.id}`)
   return api
+}
+
+/** テストが開けるまで、応答を待たせる約束。 */
+function gate() {
+  let open!: () => void
+  const promise = new Promise<void>((resolve) => {
+    open = resolve
+  })
+  return { promise, open }
 }
 
 async function typeAndSend(text: string) {
@@ -143,13 +155,12 @@ describe('Talk', () => {
     expect(screen.queryByText(copy.errors.generic)).not.toBeInTheDocument()
   })
 
-  it('discover-6（一場面ずつ区切り、続きから話せる）: 区切るとホームへ移らず、話し終えた状態になる', async () => {
+  it('discover-6（一場面ずつ区切り、続きから話せる）: 区切るとほかの画面へ移らず、話し終えた状態になる', async () => {
     const api = setup()
 
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
 
-    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
-    expect(screen.queryByText(copy.home.greeting)).not.toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(api.calls.filter((c) => c.url === '/api/episodes/episode-1/finish')).toHaveLength(1)
     expect(api.state.episodes[0].status).toBe('finished')
@@ -162,9 +173,9 @@ describe('Talk', () => {
     await typeAndSend('最後に片づけをして寝ました')
 
     expect(await screen.findByText('たくさん聞かせてくれてありがとうございました。')).toBeInTheDocument()
-    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
   })
 
   it('discover-8（話した出来事が残る）: 話し終えた場面は読み返せるが、入力欄も選択肢もない', async () => {
@@ -185,7 +196,7 @@ describe('Talk', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.other })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.skip })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
   })
 
   it('discover-8（話した出来事が残る）: ない場面やほかの人の場面は、見つからないと穏やかに伝える', async () => {
@@ -193,7 +204,7 @@ describe('Talk', () => {
     renderApp('/talk/episode-x')
 
     expect(await screen.findByText(copy.talk.notFound)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-10（つらい状態のサインに応える）: 窓口のリンクと 3 つの行動が出る', async () => {
@@ -231,7 +242,7 @@ describe('Talk', () => {
     await typeAndSend('死にたいと思うことがある')
     await userEvent.click(await screen.findByRole('button', { name: FAKE_DISTRESS_ACTIONS[1] }))
 
-    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(api.state.episodes[0].status).toBe('finished')
     expect(screen.queryByText(copy.insights.seenTitle)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.insights.correct })).not.toBeInTheDocument()
@@ -248,8 +259,13 @@ describe('Talk', () => {
     await typeAndSend('最近ずっと眠れなくて、つらい')
     await userEvent.click(await screen.findByRole('button', { name: FAKE_DISTRESS_ACTIONS[1] }))
 
-    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(screen.queryByText(copy.home.next.options)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 先へ進むことは勧めないが、聞き手の一言は出す（開いたときの休む形とそろえる）
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
     expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
   })
 
@@ -343,7 +359,7 @@ describe('Talk', () => {
     ])
   })
 
-  it('discover-7（返答が少しずつ流れる）: ほかの画面で閉じられた場面に送ったら、送り直しを促さず、ホームへの道を出す', async () => {
+  it('discover-7（返答が少しずつ流れる）: ほかの画面で閉じられた場面に送ったら、送り直しを促さず、トークに戻る道を出す', async () => {
     const api = setup()
     await screen.findByRole('textbox', { name: copy.talk.inputLabel })
     // 開いたあとに、ほかの画面で飛ばされ、この場面はもうない
@@ -353,7 +369,7 @@ describe('Talk', () => {
 
     expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
     expect(screen.queryByText(copy.talk.failure)).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-7（返答が少しずつ流れる）: 返事を流しているあいだに閉じられたと知らされたら、送り直しを促さない', async () => {
@@ -363,7 +379,7 @@ describe('Talk', () => {
     await typeAndSend('昨日は公園に行った')
 
     expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-10（つらい状態のサインに応える）: 失敗の言葉を先に出し、相談先はそのあとに添える', async () => {
@@ -420,7 +436,7 @@ describe('Talk', () => {
       insights,
     })
 
-  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切るとホームへ移らず、見えた力と根拠、もう少し聞かせてほしいことが出る', async () => {
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切るとほかの画面へ移らず、見えた力と根拠、もう少し聞かせてほしいことが出る', async () => {
     setup()
 
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
@@ -437,7 +453,7 @@ describe('Talk', () => {
 
 
     expect(screen.getByRole('link', { name: copy.insights.seeAll })).toHaveAttribute('href', '/abilities')
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
   })
 
   it('validate-7（見えた力と、もう少し聞きたいことを示す）: 締めの返事のあとも、見えたことが出る', async () => {
@@ -538,6 +554,8 @@ describe('Talk', () => {
       expect(text).not.toContain(word)
     }
     expect(text).not.toMatch(/[0-9０-９]+\s*(点|位)/)
+    // 評価や格付けを思わせる星の印も付けない（本人の言葉より判定の結果に見えないように）
+    expect(document.querySelector('.lucide-star')).toBeNull()
   })
 
   it('validate-7（見えた力と、もう少し聞きたいことを示す）: 見えたことの先頭に、話した言葉からの読み取りであることと、直せることを添える', async () => {
@@ -718,27 +736,243 @@ describe('Talk', () => {
     expect(await screen.findByText('ほかの場面の問いです。')).toBeInTheDocument()
   })
 
-  it('discover-6（一場面ずつ区切り、続きから話せる）: 話し終えた画面の下に、次にできることへの道が一つ出る（common-3（次にできることを一つ示す））', async () => {
+  // ---- 区切ったとき（見えた力のカード、次の一手のボタン、今日はここまで） ----
+
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切ると、見えた力がトークの中のカードに出て、核となる行動と本人の言葉が組になっている', async () => {
     setup()
 
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
 
-    const next = await screen.findByRole('region', { name: copy.home.next.title })
-    expect(within(next).getByRole('link', { name: copy.home.next.conditions })).toHaveAttribute('href', '/profile?ask=conditions')
-    expect(within(next).getAllByRole('link')).toHaveLength(1)
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    // やりとりの最後に「ここで区切りました」の札を出す
+    const log = await screen.findByRole('log', { name: copy.talk.logLabel })
+    expect(await within(log).findByText(copy.talk.finishedChip)).toBeInTheDocument()
+
+    const card = await screen.findByRole('region', { name: copy.insights.cardLabel })
+    expect(card.tagName).toBe('SECTION')
+    expect(within(card).getByText(copy.insights.lead)).toBeInTheDocument()
+    const seen = within(card).getByRole('region', { name: copy.insights.seenTitle })
+    expect(within(seen).getByText('利害調整力')).toBeInTheDocument()
+    const item = within(seen).getByText('「班の 2 家族の都合を聞きました」').closest('li')!
+    expect(within(item).getByText('関わる 2 者以上の、それぞれ違う都合をつかむ')).toBeInTheDocument()
+    const more = within(card).getByRole('region', { name: copy.insights.moreTitle })
+    expect(within(more).getByText(FAKE_HINT)).toBeInTheDocument()
+    // カードの中から、まとめて見る画面へ行ける。続きを話せる場面なら、続きの道もカードの中
+    expect(within(card).getByRole('link', { name: copy.insights.seeAll })).toHaveAttribute('href', '/abilities')
+    expect(within(card).getByRole('button', { name: copy.insights.resume })).toBeInTheDocument()
+    // チェックの印、点数、割合、「済」の数は出さない
+    expect(card.textContent).not.toMatch(/[✓✔☑]|済|[0-9０-９]+\s*(点|%|％)|[0-9]+\s*\/\s*[0-9]+/)
   })
 
-  it('discover-6（一場面ずつ区切り、続きから話せる）: 話している途中の画面にもホームへの道がある。話は残る', async () => {
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: カードの中の力の名前は、本人の言葉より大きな字にしない（ふつうの太字にとどめる）', async () => {
+    setup(finishedWithInsights())
+
+    const card = await screen.findByRole('region', { name: copy.insights.cardLabel })
+    // 本人の言葉は 15px。力の名前は見出しの大きさにせず、それより小さい字（14px）の太字にする
+    for (const [name, quote] of [
+      ['利害調整力', '「班の 2 家族の都合を聞きました」'],
+      ['優先順位設定力', '「用事が重なっていました」'],
+    ]) {
+      const heading = within(card).getByRole('heading', { level: 3, name })
+      expect(heading.className).toContain('text-sm')
+      expect(heading.className).not.toMatch(/\btext-(base|lg|xl|2xl)\b/)
+      expect(heading.className).not.toMatch(/\bfont-(extrabold|black)\b/)
+      expect(within(card).getByText(quote).closest('li')!.className).toContain('text-[15px]')
+    }
+  })
+
+  it('validate-8（訂正したら確かめ直す）: カードの中から、読み取りを直せる', async () => {
+    const api = setup(finishedWithInsights())
+
+    const card = await screen.findByRole('region', { name: copy.insights.cardLabel })
+    await userEvent.click(within(card).getByRole('button', { name: copy.insights.correct }))
+    // 直す欄も、カードの中で開く
+    const input = within(card).getByRole('textbox', { name: copy.insights.correctLabel })
+    await userEvent.type(input, '声をかけたのは私ではなく、夫でした')
+    await userEvent.click(within(card).getByRole('button', { name: copy.insights.correctSend }))
+
+    await waitFor(() => expect(api.calls.filter((c) => c.url.endsWith('/corrections'))).toHaveLength(1))
+  })
+
+  it('common-3（次にできることを一つ示す）: 区切ったあと、聞き手が受け止めてから聞き、次にできることのボタンと「別の日のことを話す」「今日はここまで」が出る', async () => {
+    const api = setup()
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    expect(await screen.findByText(copy.talk.afterQuestion)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestionUnanswered)).not.toBeInTheDocument()
+    const next = await screen.findByRole('group', { name: copy.talk.nextLabel })
+    expect(within(next).getByRole('link', { name: copy.home.next.options })).toHaveAttribute('href', '/options')
+    expect(within(next).getByRole('button', { name: copy.talk.anotherDay })).toBeInTheDocument()
+    expect(within(next).getByRole('button', { name: copy.talk.doneForToday })).toBeInTheDocument()
+    expect(within(next).getAllByRole('link')).toHaveLength(1)
+    expect(within(next).getAllByRole('button')).toHaveLength(2)
+    // 話す画面では、ほかの画面の下に出す「次にできること」の囲みを重ねない
+    expect(screen.queryByRole('region', { name: copy.home.next.title })).not.toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
+  })
+
+  it('common-3（次にできることを一つ示す）: 一度も答えずに区切った場面では、話してくれたことへのお礼を言わずに聞く', async () => {
+    const api = setup()
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    expect(await screen.findByText(copy.talk.afterQuestionUnanswered)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(await screen.findByRole('group', { name: copy.talk.nextLabel })).toBeInTheDocument()
+
+    // 「今日はここまで」のあとも、同じ問いが残る
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.doneForToday }))
+    expect(await screen.findByText(copy.talk.doneForTodayReply)).toBeInTheDocument()
+    expect(screen.getByText(copy.talk.afterQuestionUnanswered)).toBeInTheDocument()
+  })
+
+  it('common-3（次にできることを一つ示す）: 次にできることが talk のときは、「別の日のことを話す」を重ねない', async () => {
+    const api = setup()
+    api.state.nextStep = { step: 'talk', episodeId: null }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    const next = await screen.findByRole('group', { name: copy.talk.nextLabel })
+    expect(within(next).queryByRole('button', { name: copy.home.next.talk })).not.toBeInTheDocument()
+    expect(within(next).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(next).getAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+  })
+
+  it('common-3（次にできることを一つ示す）: 次にできることを読めなかったときは、「別の日のことを話す」と「今日はここまで」だけを出す', async () => {
+    const api = setup()
+    api.state.nextStep = { status: 500, body: {} }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    const next = await screen.findByRole('group', { name: copy.talk.nextLabel })
+    expect(within(next).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(next).getByRole('button', { name: copy.talk.anotherDay })).toBeInTheDocument()
+    expect(within(next).getByRole('button', { name: copy.talk.doneForToday })).toBeInTheDocument()
+  })
+
+  it('common-3（次にできることを一つ示す）: 「別の日のことを話す」で新しい場面を始め、最初の問いが出る', async () => {
+    const api = setup(finishedWithInsights())
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.anotherDay }))
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes')).toHaveLength(1)
+  })
+
+  it('discover-12（開くとトークが出る）: 「今日はここまで」で、ボタンを閉じて一言を出し、何も送らない', async () => {
+    const api = setup(finishedWithInsights())
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.doneForToday }))
+
+    expect(await screen.findByText(copy.talk.doneForTodayReply)).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: copy.talk.nextLabel })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.talk.anotherDay })).not.toBeInTheDocument()
+    const sent = api.calls.filter((c) => c.method !== 'GET')
+    expect(sent).toHaveLength(0)
+  })
+
+  it('discover-10（つらい状態のサインに応える）: つらい状態のサインで終わった場面では、次の一手を勧めず、「別の日のことを話す」だけを出す', async () => {
+    const api = setup(
+      fakeEpisode({
+        status: 'finished',
+        finishedAt: '2026-11-03T01:10:00Z',
+        turns: [
+          ...fakeEpisode().turns,
+          { role: 'user', text: '最近ずっと眠れなくて、つらい', answerKind: 'free', at: '2026-11-03T01:01:00Z' },
+          { role: 'assistant', text: FAKE_DISTRESS_TEXT, move: 'distress', at: '2026-11-03T01:02:00Z' },
+        ],
+        notice: { kind: 'distress', text: FAKE_DISTRESS_TEXT, linkUrl: FAKE_SUPPORT_URL, linkLabel: FAKE_SUPPORT_LABEL, actions: FAKE_DISTRESS_ACTIONS },
+        insights: null,
+      }),
+    )
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    expect(await screen.findByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toBeInTheDocument()
+    expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 打ち明けた人ほど受け止めの言葉がなくならないよう、聞き手の一言は出す
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
+    for (const key of ['conditions', 'options', 'deepen', 'report'] as const) {
+      expect(screen.queryByText(copy.home.next[key])).not.toBeInTheDocument()
+    }
+    expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
+  })
+
+  it('discover-10（つらい状態のサインに応える）、common-3（次にできることを一つ示す）: サインのあと「続けて話す」を選んで区切った場面（力の確かめに使わない印）でも、次の一手を勧めず、「別の日のことを話す」だけを出す', async () => {
+    const api = setup()
+    api.state.reply = distressEvents()
+    // この場面は力の確かめに使わないので、裏側は見えたことを返さない
+    api.state.finishInsights = null
+    // 裏側が先へ進む道を返す状態でも、打ち明けた直後の話す画面では出さない
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await typeAndSend('最近ずっと眠れなくて、つらい')
+    await userEvent.click(await screen.findByRole('button', { name: FAKE_DISTRESS_ACTIONS[0] }))
+    api.state.reply = replyEvents(['受け止めました。', 'そのとき何をしましたか？'], ['段取りを考えた', '人に頼んだ', '手を動かした'])
+    await typeAndSend('少し落ち着きました')
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
+    expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 打ち明けた人ほど受け止めの言葉がなくならないよう、聞き手の一言は出す
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: copy.talk.nextLabel })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
+    for (const key of ['conditions', 'options', 'deepen', 'report'] as const) {
+      expect(screen.queryByText(copy.home.next[key])).not.toBeInTheDocument()
+    }
+    expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
+  })
+
+  it('discover-10（つらい状態のサインに応える）、common-3（次にできることを一つ示す）: サインのあと続けて話して区切った場面を「話したこと」から開いても、次の一手を勧めない', async () => {
+    const api = setup(
+      fakeEpisode({
+        status: 'finished',
+        finishedAt: '2026-11-03T01:10:00Z',
+        turns: [
+          ...fakeEpisode().turns,
+          { role: 'user', text: '最近ずっと眠れなくて、つらい', answerKind: 'free', at: '2026-11-03T01:01:00Z' },
+          { role: 'assistant', text: FAKE_DISTRESS_TEXT, move: 'distress', at: '2026-11-03T01:02:00Z' },
+          { role: 'user', text: '少し落ち着きました', answerKind: 'free', at: '2026-11-03T01:03:00Z' },
+          { role: 'assistant', text: '受け止めました。そのとき何をしましたか？', move: 'askWhatYouDid', at: '2026-11-03T01:04:00Z' },
+        ],
+        // 最後の返事はサインへの応えではないので、窓口の知らせは付かない。印で、打ち明けた場面だと分かる
+        notice: null,
+        insights: null,
+        excludedFromValidation: true,
+      }),
+    )
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
+    expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 打ち明けた人ほど受け止めの言葉がなくならないよう、聞き手の一言は出す
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
+    expect(screen.queryByText(copy.home.next.options)).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
+  })
+
+  it('discover-6（一場面ずつ区切り、続きから話せる）、common-4（どの画面からもトークへ戻れ、幅に収まる）: 話している途中でもメニュー板からほかの画面へ行け、トークに戻ると話していた場面の続きが出る', async () => {
     const api = setup()
 
-    const back = await screen.findByRole('link', { name: copy.talk.backHome })
-    expect(back).toHaveAttribute('href', '/home')
-    await userEvent.click(back)
+    await userEvent.click(await screen.findByRole('button', { name: copy.menu.open }))
+    await userEvent.click(screen.getByRole('link', { name: copy.menu.episodes }))
+    await screen.findByRole('heading', { level: 1, name: copy.episodes.title })
+    await userEvent.click(screen.getByRole('link', { name: copy.nav.backToTalk }))
 
-    expect(await screen.findByRole('region', { name: copy.home.next.title })).toBeInTheDocument()
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
     expect(api.state.episodes[0].status).toBe('talking')
-    expect(await screen.findByRole('link', { name: copy.home.next.continue })).toHaveAttribute('href', '/talk/episode-1')
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(0)
   })
 
   it('discover-10（つらい状態のサインに応える）: 相談窓口を出しているあいだは、下の「ここで区切る」「この話は飛ばす」を出さず、窓口の 3 つの続け方で同じことができる（discover-5（つらい話は飛ばせる））', async () => {
@@ -753,9 +987,9 @@ describe('Talk', () => {
     }
     expect(screen.queryByRole('button', { name: copy.talk.finish })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.skip })).not.toBeInTheDocument()
-    // 書く欄とホームへの道は残る
+    // 書く欄とメニュー板は残る（メニュー板は、入力欄から離れて少したってから戻る）
     expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(await screen.findByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
 
     // 窓口の「この話は残さずに、別の話にする」で、画面の中の確かめが出る
     await userEvent.click(screen.getByRole('button', { name: FAKE_DISTRESS_ACTIONS[2] }))
@@ -768,5 +1002,355 @@ describe('Talk', () => {
     await typeAndSend('少し落ち着きました')
     expect(await screen.findByRole('button', { name: copy.talk.finish })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: copy.talk.skip })).toBeInTheDocument()
+  })
+
+  // ---- 話す画面の形（トーク、選択肢、入力の帯、書きかけ、メニュー板） ----
+
+  it('discover-11（書きかけを残す）: 書いている途中で閉じても、開き直すと入力欄に戻り、残っていることを伝える', async () => {
+    installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode()] })
+    const first = renderApp('/talk/episode-1')
+    const input = await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+    await userEvent.type(input, 'パート先に電話して、')
+    expect(screen.getByText(copy.talk.draftKept)).toBeInTheDocument()
+    first.unmount()
+
+    renderApp('/talk/episode-1')
+
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、')
+    expect(screen.getByText(copy.talk.draftKept)).toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: 書きかけは場面ごとに分けて残す', async () => {
+    writeDraft('episode-2', '別の場面の書きかけ')
+    setup()
+
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('')
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: 送れたら書きかけは消える', async () => {
+    setup()
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText('受け止めました。そのとき何をしましたか？')).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: 送れなかったら（500）、入力欄にも保存にも残る', async () => {
+    const api = setup()
+    api.state.reply = { status: 500, body: {} }
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+  })
+
+  it('discover-11（書きかけを残す）: 使いすぎで止められたら（429）、入力欄にも保存にも残る', async () => {
+    const api = setup()
+    api.state.reply = {
+      status: 429,
+      body: { type: '/problems/daily-limit', status: 429, resetAt: '2026-11-03T15:00:00Z' },
+    }
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.limit.title)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+    expect(screen.getByText(copy.talk.draftKept)).toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: ほかの画面で飛ばされた場面に送ったら（404）、入力欄にも保存にも残る', async () => {
+    const api = setup()
+    await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    api.state.episodes = []
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+  })
+
+  it('discover-11（書きかけを残す）: 返事を流しているあいだに閉じられたと知らされたら（closed）、入力欄にも保存にも残る', async () => {
+    const api = setup()
+    api.state.reply = [{ event: 'error', data: { kind: 'closed' } }]
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+  })
+
+  it('discover-11（書きかけを残す）: ほかの画面で区切られた場面に送ったら（409）、保存に残り、続きを話すと入力欄に戻る', async () => {
+    const api = setup()
+    await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    // 開いたあとに、ほかの画面で区切られた（続きを話せる場面）
+    api.state.episodes[0].status = 'finished'
+    api.state.episodes[0].finishedAt = '2026-11-03T01:10:00Z'
+    api.state.episodes[0].insights = fakeInsights()
+    api.state.reply = { status: 409, body: { type: '/problems/episode-finished', status: 409 } }
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+
+    expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+    // 話し終えた場面には入力の帯を出さない。続きを話すと、入力欄に戻る
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: copy.talk.inputLabel })).not.toBeInTheDocument())
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.resume }))
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
+  })
+
+  it('discover-11（書きかけを残す）: 返事を待つあいだは入力欄に書き足せず、送れたあとに開き直しても、画面と残した書きかけがそろう', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode()] })
+    api.state.manualStream = true
+    const first = renderApp('/talk/episode-1')
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+    await waitFor(() => expect(api.streams).toHaveLength(1))
+
+    // 待つあいだに書こうとしても、入力欄は読むだけ（送れたときに、書いた文を知らせずに消さないため）
+    const input = screen.getByRole('textbox', { name: copy.talk.inputLabel })
+    expect(input).toHaveAttribute('readonly')
+    await userEvent.type(input, '次に書くつもりの下書き')
+    expect(input).toHaveValue('')
+
+    api.streams[0].send('delta', { text: '受け止めました。' })
+    api.streams[0].send('choices', { choices: ['a', 'b', 'c'] })
+    api.streams[0].send('done', { userTurnCount: 1, status: 'talking', move: 'askWhatYouDid' })
+    api.streams[0].close()
+    expect(await screen.findByText('受け止めました。')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).not.toHaveAttribute('readonly'))
+    expect(readDraft('episode-1')).toBe('')
+
+    // 返事のあとは、また書ける。書いた文は残り、開き直しても戻る
+    await userEvent.type(screen.getByRole('textbox', { name: copy.talk.inputLabel }), '次の答え')
+    first.unmount()
+    renderApp('/talk/episode-1')
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('次の答え')
+  })
+
+  it('discover-11（書きかけを残す）: 返事を待つあいだに書こうとしても、送れなかったら（500）、送った答えが入力欄にも保存にも残り、開き直しても戻る', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode()] })
+    const wait = gate()
+    api.state.replyGate = wait.promise
+    api.state.reply = { status: 500, body: {} }
+    const first = renderApp('/talk/episode-1')
+
+    await typeAndSend('送る答えA')
+    expect(await screen.findByText(copy.talk.waiting)).toBeInTheDocument()
+    await userEvent.type(screen.getByRole('textbox', { name: copy.talk.inputLabel }), '待つあいだに書いた下書きB')
+    wait.open()
+
+    expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('送る答えA')
+    expect(readDraft('episode-1')).toBe('送る答えA')
+    first.unmount()
+
+    renderApp('/talk/episode-1')
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('送る答えA')
+  })
+
+  it('discover-11（書きかけを残す）: 区切ったら書きかけは消える', async () => {
+    setup()
+
+    await userEvent.type(await screen.findByRole('textbox', { name: copy.talk.inputLabel }), '書きかけ')
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.finish }))
+
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+  })
+
+  it('discover-11（書きかけを残す）: 区切ったあと同じ画面で続きを話しても、消えた書きかけを入力欄に戻さず、「書きかけは残っています」と言わない', async () => {
+    setup()
+
+    await userEvent.type(await screen.findByRole('textbox', { name: copy.talk.inputLabel }), '書きかけの架空の文')
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.finish }))
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.resume }))
+
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('')
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+  })
+
+  it('discover-11（書きかけを残す）: 書きかけがあるまま選んで送り、締めの返事で区切られたら、書きかけは消える', async () => {
+    const api = setup()
+    api.state.reply = replyEvents(['たくさん聞かせてくれて', 'ありがとうございました。'], [], 'finished')
+
+    await userEvent.type(await screen.findByRole('textbox', { name: copy.talk.inputLabel }), '書きかけY')
+    await userEvent.click(screen.getByRole('button', { name: FAKE_OPENING_CHOICES[1] }))
+
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+  })
+
+  it('discover-11（書きかけを残す）: 飛ばしたら、飛ばした場面の書きかけは消える', async () => {
+    setup()
+
+    await userEvent.type(await screen.findByRole('textbox', { name: copy.talk.inputLabel }), '書きかけ')
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.skip }))
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.skipYes }))
+
+    expect(await screen.findByText(FAKE_AFTER_SKIP)).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('')
+  })
+
+  it('discover-11（書きかけを残す）: ブラウザが保存を止めているときは、「書きかけは残っています」と言わない', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    setup()
+
+    const input = await screen.findByRole('textbox', { name: copy.talk.inputLabel })
+    await userEvent.type(input, 'パート先に電話して、')
+
+    // 書いた文は入力欄にあり、送れる。ただ、閉じたら残らないので、残っているとは伝えない
+    expect(input).toHaveValue('パート先に電話して、')
+    expect(screen.getByRole('button', { name: copy.talk.send })).toBeEnabled()
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: ブラウザが保存を止めているときは、送れなかった答えを入力欄に戻しても、「書きかけは残っています」と言わない', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const api = setup()
+    api.state.reply = { status: 500, body: {} }
+
+    await typeAndSend('パート先に電話して、')
+
+    expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、')
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+  })
+
+  it('discover-11（書きかけを残す）: 保存できないブラウザでも、話す画面が出て送れる', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    setup()
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    await typeAndSend('公園で子どもと遊んだ')
+
+    expect(await screen.findByText('受け止めました。そのとき何をしましたか？')).toBeInTheDocument()
+  })
+
+  it('discover-3（選んでも書いてもよい）: 選択肢が 5 つ以上なら 2 列の格子に並べ、最後に「それ以外（自分で書く）」を置く', async () => {
+    const nine = [
+      'うれしかった・楽しかったこと',
+      'できた・達成できたこと',
+      'ほっとした・安心したこと',
+      '困った・大変だったこと',
+      '思いどおりにいかなかったこと',
+      '迷った・悩んだこと',
+      '腹が立った・納得できなかったこと',
+      '気づいた・考えさせられたこと',
+      '何気ない日常の出来事',
+    ]
+    setup(fakeEpisode({ turns: [{ role: 'assistant', text: FAKE_OPENING, choices: nine, move: 'opening', at: '2026-11-03T01:00:00Z' }] }))
+
+    const group = await screen.findByRole('group', { name: copy.talk.choicesLabel })
+    const buttons = within(group).getAllByRole('button')
+    expect(buttons).toHaveLength(10)
+    expect(buttons.at(-1)).toHaveTextContent(copy.talk.other)
+    expect(copy.talk.other).toBe('それ以外（自分で書く）')
+    expect(group.className).toContain('grid-cols-2')
+
+    await userEvent.click(buttons.at(-1)!)
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveFocus()
+  })
+
+  it('discover-3（選んでも書いてもよい）: 選択肢が 4 つ以下なら、格子にせず折り返して並べる', async () => {
+    setup()
+
+    const group = await screen.findByRole('group', { name: copy.talk.choicesLabel })
+    expect(within(group).getAllByRole('button')).toHaveLength(FAKE_OPENING_CHOICES.length + 1)
+    expect(group.className).not.toContain('grid-cols-2')
+    expect(group.className).toContain('flex-wrap')
+  })
+
+  it('discover-5（つらい話は飛ばせる）: 最初の問いのところでも「ここで区切る」と「この話は飛ばす」を押せる', async () => {
+    setup()
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: copy.talk.finish })).toBeEnabled()
+    expect(screen.getByRole('button', { name: copy.talk.skip })).toBeEnabled()
+  })
+
+  it('discover-8（話した出来事が残る）: 場面の始まりに、始めた日（日本時間）の札を出す', async () => {
+    setup()
+
+    const log = await screen.findByRole('log', { name: copy.talk.logLabel })
+    expect(within(log).getByText('11月3日（火）')).toBeInTheDocument()
+  })
+
+  it('discover-12（開くとトークが出る）: 上の帯に聞き手と「最近の一日の話」を出し、話す画面には「トークに戻る」を重ねない', async () => {
+    setup()
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.talk.title })).toBeInTheDocument()
+    expect(screen.getAllByText(copy.talk.listener).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: copy.nav.backToTalk })).not.toBeInTheDocument()
+  })
+
+  it('discover-12（開くとトークが出る）: メニュー板から、話したこと・見えた力・5 つの記録・仕事の選択肢・まとめ・設定へ行ける', async () => {
+    setup()
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.menu.open }))
+
+    const nav = screen.getByRole('navigation', { name: copy.menu.label })
+    expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual([
+      '/episodes',
+      '/abilities',
+      '/profile',
+      '/options',
+      '/report',
+      '/settings',
+    ])
+  })
+
+  it('discover-12（開くとトークが出る）: 入力欄に文字を打っているあいだは、メニュー板を隠す', async () => {
+    setup()
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.menu.open }))
+    await userEvent.click(screen.getByRole('textbox', { name: copy.talk.inputLabel }))
+    expect(screen.queryByRole('navigation', { name: copy.menu.label })).not.toBeInTheDocument()
+
+    await userEvent.tab()
+    expect(await screen.findByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
+  })
+
+  it('discover-12（開くとトークが出る）: 返事を待つあいだは、聞き手の側の吹き出しで待っていることを出す', async () => {
+    const api = setup()
+    api.state.manualStream = true
+
+    await typeAndSend('昨日は朝から子どもの支度をした')
+
+    const waiting = await screen.findByText(copy.talk.waiting)
+    const log = screen.getByRole('log', { name: copy.talk.logLabel })
+    expect(log).toContainElement(waiting)
+  })
+
+  it('discover-7（返答が少しずつ流れる）: 送れなかったときの言葉は、やりとりの中のカードで出す', async () => {
+    const api = setup()
+    api.state.reply = [{ event: 'error', data: { kind: 'failure' } }]
+
+    await typeAndSend('昨日のこと')
+
+    const failure = await screen.findByText(copy.talk.failure)
+    expect(failure.closest('[data-slot="talk-card"]')).not.toBeNull()
   })
 })

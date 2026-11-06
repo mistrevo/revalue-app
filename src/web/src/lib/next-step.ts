@@ -8,7 +8,7 @@ import type { NextStep, NextStepKind } from '@/api'
 export function nextStepPath(next: NextStep & { step: Exclude<NextStepKind, 'none'> }): string | null {
   switch (next.step) {
     case 'continue':
-      return next.episodeId ? `/talk/${encodeURIComponent(next.episodeId)}` : '/home'
+      return next.episodeId ? `/talk/${encodeURIComponent(next.episodeId)}` : '/talk'
     case 'talk':
       return null
     case 'conditions':

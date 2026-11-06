@@ -5,14 +5,14 @@ import { MeContext } from './me-context'
 
 /**
  * どの画面にも共通の枠。スマホを先に考え、PC でも読みやすい幅に収める。
- * 見出しの「RE:VALUE」は、ログインして了解した人の画面ではホームへ、ほか（案内、はじめに、読み込み中）では案内へ行く。
+ * 見出しの「RE:VALUE」は、ログインして了解した人の画面ではトーク（/talk）へ、ほか（案内、はじめに、読み込み中）では案内へ行く。
  */
 export function Page({ children }: { children: ReactNode }) {
   const me = useContext(MeContext)
   return (
     <div className="min-h-svh bg-background">
       <header className="mx-auto flex max-w-xl items-center px-4 pt-4">
-        <Link to={me?.consented ? '/home' : '/'} className="text-sm font-semibold tracking-wide text-foreground">
+        <Link to={me?.consented ? '/talk' : '/'} className="text-sm font-semibold tracking-wide text-foreground">
           {copy.nav.appName}
         </Link>
       </header>

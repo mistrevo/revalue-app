@@ -68,7 +68,7 @@ export function Episodes() {
 
       <div className="mt-6">
         <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/home">{copy.episodes.backHome}</Link>
+          <Link to="/talk">{copy.nav.backToTalk}</Link>
         </Button>
       </div>
     </Page>

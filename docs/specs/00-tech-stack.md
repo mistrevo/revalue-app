@@ -42,6 +42,7 @@ Container Apps はコンテナを動かす Azure のサービスで、組み込�
 | 裏側のテスト | xUnit v3（`xunit.v3`）と `Microsoft.AspNetCore.Mvc.Testing` | 最新 |
 | 画面 | React、TypeScript、Vite | React 19、TypeScript 7、Vite 8 |
 | 画面の部品 | Tailwind CSS、shadcn/ui | Tailwind CSS 4 |
+| 画面の文字 | `@fontsource/m-plus-rounded-1c`（M PLUS Rounded 1c。アプリの中から配る） | 5.3.0 |
 | 画面の切り替え | React Router | 最新 |
 | 画面のテスト | Vitest、Testing Library | 最新 |
 | 通しのテスト | Playwright（`@playwright/test`） | 最新 |

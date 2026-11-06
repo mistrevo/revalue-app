@@ -1,13 +1,15 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOGOUT_URL } from '@/api'
 import { copy } from '@/copy'
 import { installFakeApi } from '@/test/fake-api'
+import { readDraft, writeDraft } from '@/lib/drafts'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 describe('Settings', () => {
@@ -61,5 +63,52 @@ describe('Settings', () => {
 
     const logout = await screen.findByRole('link', { name: copy.settings.logout })
     expect(logout).toHaveAttribute('href', LOGOUT_URL)
+  })
+
+  it('foundation-3（いつでも全部消せる）: 全部消すと、その端末の書きかけも消える', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    writeDraft('episode-1', 'あ')
+    renderApp('/settings')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.settings.deleteButton }))
+    await userEvent.click(screen.getByRole('button', { name: copy.settings.confirmYes }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+  })
+
+  it('foundation-3（いつでも全部消せる）: 消せなかったら、書きかけも残す', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true })
+    writeDraft('episode-1', 'あ')
+    renderApp('/settings')
+
+    await userEvent.click(await screen.findByRole('button', { name: copy.settings.deleteButton }))
+    api.fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }))
+    await userEvent.click(screen.getByRole('button', { name: copy.settings.confirmYes }))
+
+    expect(await screen.findByText(copy.errors.generic)).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('あ')
+  })
+
+  it('foundation-3（いつでも全部消せる）: ログアウトすると、その端末の書きかけも消える', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    writeDraft('episode-1', 'あ')
+    renderApp('/settings')
+
+    const logout = await screen.findByRole('link', { name: copy.settings.logout })
+    // テストの中では、ページごとの移動はしない
+    const stay = (event: MouseEvent) => event.preventDefault()
+    document.addEventListener('click', stay)
+    fireEvent.click(logout)
+    document.removeEventListener('click', stay)
+
+    expect(readDraft('episode-1')).toBe('')
+  })
+
+  it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 了解した人の設定には「トークに戻る」がある', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/settings')
+
+    expect(await screen.findByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 })
