@@ -92,7 +92,7 @@
   - `startPalette(): () => void`（読む → 端末の設定（`matchMedia('(prefers-color-scheme: dark)')`）で当てる → 設定が変わったら当て直す。`matchMedia` がなければ明るい画面。戻り値は購読の解除）
   - CSS の色名（Tailwind）: `ground`、`surface`、`tint`、`on-tint`、`tile`、`chip`、`field`、`field-border`（`bg-tint`、`text-on-tint` などで使える）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 // contrast.test.ts
@@ -140,12 +140,12 @@ it('common-5（どの色でも読める）: 端末の設定を読めない（mat
 })
 ```
 
-- [ ] **Step 2: テストが失敗するのを見る**
+- [x] **Step 2: テストが失敗するのを見る**
 
 Run: `npm --prefix src/web test -- palette contrast`
 Expected: FAIL（`palette.ts` と `contrast.ts` がない）
 
-- [ ] **Step 3: `contrast.ts` と `palette.ts` を書き、`index.css` と `main.tsx` をつなぐ**
+- [x] **Step 3: `contrast.ts` と `palette.ts` を書き、`index.css` と `main.tsx` をつなぐ**
 
 - `palette.ts` の明るい画面は、上の「色の値」の表のとおり。暗い画面は Global Constraints のとおりに作る
 - `index.css`
@@ -155,12 +155,12 @@ Expected: FAIL（`palette.ts` と `contrast.ts` がない）
   - `@theme inline` に `--color-ground`、`--color-surface`、`--color-tint`、`--color-on-tint`、`--color-tile`、`--color-chip`、`--color-field`、`--color-field-border` を足す
 - `main.tsx` は、描く前に `startPalette()` を呼ぶ
 
-- [ ] **Step 4: テストが通るのを見る**
+- [x] **Step 4: テストが通るのを見る**
 
 Run: `npm --prefix src/web test -- palette contrast` と `npm --prefix src/web run build`
 Expected: PASS。ビルドが通る
 
-- [ ] **Step 5: コミット**
+- [x] **Step 5: コミット**
 
 ```bash
 git add src/web/src/lib/palette.ts src/web/src/lib/contrast.ts src/web/src/lib/palette.test.ts src/web/src/lib/contrast.test.ts src/web/src/index.css src/web/src/main.tsx src/web/package.json src/web/package-lock.json
