@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>determinism</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+  body { background: #111827; color: #ffffff; font-family: system-ui, sans-serif; }
+  .t { position: absolute; margin: 0; font-size: 100px; font-weight: 700; white-space: nowrap; }
+  .a { left: 600px; top: 400px; }
+</style>
+</head>
+<body>
+  <p class="t a" data-ms-text="t07"></p>
+<script>
+  // 前のフレームからの経過（Date.now() の差）で色を決める。描く順序で絵が変わる
+  let prev = Date.now();
+  ms.scene(() => {
+    const dt = Date.now() - prev;
+    prev = Date.now();
+    document.body.style.background = `hsl(${Math.abs(dt) % 360}, 60%, 20%)`;
+  });
+</script>
+</body>
+</html>

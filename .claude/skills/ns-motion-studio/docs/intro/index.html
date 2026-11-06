@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ns-motion-studio 紹介</title>
+<meta name="description" content="チャットと確認ページだけで、動画ができる。Claude Code で製品紹介などの動画を作るプラグイン ns-motion-studio の紹介です。">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #fbf8f2;
+  --surface: #ffffff;
+  --surface-2: #f3efe6;
+  --text: #1f2430;
+  --muted: #5b6170;
+  --line: #e4ded2;
+  --accent: #2d5b8a;
+  --blue: #3da5ff;
+  --green: #2ec4a6;
+  --coral: #ff6b4a;
+  --yellow: #ffc23d;
+  --code-bg: #1f2430;
+  --code-text: #f4f1ea;
+  --shadow: 0 1px 2px rgba(31, 36, 48, .06), 0 4px 16px rgba(31, 36, 48, .05);
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15181f;
+    --surface: #1d212b;
+    --surface-2: #252a36;
+    --text: #eceae4;
+    --muted: #a7abb6;
+    --line: #333949;
+    --accent: #8cc1f5;
+    --code-bg: #0e1015;
+    --code-text: #eceae4;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15181f;
+  --surface: #1d212b;
+  --surface-2: #252a36;
+  --text: #eceae4;
+  --muted: #a7abb6;
+  --line: #333949;
+  --accent: #8cc1f5;
+  --code-bg: #0e1015;
+  --code-text: #eceae4;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "BIZ UDPGothic", "Yu Gothic UI", "Yu Gothic", YuGothic, "Meiryo", "Noto Sans JP", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+a { color: var(--accent); }
+img, video { max-width: 100%; height: auto; display: block; }
+code, pre { font-family: "BIZ UDGothic", Consolas, "Cascadia Mono", Menlo, monospace; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+section { padding: 56px 0 8px; }
+h1, h2, h3 { line-height: 1.4; margin: 0; }
+h2 { font-size: 1.6rem; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+h2::before { content: ""; width: 10px; height: 28px; border-radius: 3px; background: var(--c, var(--blue)); flex: none; }
+h3 { font-size: 1.15rem; }
+.lead { color: var(--muted); margin: 0 0 24px; }
+p { margin: 0 0 12px; }
+
+/* ヒーロー */
+.hero { padding: 48px 0 16px; }
+.eyebrow { display: inline-block; font-size: .85rem; font-weight: 700; color: #1f2430; background: var(--yellow); border-radius: 999px; padding: 2px 12px; margin-bottom: 12px; }
+.hero h1 { font-size: clamp(2rem, 6vw, 3.2rem); letter-spacing: .01em; }
+.hero .tagline { font-size: clamp(1.15rem, 3.2vw, 1.5rem); font-weight: 700; margin: 8px 0 8px; }
+.hero .sub { color: var(--muted); max-width: 46em; margin-bottom: 24px; }
+.video { background: #000; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.video video { width: 100%; aspect-ratio: 16 / 9; }
+.video-note { color: var(--muted); font-size: .9rem; margin-top: 8px; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 0; padding: 0; list-style: none; }
+.toc a { display: inline-block; text-decoration: none; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: .9rem; }
+
+/* カード */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.card h3 { margin-bottom: 6px; }
+.card p:last-child, .card ul:last-child { margin-bottom: 0; }
+ul { padding-left: 1.3em; margin: 0 0 12px; }
+li { margin: 2px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.chips li { background: var(--surface-2); border-radius: 8px; padding: 2px 10px; font-size: .92rem; margin: 0; }
+.tag { display: inline-block; font-size: .75rem; font-weight: 700; padding: 0 8px; border-radius: 6px; vertical-align: 2px; margin-left: 4px; }
+.tag.free { background: var(--green); color: #102a24; }
+.tag.paid { background: var(--coral); color: #2a120c; }
+
+/* 流れ */
+.flow { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+.step { display: grid; gap: 20px; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; padding: 28px 0; border-top: 1px solid var(--line); }
+.step.single { grid-template-columns: 1fr; max-width: 46em; }
+.step:first-child { border-top: 0; padding-top: 8px; }
+.step .num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--c); color: #1f2430; font-weight: 800; margin-right: 8px; flex: none; }
+.step h3 { display: flex; align-items: center; margin-bottom: 8px; }
+.step .gate { font-size: .8rem; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; margin-left: 8px; white-space: nowrap; }
+.you { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin-top: 10px; }
+.you b { display: block; font-size: .85rem; color: var(--muted); }
+figure { margin: 0; }
+figure a { display: block; }
+figure img { border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: 6px; line-height: 1.6; }
+.shot-scroll { max-height: 460px; overflow: auto; border-radius: 10px; }
+.callout { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--c, var(--yellow)); border-radius: 10px; padding: 16px 18px; margin-top: 16px; }
+.callout p:last-child { margin: 0; }
+
+/* コマンド */
+pre { background: var(--code-bg); color: var(--code-text); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 8px 0 12px; font-size: .92rem; line-height: 1.6; }
+code { background: var(--surface-2); border-radius: 4px; padding: 0 4px; font-size: .92em; }
+pre code { background: none; padding: 0; font-size: inherit; }
+ol.steps { padding-left: 1.4em; }
+ol.steps > li { margin-bottom: 14px; }
+
+footer { color: var(--muted); font-size: .85rem; padding: 48px 0 40px; }
+
+@media (max-width: 760px) {
+  section { padding-top: 44px; }
+  .step { grid-template-columns: 1fr; gap: 12px; }
+  h2 { font-size: 1.35rem; }
+}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">ns-skills のプラグイン</span>
+    <h1>ns-motion-studio</h1>
+    <p class="tagline">チャットと確認ページだけで、動画ができる。</p>
+    <p class="sub">Claude Code で、製品紹介やロゴの動画など、種類を問わずモーショングラフィックスの動画を、ブリーフィング（聞き取り）から完成の MP4 まで作るプラグインです。動画や ffmpeg（動画を扱う道具）に詳しくなくても進められます。動画生成 AI は使わず、シーンをコードで描いて書き出すので、同じ入力からは同じ動画が出ます。</p>
+    <div class="video">
+      <video controls preload="metadata" poster="ns-motion-studio-intro-poster.jpg" aria-label="ns-motion-studio の紹介動画（約1分11秒、ナレーションと効果音あり）">
+        <source src="ns-motion-studio-intro.mp4" type="video/mp4">
+        お使いのブラウザでは動画を再生できません。<a href="ns-motion-studio-intro.mp4">動画のファイル</a>を開いてください。
+      </video>
+    </div>
+    <p class="video-note">紹介動画（1分11秒、16:9）。この動画も ns-motion-studio で作りました。声は VOICEVOX:四国めたん。下で紹介する確認ページの画面は、この動画を作ったときのものです。</p>
+    <ul class="toc" aria-label="このページの目次">
+      <li><a href="#can">できること</a></li>
+      <li><a href="#flow">制作の流れ</a></li>
+      <li><a href="#quality">品質を守るしくみ</a></li>
+      <li><a href="#start">始め方</a></li>
+      <li><a href="#notes">注意</a></li>
+    </ul>
+  </div>
+</header>
+
+<main>
+<section id="can" style="--c: var(--blue)">
+  <div class="wrap">
+    <h2>できること</h2>
+    <p class="lead">ブリーフィング（聞き取り）、見た目の決定、絵コンテ、試作版の確認を経て、完成の MP4 を書き出します。急ぐときは確認を省いて短く作れます。</p>
+    <div class="grid">
+      <div class="card">
+        <h3>種類を問わない</h3>
+        <p>誰に見せ、見た後どうなってほしいかを聞き、組み合わせて使える構成の型と、似た依頼の作例を選択肢として示して組み立てます。</p>
+        <ul class="chips">
+          <li>製品・サービス紹介</li><li>解説</li><li>マニュアル</li><li>ロゴ</li><li>告知</li><li>採用</li><li>社内のお知らせ</li>
+        </ul>
+        <p style="margin-top:10px">スライドや既存資料をそのまま動画にする依頼と、実写風の映像や人物の生成は対象外です。</p>
+      </div>
+      <div class="card">
+        <h3>Web・SNS・展示会に合わせる</h3>
+        <p>流す場所から比率を提案します。比率を増やすときは切り抜かず、比率ごとにレイアウトを組み直します。</p>
+        <ul class="chips"><li>16:9</li><li>9:16</li><li>1:1</li><li>4:5</li></ul>
+        <p style="margin-top:10px">展示会向けには、継ぎ目のないループ版（音なし）も作れます。</p>
+      </div>
+      <div class="card">
+        <h3>ナレーション</h3>
+        <ul>
+          <li><b>VOICEVOX</b><span class="tag free">無料</span>: 基本はこちら。パソコンの中だけで動き、原稿を外へ送りません。</li>
+          <li><b>Gemini</b><span class="tag paid">有料</span>: 任意。使う前に注意事項と費用を案内し、了承をいただいてから使います。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>効果音と BGM</h3>
+        <p>効果音はコードで合成して付けます（外部サービスは要りません）。BGM は、持ち込みの音源か、Gemini での作曲（有料、了承が要る）から選べます。</p>
+      </div>
+      <div class="card">
+        <h3>事実は作らない、表現は自由に</h3>
+        <p>数値、社名、事例、製品の機能は、渡された事実だけを使います。足りなければもっともらしい偽物は描かず、止めてお願いします。色や動き、点滅、ロゴの動かし方などの表現は、ご希望に合わせて既定から外せます。外したことは確認ページに一覧で出ます。</p>
+      </div>
+      <div class="card">
+        <h3>1本は5分まで</h3>
+        <p>5分を超えると、品質と再現性を保ち、一部の直しに応えるために、章をまたぐ管理や差分の書き出しなど別の仕組みが要るためです。長いマニュアルなどは、5分以内の章ごとの連作にするよう提案します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="flow" style="--c: var(--green)">
+  <div class="wrap">
+    <h2>制作の流れ</h2>
+    <p class="lead">本番のコースでは、5つの関門ごとに、HTML の確認ページで確かめます。はっきり承認するまで次の関門へは進みません。どの関門でも前の段階に戻れます。画面の画像は、押すと原寸で開きます。</p>
+
+    <div class="callout" style="--c: var(--blue)">
+      <p><b>工程の長さは3つのコースから選べます。</b>ブリーフィングの最初に選び、途中で本番に切り替えることもできます（作ったものはそのまま引き継ぎます）。</p>
+      <ul>
+        <li><b>お試し</b>: とりあえず試したいとき。確認は完成の1回だけ。</li>
+        <li><b>サンプル</b>: 短時間で見本が欲しいとき。書き出しの前に構成を1回確かめて、完成。</li>
+        <li><b>本番</b>: 本番で使うとき。下の5つの関門をすべて通ります。</li>
+      </ul>
+    </div>
+
+    <div class="callout" style="--c: var(--green)">
+      <p><b>直してほしい所の伝え方は2通り。</b>チャットにそのまま書くか、確認ページの欄に書いて「指摘をまとめてコピー」を押し、チャットに貼るだけです。直すところがなければ、チャットで「OK」と伝えます。</p>
+    </div>
+
+    <ol class="flow" style="margin-top:24px">
+      <li class="step" style="--c: var(--yellow)">
+        <div>
+          <h3><span class="num">1</span>ブリーフィング<span class="gate">関門1</span></h3>
+          <p>目的、見る人、一番覚えてほしい一文、長さ、流す場所と比率、音、使う素材を聞き取り、確認ページにまとめます。</p>
+          <div class="you"><b>あなたがすること</b>質問に答え、ロゴや製品画面などの素材を渡す。まとめを読んで、違う所を指摘するか承認する。</div>
+        </div>
+        <figure>
+          <a href="img/briefing.jpg" title="原寸で開く"><img src="img/briefing.jpg" width="1220" height="1130" loading="lazy" alt="ブリーフィングの確認ページ。要件のまとめとして、目的、見る人、一番覚えてほしい一文、動画の種類と長さ、流す場所と比率、音の項目が並んでいる。"></a>
+          <figcaption>ブリーフィングの確認ページ（紹介動画の制作から）。聞き取った内容が項目ごとに並びます。</figcaption>
+        </figure>
+      </li>
+      <li class="step" style="--c: var(--blue)">
+        <div>
+          <h3><span class="num">2</span>スタイル<span class="gate">スタイル選択</span></h3>
+          <p>構図・色・書体・動きの違う見た目の案を、実際に描いた静止画で並べます。</p>
+          <div class="you"><b>あなたがすること</b>いちばん近い案を選ぶ。気になる所があれば書く。</div>
+        </div>
+        <figure>
+          <a href="img/style.jpg" title="原寸で開く"><img src="img/style.jpg" width="1220" height="955" loading="lazy" alt="スタイルの確認ページ。案A（白地に色の札）と案B（左右に色の面）の2つの静止画が並び、それぞれに選ぶためのボタンがある。"></a>
+          <figcaption>スタイルの確認ページ。この動画では右の案B（左右に色の面）を選びました。</figcaption>
+        </figure>
+      </li>
+      <li class="step" style="--c: var(--coral)">
+        <div>
+          <h3><span class="num">3</span>絵コンテ<span class="gate">関門2</span></h3>
+          <p>カットの並び、画面に出す文字（テロップ）、ナレーションの原稿、効果音を、カットごとのラフ画と一緒に示します。文字はここで確定します。</p>
+          <div class="you"><b>あなたがすること</b>言い回しと順番を確かめ、カットごとの欄に指摘を書く。</div>
+        </div>
+        <figure>
+          <a href="img/storyboard.jpg" title="原寸で開く"><img src="img/storyboard.jpg" width="1176" height="619" loading="lazy" alt="絵コンテの確認ページのカット4。左にカットのラフ画、中央にテロップ・ナレーション・効果音と時刻、右に「カット4への指摘」を書く欄がある。"></a>
+          <figcaption>絵コンテの確認ページ（カット4）。右の欄にカットごとの指摘を書けます。</figcaption>
+        </figure>
+      </li>
+      <li class="step" style="--c: var(--green)">
+        <div>
+          <h3><span class="num">4</span>ラフ版<span class="gate">関門3</span></h3>
+          <p>音を付けてシーンを描き、自動点検を通したうえで、画質を落とした試作版を書き出します。カットの番号を押すと、その場面から再生できます。</p>
+          <div class="you"><b>あなたがすること</b>動きの流れと文字を見て、気になるカットに指摘を書く。全品質の書き出しは、ここで承認した後だけです。</div>
+        </div>
+        <figure>
+          <a href="img/rough.jpg" title="原寸で開く"><img src="img/rough.jpg" width="1224" height="680" loading="lazy" alt="ラフ版の確認ページ。左に試作版の動画プレーヤー（0分20秒、カット4を再生中）、右にカットごとの確認の一覧がある。"></a>
+          <figcaption>ラフ版の確認ページ。左で試作版を再生し、右でカットごとに確かめます。</figcaption>
+        </figure>
+      </li>
+      <li class="step" style="--c: var(--yellow)">
+        <div>
+          <h3><span class="num">5</span>納品<span class="gate">納品確認</span></h3>
+          <p>書き出しにかかる時間の見込みを伝えてから、全品質で書き出します。完成の動画、ポスター画像、使った素材と権利の一覧を確認ページにまとめます。</p>
+          <div class="you"><b>あなたがすること</b>最後に全体を確かめる。素材の出どころとクレジットもここで見られます。</div>
+        </div>
+        <figure>
+          <div class="shot-scroll" tabindex="0" aria-label="納品の確認ページの画像（スクロールできます）">
+            <a href="img/deliver.jpg" title="原寸で開く"><img src="img/deliver.jpg" width="1200" height="1040" loading="lazy" alt="納品の確認ページ。納品するファイル（MP4 とポスター画像）、ポスター画像の見本、使った素材と権利の表（ロゴ、画面、点検の出力、書体、ナレーションの声など）がある。"></a>
+          </div>
+          <figcaption>納品の確認ページ。納品するファイルと、使った素材と権利の一覧です。</figcaption>
+        </figure>
+      </li>
+      <li class="step single" style="--c: var(--blue)">
+        <div>
+          <h3><span class="num">+</span>部分修正</h3>
+          <p>できた動画にも、「カット3のロゴをもっとゆっくり」のように指摘できます。指摘を数値の変更に直し、直したカットだけを書き出し直して、納品確認を取り直します。曖昧な指摘は、推測で直さずに聞き返します。</p>
+          <div class="you"><b>あなたがすること</b>直してほしいカットと中身を伝える。</div>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="quality" style="--c: var(--coral)">
+  <div class="wrap">
+    <h2>品質を守るしくみ</h2>
+    <p class="lead">品質を決めるのは、頼み方ではなく仕組みです。「できたはず」では終わらせず、実際に書き出した絵で確かめます。</p>
+    <div class="grid">
+      <div class="card">
+        <h3>自動点検</h3>
+        <ul>
+          <li>文字の誤り（台本と画面の食い違い）</li>
+          <li>文字のはみ出し、重なり、字幕の帯への侵入</li>
+          <li>文字と背景のコントラスト</li>
+          <li>文字を読める表示時間</li>
+          <li>点滅（毎秒3回以下）</li>
+          <li>音量（動画配信で標準の大きさにそろえ、音が割れないこと。-14 LUFS ±1、ピーク -1 dBTP 以下）</li>
+          <li>カットのつなぎ目のちらつき、ループの継ぎ目</li>
+          <li>何度描いても同じ絵になるか</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>止め時</h3>
+        <ul>
+          <li>同じ指摘が2回直しても残る、または5回続けて点検を通らないときは、直し続けずに止めて相談します。</li>
+          <li>自分での見直しは1周に3つまで。周の上限はコースによります（お試し1周、サンプル2周、本番4周）。残った問題は「残った妥協点」として納品ページに出します。</li>
+          <li>書き出しが見込みの2倍を超えたら止め、新しい見込みを伝えてから再開します。</li>
+          <li>有料の API は、呼ぶたびに回数と目的を示し、本人の「はい」を得てから使います。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>直したシーンだけ書き出し直す</h3>
+        <p>すべての絵を時刻から決まる形で描くので、前回と入力が同じシーンは描き直しません。一部を直すときは、直したシーン（と時刻がずれたシーン）だけを書き出します。素材の画像を差し替えたときは、全シーンを描き直します。</p>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:20px; align-items:start">
+      <figure class="card">
+        <a href="img/checks.jpg" title="原寸で開く"><img src="img/checks.jpg" width="1100" height="494" loading="lazy" alt="自動点検の出力の抜粋。「自動点検: 16 件の問題が見つかりました。」の下に、カット9で文字が重なっている指摘2件と、カット11でテロップが背景の箱からはみ出している指摘が並ぶ。"></a>
+        <figcaption>自動点検の結果（紹介動画の1回目の点検から抜粋）。文字の重なりやはみ出しを見つけ、すべて直したうえで、完成版の点検は問題なしで通りました。</figcaption>
+      </figure>
+      <figure class="card">
+        <div class="shot-scroll" tabindex="0" aria-label="コンタクトシートの画像（スクロールできます）">
+          <a href="img/contact.jpg" title="原寸で開く"><img src="img/contact.jpg" width="1200" height="1504" loading="lazy" alt="コンタクトシート。完成版の動画から1秒ごとに撮ったコマが4列で並び、各コマにカット番号と時刻が付いている。"></a>
+        </div>
+        <figcaption>コンタクトシート（完成版の1秒ごとのコマ）。全体をひと目で見て、最後の確認に使います。</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="start" style="--c: var(--yellow)">
+  <div class="wrap">
+    <h2>始め方</h2>
+    <p class="lead">Claude Code に ns-skills のマーケットプレイスから入れて、頼むだけです。</p>
+    <ol class="steps">
+      <li>
+        <b>Node.js 22.12 以上を用意する。</b> <code>node --version</code> で確かめます。無ければ公式サイトから LTS 版を入れます（Windows なら <code>winget install OpenJS.NodeJS.LTS</code>、Mac なら <code>brew install node</code>）。動画を描くための道具（ブラウザと ffmpeg）は、初回にスキルが案内して入れます。
+      </li>
+      <li>
+        <b>プラグインを入れる。</b> Claude Code で次の2行を実行します。
+<pre><code>/plugin marketplace add nextscape/ns-skills
+/plugin install ns-motion-studio@nextscape</code></pre>
+      </li>
+      <li>
+        <b>ナレーションを付けるなら、VOICEVOX を入れて起動しておく。</b> 公式サイト（<a href="https://voicevox.hiroshiba.jp/">voicevox.hiroshiba.jp</a>）から、お使いのパソコン用を入れます。起動している間だけ使えます。声は既定で四国めたんです。ほかの声にしたいときは、制作の途中で一緒に選びます。効果音だけの動画なら不要です。
+      </li>
+      <li>
+        <b>頼む。</b> 例えば次のように書きます。作りかけの動画の続きも、同じ呼び出しで制作フォルダを指せば再開できます。
+<pre><code>/ns-motion-studio:make-video 新製品の紹介動画を作りたい</code></pre>
+        <p>最初に、新しく作るか続きからか、置き場所と題名を聞かれます。成果物は作業フォルダの下の制作フォルダに出ます（完成版は <code>out/</code>、確認ページは <code>reviews/</code>）。</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="notes" style="--c: var(--coral)">
+  <div class="wrap">
+    <h2>注意</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>有料の API は了承してから</h3>
+        <p>Gemini（読み上げ・BGM）は任意で、使うたびに費用がかかります。使う前に注意事項を案内し、了承をいただいてから使います。キーは課金設定済みのプロジェクトのものを環境変数で渡します（無料枠では、送った内容が Google の製品改善に使われることがあります）。未公開の製品情報、顧客名、個人情報を含む原稿なら、VOICEVOX を使ってください。</p>
+      </div>
+      <div class="card">
+        <h3>VOICEVOX のクレジットと規約</h3>
+        <p>VOICEVOX の声を使うときは「VOICEVOX:キャラクター名」のクレジット表記が要ります。使える声は、企業の動画でも申請なしにクレジットだけで使えると規約がはっきりしているキャラクターに絞ってあるので、制作のたびに規約を確かめる必要はありません。表記は動画の説明欄などに入れます。使った声と規約の要点は、納品ページの権利の一覧に残ります。</p>
+      </div>
+      <div class="card">
+        <h3>確認ページは手元のファイル</h3>
+        <p>確認ページは制作フォルダの中の HTML ファイルで、どこにも公開されません。書いた指摘はそのブラウザの中に保存されるだけなので、「指摘をまとめてコピー」でチャットに貼って伝えてください。</p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>ns-motion-studio は、Anthropic の Claude Motion（claude.ai の機能）とは別物です。詳しくはプラグインの <a href="../../README.md">README</a> を見てください。紹介動画の声: VOICEVOX:四国めたん。</p>
+  </div>
+</footer>
+</body>
+</html>

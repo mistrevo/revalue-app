@@ -1,0 +1,15 @@
+{
+  "name": "ns-illustrations",
+  "description": "スライド・資料の挿絵素材集（SVG 数百点）と、その使い方・描き足し方のスキル。素材を探して資料に置く use-illustration と、素材を描き足す draw-illustration を同梱。",
+  "version": "0.1.0",
+  "author": {
+    "name": "株式会社ネクストスケープ"
+  },
+  "keywords": [
+    "illustration",
+    "svg",
+    "挿絵",
+    "素材集",
+    "スライド"
+  ]
+}

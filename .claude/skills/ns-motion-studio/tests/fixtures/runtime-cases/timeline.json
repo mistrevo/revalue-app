@@ -1,0 +1,428 @@
+{
+  "version": 1,
+  "title": "ランタイムの特殊な場合",
+  "fps": 30,
+  "ratios": [
+    "16:9"
+  ],
+  "loop": false,
+  "seed": 1,
+  "scenes": [
+    {
+      "id": "c01",
+      "start": 0,
+      "end": 1.5,
+      "purpose": "直書きの文字を含む",
+      "file": "src/scenes/hardcoded.html"
+    },
+    {
+      "id": "c02",
+      "start": 1.5,
+      "end": 3,
+      "purpose": "存在しないフォントを指定する",
+      "file": "src/scenes/missing-font.html"
+    },
+    {
+      "id": "c03",
+      "start": 3,
+      "end": 4.5,
+      "purpose": "CSS のトランジションを含む",
+      "file": "src/scenes/order.html"
+    },
+    {
+      "id": "c04",
+      "start": 4.5,
+      "end": 6,
+      "purpose": "読み込めない画像を含む",
+      "file": "src/scenes/broken-image.html"
+    },
+    {
+      "id": "c05",
+      "start": 6,
+      "end": 7.5,
+      "purpose": "マスク（overflow と clip-path）で隠れた部分を含む",
+      "file": "src/scenes/masked.html"
+    },
+    {
+      "id": "c06",
+      "start": 7.5,
+      "end": 10.5,
+      "purpose": "static の箱の外へ出る absolute と fixed、画面の端と小さな箱で切れる文字",
+      "file": "src/scenes/escape.html"
+    },
+    {
+      "id": "c07",
+      "start": 10.5,
+      "end": 15,
+      "purpose": "行の高さぴったりのマスク、流れる文字（data-ms-scroll）、省略記号で切った文字",
+      "file": "src/scenes/mask-fit.html"
+    },
+    {
+      "id": "c08",
+      "start": 15,
+      "end": 19.5,
+      "purpose": "背景の箱からはみ出す文字、収まる文字、飾りの形より大きい文字、滑り込みと拭き取りの入場、static の札の外に置いた absolute の文字",
+      "file": "src/scenes/box-fit.html"
+    },
+    {
+      "id": "c09",
+      "start": 19.5,
+      "end": 21.5,
+      "purpose": "行の高さ normal で、字面の箱より低い札（はみ出しと、切れたままの文字の点検の誤り）",
+      "file": "src/scenes/badge.html"
+    },
+    {
+      "id": "c10",
+      "start": 21.5,
+      "end": 23.5,
+      "purpose": "明るい画面の上に半透明の面を重ねたときの、文字と地のコントラスト（面は文字の色も変える）",
+      "file": "src/scenes/veil.html"
+    },
+    {
+      "id": "c11",
+      "start": 23.5,
+      "end": 26.5,
+      "purpose": "語ごとの span に分けて現れる見出し（札で切れたままの3行目、動かない同じ見出し、札に収まる見出し）",
+      "file": "src/scenes/words.html"
+    },
+    {
+      "id": "c12",
+      "start": 26.5,
+      "end": 28.5,
+      "purpose": "文字の上に重なり続ける形、文字の後ろを通る形、一瞬で横切る形、data-ms-wipe の拭き取り",
+      "file": "src/scenes/shapes.html"
+    },
+    {
+      "id": "c13",
+      "start": 28.5,
+      "end": 30,
+      "purpose": "最初のコマが背景だけで、すぐ後のコマから絵が出るカット（つなぎ目のちらつき）",
+      "file": "src/scenes/cut-in.html"
+    },
+    {
+      "id": "c14",
+      "start": 30,
+      "end": 32,
+      "purpose": "文字の手前でも字を隠さない形（行の下の余白の下線、乗算の蛍光ペン）と、oklch()・color-mix() の色の形",
+      "file": "src/scenes/cover-edge.html"
+    }
+  ],
+  "texts": [
+    {
+      "id": "t01",
+      "scene": "c01",
+      "kind": "title",
+      "text": "正本の文字",
+      "start": 0,
+      "end": 1.5
+    },
+    {
+      "id": "t02",
+      "scene": "c02",
+      "kind": "title",
+      "text": "フォント",
+      "start": 1.5,
+      "end": 3
+    },
+    {
+      "id": "t03",
+      "scene": "c05",
+      "kind": "title",
+      "text": "箱で半分隠れる",
+      "start": 6,
+      "end": 7.5
+    },
+    {
+      "id": "t04",
+      "scene": "c05",
+      "kind": "title",
+      "text": "切り抜きで半分",
+      "start": 6,
+      "end": 7.5
+    },
+    {
+      "id": "t05",
+      "scene": "c05",
+      "kind": "title",
+      "text": "全部隠れる",
+      "start": 6,
+      "end": 7.5
+    },
+    {
+      "id": "t06",
+      "scene": "c05",
+      "kind": "title",
+      "text": "上の行下の行",
+      "start": 6,
+      "end": 7.5
+    },
+    {
+      "id": "t07",
+      "scene": "c06",
+      "kind": "title",
+      "text": "箱の外へ",
+      "start": 7.5,
+      "end": 10.5
+    },
+    {
+      "id": "t08",
+      "scene": "c06",
+      "kind": "title",
+      "text": "同じ場所",
+      "start": 7.5,
+      "end": 10.5
+    },
+    {
+      "id": "t09",
+      "scene": "c06",
+      "kind": "title",
+      "text": "固定の文字",
+      "start": 7.5,
+      "end": 10.5
+    },
+    {
+      "id": "t10",
+      "scene": "c06",
+      "kind": "title",
+      "text": "右の端で切れる",
+      "start": 7.5,
+      "end": 10.5
+    },
+    {
+      "id": "t11",
+      "scene": "c06",
+      "kind": "title",
+      "text": "箱に収まらない",
+      "start": 7.5,
+      "end": 10.5
+    },
+    {
+      "id": "t12",
+      "scene": "c07",
+      "kind": "title",
+      "text": "出し終えた見出し",
+      "start": 10.5,
+      "end": 15
+    },
+    {
+      "id": "t13",
+      "scene": "c07",
+      "kind": "title",
+      "text": "横へ流れていく長い長い文字",
+      "start": 10.5,
+      "end": 15
+    },
+    {
+      "id": "t14",
+      "scene": "c07",
+      "kind": "title",
+      "text": "流れる名前の列 一 二 三 四 五 六 七",
+      "start": 10.5,
+      "end": 15
+    },
+    {
+      "id": "t15",
+      "scene": "c07",
+      "kind": "title",
+      "text": "省略記号で切れた文字",
+      "start": 10.5,
+      "end": 15
+    },
+    {
+      "id": "t16",
+      "scene": "c08",
+      "kind": "caption",
+      "text": "背景の箱からはみ出す長いテロップ",
+      "start": 15,
+      "end": 19.5
+    },
+    {
+      "id": "t17",
+      "scene": "c08",
+      "kind": "caption",
+      "text": "収まるテロップ",
+      "start": 15,
+      "end": 19.5
+    },
+    {
+      "id": "t18",
+      "scene": "c08",
+      "kind": "title",
+      "text": "大きな見出し",
+      "start": 15,
+      "end": 19.5
+    },
+    {
+      "id": "t19",
+      "scene": "c08",
+      "kind": "caption",
+      "text": "滑り込むテロップ",
+      "start": 15,
+      "end": 19.5
+    },
+    {
+      "id": "t20",
+      "scene": "c08",
+      "kind": "caption",
+      "text": "拭き取りで出る長いテロップ",
+      "start": 15,
+      "end": 19.5
+    },
+    {
+      "id": "t21",
+      "scene": "c08",
+      "kind": "caption",
+      "text": "札の外に置いた文字",
+      "start": 15,
+      "end": 19.5
+    },
+    {
+      "id": "t22",
+      "scene": "c09",
+      "kind": "caption",
+      "text": "新着の札",
+      "start": 19.5,
+      "end": 21.5
+    },
+    {
+      "id": "t23",
+      "scene": "c09",
+      "kind": "caption",
+      "text": "切り抜く札",
+      "start": 19.5,
+      "end": 21.5
+    },
+    {
+      "id": "t24",
+      "scene": "c10",
+      "kind": "caption",
+      "text": "面の下の文字",
+      "start": 21.5,
+      "end": 23.5
+    },
+    {
+      "id": "t25",
+      "scene": "c10",
+      "kind": "caption",
+      "text": "枠の中",
+      "start": 21.5,
+      "end": 23.5
+    },
+    {
+      "id": "t26",
+      "scene": "c10",
+      "kind": "caption",
+      "text": "板の下",
+      "start": 21.5,
+      "end": 23.5
+    },
+    {
+      "id": "t27",
+      "scene": "c10",
+      "kind": "caption",
+      "text": "あとで出る",
+      "start": 21.5,
+      "end": 23.5
+    },
+    {
+      "id": "t28",
+      "scene": "c11",
+      "kind": "title",
+      "text": "alpha beta\ngamma delta\nepsilon zeta",
+      "start": 23.5,
+      "end": 26.5
+    },
+    {
+      "id": "t29",
+      "scene": "c11",
+      "kind": "title",
+      "text": "alpha beta\ngamma delta\nepsilon zeta",
+      "start": 23.5,
+      "end": 26.5
+    },
+    {
+      "id": "t30",
+      "scene": "c11",
+      "kind": "title",
+      "text": "alpha beta\ngamma delta",
+      "start": 23.5,
+      "end": 26.5
+    },
+    {
+      "id": "t31",
+      "scene": "c12",
+      "kind": "title",
+      "text": "Covered title",
+      "start": 26.5,
+      "end": 28.5
+    },
+    {
+      "id": "t32",
+      "scene": "c12",
+      "kind": "title",
+      "text": "Shape behind",
+      "start": 26.5,
+      "end": 28.5
+    },
+    {
+      "id": "t33",
+      "scene": "c12",
+      "kind": "title",
+      "text": "Quick sweep",
+      "start": 26.5,
+      "end": 28.5
+    },
+    {
+      "id": "t34",
+      "scene": "c12",
+      "kind": "title",
+      "text": "Wipe panel",
+      "start": 26.5,
+      "end": 28.5
+    },
+    {
+      "id": "t35",
+      "scene": "c13",
+      "kind": "title",
+      "text": "Cut in",
+      "start": 28.5,
+      "end": 30
+    },
+    {
+      "id": "t36",
+      "scene": "c14",
+      "kind": "title",
+      "text": "Underlined title",
+      "start": 30,
+      "end": 32
+    },
+    {
+      "id": "t37",
+      "scene": "c14",
+      "kind": "title",
+      "text": "Marked title",
+      "start": 30,
+      "end": 32
+    },
+    {
+      "id": "t38",
+      "scene": "c14",
+      "kind": "title",
+      "text": "Oklch square",
+      "start": 30,
+      "end": 32
+    },
+    {
+      "id": "t39",
+      "scene": "c14",
+      "kind": "title",
+      "text": "Mixed square",
+      "start": 30,
+      "end": 32
+    }
+  ],
+  "narration": [],
+  "sfx": [],
+  "bgm": null,
+  "poster": 0.5
+}

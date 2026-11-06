@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>c08</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+  body { background: #111827; color: #ffffff; font-family: sans-serif; }
+  p { margin: 0; font-size: 48px; white-space: nowrap; }
+  /* 背景の箱（行）より長いテロップ。箱は文字を切らないので、文字が箱の右へ出たままになる */
+  .row { position: absolute; left: 100px; top: 100px; width: 352px; height: 90px; padding: 0 24px; background: #1e3a8a; }
+  .row p { line-height: 90px; }
+  /* 収まるテロップ（余白つきの札） */
+  .chip { position: absolute; left: 100px; top: 300px; padding: 12px 24px; background: #1e3a8a; border-radius: 12px; }
+  .chip p { line-height: 1.4; }
+  /* 飾りの丸より大きい見出し。丸は文字の入れ物（祖先）ではないので問わない */
+  .dot { position: absolute; left: 1000px; top: 100px; width: 80px; height: 80px; border-radius: 50%; background: #0e7490; }
+  .big { position: absolute; left: 960px; top: 80px; font-size: 120px; line-height: 1.2; }
+  /* 箱の外から滑り込み、入り終えると箱に収まるテロップ（動きの途中のはみ出しは問わない） */
+  .card { position: absolute; left: 600px; top: 500px; width: 652px; height: 120px; padding: 0 24px; background: #1e3a8a; }
+  .card p { line-height: 120px; }
+  /* 左から拭き取るように出る、箱より長いテロップ。出始めは見えている部分が箱に収まるが、出し終えるとはみ出す */
+  .card2 { position: absolute; left: 100px; top: 750px; width: 352px; height: 100px; padding: 0 24px; border: 2px solid #38bdf8; }
+  .card2 p { display: inline-block; line-height: 100px; }
+  /* 位置を決めていない（static）札の中の absolute の文字は、札の外に置かれる。札は文字の入れ物ではないので問わない */
+  .tag { width: 200px; height: 60px; background: #1e3a8a; }
+  .away { position: absolute; left: 1300px; top: 300px; line-height: 1.4; }
+</style>
+</head>
+<body>
+  <div class="row"><p data-ms-text="t16"></p></div>
+  <div class="chip"><p data-ms-text="t17"></p></div>
+  <div class="dot"></div>
+  <p class="big" data-ms-text="t18"></p>
+  <div class="card"><p data-ms-text="t19" id="slide"></p></div>
+  <div class="tag"><p class="away" data-ms-text="t21"></p></div>
+  <div class="card2"><p data-ms-text="t20" id="wipe"></p></div>
+<script>
+  const slide = document.getElementById('slide');
+  const wipe = document.getElementById('wipe');
+  ms.scene((t) => {
+    const p = Math.min(1, Math.max(0, t / 1));
+    slide.style.transform = `translateX(${-400 * (1 - p)}px)`;
+    wipe.style.clipPath = `inset(0 ${100 * (1 - p)}% 0 0)`;
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "title": "見本",
+  "fps": 30,
+  "ratios": ["16:9"],
+  "loop": false,
+  "seed": 1,
+  "scenes": [
+    { "id": "s01", "start": 0, "end": 1.5, "purpose": "Hook: あいさつ", "file": "src/scenes/s01.html" },
+    { "id": "s02", "start": 1.5, "end": 3.0, "purpose": "CTA: 呼びかけ", "file": "src/scenes/s02.html" }
+  ],
+  "texts": [
+    { "id": "t01", "scene": "s01", "kind": "title", "text": "ようこそ", "start": 0.1, "end": 1.45 },
+    { "id": "t02", "scene": "s02", "kind": "title", "text": "始めよう", "start": 1.6, "end": 2.95 }
+  ],
+  "narration": [],
+  "sfx": [ { "id": "x01", "t": 1.6333, "preset": "pop", "gain": -6 } ],
+  "bgm": null,
+  "poster": 2.5
+}

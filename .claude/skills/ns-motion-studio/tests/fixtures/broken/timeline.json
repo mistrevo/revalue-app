@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "title": "点検の失敗例",
+  "fps": 30,
+  "ratios": ["16:9"],
+  "loop": false,
+  "seed": 1,
+  "scenes": [
+    { "id": "b01", "start": 0, "end": 1.5, "purpose": "はみ出す見出し", "file": "src/scenes/overflow.html" },
+    { "id": "b02", "start": 1.5, "end": 3, "purpose": "重なる2行", "file": "src/scenes/overlap.html" },
+    { "id": "b03", "start": 3, "end": 4.5, "purpose": "正本と違う文字を直書きする", "file": "src/scenes/mismatch.html" },
+    { "id": "b04", "start": 4.5, "end": 6, "purpose": "灰色の地に灰色の文字", "file": "src/scenes/contrast.html" },
+    { "id": "b05", "start": 6, "end": 7.5, "purpose": "0.5 秒で消える長いテロップ", "file": "src/scenes/hold.html" },
+    { "id": "b06", "start": 7.5, "end": 9, "purpose": "Date.now() で色を変える", "file": "src/scenes/determinism.html" },
+    { "id": "b07", "start": 9, "end": 10.5, "purpose": "例外を投げる", "file": "src/scenes/script-error.html" },
+    { "id": "b08", "start": 10.5, "end": 12, "purpose": "字幕の場所に入った見出し（字幕は除外）", "file": "src/scenes/safe-area.html" },
+    { "id": "b09", "start": 12, "end": 13.5, "purpose": "正本を通さない直書きの文字", "file": "src/scenes/hardcoded.html" },
+    { "id": "b10", "start": 13.5, "end": 15, "purpose": "画面の外に丸ごと置いた見出し", "file": "src/scenes/offscreen.html" }
+  ],
+  "texts": [
+    { "id": "t01", "scene": "b01", "kind": "title", "text": "はみ出", "start": 0.1, "end": 1.4 },
+    { "id": "t02", "scene": "b02", "kind": "caption", "text": "上の行", "start": 1.6, "end": 2.9 },
+    { "id": "t03", "scene": "b02", "kind": "caption", "text": "下の行", "start": 1.6, "end": 2.9 },
+    { "id": "t04", "scene": "b03", "kind": "title", "text": "正しい", "start": 3.1, "end": 4.4 },
+    { "id": "t05", "scene": "b04", "kind": "title", "text": "灰色字", "start": 4.6, "end": 5.9 },
+    { "id": "t06", "scene": "b05", "kind": "caption", "text": "このテロップは長すぎて読み切れません", "start": 6.2, "end": 6.7 },
+    { "id": "t07", "scene": "b06", "kind": "title", "text": "毎回色", "start": 7.6, "end": 8.9 },
+    { "id": "t08", "scene": "b07", "kind": "title", "text": "例外だ", "start": 9.1, "end": 10.4 },
+    { "id": "t09", "scene": "b08", "kind": "title", "text": "下の端", "start": 10.6, "end": 11.9 },
+    { "id": "t10", "scene": "b08", "kind": "subtitle", "text": "字幕だ", "start": 10.6, "end": 11.9 },
+    { "id": "t11", "scene": "b09", "kind": "title", "text": "正本だ", "start": 12.1, "end": 13.4 },
+    { "id": "t12", "scene": "b10", "kind": "title", "text": "外です", "start": 13.6, "end": 14.9 }
+  ],
+  "narration": [],
+  "sfx": [],
+  "bgm": null,
+  "poster": 0.5
+}
