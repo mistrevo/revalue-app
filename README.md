@@ -108,7 +108,7 @@ Claude Code を中心に、ほぼ自動で開発しています。何を作る�
 | サブエージェント（[.claude/agents/](.claude/agents/)） | doc-reviewer: 人が読む文書を点検して削る。voice-reviewer: 製品の AI の言い方を、褒めすぎ・突き放しの点で点検する |
 | フック（[.claude/hooks/](.claude/hooks/)。決まったときに自動で動くスクリプト） | 公開リポジトリに鍵（API キーなど）や実在の人の連絡先が入るのを止める。セッションが替わっても続きから始められるよう、進み具合を最初に読ませる |
 | MCP（[.mcp.json](.mcp.json)。Claude Code に外の道具をつなぐ仕組み） | Microsoft Learn と Context7 で公式ドキュメントを引く。Playwright で画面を実際に動かして確かめる |
-| 持ち込んだプラグイン（[.claude/skills/brought-in-plugins.md](.claude/skills/brought-in-plugins.md)） | ns-motion-studio で提出用の動画を、ns-illustrations の挿絵で資料を作る |
+| 持ち込んだプラグイン（[.claude/skills/brought-in-plugins.md](.claude/skills/brought-in-plugins.md)） | ns-motion-studio で提出用の動画を作る |
 
 ## 持ち込んだもの
 
@@ -116,7 +116,7 @@ Claude Code を中心に、ほぼ自動で開発しています。何を作る�
 
 登録した職種と業務のデータ（業務マスター。`src/Revalue.Server/Features/Options/jobs.json`）も、期間中に作りました。10 の領域、30 の職種、125 の業務で、仕事の選択肢のカードに使うのは 115 の業務です。協力者へのインタビューをもとに、Claude が書き起こしました。職種と業務には、job tag（厚生労働省の職業情報提供サイト）のダウンロードデータの職業とタスクの番号を持たせています。利用規約に従って言い換え、出典をデータと仕事の選択肢の画面に載せています。使う力、力が生きる場面、週あたりの時間、時給の目安などは job tag にない値で、Claude が下書きしました。時給の目安の下限は、最低賃金を下回らないよう 1,300 円以上にそろえています。
 
-提出用の動画と資料を作る道具として、開発スタート前に作られた Claude Code のプラグインを 2 つ持ち込みました（ns-motion-studio、ns-illustrations）。作成元の許可を得て公開しています。製品のコードには組み込んでいません。置き場所とライセンスは [.claude/skills/brought-in-plugins.md](.claude/skills/brought-in-plugins.md) にあります。
+提出用の動画を作る道具として、開発スタート前に作られた Claude Code のプラグイン ns-motion-studio を持ち込みました。作成元の許可を得て公開しています。製品のコードには組み込んでいません。置き場所とライセンスは [.claude/skills/brought-in-plugins.md](.claude/skills/brought-in-plugins.md) にあります。
 
 ## リポジトリの構成
 

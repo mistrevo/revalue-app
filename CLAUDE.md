@@ -86,7 +86,6 @@ RE:VALUE（リバリュー）は、育児などでキャリアを中断した人
 | MCP context7 | React、Tailwind CSS、shadcn/ui などのドキュメントを引く |
 | MCP playwright | 画面を実際のブラウザで動かして確かめる |
 | プラグイン ns-motion-studio（持ち込み） | 提出用の動画を作る。スキルは make-video |
-| プラグイン ns-illustrations（持ち込み） | 動画や資料に挿絵を入れる。スキルは use-illustration と draw-illustration |
 
 ## ハッカソンのルール
 
@@ -115,5 +114,5 @@ tests/               裏側のテスト
 evals/               架空エピソード集（episodes/）、合格基準（criteria.md）、結果（results/）
 infra/               Azure のリソースの定義
 .github/workflows/   テストとデプロイ
-.claude/             Claude Code のスキル・エージェント・フック・Workflow。skills/ns-* は持ち込んだプラグイン（出どころとライセンスは skills/brought-in-plugins.md）
+.claude/             Claude Code のスキル・エージェント・フック・Workflow。skills/ns-motion-studio は持ち込んだプラグイン（出どころとライセンスは skills/brought-in-plugins.md）
 ```
