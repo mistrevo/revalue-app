@@ -153,6 +153,9 @@ describe('TalkEntry', () => {
     // 先へ進むことを勧めない。出すのは「別の日のことを話す」だけ
     expect(screen.queryByText(copy.home.next.options)).not.toBeInTheDocument()
     expect(api.calls.some((c) => c.url === '/api/episodes/episode-1')).toBe(false)
+    // 場面のないトークの形で出す（上の帯とメニュー板はいつもどおり）
+    expect(screen.getByRole('heading', { level: 1, name: copy.talk.title })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: copy.menu.label })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: copy.talk.anotherDay }))
 

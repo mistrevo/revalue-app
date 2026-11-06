@@ -19,13 +19,22 @@ import { DailyLimitNotice } from '@/components/DailyLimitNotice'
 import { NextStepLink } from '@/components/NextStepLink'
 import { Insights } from '@/components/Insights'
 import { Page } from '@/components/Page'
+import { AnswerBar, MAX_ANSWER_LENGTH } from '@/components/talk/AnswerBar'
+import { Bubble, DateChip, TalkCard } from '@/components/talk/Bubble'
+import { ChoiceButtons } from '@/components/talk/ChoiceButtons'
+import { TalkLayout } from '@/components/talk/TalkLayout'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
+import { clearDraft, readDraft, writeDraft } from '@/lib/drafts'
+import { formatDayChip } from '@/lib/jst'
 
-/** 1 つの答えの長さの上限（裏側と同じ）。 */
-const MAX_ANSWER_LENGTH = 2000
+/** 入力欄から離れてから、メニュー板を戻すまでの間（ms）。「送る」を押すあいだに帯が動かないようにする（Claude の判断）。 */
+const MENU_RETURN_DELAY = 200
 
-/** 話す画面。場面が変わったら（飛ばしたあとなど）、読み直すために作り直す。 */
+/**
+ * 話す画面。LINE のトークの形で、上の帯・やりとり・下の帯（入力の帯とメニュー板）に分ける（discover-12（開くとトークが出る））。
+ * 場面が変わったら（飛ばしたあとなど）、読み直すために作り直す。
+ */
 export function Talk() {
   const { id = '' } = useParams()
   return <TalkScreen key={id} id={id} />
@@ -41,7 +50,11 @@ function TalkScreen({ id }: { id: string }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' })
   const [episode, setEpisode] = useState<Episode | null>(null)
   const [notice, setNotice] = useState<SupportNotice | null>(null)
-  const [input, setInput] = useState('')
+  // 書きかけは、場面ごとにその端末のブラウザへ残し、開き直したら入力欄に戻す（discover-11（書きかけを残す））
+  const [input, setInput] = useState(() => readDraft(id))
+  // 入力欄に文字を打っているあいだは、メニュー板を隠す（キーボードとぶつからないように）
+  const [typing, setTyping] = useState(false)
+  const menuTimer = useRef<number | undefined>(undefined)
   const [pending, setPending] = useState<{ text: string; kind: AnswerKind } | null>(null)
   const [streamText, setStreamText] = useState('')
   const [errorKind, setErrorKind] = useState<TalkErrorKind | null>(null)
@@ -73,6 +86,8 @@ function TalkScreen({ id }: { id: string }) {
     }
   }, [id])
 
+  useEffect(() => () => window.clearTimeout(menuTimer.current), [])
+
   // 新しいやりとりが出たら、いちばん下を見せる
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ block: 'end' })
@@ -80,9 +95,9 @@ function TalkScreen({ id }: { id: string }) {
 
   if (load.kind === 'loading') {
     return (
-      <Page>
-        <p className="text-sm text-muted-foreground">{copy.loading}</p>
-      </Page>
+      <TalkLayout>
+        <p className="text-muted-foreground">{copy.loading}</p>
+      </TalkLayout>
     )
   }
   if (load.kind !== 'ready' || episode === null) {
@@ -149,6 +164,8 @@ function TalkScreen({ id }: { id: string }) {
           setEpisode((current) =>
             current && { ...current, status: done.status, turns: [...current.turns, userTurn, reply], notice: distress },
           )
+          // 送れた書いた答えの書きかけは消す。選んで送ったときは、入力欄に残っている書きかけをそのまま残す
+          if (kind === 'free') clearDraft(id)
           setNotice(distress)
           // 締めの返事で話し終えたら、見えたことを読み直す
           if (done.status === 'finished') reloadEpisode()
@@ -188,6 +205,7 @@ function TalkScreen({ id }: { id: string }) {
     try {
       // 区切ったあとは、ほかの画面へ移らず、この画面で見えたことを出す
       const finished = await finishEpisode(id)
+      clearDraft(id)
       setEpisode(finished)
       setNotice(finished.notice ?? null)
       setConfirmingSkip(false)
@@ -251,10 +269,12 @@ function TalkScreen({ id }: { id: string }) {
     setActionFailed(false)
     try {
       const next = await skipEpisode(id)
+      clearDraft(id)
       navigate(`/talk/${next.id}`, { replace: true })
     } catch (e) {
       // この場面は消えたが、ほかの画面で別の場面がもう始まっていた。2 つ目は作られないので、その場面を開く
       if (e instanceof ApiError && e.status === 409 && e.episodeId) {
+        clearDraft(id)
         navigate(`/talk/${e.episodeId}`, { replace: true })
         return
       }
@@ -274,278 +294,252 @@ function TalkScreen({ id }: { id: string }) {
   // 同じことが窓口の「今日はここで区切る」「この話は残さずに、別の話にする」でできる（Claude の判断）
   const distressActionsShown = notice?.kind === 'distress' && talking && pending === null && Boolean(notice.actions?.length)
 
-  return (
-    <Page>
-      <h1 className="text-lg font-bold">{copy.talk.title}</h1>
+  function changeInput(value: string) {
+    setInput(value)
+    writeDraft(id, value)
+  }
 
-      <div role="log" aria-label={copy.talk.logLabel} className="mt-4 flex flex-col gap-3">
-        {episode.turns.map((turn, index) =>
-          turn.answerKind === 'correction' ? (
-            <CorrectionBox key={index} text={turn.text} />
-          ) : (
-            <TurnBubble key={index} role={turn.role} text={turn.text} />
-          ),
-        )}
-        {pending !== null && <TurnBubble role="user" text={pending.text} />}
-        {pending !== null && streamText !== '' && <TurnBubble role="assistant" text={streamText} />}
-      </div>
+  // 入力欄から離れたら、少し待ってからメニュー板を戻す
+  function focusChanged(focused: boolean) {
+    window.clearTimeout(menuTimer.current)
+    if (focused) {
+      setTyping(true)
+    } else {
+      menuTimer.current = window.setTimeout(() => setTyping(false), MENU_RETURN_DELAY)
+    }
+  }
 
-      {pending !== null && streamText === '' && (
-        <p role="status" className="mt-3 text-sm text-muted-foreground">
-          {copy.talk.waiting}
-        </p>
-      )}
+  const dateChip = formatDayChip(episode.startedAt)
+  const sending = pending !== null
 
-      {/* 失敗の言葉を先に出し、相談先は、そのあとに添える */}
-      {errorKind !== null && (
-        <p role="alert" className="mt-4 text-sm leading-relaxed">
-          {errorKind === 'refusal' ? copy.talk.refusal : errorKind === 'closed' ? copy.talk.closed : copy.talk.failure}
-        </p>
-      )}
-      {notice !== null && pending === null && (
-        <div className="mt-4 rounded-xl border bg-muted/40 px-4 py-3 text-sm leading-relaxed">
-          {notice.kind === 'support' && <p>{notice.text}</p>}
-          <a
-            href={notice.linkUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-primary underline underline-offset-4"
-          >
-            {notice.linkLabel}
-            <span className="text-muted-foreground">{copy.talk.newTab}</span>
-          </a>
-          {notice.kind === 'distress' && talking && notice.actions && (
-            <div className="mt-3 flex flex-col gap-2">
-              {notice.actions.map((action, index) => (
-                <Button
-                  key={action}
-                  variant="outline"
-                  className="h-auto w-full justify-start py-2 text-left whitespace-normal"
-                  onClick={distressHandlers[index]}
-                  disabled={busy}
-                >
-                  {action}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {limitResetAt !== null && (
-        <div className="mt-4">
-          <DailyLimitNotice resetAt={limitResetAt} />
-        </div>
-      )}
-
-      {talking ? (
-        <>
-          {choices.length > 0 && (
-            <div role="group" aria-label={copy.talk.choicesLabel} className="mt-4 flex flex-col gap-2">
-              {choices.map((choice) => (
-                <Button
-                  key={choice}
-                  variant="outline"
-                  className="h-auto w-full justify-start py-2 text-left whitespace-normal"
-                  onClick={() => send(choice, 'choice')}
-                >
-                  {choice}
-                </Button>
-              ))}
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-start py-2 text-left whitespace-normal"
-                onClick={focusInput}
-              >
-                {copy.talk.other}
-              </Button>
-            </div>
-          )}
-
-          <form
-            className="mt-4 flex flex-col gap-2"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void send(input, 'free')
-            }}
-          >
-            <label htmlFor="talk-answer" className="sr-only">
-              {copy.talk.inputLabel}
-            </label>
-            <textarea
-              id="talk-answer"
-              ref={inputRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder={copy.talk.inputPlaceholder}
-              maxLength={MAX_ANSWER_LENGTH}
-              rows={3}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-            <Button type="submit" size="lg" className="w-full sm:w-auto sm:self-end" disabled={pending !== null || input.trim() === ''}>
-              {pending !== null ? copy.talk.sending : copy.talk.send}
-            </Button>
-          </form>
-
-          {confirmingSkip ? (
-            <div className="mt-6 rounded-lg bg-muted/50 px-4 py-4">
-              <p className="text-sm font-medium">{copy.talk.skipQuestion}</p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                {/* どちらを選んでもよいので、片方を目立たせない（Claude の判断） */}
-                <Button variant="outline" onClick={skip} disabled={busy} className="w-full sm:w-auto">
-                  {copy.talk.skipYes}
-                </Button>
-                <Button variant="outline" onClick={() => setConfirmingSkip(false)} disabled={busy} className="w-full sm:w-auto">
-                  {copy.talk.skipNo}
-                </Button>
-              </div>
-            </div>
-          ) : distressActionsShown ? null : (
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <Button variant="outline" onClick={finish} disabled={busy || pending !== null} className="w-full sm:w-auto">
-                {copy.talk.finish}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setConfirmingSkip(true)}
-                disabled={busy || pending !== null}
-                className="w-full sm:w-auto"
-              >
-                {copy.talk.skip}
-              </Button>
-            </div>
-          )}
-
-          {/* 話している途中でも、トークに戻れる。話は残り、開くとこの場面の続きが出る */}
-          <BackToTalk />
-        </>
-      ) : (
-        <>
-          <p className="mt-6 text-sm leading-relaxed text-muted-foreground">{copy.talk.finished}</p>
-          {episode.insights && (
-            <div className="mt-4">
-              <Insights insights={episode.insights} />
-
-              {correcting ? (
-                <form
-                  className="mt-4 flex flex-col gap-2 rounded-lg bg-muted/50 px-4 py-4"
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    void correct()
-                  }}
-                >
-                  <label htmlFor="talk-correction" className="text-sm font-medium">
-                    {copy.insights.correctLabel}
-                  </label>
-                  <textarea
-                    id="talk-correction"
-                    value={correction}
-                    onChange={(event) => setCorrection(event.target.value)}
-                    placeholder={copy.insights.correctPlaceholder}
-                    maxLength={MAX_ANSWER_LENGTH}
-                    rows={3}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  />
-                  {correctionError !== null && (
-                    <p role="alert" className="text-sm leading-relaxed">
-                      {copy.insights.correctFailed}
-                    </p>
-                  )}
-                  {correctionError !== null && correctionNotice !== null && (
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {correctionNotice.text}{' '}
-                      <a
-                        href={correctionNotice.linkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-primary underline underline-offset-4"
-                      >
-                        {correctionNotice.linkLabel}
-                        <span className="text-muted-foreground">{copy.talk.newTab}</span>
-                      </a>
-                    </p>
-                  )}
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <Button type="submit" disabled={busy || correction.trim() === ''} className="w-full sm:w-auto">
-                      {copy.insights.correctSend}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => {
-                        setCorrecting(false)
-                        setCorrectionError(null)
-                      }}
-                      className="w-full sm:w-auto"
-                    >
-                      {copy.insights.correctCancel}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  {episode.insights.canResume && (
-                    <Button onClick={resume} disabled={busy} className="h-auto w-full py-2 whitespace-normal sm:w-auto">
-                      {copy.insights.resume}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={() => setCorrecting(true)}
-                    disabled={busy}
-                    className="h-auto w-full py-2 whitespace-normal sm:w-auto"
-                  >
-                    {copy.insights.correct}
-                  </Button>
-                </div>
-              )}
-
-              <div className="mt-4">
-                <Button asChild variant="ghost" className="h-auto w-full py-2 whitespace-normal sm:w-auto">
-                  <Link to="/abilities">{copy.insights.seeAll}</Link>
-                </Button>
-              </div>
-            </div>
-          )}
-          {/* つらい状態のサインに応えた直後は、先へ進む道を勧めない（Claude の判断） */}
-          {notice?.kind !== 'distress' && <NextStepLink refreshKey={episode?.insights} />}
-          <BackToTalk />
-        </>
-      )}
-
-      {actionFailed && (
-        <p role="alert" className="mt-3 text-sm leading-relaxed">
-          {copy.errors.generic}
-        </p>
-      )}
-      <div ref={bottomRef} />
-    </Page>
-  )
-}
-
-function TurnBubble({ role, text }: { role: Turn['role']; text: string }) {
-  const mine = role === 'user'
-  return (
-    <div className={mine ? 'flex justify-end' : 'flex justify-start'}>
-      <div
-        className={
-          mine
-            ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-sm leading-relaxed whitespace-pre-wrap text-primary-foreground'
-            : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-muted px-4 py-2 text-sm leading-relaxed whitespace-pre-wrap'
-        }
-      >
-        <span className="sr-only">{mine ? copy.talk.you : copy.talk.listener}</span>
-        <p>{text}</p>
+  // 入力欄のすぐ上に置く、「ここで区切る」「この話は飛ばす」（最初の問いのところでも出す。discover-5（つらい話は飛ばせる））
+  const actions = confirmingSkip ? (
+    <div className="rounded-xl bg-ground px-3 py-3">
+      <p className="text-sm font-bold">{copy.talk.skipQuestion}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {/* どちらを選んでもよいので、片方を目立たせない（Claude の判断） */}
+        <button type="button" onClick={skip} disabled={busy} className={PILL}>
+          {copy.talk.skipYes}
+        </button>
+        <button type="button" onClick={() => setConfirmingSkip(false)} disabled={busy} className={PILL}>
+          {copy.talk.skipNo}
+        </button>
       </div>
     </div>
+  ) : distressActionsShown ? null : (
+    <div className="flex flex-wrap gap-2">
+      <button type="button" onClick={finish} disabled={busy || sending} className={PILL}>
+        {copy.talk.finish}
+      </button>
+      <button type="button" onClick={() => setConfirmingSkip(true)} disabled={busy || sending} className={PILL_QUIET}>
+        {copy.talk.skip}
+      </button>
+    </div>
+  )
+
+  return (
+    <TalkLayout
+      menuHidden={typing && talking}
+      footer={
+        talking ? (
+          <AnswerBar
+            value={input}
+            onChange={changeInput}
+            onSend={() => void send(input, 'free')}
+            sending={sending}
+            actions={actions}
+            inputRef={inputRef}
+            onFocusChange={focusChanged}
+          />
+        ) : undefined
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <div role="log" aria-label={copy.talk.logLabel} className="flex flex-col gap-3">
+          {dateChip !== '' && <DateChip>{dateChip}</DateChip>}
+          {episode.turns.map((turn, index) =>
+            turn.answerKind === 'correction' ? (
+              <CorrectionBox key={index} text={turn.text} />
+            ) : (
+              <Bubble key={index} role={turn.role}>
+                {turn.text}
+              </Bubble>
+            ),
+          )}
+          {pending !== null && <Bubble role="user">{pending.text}</Bubble>}
+          {pending !== null && streamText !== '' && <Bubble role="assistant">{streamText}</Bubble>}
+          {pending !== null && streamText === '' && (
+            <div role="status">
+              <Bubble role="assistant">
+                <span className="text-muted-foreground">{copy.talk.waiting}</span>
+              </Bubble>
+            </div>
+          )}
+        </div>
+
+        {/* 失敗の言葉を先に出し、相談先は、そのあとに添える */}
+        {errorKind !== null && (
+          <TalkCard role="alert">
+            <p>{errorKind === 'refusal' ? copy.talk.refusal : errorKind === 'closed' ? copy.talk.closed : copy.talk.failure}</p>
+            {errorKind === 'closed' && (
+              <Button asChild variant="outline" className="mt-3 h-auto min-h-11 w-full py-2 whitespace-normal sm:w-auto">
+                <Link to="/talk">{copy.nav.backToTalk}</Link>
+              </Button>
+            )}
+          </TalkCard>
+        )}
+        {notice !== null && pending === null && (
+          <TalkCard>
+            {notice.kind === 'support' && <p>{notice.text}</p>}
+            <a
+              href={notice.linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold break-words text-primary underline underline-offset-4"
+            >
+              {notice.linkLabel}
+              <span className="text-muted-foreground">{copy.talk.newTab}</span>
+            </a>
+            {notice.kind === 'distress' && talking && notice.actions && (
+              <div className="mt-3 flex flex-col gap-2">
+                {notice.actions.map((action, index) => (
+                  <Button
+                    key={action}
+                    variant="outline"
+                    className="h-auto min-h-11 w-full justify-start py-2 text-left whitespace-normal"
+                    onClick={distressHandlers[index]}
+                    disabled={busy}
+                  >
+                    {action}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </TalkCard>
+        )}
+
+        {limitResetAt !== null && <DailyLimitNotice resetAt={limitResetAt} />}
+
+        {talking && choices.length > 0 && (
+          <ChoiceButtons choices={choices} onChoose={(choice) => void send(choice, 'choice')} onOther={focusInput} />
+        )}
+
+        {!talking && (
+          <>
+            <p className="leading-relaxed text-muted-foreground">{copy.talk.finished}</p>
+            {episode.insights && (
+              <div>
+                <Insights insights={episode.insights} />
+
+                {correcting ? (
+                  <form
+                    className="mt-4 flex flex-col gap-2 rounded-xl bg-surface px-4 py-4"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      void correct()
+                    }}
+                  >
+                    <label htmlFor="talk-correction" className="text-sm font-bold">
+                      {copy.insights.correctLabel}
+                    </label>
+                    <textarea
+                      id="talk-correction"
+                      value={correction}
+                      onChange={(event) => setCorrection(event.target.value)}
+                      placeholder={copy.insights.correctPlaceholder}
+                      maxLength={MAX_ANSWER_LENGTH}
+                      rows={3}
+                      className="w-full rounded-xl border-[1.5px] border-field-border bg-field px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring/30"
+                    />
+                    {correctionError !== null && (
+                      <p role="alert" className="text-sm leading-relaxed">
+                        {copy.insights.correctFailed}
+                      </p>
+                    )}
+                    {correctionError !== null && correctionNotice !== null && (
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {correctionNotice.text}{' '}
+                        <a
+                          href={correctionNotice.linkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-primary underline underline-offset-4"
+                        >
+                          {correctionNotice.linkLabel}
+                          <span className="text-muted-foreground">{copy.talk.newTab}</span>
+                        </a>
+                      </p>
+                    )}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <Button type="submit" disabled={busy || correction.trim() === ''} className="min-h-11 w-full sm:w-auto">
+                        {copy.insights.correctSend}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          setCorrecting(false)
+                          setCorrectionError(null)
+                        }}
+                        className="min-h-11 w-full sm:w-auto"
+                      >
+                        {copy.insights.correctCancel}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {episode.insights.canResume && (
+                      <Button onClick={resume} disabled={busy} className="h-auto min-h-11 w-full py-2 whitespace-normal sm:w-auto">
+                        {copy.insights.resume}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => setCorrecting(true)}
+                      disabled={busy}
+                      className="h-auto min-h-11 w-full py-2 whitespace-normal sm:w-auto"
+                    >
+                      {copy.insights.correct}
+                    </Button>
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <Button asChild variant="ghost" className="h-auto min-h-11 w-full py-2 whitespace-normal sm:w-auto">
+                    <Link to="/abilities">{copy.insights.seeAll}</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+            {/* つらい状態のサインに応えた直後は、先へ進む道を勧めない（Claude の判断） */}
+            {notice?.kind !== 'distress' && <NextStepLink refreshKey={episode?.insights} />}
+          </>
+        )}
+
+        {actionFailed && (
+          <p role="alert" className="leading-relaxed">
+            {copy.errors.generic}
+          </p>
+        )}
+        <div ref={bottomRef} />
+      </div>
+    </TalkLayout>
   )
 }
+
+/** 入力欄の上の「ここで区切る」と、飛ばすときの確かめのボタン。枠は区切りの線の色にする。 */
+const PILL =
+  'min-h-11 rounded-full border-[1.5px] border-border bg-surface px-3.5 text-sm font-bold text-foreground outline-none hover:bg-ground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
+/** 「この話は飛ばす」。目立たせない。 */
+const PILL_QUIET =
+  'min-h-11 rounded-full px-3.5 text-sm font-bold text-muted-foreground outline-none hover:bg-ground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
 
 function CorrectionBox({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl border px-4 py-2 text-sm leading-relaxed">
+      <div className="max-w-[85%] min-w-0 rounded-[18px] border border-border bg-surface px-3.5 py-2.5 leading-relaxed break-words">
         <p className="text-xs text-muted-foreground">{copy.talk.correctionLabel}</p>
         <p className="whitespace-pre-wrap">{text}</p>
       </div>
@@ -556,7 +550,7 @@ function CorrectionBox({ text }: { text: string }) {
 function BackToTalk() {
   return (
     <div className="mt-6">
-      <Button asChild variant="outline" className="w-full sm:w-auto">
+      <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
         <Link to="/talk">{copy.nav.backToTalk}</Link>
       </Button>
     </div>

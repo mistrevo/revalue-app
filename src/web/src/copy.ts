@@ -94,11 +94,14 @@ export const copy = {
     listener: '聞き手',
     waiting: '返事を書いています…',
     choicesLabel: '答えの例',
-    other: 'それ以外',
+    other: 'それ以外（自分で書く）',
     inputLabel: '答えを書く',
     inputPlaceholder: '思い出したことを、そのまま書いてください',
     send: '送る',
-    sending: '送っています…',
+    /** 書きかけがあるあいだ、入力欄の下に小さく出す（Claude の判断）。 */
+    draftKept: '書きかけは残っています。閉じても、続きから書けます',
+    /** 場面の始まりに出す日付の札（日本時間）。 */
+    dateChip: '{month}月{day}日（{weekday}）',
     finish: 'ここで区切る',
     skip: 'この話は飛ばす',
     // つらい状態のサインのあとにも出るので、「消えたい」と書いた人に「消して」を重ねない（Claude の判断）
@@ -118,6 +121,18 @@ export const copy = {
     anotherDay: '別の日のことを話す',
     /** 開いたときに場面を読めなかった・作れなかったとき（Claude の判断）。 */
     retry: 'もう一度',
+  },
+  /** トークの下のメニュー板（discover-12（開くとトークが出る））。 */
+  menu: {
+    label: 'メニュー',
+    open: 'メニューを開く',
+    close: 'メニューをたたむ',
+    episodes: '話したこと',
+    abilities: '見えた力',
+    profile: '5 つの記録',
+    options: '仕事の選択肢',
+    report: 'まとめ',
+    settings: '設定',
   },
   insights: {
     // 判定の結果のように見せない。AI の読み取りであることと、本人が直せることを先に伝える（Claude の判断）
@@ -404,7 +419,7 @@ export const copy = {
     // 試験や採点に見せない。答えを力の見立てに使わないことを先に伝える（06-deepen.md の「仮の場面の問い」）
     questionsLead: 'もしもの場面で、あなたならどうするかを聞かせてください。正解はありません。答えは考え方として残し、力の見立てには使いません。',
     choicesLabel: '答えの例',
-    other: 'それ以外',
+    other: 'それ以外（自分で書く）',
     answerLabel: '答えを書く',
     answerPlaceholder: '思ったことを、そのまま書いてください',
     answerSend: '答えを残す',

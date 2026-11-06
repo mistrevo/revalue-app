@@ -356,7 +356,7 @@ git commit -m "開いたらトークが出るようにし、ホームをなく�
     - 返事を待つあいだの `copy.talk.waiting` は、聞き手の側の吹き出しで出す
     - いまの話す画面の下の「ホームへ戻る」は消す（メニュー板と、Task 6 のボタンがその役をする）
 
-- [ ] **Step 1: 失敗するテストを書く**（`Talk.test.tsx` に足す。いまのテストは、見つけ方（role と名前）が変わる所だけ直し、確かめる中身は変えない）
+- [x] **Step 1: 失敗するテストを書く**（`Talk.test.tsx` に足す。いまのテストは、見つけ方（role と名前）が変わる所だけ直し、確かめる中身は変えない）
 
 ```ts
 it('discover-11（書きかけを残す）: 書いている途中で閉じても、開き直すと入力欄に戻り、残っていることを伝える')
@@ -377,10 +377,10 @@ it('discover-12（開くとトークが出る）: 入力欄に文字を打って
 //   メニューを開く → 入力欄をクリック → メニュー（nav）が見えない → 入力欄から離れる（Tab）→ 見える
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk MenuBoard` / Expected: 新しいテストが FAIL
-- [ ] **Step 3: 部品を書き、`Talk.tsx` を部品で組み直す。`TalkEntry` の `rest` も `TalkLayout` で出す。見た目はモック `talkopen.html`、`talkmid.html`、`menutalk.html` に合わせる（色は Tailwind の色名で。値を書き込まない）**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk MenuBoard` / Expected: 新しいテストが FAIL
+- [x] **Step 3: 部品を書き、`Talk.tsx` を部品で組み直す。`TalkEntry` の `rest` も `TalkLayout` で出す。見た目はモック `talkopen.html`、`talkmid.html`、`menutalk.html` に合わせる（色は Tailwind の色名で。値を書き込まない）**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web

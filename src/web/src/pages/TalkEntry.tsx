@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router'
 import { ApiError, createEpisode, getNextStep, listEpisodes } from '@/api'
 import { Page } from '@/components/Page'
+import { Bubble } from '@/components/talk/Bubble'
+import { TalkLayout } from '@/components/talk/TalkLayout'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { chooseTalkTarget } from '@/lib/talk-target'
@@ -14,6 +16,7 @@ type State = { kind: 'loading' } | { kind: 'go'; id: string } | { kind: 'rest' }
  * 途中の場面か、いちばん新しく話し終えた場面へ進む。場面がなければ一つだけ作る。ほかのタブで途中の場面ができていたら（409）、
  * 新しく作らずにその場面へ進む。つらい状態のサインに応えたところで終わったあとは、会話を出さず、
  * 聞き手の一言と、目立たせない「別の日のことを話す」だけを出す（discover-10（つらい状態のサインに応える））。
+ * 読んでいるあいだは、トークの形（上の帯とメニュー板）だけを先に出す。
  * 読めなかった・作れなかったときは、白い画面にせず、言葉と「もう一度」を出す。
  */
 export function TalkEntry() {
@@ -83,26 +86,33 @@ export function TalkEntry() {
     )
   }
   return (
-    <Page>
+    <TalkLayout>
       <p className="text-muted-foreground">{copy.loading}</p>
-    </Page>
+    </TalkLayout>
   )
 }
 
-/** つらい状態のサインに応えたところで終わったあと。会話は出さず、先へ進むことも勧めない。 */
+/**
+ * つらい状態のサインに応えたところで終わったあと。会話は出さず、先へ進むことも勧めない。
+ * 場面のないトークに、聞き手の側から一言と、目立たせない「別の日のことを話す」だけを置く。
+ */
 function Rest() {
   const { start, starting, failed } = useStartEpisode()
   return (
-    <Page>
-      <p className="leading-relaxed">{copy.talk.rest}</p>
-      <Button variant="ghost" size="lg" className="mt-4 h-11 w-full sm:w-auto" onClick={start} disabled={starting}>
-        {copy.talk.anotherDay}
-      </Button>
-      {failed && (
-        <p role="alert" className="mt-3 leading-relaxed">
-          {copy.errors.generic}
-        </p>
-      )}
-    </Page>
+    <TalkLayout>
+      <div className="flex flex-col gap-3">
+        <Bubble role="assistant">{copy.talk.rest}</Bubble>
+        <div>
+          <Button variant="ghost" size="lg" className="h-auto min-h-11 py-2 whitespace-normal text-muted-foreground" onClick={start} disabled={starting}>
+            {copy.talk.anotherDay}
+          </Button>
+        </div>
+        {failed && (
+          <p role="alert" className="leading-relaxed">
+            {copy.errors.generic}
+          </p>
+        )}
+      </div>
+    </TalkLayout>
   )
 }
