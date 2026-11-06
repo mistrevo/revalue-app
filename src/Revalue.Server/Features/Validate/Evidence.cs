@@ -87,6 +87,12 @@ public static class EvidenceChecker
                 continue;
             }
 
+            if (answers[c.Answer - 1] is { AnswerKind: AnswerKind.Choice } chosen && DiscoverText.OpeningChoices.Contains(chosen.Text))
+            {
+                // 最初の問いの気持ちの選択肢は、出来事の手がかりで、本人の行動ではない。結びつく言葉があっても根拠にしない（選んだ気持ちから力を決めない）
+                continue;
+            }
+
             if (answers[c.Answer - 1].AnswerKind == AnswerKind.Choice)
             {
                 // 選んだだけでは根拠にしない。結びつく自由な答えか訂正の言葉が、一字一句あるときだけ使う（validate-5）

@@ -638,14 +638,16 @@ public sealed class ClaudeConversationAiTests
         Assert.DoesNotContain("決めたこと", line);
     }
 
-    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 返事の指示は、最初の問いの答えの例を選んだだけの答えに、映し返しを書かず、その日にあったことを一つ聞くと書いている")]
+    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 返事の指示は、最初の問いの答えの例を選んだだけの答えに、映し返しを書かず、それがどんな出来事だったかを一つ聞くと書いている")]
     public void ListenerAsksWhatHappenedAfterOpeningChoice()
     {
         var line = MoveLine(PromptFiles.Read(PromptFiles.Listener), MoveKind.AskWhatYouDid);
 
         Assert.Contains("最初の問いの答えの例を選んだだけ", line);
         Assert.Contains("映し返しを書かず", line);
-        Assert.Contains("その日にどんなことがあったかを一つ聞く", line);
+        // 選択肢は「〜の日」ではなく「〜のこと」なので、まだ決まっていない日を前提にしない
+        Assert.Contains("どんな出来事だったかを一つ聞く", line);
+        Assert.DoesNotContain("その日にどんなことがあったか", line);
     }
 
     [Fact(DisplayName = "validate-3（結果で見立てを変えない）: 返事の指示は、どの一手でも、うまくいかなかった日を選んだ人にも話した人にも、うまくいかなかったわけを聞かないと書いている")]
@@ -676,6 +678,12 @@ public sealed class ClaudeConversationAiTests
         var line = rules.Split('\n').Single(l => l.Contains("腹が立った", StringComparison.Ordinal) && l.Contains("相手の人", StringComparison.Ordinal));
         Assert.Contains("どの一手でも", line);
         Assert.Contains("本人がしたこと", line);
+        // 相手を責めない、怒りの良し悪しを言わない、本人が悔やんでも良し悪しを言わない、答えの例に並べない、手がかりより先に守る
+        Assert.Contains("責め", line);
+        Assert.Contains("良し悪し", line);
+        Assert.Contains("悔や", line);
+        Assert.Contains("答えの例", line);
+        Assert.Contains("手がかりより先に守る", line);
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 返事の指示は、手がかりについてだけ一つ聞き、したことを前提にせず、答えの例で誘導しないと書いている")]

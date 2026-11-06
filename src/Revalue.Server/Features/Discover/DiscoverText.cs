@@ -19,8 +19,7 @@ public static class DiscoverText
     /// 前の話を覚えていないように見えるため（Claude の判断）。前に話した日を指さず、「別の日」も求めない。前の場面が一般論だけの人もいるため。
     /// いちばん新しい話し終えた場面がつらい状態のサインの場面なら、これではなく <see cref="OpeningAfterDistress"/> を使う。
     /// </summary>
-    public const string OpeningAnotherDay =
-        "また、ここ数日の中で、印象に残っている出来事はありますか？ 話しやすいものを一つ選んでください。特別な出来事でなくても大丈夫です。";
+    public const string OpeningAnotherDay = "また、" + Opening;
 
     /// <summary>
     /// 最初の問い（<see cref="Opening"/> と <see cref="OpeningAnotherDay"/>）の選択肢 9 つ。気持ちの種類で分け、特定の力の核となる行動に寄せない（誘導しない）。
@@ -36,10 +35,17 @@ public static class DiscoverText
         "困った・大変だったこと",
         "思いどおりにいかなかったこと",
         "迷った・悩んだこと",
-        "腹が立った・納得できなかったこと",
+        OpeningChoiceAnger,
         "気づいた・考えさせられたこと",
         "何気ない日常の出来事",
     ];
+
+    /// <summary>
+    /// 最初の問いの選択肢のうち、腹が立った出来事を選ぶもの。話が相手の人（家族など）のことに向かいやすいので、選んだ場面では
+    /// 足りない行動を聞き返さず（<see cref="ValidationContext.AngerOpening"/>）、飛ばしたあとも家族や家を前提にしない問いで始め直す
+    /// （<see cref="DiscoverEndpoints.ChooseAfterSkip"/>。Claude の判断）。
+    /// </summary>
+    public const string OpeningChoiceAnger = "腹が立った・納得できなかったこと";
 
     /// <summary>
     /// いちばん新しい話し終えた場面が、つらい状態のサインで力の確かめに使わない場面だった人の、新しい場面の最初の問い（discover-1）。

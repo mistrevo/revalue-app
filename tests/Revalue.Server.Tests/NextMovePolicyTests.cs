@@ -559,4 +559,51 @@ public sealed class NextMovePolicyTests
         ];
         Assert.Equal(TestAbilities.BalancingInterests, ValidationContext.From(resumed, []).Focus);
     }
+
+    /// <summary>最初の問いに <paramref name="first"/> と答え、続けて出来事を自由に書いたやりとり。</summary>
+    private static IReadOnlyList<Turn> OpenedWith(string first, AnswerKind kind = AnswerKind.Choice) =>
+    [
+        new() { Role = TurnRoles.Assistant, Text = DiscoverText.Opening, Choices = DiscoverText.OpeningChoices, Move = "opening", At = At },
+        new() { Role = TurnRoles.User, Text = first, AnswerKind = kind, At = At },
+        new() { Role = TurnRoles.Assistant, Text = "q2", Move = "askWhatYouDid", At = At },
+        new() { Role = TurnRoles.User, Text = "a2", AnswerKind = AnswerKind.Free, At = At },
+    ];
+
+    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 最初の問いで「腹が立った・納得できなかったこと」を選んだ場面では、足りない行動を聞き返さない")]
+    public void AngerOpeningDoesNotAskMissingAction()
+    {
+        // 足りない行動の手がかりには、相手の人の事情や気持ちを聞くものがある。腹が立った相手のことを聞くと、相手を理解すべきだったと諭すように聞こえる
+        IReadOnlyList<Evidence> evidence = [E(TestAbilities.BalancingInterests, 2, answer: 2)];
+        var angry = ValidationContext.From(OpenedWith(DiscoverText.OpeningChoiceAnger), evidence);
+
+        Assert.True(angry.AngerOpening);
+        Assert.Equal(new NextMove(MoveKind.AskWhatYouDid), NextMovePolicy.Decide(Concrete, 2, angry));
+
+        // ほかの気持ちを選んだ場面では、いつもどおり聞き返す。同じ言葉を自分で書いた答えでは働かない
+        var other = ValidationContext.From(OpenedWith(DiscoverText.OpeningChoices[0]), evidence);
+        Assert.False(other.AngerOpening);
+        Assert.Equal(MoveKind.AskMissingAction, NextMovePolicy.Decide(Concrete, 2, other).Kind);
+        Assert.False(ValidationContext.From(OpenedWith(DiscoverText.OpeningChoiceAnger, AnswerKind.Free), evidence).AngerOpening);
+    }
+
+    [Fact(DisplayName = "validate-11（要確認の場面に戻れる）: 最初の問いで「腹が立った・納得できなかったこと」を選んだ場面の続きでは、手がかりを添えずに聞く")]
+    public void AngerOpeningResumesWithoutTarget()
+    {
+        IReadOnlyList<Evidence> evidence =
+        [
+            new(TestAbilities.BalancingInterests, 1, "母と夫の都合をそれぞれ聞いた", 2, 1, false, false, null),
+            new(TestAbilities.BalancingInterests, 2, "どちらも困らない時間を考えた", 2, 1, false, false, null),
+        ];
+        EpisodeItem Finished(string first) =>
+            EpisodeItem.Start("u", At, DiscoverText.Opening, DiscoverText.OpeningChoices, "opening") with
+            {
+                Status = EpisodeStatus.Finished,
+                Turns = OpenedWith(first),
+                Evidence = evidence,
+            };
+
+        // ほかの気持ちを選んだ場面では、足りない行動を手がかりにして聞く（この確かめが成り立つことを先に見る）
+        Assert.NotNull(EpisodeInsights.ResumeTarget(Finished(DiscoverText.OpeningChoices[0])));
+        Assert.Null(EpisodeInsights.ResumeTarget(Finished(DiscoverText.OpeningChoiceAnger)));
+    }
 }

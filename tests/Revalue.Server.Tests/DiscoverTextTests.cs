@@ -79,9 +79,8 @@ public sealed class DiscoverTextTests
     [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 2 つ目からの問いは「また」で始まり、選択肢は最初の問いと同じ")]
     public void AnotherDayStartsWithMata()
     {
-        Assert.Equal(
-            "また、ここ数日の中で、印象に残っている出来事はありますか？ 話しやすいものを一つ選んでください。特別な出来事でなくても大丈夫です。",
-            DiscoverText.OpeningAnotherDay);
+        // 最初の問いに「また、」を添えただけにする（PRD の 4-rules.md の「別の日の入口」）
+        Assert.Equal("また、" + DiscoverText.Opening, DiscoverText.OpeningAnotherDay);
         Assert.StartsWith("また、", DiscoverText.OpeningAnotherDay, StringComparison.Ordinal);
         Assert.NotEqual(DiscoverText.Opening, DiscoverText.OpeningAnotherDay);
     }
@@ -171,6 +170,26 @@ public sealed class DiscoverTextTests
             .. DiscoverText.AfterSkipChoices,
         ];
         Assert.All(texts, text => Assert.DoesNotContain(heavy, text, StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName = "discover-5（つらい話は飛ばせる）: 最初に「腹が立った・納得できなかったこと」を選んだ場面を飛ばしたあとは、家族や家を前提にしない問いで始め直す")]
+    public void AfterSkippingAngerDoesNotAssumeFamily()
+    {
+        // 腹が立った相手が家族のこともある。飛ばしたあとに「ごはんの前後」「家族とゆっくり過ごした」を出すと、重い場面へ戻すことになる
+        EpisodeItem Skipped(string first, AnswerKind kind = AnswerKind.Choice) =>
+            EpisodeItem.Start("u", DateTimeOffset.UnixEpoch, DiscoverText.Opening, DiscoverText.OpeningChoices, "opening") with
+            {
+                Turns =
+                [
+                    new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.Opening, Choices = DiscoverText.OpeningChoices, Move = "opening", At = DateTimeOffset.UnixEpoch },
+                    new Turn { Role = TurnRoles.User, Text = first, AnswerKind = kind, At = DateTimeOffset.UnixEpoch },
+                ],
+            };
+
+        Assert.Equal(
+            (DiscoverText.OpeningAfterDistress, DiscoverText.OpeningAfterDistressChoices),
+            DiscoverEndpoints.ChooseAfterSkip(Skipped(DiscoverText.OpeningChoiceAnger)));
+        Assert.Equal((DiscoverText.AfterSkip, DiscoverText.AfterSkipChoices), DiscoverEndpoints.ChooseAfterSkip(Skipped(DiscoverText.OpeningChoices[0])));
     }
 
     [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: サインのあとの続け方に「消す」を使わない")]

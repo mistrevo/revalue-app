@@ -134,7 +134,14 @@ public static class EpisodeInsights
     /// </summary>
     public static ActionRef? ResumeTarget(EpisodeItem episode)
     {
-        var asked = ValidationContext.From(episode.Turns, episode.Evidence).AskedCounts;
+        var context = ValidationContext.From(episode.Turns, episode.Evidence);
+        if (context.AngerOpening)
+        {
+            // 腹が立った出来事では、足りない行動の手がかりを添えずに聞く（ValidationContext.AngerOpening）
+            return null;
+        }
+
+        var asked = context.AskedCounts;
         var unanswered = ActionRef.Parse(UnansweredQuestion(episode)?.Target);
         return Showcase(episode).MoreToHear
             .Where(r => !IsGeneralOnly(r))
