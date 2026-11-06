@@ -31,7 +31,7 @@ export function Start() {
   }, [location.pathname, location.state, navigate])
 
   if (me.consented) {
-    return <Navigate to="/home" replace />
+    return <Navigate to="/talk" replace />
   }
 
   async function agree() {
@@ -39,7 +39,7 @@ export function Start() {
     setFailed(false)
     try {
       await postConsent(me.currentVersion)
-      navigate('/home')
+      navigate('/talk')
     } catch {
       setFailed(true)
       setSending(false)

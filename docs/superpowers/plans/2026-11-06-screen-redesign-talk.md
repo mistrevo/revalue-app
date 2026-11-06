@@ -279,7 +279,7 @@ git commit -m "書きかけを、場面ごとにその端末のブラウザへ�
   - 設定: 「全部消す」が済んだときと、ログアウトのリンクを押したとき（ページを離れる前の `onClick`）に `clearAllDrafts()` を呼ぶ
   - `copy.home` のうち、次にできることの言葉（`copy.home.next`）は `NextStepLink` と Task 6 が使うので残す。ホームの画面だけで使っていた言葉（あいさつ、ほかの画面の見出し、各画面へのリンクの言葉、`titles.home`）は消す
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 // talk-target.test.ts（純粋な関数）
@@ -323,10 +323,10 @@ it('foundation-3（いつでも全部消せる）: 全部消すと、その端�
 
 ほかの画面のテストで、「ホームへ戻る」のリンクを `href="/home"` で確かめているものは、「トークに戻る」と `/talk` に直す（common-4 の題を変えるので、テスト名も「common-4（どの画面からもトークへ戻れ、幅に収まる）」にそろえる）。
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test` / Expected: 新しいテストが FAIL（`/talk` のルートがない、行き先が `/home`）
-- [ ] **Step 3: 上の Interfaces のとおりに書く。`Home.tsx` と `Home.test.tsx` を消す**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**（Spec は Task 7 で直す。PR は Spec とそろえてから main に入れる）
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test` / Expected: 新しいテストが FAIL（`/talk` のルートがない、行き先が `/home`）
+- [x] **Step 3: 上の Interfaces のとおりに書く。`Home.tsx` と `Home.test.tsx` を消す**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**（Spec は Task 7 で直す。PR は Spec とそろえてから main に入れる）
 
 ```bash
 git add -A src/web

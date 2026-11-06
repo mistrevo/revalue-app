@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOGOUT_URL } from '@/api'
 import { copy } from '@/copy'
-import { installFakeApi } from '@/test/fake-api'
+import { FAKE_OPENING, installFakeApi } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
@@ -27,9 +27,14 @@ describe('Start', () => {
 
     await userEvent.click(screen.getByRole('button', { name: copy.start.agree }))
 
-    expect(await screen.findByText(copy.home.greeting)).toBeInTheDocument()
+    // 了解したら、話す画面の最初の問いへ進む
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
     const posts = api.calls.filter((call) => call.method === 'POST')
-    expect(posts).toEqual([{ method: 'POST', url: '/api/consent', body: { version: api.currentVersion } }])
+    // 了解を記録してから、最初の場面を一つだけ作る
+    expect(posts).toEqual([
+      { method: 'POST', url: '/api/consent', body: { version: api.currentVersion } },
+      { method: 'POST', url: '/api/episodes', body: undefined },
+    ])
   })
 
   it('foundation-2（始める前に保存するものを示す）: まだ見たことのない製品の言葉には、普通の言葉を添える', async () => {
@@ -51,19 +56,19 @@ describe('Start', () => {
     expect(screen.queryByText(copy.settings.deleted)).not.toBeInTheDocument()
   })
 
-  it('foundation-2（始める前に保存するものを示す）: 了解していない人がホームを開くと、はじめにへ進む', async () => {
+  it('foundation-2（始める前に保存するものを示す）: 了解していない人が話す画面を開くと、はじめにへ進む', async () => {
     installFakeApi({ loggedIn: true, consented: false })
-    renderApp('/home')
+    renderApp('/talk')
 
     expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
-    expect(screen.queryByText(copy.home.greeting)).not.toBeInTheDocument()
+    expect(screen.queryByText(FAKE_OPENING)).not.toBeInTheDocument()
   })
 
-  it('foundation-2（始める前に保存するものを示す）: 了解済みの人がはじめにを開くと、ホームへ進む', async () => {
+  it('foundation-2（始める前に保存するものを示す）: 了解済みの人がはじめにを開くと、話す画面へ進む', async () => {
     installFakeApi({ loggedIn: true, consented: true })
     renderApp('/start')
 
-    expect(await screen.findByText(copy.home.greeting)).toBeInTheDocument()
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
   })
 
   it('foundation-2（始める前に保存するものを示す）: 了解の記録に失敗したら穏やかに伝え、先へ進まない', async () => {
@@ -75,7 +80,7 @@ describe('Start', () => {
     await userEvent.click(screen.getByRole('button', { name: copy.start.agree }))
 
     expect(await screen.findByText(copy.errors.generic)).toBeInTheDocument()
-    expect(screen.queryByText(copy.home.greeting)).not.toBeInTheDocument()
+    expect(screen.queryByText(FAKE_OPENING)).not.toBeInTheDocument()
   })
 
   it('foundation-2（始める前に保存するものを示す）: 了解せずにやめる道（ログアウト）があり、組み込み認証へページごと移動する', async () => {

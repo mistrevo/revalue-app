@@ -57,7 +57,7 @@ function flatten(value: unknown): string[] {
 }
 
 describe('Report', () => {
-  it('report-5（保留しても開ける）: 話し終えた場面がなければ、ホームへの道だけを出す', async () => {
+  it('report-5（保留しても開ける）: 話し終えた場面がなければ、トークへの道だけを出す', async () => {
     installFakeApi({ loggedIn: true, consented: true })
     renderApp('/report')
 
@@ -65,9 +65,9 @@ describe('Report', () => {
     const links = within(text.parentElement!).getAllByRole('link')
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveTextContent(copy.report.toTalk)
-    expect(links[0]).toHaveAttribute('href', '/home')
+    expect(links[0]).toHaveAttribute('href', '/talk')
     expect(screen.queryAllByRole('region')).toHaveLength(0)
-    expect(screen.queryByRole('link', { name: copy.report.backHome })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: copy.nav.backToTalk })).not.toBeInTheDocument()
   })
 
   it('report-1（一つにまとめて示す）: 6 つの欄を決めた順に並べ、根拠の言葉と（選んだ答え）を出し、状態の呼び名を出さない', async () => {
@@ -570,13 +570,13 @@ describe('Report', () => {
     expect(abilities).not.toHaveTextContent(copy.report.noAbilities)
   })
 
-  it('report-1（一つにまとめて示す）: 読み込めなかったときも、ホームへの道を出す', async () => {
+  it('report-1（一つにまとめて示す）: 読み込めなかったときも、トークに戻る道を出す', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true })
     api.state.reportFails = true
     renderApp('/report')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(copy.errors.generic)
-    expect(screen.getByRole('link', { name: copy.report.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('report-2（直す、保留する、次の一歩を選ぶ）: 考え方の欄の道は、画面の名前どおり「選んだ案を深める画面で直す」と書く', async () => {

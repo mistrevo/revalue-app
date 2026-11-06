@@ -78,7 +78,7 @@ export function Abilities() {
 
       <div className="mt-6">
         <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/home">{copy.abilities.backHome}</Link>
+          <Link to="/talk">{copy.nav.backToTalk}</Link>
         </Button>
       </div>
     </Page>

@@ -143,13 +143,12 @@ describe('Talk', () => {
     expect(screen.queryByText(copy.errors.generic)).not.toBeInTheDocument()
   })
 
-  it('discover-6（一場面ずつ区切り、続きから話せる）: 区切るとホームへ移らず、話し終えた状態になる', async () => {
+  it('discover-6（一場面ずつ区切り、続きから話せる）: 区切るとほかの画面へ移らず、話し終えた状態になる', async () => {
     const api = setup()
 
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
 
     expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
-    expect(screen.queryByText(copy.home.greeting)).not.toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(api.calls.filter((c) => c.url === '/api/episodes/episode-1/finish')).toHaveLength(1)
     expect(api.state.episodes[0].status).toBe('finished')
@@ -164,7 +163,7 @@ describe('Talk', () => {
     expect(await screen.findByText('たくさん聞かせてくれてありがとうございました。')).toBeInTheDocument()
     expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-8（話した出来事が残る）: 話し終えた場面は読み返せるが、入力欄も選択肢もない', async () => {
@@ -185,7 +184,7 @@ describe('Talk', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.other })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.skip })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-8（話した出来事が残る）: ない場面やほかの人の場面は、見つからないと穏やかに伝える', async () => {
@@ -193,7 +192,7 @@ describe('Talk', () => {
     renderApp('/talk/episode-x')
 
     expect(await screen.findByText(copy.talk.notFound)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-10（つらい状態のサインに応える）: 窓口のリンクと 3 つの行動が出る', async () => {
@@ -343,7 +342,7 @@ describe('Talk', () => {
     ])
   })
 
-  it('discover-7（返答が少しずつ流れる）: ほかの画面で閉じられた場面に送ったら、送り直しを促さず、ホームへの道を出す', async () => {
+  it('discover-7（返答が少しずつ流れる）: ほかの画面で閉じられた場面に送ったら、送り直しを促さず、トークに戻る道を出す', async () => {
     const api = setup()
     await screen.findByRole('textbox', { name: copy.talk.inputLabel })
     // 開いたあとに、ほかの画面で飛ばされ、この場面はもうない
@@ -353,7 +352,7 @@ describe('Talk', () => {
 
     expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
     expect(screen.queryByText(copy.talk.failure)).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-7（返答が少しずつ流れる）: 返事を流しているあいだに閉じられたと知らされたら、送り直しを促さない', async () => {
@@ -363,7 +362,7 @@ describe('Talk', () => {
     await typeAndSend('昨日は公園に行った')
 
     expect(await screen.findByText(copy.talk.closed)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('discover-10（つらい状態のサインに応える）: 失敗の言葉を先に出し、相談先はそのあとに添える', async () => {
@@ -420,7 +419,7 @@ describe('Talk', () => {
       insights,
     })
 
-  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切るとホームへ移らず、見えた力と根拠、もう少し聞かせてほしいことが出る', async () => {
+  it('validate-7（見えた力と、もう少し聞きたいことを示す）: 区切るとほかの画面へ移らず、見えた力と根拠、もう少し聞かせてほしいことが出る', async () => {
     setup()
 
     await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
@@ -437,7 +436,7 @@ describe('Talk', () => {
 
 
     expect(screen.getByRole('link', { name: copy.insights.seeAll })).toHaveAttribute('href', '/abilities')
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
   it('validate-7（見えた力と、もう少し聞きたいことを示す）: 締めの返事のあとも、見えたことが出る', async () => {
@@ -726,19 +725,20 @@ describe('Talk', () => {
     const next = await screen.findByRole('region', { name: copy.home.next.title })
     expect(within(next).getByRole('link', { name: copy.home.next.conditions })).toHaveAttribute('href', '/profile?ask=conditions')
     expect(within(next).getAllByRole('link')).toHaveLength(1)
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
   })
 
-  it('discover-6（一場面ずつ区切り、続きから話せる）: 話している途中の画面にもホームへの道がある。話は残る', async () => {
+  it('discover-6（一場面ずつ区切り、続きから話せる）: 話している途中の画面にもトークに戻る道がある。戻ると、話していた場面の続きが出る', async () => {
     const api = setup()
 
-    const back = await screen.findByRole('link', { name: copy.talk.backHome })
-    expect(back).toHaveAttribute('href', '/home')
+    const back = await screen.findByRole('link', { name: copy.nav.backToTalk })
+    expect(back).toHaveAttribute('href', '/talk')
     await userEvent.click(back)
 
-    expect(await screen.findByRole('region', { name: copy.home.next.title })).toBeInTheDocument()
+    await waitFor(() => expect(api.calls.filter((c) => c.url === '/api/episodes' && c.method === 'GET')).toHaveLength(1))
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
     expect(api.state.episodes[0].status).toBe('talking')
-    expect(await screen.findByRole('link', { name: copy.home.next.continue })).toHaveAttribute('href', '/talk/episode-1')
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(0)
   })
 
   it('discover-10（つらい状態のサインに応える）: 相談窓口を出しているあいだは、下の「ここで区切る」「この話は飛ばす」を出さず、窓口の 3 つの続け方で同じことができる（discover-5（つらい話は飛ばせる））', async () => {
@@ -753,9 +753,9 @@ describe('Talk', () => {
     }
     expect(screen.queryByRole('button', { name: copy.talk.finish })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.skip })).not.toBeInTheDocument()
-    // 書く欄とホームへの道は残る
+    // 書く欄とトークに戻る道は残る
     expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: copy.talk.backHome })).toHaveAttribute('href', '/home')
+    expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
 
     // 窓口の「この話は残さずに、別の話にする」で、画面の中の確かめが出る
     await userEvent.click(screen.getByRole('button', { name: FAKE_DISTRESS_ACTIONS[2] }))

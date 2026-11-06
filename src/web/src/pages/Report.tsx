@@ -123,7 +123,7 @@ export function Report() {
         <div className="mt-6 flex flex-col gap-3 rounded-xl border px-4 py-4">
           <p className="text-sm leading-relaxed">{copy.report.notReady}</p>
           <Button asChild className={LINK_BUTTON}>
-            <Link to="/home">{copy.report.toTalk}</Link>
+            <Link to="/talk">{copy.report.toTalk}</Link>
           </Button>
         </div>
       )}
@@ -165,7 +165,7 @@ export function Report() {
       {(data?.ready || state.kind === 'error') && (
         <div className="mt-6">
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link to="/home">{copy.report.backHome}</Link>
+            <Link to="/talk">{copy.nav.backToTalk}</Link>
           </Button>
         </div>
       )}

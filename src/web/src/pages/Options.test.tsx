@@ -7,7 +7,7 @@ import forbiddenWords from '../../../shared/forbidden-words.json'
 import { AppRoutes } from '@/App'
 import type { Options } from '@/api'
 import { copy } from '@/copy'
-import { FAKE_OPENING, FAKE_SOURCE, fakeEpisode, fakeOptionCards, fakeOptions, installFakeApi, type FakeCall } from '@/test/fake-api'
+import { FAKE_SOURCE, fakeEpisode, fakeOptionCards, fakeOptions, installFakeApi, type FakeCall } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
@@ -123,17 +123,25 @@ describe('Options', () => {
 
     const choose = await screen.findByRole('region', { name: LABELS[0] })
     expect(choose).toHaveTextContent(copy.options.missing.noAbilityMatch)
-    expect(within(choose).getByRole('link', { name: copy.options.toTalk })).toHaveAttribute('href', '/home')
+    expect(within(choose).getByRole('link', { name: copy.options.toTalk })).toHaveAttribute('href', '/talk')
     expect(within(choose).queryByRole('link', { name: copy.options.toConditions })).not.toBeInTheDocument()
   })
 
-  it('common-3（次にできることを一つ示す）、discover-1（具体的な一日を一つ聞く）: 話した力を生かせないカードの「ホームから話す」から、ホームの「話す」で新しい場面を始められる（仕事の選択肢へ戻るだけの輪にしない）', async () => {
+  it('common-3（次にできることを一つ示す）、discover-12（開くとトークが出る）: 話した力を生かせないカードの「トークで話す」から、トークへ進む', async () => {
     const api = installFakeApi({
       loggedIn: true,
       consented: true,
-      episodes: [fakeEpisode({ status: 'finished', finishedAt: '2026-11-03T01:30:00Z' })],
+      episodes: [
+        fakeEpisode({
+          status: 'finished',
+          finishedAt: '2026-11-03T01:30:00Z',
+          turns: [
+            ...fakeEpisode().turns,
+            { role: 'user', text: '朝から家事でばたばたした', answerKind: 'free', at: '2026-11-03T01:01:00Z' },
+          ],
+        }),
+      ],
       options: withCards({ cards: fakeOptionCards({ choose: null, missing: [{ kind: 'choose', reason: 'noAbilityMatch' }] }) }),
-      // まだ選んでいないので、ホームの次にできることは仕事の選択肢
       nextStep: { step: 'options', episodeId: null },
     })
     renderApp('/options')
@@ -141,11 +149,9 @@ describe('Options', () => {
     const choose = await screen.findByRole('region', { name: LABELS[0] })
     await userEvent.click(within(choose).getByRole('link', { name: copy.options.toTalk }))
 
-    const others = await screen.findByRole('navigation', { name: copy.home.othersTitle })
-    await userEvent.click(await within(others).findByRole('button', { name: copy.home.talk }))
-
-    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
-    expect(api.calls.filter((c) => c.method === 'POST' && c.url === '/api/episodes')).toHaveLength(1)
+    // いちばん新しく話し終えた場面のトークが出る
+    expect(await screen.findByText('朝から家事でばたばたした')).toBeInTheDocument()
+    expect(api.calls.some((c) => c.url === '/api/episodes/episode-1')).toBe(true)
   })
 
   it('options-1（3 枚を同じ重さで示す）: 照らし合わせに通らなかったカードには、同じ記録のまま作り直す道を置かない', async () => {
@@ -526,8 +532,8 @@ describe('Options', () => {
   it('options-7（1 場面で進める）: 足りないものに合わせて、一つだけ道を出す', async () => {
     const cases = [
       { readiness: 'needsConditions', text: copy.options.needsConditions, link: copy.options.toProfile, href: '/profile?ask=conditions' },
-      { readiness: 'needsFinishedEpisode', text: copy.options.needsFinishedEpisode, link: copy.options.toTalk, href: '/home' },
-      { readiness: 'needsAbility', text: copy.options.needsAbility, link: copy.options.toTalk, href: '/home' },
+      { readiness: 'needsFinishedEpisode', text: copy.options.needsFinishedEpisode, link: copy.options.toTalk, href: '/talk' },
+      { readiness: 'needsAbility', text: copy.options.needsAbility, link: copy.options.toTalk, href: '/talk' },
       // 見えた力をすべて外したときは、話が足りないとは言わず、外した見立てを戻せる見えた力の画面への道を出す
       { readiness: 'onlyExcluded', text: copy.options.onlyExcluded, link: copy.options.toAbilities, href: '/abilities' },
     ] as const
@@ -536,8 +542,8 @@ describe('Options', () => {
       const { unmount } = renderApp('/options')
 
       expect(await screen.findByText(c.text)).toBeInTheDocument()
-      // 画面の頭の名前とホームへ戻る道のほかに、出す道は一つだけ
-      const others = screen.getAllByRole('link').filter((l) => l.textContent !== copy.nav.appName && l.textContent !== copy.options.backHome)
+      // 画面の頭の名前とトークに戻る道のほかに、出す道は一つだけ
+      const others = screen.getAllByRole('link').filter((l) => l.textContent !== copy.nav.appName && l.textContent !== copy.nav.backToTalk)
       expect(others).toEqual([
         screen.getByRole('link', { name: c.link }),
       ])

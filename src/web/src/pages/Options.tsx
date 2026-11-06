@@ -286,7 +286,7 @@ export function Options() {
 
       <div className="mt-6">
         <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/home">{copy.options.backHome}</Link>
+          <Link to="/talk">{copy.nav.backToTalk}</Link>
         </Button>
       </div>
     </Page>
@@ -322,10 +322,10 @@ function NotReady({ readiness }: { readiness: OptionsData['readiness'] }) {
     readiness === 'needsConditions'
       ? { text: copy.options.needsConditions, to: '/profile?ask=conditions', link: copy.options.toProfile }
       : readiness === 'needsFinishedEpisode'
-        ? { text: copy.options.needsFinishedEpisode, to: '/home', link: copy.options.toTalk }
+        ? { text: copy.options.needsFinishedEpisode, to: '/talk', link: copy.options.toTalk }
         : readiness === 'onlyExcluded'
           ? { text: copy.options.onlyExcluded, to: '/abilities', link: copy.options.toAbilities }
-          : { text: copy.options.needsAbility, to: '/home', link: copy.options.toTalk }
+          : { text: copy.options.needsAbility, to: '/talk', link: copy.options.toTalk }
   return (
     <div className="flex flex-col gap-3 rounded-xl border px-4 py-4">
       <p className="text-sm leading-relaxed">{text}</p>
@@ -496,7 +496,7 @@ function Missing({ kind, reason }: { kind: CardKind; reason: MissingReason }) {
       )}
       {reason === 'noAbilityMatch' && (
         <Button asChild variant="outline" className="w-full sm:w-auto sm:self-start">
-          <Link to="/home">{copy.options.toTalk}</Link>
+          <Link to="/talk">{copy.options.toTalk}</Link>
         </Button>
       )}
     </div>

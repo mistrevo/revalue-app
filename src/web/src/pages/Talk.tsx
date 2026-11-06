@@ -91,7 +91,7 @@ function TalkScreen({ id }: { id: string }) {
         <p role="alert" className="text-sm leading-relaxed">
           {load.kind === 'notFound' ? copy.talk.notFound : copy.errors.generic}
         </p>
-        <BackHome />
+        <BackToTalk />
       </Page>
     )
   }
@@ -186,7 +186,7 @@ function TalkScreen({ id }: { id: string }) {
     setBusy(true)
     setActionFailed(false)
     try {
-      // 区切ったあとは、ホームへ戻らず、この画面で見えたことを出す
+      // 区切ったあとは、ほかの画面へ移らず、この画面で見えたことを出す
       const finished = await finishEpisode(id)
       setEpisode(finished)
       setNotice(finished.notice ?? null)
@@ -416,8 +416,8 @@ function TalkScreen({ id }: { id: string }) {
             </div>
           )}
 
-          {/* 話している途中でも、ホームへ戻れる。話は残り、ホームの次にできることは「続きを話す」になる */}
-          <BackHome />
+          {/* 話している途中でも、トークに戻れる。話は残り、開くとこの場面の続きが出る */}
+          <BackToTalk />
         </>
       ) : (
         <>
@@ -510,7 +510,7 @@ function TalkScreen({ id }: { id: string }) {
           )}
           {/* つらい状態のサインに応えた直後は、先へ進む道を勧めない（Claude の判断） */}
           {notice?.kind !== 'distress' && <NextStepLink refreshKey={episode?.insights} />}
-          <BackHome />
+          <BackToTalk />
         </>
       )}
 
@@ -553,11 +553,11 @@ function CorrectionBox({ text }: { text: string }) {
   )
 }
 
-function BackHome() {
+function BackToTalk() {
   return (
     <div className="mt-6">
       <Button asChild variant="outline" className="w-full sm:w-auto">
-        <Link to="/home">{copy.talk.backHome}</Link>
+        <Link to="/talk">{copy.nav.backToTalk}</Link>
       </Button>
     </div>
   )
