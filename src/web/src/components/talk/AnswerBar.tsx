@@ -11,7 +11,9 @@ const MAX_INPUT_HEIGHT = 160
 /**
  * 入力の帯。入力欄（1 行から、書くと広がる）と丸い「送る」ボタン。actions（「ここで区切る」「この話は飛ばす」、
  * または飛ばすときの確かめ）は入力欄のすぐ上に置く。書きかけがあるあいだは、残っていることを下に小さく出す
- * （discover-11（書きかけを残す））。
+ * （discover-11（書きかけを残す））。返事を待つあいだ（sending）は、入力欄を読むだけにする。送った答えの書きかけを
+ * 送れたときに消し、送れなかったときに入力欄へ戻すので、待つあいだに書いた文があると、知らせずに消したり入れ替えたりしてしまうため
+ * （Claude の判断）。フォーカスとキーボードは外さない。
  */
 export function AnswerBar({
   value,
@@ -70,6 +72,7 @@ export function AnswerBar({
           placeholder={copy.talk.inputPlaceholder}
           maxLength={MAX_ANSWER_LENGTH}
           rows={1}
+          readOnly={sending}
           disabled={disabled}
           className="min-h-12 min-w-0 flex-1 resize-none rounded-[22px] border-[1.5px] border-field-border bg-field px-4 py-3 text-base leading-normal text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring/30"
         />

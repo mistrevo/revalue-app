@@ -515,6 +515,8 @@ export function installFakeApi(initial: {
       | { status: number; body: unknown },
     /** true なら、答えを送ったときの流れをテストが streams から少しずつ送る。 */
     manualStream: false,
+    /** 入れると、答えを送ったときの応答をこの約束が済むまで待たせる（返事を待つあいだの画面を見るため）。 */
+    replyGate: null as Promise<void> | null,
     /**
      * 飛ばしたときに、ほかの画面で始まっていた場面の id。入れると、飛ばした場面を消したうえで、
      * 新しい場面を作らずに 409（その場面の id 付き）を返す。
@@ -578,6 +580,8 @@ export function installFakeApi(initial: {
     userTurnCount: e.turns.filter((t) => t.role === 'user').length,
     preview: e.turns.find((t) => t.role === 'user')?.text.slice(0, 30) ?? '',
     canResume: e.status === 'finished' && (e.insights?.canResume ?? false),
+    // 裏側は場面に付けた印を返す。偽物では、つらい状態のサインに応えたターンがあるかで代わりにする
+    excludedFromValidation: e.turns.some((t) => t.role === 'assistant' && t.move === 'distress'),
   })
 
   const sseResponse = (events: FakeEvent[]) =>
@@ -949,6 +953,7 @@ export function installFakeApi(initial: {
         return json(201, next)
       }
       if (action === 'messages' && method === 'POST') {
+        if (state.replyGate) await state.replyGate
         if (!Array.isArray(state.reply)) return json(state.reply.status, state.reply.body)
         if (state.manualStream) return manualResponse()
         recordRound(episode, body as { text: string; kind: 'free' | 'choice' }, state.reply)

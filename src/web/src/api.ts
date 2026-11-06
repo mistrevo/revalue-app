@@ -218,6 +218,8 @@ export type EpisodeSummary = {
   preview: string
   /** 続きを話せる場面か（話し終えていて、もう少し聞かせてほしいことがある）。 */
   canResume: boolean
+  /** つらい状態のサインで、力の確かめに使わない印が付いた場面か。開いたときに、その会話を最初に出さないために使う。 */
+  excludedFromValidation: boolean
 }
 
 export type TalkDone = { userTurnCount: number; status: EpisodeStatus; move: string }

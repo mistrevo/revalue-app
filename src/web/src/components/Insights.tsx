@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import type { EpisodeInsights, Quote } from '@/api'
-import { Star } from 'lucide-react'
+import { MessageCircle, Sprout, type LucideIcon } from 'lucide-react'
 import { copy } from '@/copy'
 
 /**
@@ -8,7 +8,9 @@ import { copy } from '@/copy'
  * 先頭に、AI の読み取りであることと、本人が直せることを添える。
  * 見えた力、もう少し聞かせてほしいことの順に出し、最後に代わりの一文を添える（「まだ聞けていない力」の名前は並べない）。中身のない見出しは出さない。
  * 見えた力は、核となる行動の文と本人の言葉を組にして出す。もう少し聞かせてほしいことは、組にせず本人の言葉と手がかりだけにする。
- * 状態の呼び名やチェック表、点数は出さない。children（読み取りを直す、続きを話す、まとめて見る）は、カードの中の最後に置く。
+ * 状態の呼び名やチェック表、点数は出さない。星のような評価や格付けを思わせる印も付けず、力の名前は本人の言葉より目立たせない
+ * （本人の言葉を根拠にした読み取りで、判定の結果ではないため。Claude の判断）。
+ * children（読み取りを直す、続きを話す、まとめて見る）は、カードの中の最後に置く。
  */
 export function Insights({ insights, children }: { insights: EpisodeInsights; children?: ReactNode }) {
   return (
@@ -18,10 +20,10 @@ export function Insights({ insights, children }: { insights: EpisodeInsights; ch
     >
       <p className="text-sm leading-relaxed text-muted-foreground">{copy.insights.lead}</p>
       {insights.seen.length > 0 && (
-        <Section title={copy.insights.seenTitle}>
+        <Section title={copy.insights.seenTitle} Icon={Sprout}>
           {insights.seen.map((ability) => (
             <div key={ability.key}>
-              <h3 className="text-xl leading-snug font-extrabold">{ability.name}</h3>
+              <h3 className="text-base leading-snug font-bold">{ability.name}</h3>
               <QuoteList quotes={ability.quotes} paired boxed />
             </div>
           ))}
@@ -29,7 +31,7 @@ export function Insights({ insights, children }: { insights: EpisodeInsights; ch
       )}
 
       {insights.moreToHear.length > 0 && (
-        <Section title={copy.insights.moreTitle}>
+        <Section title={copy.insights.moreTitle} Icon={MessageCircle}>
           {insights.moreToHear.map((ability) => (
             <div key={ability.key}>
               <h3 className="text-base leading-snug font-bold">{ability.name}</h3>
@@ -48,13 +50,13 @@ export function Insights({ insights, children }: { insights: EpisodeInsights; ch
   )
 }
 
-/** カードの中の見出し。小さく、アイコンの色で出す（モック talkend.html）。 */
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** カードの中の見出し。小さく、アイコンの色で出す。アイコンは、見えた力は芽、もう少し聞かせてほしいことは吹き出し。 */
+function Section({ title, Icon, children }: { title: string; Icon: LucideIcon; children: ReactNode }) {
   const id = useId()
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3">
       <h2 id={id} className="flex items-center gap-1.5 text-sm font-bold text-primary">
-        <Star aria-hidden className="size-4 shrink-0" />
+        <Icon aria-hidden className="size-4 shrink-0" />
         {title}
       </h2>
       {children}

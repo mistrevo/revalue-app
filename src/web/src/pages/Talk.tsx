@@ -127,11 +127,13 @@ function TalkScreen({ id }: { id: string }) {
     setLimitResetAt(null)
     setConfirmingSkip(false)
     setActionFailed(false)
+    // 書いた答えは、入力欄からは外すが、送れたと分かるまでブラウザの書きかけには残す（閉じても失わないため）。
+    // 返事を待つあいだは入力欄を読むだけにするので、この間に書きかけが別の文に変わることはない（AnswerBar）
     if (kind === 'free') setInput('')
 
-    // 書いた答えは、失敗したら入力欄に戻す
+    // 書いた答えは、失敗したら入力欄とブラウザの書きかけの両方に戻す（画面と残した書きかけをそろえる）
     const restore = () => {
-      if (kind === 'free') setInput(text)
+      if (kind === 'free') changeInput(text)
     }
 
     let body = ''

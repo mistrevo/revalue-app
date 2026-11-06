@@ -163,6 +163,35 @@ describe('TalkEntry', () => {
     expect(creates(api)).toHaveLength(1)
   })
 
+  it('discover-10（つらい状態のサインに応える）: サインのあと「続けて話す」を選んで締めた場面がいちばん新しくても、開いたときに打ち明けた言葉を出さない', async () => {
+    const api = installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [
+        fakeEpisode({
+          status: 'finished',
+          finishedAt: '2026-11-03T01:30:00Z',
+          turns: [
+            ...fakeEpisode().turns,
+            { role: 'user', text: 'もう消えたい', answerKind: 'free', at: '2026-11-03T01:01:00Z' },
+            { role: 'assistant', text: FAKE_DISTRESS_TEXT, move: 'distress', at: '2026-11-03T01:02:00Z' },
+            { role: 'user', text: '少し落ち着きました', answerKind: 'free', at: '2026-11-03T01:03:00Z' },
+            { role: 'assistant', text: '話してくれてありがとうございます。', move: 'close', at: '2026-11-03T01:04:00Z' },
+          ],
+        }),
+      ],
+      // 締めて終わったので、次にできることはふだんどおり出る
+      nextStep: { step: 'options', episodeId: null },
+    })
+    renderApp('/talk')
+
+    expect(await screen.findByText(copy.talk.rest)).toBeInTheDocument()
+    expect(screen.queryByText('もう消えたい')).not.toBeInTheDocument()
+    expect(screen.queryByText(FAKE_DISTRESS_TEXT)).not.toBeInTheDocument()
+    expect(api.calls.some((c) => c.url === '/api/episodes/episode-1')).toBe(false)
+    expect(screen.getByRole('button', { name: copy.talk.anotherDay })).toBeInTheDocument()
+  })
+
   it('discover-12（開くとトークが出る）: /home を開くと /talk へ進む', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true })
     renderApp('/home')

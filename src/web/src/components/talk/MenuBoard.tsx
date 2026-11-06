@@ -1,4 +1,4 @@
-import { Briefcase, ChevronDown, ChevronUp, ClipboardList, FileText, MessageSquareText, SlidersHorizontal, Star } from 'lucide-react'
+import { Briefcase, ChevronDown, ChevronUp, ClipboardList, FileText, MessageSquareText, SlidersHorizontal, Sprout } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link } from 'react-router'
 import { copy } from '@/copy'
@@ -6,7 +6,8 @@ import { copy } from '@/copy'
 /** メニュー板のタイル。選んだ案を深める画面はタイルにしない（仕事の選択肢と次にできることから行く。Claude の判断）。 */
 const TILES = [
   { to: '/episodes', label: copy.menu.episodes, Icon: MessageSquareText },
-  { to: '/abilities', label: copy.menu.abilities, Icon: Star },
+  // 星は評価や格付けを思わせるので使わない（Claude の判断）
+  { to: '/abilities', label: copy.menu.abilities, Icon: Sprout },
   { to: '/profile', label: copy.menu.profile, Icon: ClipboardList },
   { to: '/options', label: copy.menu.options, Icon: Briefcase },
   { to: '/report', label: copy.menu.report, Icon: FileText },

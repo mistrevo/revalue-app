@@ -1,13 +1,15 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOGOUT_URL } from '@/api'
 import { copy } from '@/copy'
+import { readDraft, writeDraft } from '@/lib/drafts'
 import { FAKE_OPENING, installFakeApi } from '@/test/fake-api'
 import { renderApp } from '@/test/render-app'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 describe('Start', () => {
@@ -46,6 +48,20 @@ describe('Start', () => {
     expect(saved.body).toContain('5 つの記録（できること、好み、やりたいこと、条件、動き出すときに大事にしたいこと）')
     expect(saved.body).toMatch(/可能性レポート（[^）]+）/)
     expect(screen.getByText(saved.body)).toBeInTheDocument()
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 書きかけの答えがこの端末のブラウザにだけ残ることと、消えるときを示す', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
+    const notSaved = copy.start.items.find((item) => item.title === '保存しないもの')!
+    expect(notSaved.body).toContain('書きかけ')
+    expect(notSaved.body).toContain('この端末のブラウザにだけ')
+    for (const when of ['送る', '区切る', '飛ばす', '全部消す', 'ログアウト', '30 日']) {
+      expect(notSaved.body).toContain(when)
+    }
+    expect(screen.getByText(notSaved.body)).toBeInTheDocument()
   })
 
   it('foundation-3（いつでも全部消せる）: 全部消したあとでなければ、消したことは伝えない', async () => {
@@ -91,6 +107,22 @@ describe('Start', () => {
     expect(decline.tagName).toBe('A')
     expect(decline).toHaveAttribute('href', LOGOUT_URL)
     expect(copy.start.decline).toBe('了解せずにやめる（ログアウト）')
+  })
+
+  it('discover-11（書きかけを残す）: 了解せずにやめる（ログアウト）でも、その端末の書きかけがすべて消える', async () => {
+    // 保存期間が過ぎてサーバーのデータが消えたあとや、了解の版が変わったあとにも、書きかけが端末に残っていることがある
+    installFakeApi({ loggedIn: true, consented: false })
+    writeDraft('episode-old', '前に書きかけた話')
+    renderApp('/start')
+
+    const decline = await screen.findByRole('link', { name: copy.start.decline })
+    // テストの中では、ページごとの移動はしない
+    const stay = (event: MouseEvent) => event.preventDefault()
+    document.addEventListener('click', stay)
+    fireEvent.click(decline)
+    document.removeEventListener('click', stay)
+
+    expect(readDraft('episode-old')).toBe('')
   })
 
   it('foundation-2（始める前に保存するものを示す）: 使い道に、選んだ案を深めるときも AI に送ることが入る', async () => {

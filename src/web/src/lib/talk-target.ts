@@ -12,7 +12,9 @@ const latest = <T>(items: T[], at: (item: T) => string): T | undefined =>
  * 2. 話し終えた場面がなければ、新しく始める
  * 3. 次にできることが none（つらい状態のサインに応えたところで終わった）か、読めなかったときは、会話を出さない。
  *    読めないときは、つらい話を出さない側に倒す（Claude の判断）
- * 4. それ以外は、いちばん新しく話し終えた場面（話し終えた時刻で比べる。なければ始めた時刻）
+ * 4. いちばん新しく話し終えた場面に、力の確かめに使わない印（つらい状態のサインに応えたことがある）があれば、会話を出さない。
+ *    サインのあと「続けて話す」を選んでふつうに締めた場面も、開くたびに打ち明けた言葉を最初に見せないため（Claude の判断）
+ * 5. それ以外は、いちばん新しく話し終えた場面（話し終えた時刻で比べる。なければ始めた時刻）
  */
 export function chooseTalkTarget(list: EpisodeSummary[], next: NextStep | null): TalkTarget {
   const talking = latest(
@@ -27,5 +29,6 @@ export function chooseTalkTarget(list: EpisodeSummary[], next: NextStep | null):
   if (next === null || next.step === 'none') return { kind: 'rest' }
 
   const last = latest(finished, (e) => e.finishedAt ?? e.startedAt)!
+  if (last.excludedFromValidation) return { kind: 'rest' }
   return { kind: 'episode', id: last.id }
 }

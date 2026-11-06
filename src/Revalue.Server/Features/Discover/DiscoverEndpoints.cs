@@ -49,8 +49,14 @@ public sealed record EpisodeDto(
     }
 }
 
-/// <summary>一覧の 1 件。<c>CanResume</c> は、続きを話せる場面か（03-validate.md の「続きを話す」）。<c>FinishedAt</c> は話し終えた時刻（話し終えていなければ null）。</summary>
-public sealed record EpisodeSummaryDto(string Id, string Status, DateTimeOffset StartedAt, int UserTurnCount, string Preview, bool CanResume, DateTimeOffset? FinishedAt);
+/// <summary>
+/// 一覧の 1 件。<c>CanResume</c> は、続きを話せる場面か（03-validate.md の「続きを話す」）。<c>FinishedAt</c> は話し終えた時刻（話し終えていなければ null）。
+/// <c>ExcludedFromValidation</c> は、つらい状態のサインで力の確かめに使わない印。開いたときに、打ち明けた場面の会話を最初に出さないために画面が使う
+/// （02-discover.md の「開いたときの行き先」）。
+/// </summary>
+public sealed record EpisodeSummaryDto(
+    string Id, string Status, DateTimeOffset StartedAt, int UserTurnCount, string Preview, bool CanResume, DateTimeOffset? FinishedAt,
+    bool ExcludedFromValidation);
 
 /// <summary>/api/episodes の API。ここにあるものは AI を呼ばない（答えを送る API は別）。</summary>
 public static class DiscoverEndpoints
@@ -104,7 +110,8 @@ public static class DiscoverEndpoints
             var items = await store.ListByTypeAsync<EpisodeItem>(http.User.GetUserKey()!, EpisodeItem.ItemType, ct);
             return TypedResults.Ok(items
                 .OrderByDescending(e => e.StartedAt)
-                .Select(e => new EpisodeSummaryDto(e.Id, e.Status, e.StartedAt, e.UserTurnCount, Preview(e), EpisodeInsights.CanResume(e), e.FinishedAt))
+                .Select(e => new EpisodeSummaryDto(
+                    e.Id, e.Status, e.StartedAt, e.UserTurnCount, Preview(e), EpisodeInsights.CanResume(e), e.FinishedAt, e.ExcludedFromValidation))
                 .ToList());
         });
 

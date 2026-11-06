@@ -10,6 +10,7 @@ const s = (o: Partial<EpisodeSummary>): EpisodeSummary => ({
   userTurnCount: 1,
   preview: '',
   canResume: false,
+  excludedFromValidation: false,
   ...o,
 })
 
@@ -58,5 +59,22 @@ describe('chooseTalkTarget', () => {
 
   it('discover-10（つらい状態のサインに応える）: 次にできることを読めなかったら、つらい話を出さない側に倒す', () => {
     expect(chooseTalkTarget([s({ id: 'a' })], null)).toEqual({ kind: 'rest' })
+  })
+
+  it('discover-10（つらい状態のサインに応える）: サインのあと続けて話して締めた場面（力の確かめに使わない印あり）がいちばん新しければ、次にできることがあっても、その会話を出さない', () => {
+    // 開くたびに打ち明けた言葉と相談窓口のやりとりを最初に見せない。家族と共用する端末でも目に触れないように
+    const list = [
+      s({ id: 'older', finishedAt: '2026-11-01T01:00:00Z' }),
+      s({ id: 'told', finishedAt: '2026-11-02T01:00:00Z', excludedFromValidation: true }),
+    ]
+    expect(chooseTalkTarget(list, { step: 'options', episodeId: null })).toEqual({ kind: 'rest' })
+  })
+
+  it('discover-12（開くとトークが出る）: 印のある場面より新しく話し終えた場面があれば、いつもどおりその場面', () => {
+    const list = [
+      s({ id: 'told', finishedAt: '2026-11-01T01:00:00Z', excludedFromValidation: true }),
+      s({ id: 'newer', finishedAt: '2026-11-02T01:00:00Z' }),
+    ]
+    expect(chooseTalkTarget(list, { step: 'options', episodeId: null })).toEqual({ kind: 'episode', id: 'newer' })
   })
 })

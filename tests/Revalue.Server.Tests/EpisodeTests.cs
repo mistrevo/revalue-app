@@ -232,6 +232,21 @@ public sealed class EpisodeTests
         Assert.Equal(JsonValueKind.String, list[1].GetProperty("finishedAt").ValueKind);
     }
 
+    [Fact(DisplayName = "discover-12（開くとトークが出る）: 一覧に、つらい状態のサインで力の確かめに使わない場面かが出る")]
+    public async Task ListShowsExcludedFromValidation()
+    {
+        await using var factory = new RevalueFactory();
+        var client = await Consenting(factory, "g-1");
+        var now = factory.Clock.GetUtcNow();
+        await AddFinishedEpisode(factory, "g-1", now.AddDays(-2), excluded: true);
+        await AddFinishedEpisode(factory, "g-1", now.AddDays(-1), excluded: false);
+
+        var list = (await Json(await client.GetAsync("/api/episodes", Ct))).EnumerateArray().ToArray();
+
+        // 新しい順。開いたときに、打ち明けた場面の会話を最初に出さないために画面が使う
+        Assert.Equal([false, true], list.Select(e => e.GetProperty("excludedFromValidation").GetBoolean()));
+    }
+
     [Fact(DisplayName = "discover-8（話した出来事が残る）: ほかの人のエピソードは読めない")]
     public async Task OtherUsersEpisodesAreNotFound()
     {

@@ -29,6 +29,12 @@ describe('copy', () => {
     expect(copy.talk.refusal).toContain(`「${copy.talk.skip}」`)
   })
 
+  it('discover-10（つらい状態のサインに応える）: サインに応えたところで終わったあとに開いたときの一言は、また話すことを前提にしない', () => {
+    // PRD の revisit-7（つらい話を持ち出さない）: このときは、また話せるという一言を出さない
+    expect(copy.talk.rest).not.toContain('また')
+    expect(copy.talk.rest).not.toMatch(/続け|戻/)
+  })
+
   it('discover-5（つらい話は飛ばせる）: 飛ばす前の確かめに「消す」を使わない', () => {
     // つらい状態のサインのあとにも出る確かめなので、「消えたい」と書いた人に「消して」を重ねない
     expect(copy.talk.skipQuestion).not.toContain('消')

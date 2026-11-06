@@ -1,6 +1,11 @@
-import { clearAllDrafts, clearDraft, readDraft, writeDraft } from './drafts'
+import { clearAllDrafts, clearDraft, DRAFT_MAX_AGE_DAYS, pruneExpiredDrafts, readDraft, writeDraft } from './drafts'
 
-afterEach(() => localStorage.clear())
+afterEach(() => {
+  vi.useRealTimers()
+  localStorage.clear()
+})
+
+const DAY = 24 * 60 * 60 * 1000
 
 describe('drafts', () => {
   it('discover-11（書きかけを残す）: 場面ごとに残り、読み直せる', () => {
@@ -32,6 +37,57 @@ describe('drafts', () => {
     expect(localStorage.getItem('revalue.palette')).toBe('rose')
   })
 
+  it('discover-11（書きかけを残す）: 最後に書いてから 30 日を過ぎた書きかけは、読むときに捨てる', () => {
+    expect(DRAFT_MAX_AGE_DAYS).toBe(30)
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z'))
+    writeDraft('episode-1', '家のことの話')
+
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z').getTime() + 30 * DAY - 1)
+    expect(readDraft('episode-1')).toBe('家のことの話')
+
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z').getTime() + 30 * DAY + 1)
+    expect(readDraft('episode-1')).toBe('')
+    expect(localStorage.getItem('revalue.draft.episode-1')).toBeNull()
+  })
+
+  it('discover-11（書きかけを残す）: 書き足すと、書いた時刻も新しくなる', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z'))
+    writeDraft('episode-1', 'あ')
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z').getTime() + 20 * DAY)
+    writeDraft('episode-1', 'あい')
+
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z').getTime() + 40 * DAY)
+    expect(readDraft('episode-1')).toBe('あい')
+  })
+
+  it('discover-11（書きかけを残す）: 書いた時刻の分からない書きかけは捨てる', () => {
+    localStorage.setItem('revalue.draft.episode-1', '時刻のない書きかけ')
+    localStorage.setItem('revalue.draft.episode-2', JSON.stringify({ text: 'あ' }))
+    expect(readDraft('episode-1')).toBe('')
+    expect(readDraft('episode-2')).toBe('')
+    expect(localStorage.getItem('revalue.draft.episode-1')).toBeNull()
+    expect(localStorage.getItem('revalue.draft.episode-2')).toBeNull()
+  })
+
+  it('discover-11（書きかけを残す）: 開いたときに、期限を過ぎた書きかけをすべての場面から捨て、新しい書きかけと色は残す', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-01T00:00:00Z'))
+    writeDraft('episode-old', '前に書きかけた話')
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z'))
+    writeDraft('episode-new', 'いま書いている話')
+    localStorage.setItem('revalue.draft.episode-broken', '時刻のない書きかけ')
+    localStorage.setItem('revalue.palette', 'rose')
+
+    pruneExpiredDrafts()
+
+    expect(localStorage.getItem('revalue.draft.episode-old')).toBeNull()
+    expect(localStorage.getItem('revalue.draft.episode-broken')).toBeNull()
+    expect(readDraft('episode-new')).toBe('いま書いている話')
+    expect(localStorage.getItem('revalue.palette')).toBe('rose')
+  })
+
   it('discover-11（書きかけを残す）: 保存できないブラウザでも投げない', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked')
@@ -46,5 +102,6 @@ describe('drafts', () => {
     expect(readDraft('episode-1')).toBe('')
     expect(() => clearDraft('episode-1')).not.toThrow()
     expect(() => clearAllDrafts()).not.toThrow()
+    expect(() => pruneExpiredDrafts()).not.toThrow()
   })
 })

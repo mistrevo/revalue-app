@@ -38,6 +38,15 @@ function setup(episode = fakeEpisode()) {
   return api
 }
 
+/** テストが開けるまで、応答を待たせる約束。 */
+function gate() {
+  let open!: () => void
+  const promise = new Promise<void>((resolve) => {
+    open = resolve
+  })
+  return { promise, open }
+}
+
 async function typeAndSend(text: string) {
   const input = await screen.findByRole('textbox', { name: copy.talk.inputLabel })
   await userEvent.type(input, text)
@@ -543,6 +552,8 @@ describe('Talk', () => {
       expect(text).not.toContain(word)
     }
     expect(text).not.toMatch(/[0-9０-９]+\s*(点|位)/)
+    // 評価や格付けを思わせる星の印も付けない（本人の言葉より判定の結果に見えないように）
+    expect(document.querySelector('.lucide-star')).toBeNull()
   })
 
   it('validate-7（見えた力と、もう少し聞きたいことを示す）: 見えたことの先頭に、話した言葉からの読み取りであることと、直せることを添える', async () => {
@@ -941,6 +952,56 @@ describe('Talk', () => {
     expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('パート先に電話して、休みをもらいました')
     expect(readDraft('episode-1')).toBe('パート先に電話して、休みをもらいました')
+  })
+
+  it('discover-11（書きかけを残す）: 返事を待つあいだは入力欄に書き足せず、送れたあとに開き直しても、画面と残した書きかけがそろう', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode()] })
+    api.state.manualStream = true
+    const first = renderApp('/talk/episode-1')
+
+    await typeAndSend('パート先に電話して、休みをもらいました')
+    await waitFor(() => expect(api.streams).toHaveLength(1))
+
+    // 待つあいだに書こうとしても、入力欄は読むだけ（送れたときに、書いた文を知らせずに消さないため）
+    const input = screen.getByRole('textbox', { name: copy.talk.inputLabel })
+    expect(input).toHaveAttribute('readonly')
+    await userEvent.type(input, '次に書くつもりの下書き')
+    expect(input).toHaveValue('')
+
+    api.streams[0].send('delta', { text: '受け止めました。' })
+    api.streams[0].send('choices', { choices: ['a', 'b', 'c'] })
+    api.streams[0].send('done', { userTurnCount: 1, status: 'talking', move: 'askWhatYouDid' })
+    api.streams[0].close()
+    expect(await screen.findByText('受け止めました。')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).not.toHaveAttribute('readonly'))
+    expect(readDraft('episode-1')).toBe('')
+
+    // 返事のあとは、また書ける。書いた文は残り、開き直しても戻る
+    await userEvent.type(screen.getByRole('textbox', { name: copy.talk.inputLabel }), '次の答え')
+    first.unmount()
+    renderApp('/talk/episode-1')
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('次の答え')
+  })
+
+  it('discover-11（書きかけを残す）: 返事を待つあいだに書こうとしても、送れなかったら（500）、送った答えが入力欄にも保存にも残り、開き直しても戻る', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode()] })
+    const wait = gate()
+    api.state.replyGate = wait.promise
+    api.state.reply = { status: 500, body: {} }
+    const first = renderApp('/talk/episode-1')
+
+    await typeAndSend('送る答えA')
+    expect(await screen.findByText(copy.talk.waiting)).toBeInTheDocument()
+    await userEvent.type(screen.getByRole('textbox', { name: copy.talk.inputLabel }), '待つあいだに書いた下書きB')
+    wait.open()
+
+    expect(await screen.findByText(copy.talk.failure)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('送る答えA')
+    expect(readDraft('episode-1')).toBe('送る答えA')
+    first.unmount()
+
+    renderApp('/talk/episode-1')
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('送る答えA')
   })
 
   it('discover-11（書きかけを残す）: 区切ったら書きかけは消える', async () => {

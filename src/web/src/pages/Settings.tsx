@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { deleteMe, LOGOUT_URL } from '@/api'
+import { deleteMe } from '@/api'
+import { LogoutLink } from '@/components/LogoutLink'
 import { useMe } from '@/components/me-context'
 import { clearAllDrafts } from '@/lib/drafts'
 import { Page } from '@/components/Page'
@@ -79,11 +80,9 @@ export function Settings() {
             <Link to="/talk">{copy.nav.backToTalk}</Link>
           </Button>
         )}
-        {/* ログアウトは組み込み認証へページごと移動する */}
+        {/* ログアウトは組み込み認証へページごと移動し、その端末の書きかけも消す */}
         <Button asChild variant="ghost" className="w-full sm:w-auto">
-          <a href={LOGOUT_URL} onClick={clearAllDrafts}>
-            {copy.settings.logout}
-          </a>
+          <LogoutLink>{copy.settings.logout}</LogoutLink>
         </Button>
       </div>
     </Page>
