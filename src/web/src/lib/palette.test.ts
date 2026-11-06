@@ -9,12 +9,19 @@ import {
   writePalette,
 } from './palette'
 
+/** 画面で使っている文字と地の組。部品で新しい組を使うときは、ここと 00-common.md の「見た目」に足す。 */
 const TEXT_PAIRS = [
   ['text', 'ground'],
   ['text', 'surface'],
   ['text', 'field'],
+  // メニュー板のタイルの言葉
+  ['text', 'tile'],
   ['muted', 'ground'],
   ['muted', 'surface'],
+  // 見えた力のカードの中の、行動の文と「（選んだ答え）」。入力欄の例の文字
+  ['muted', 'field'],
+  // 日付の札（DateChip）と、目立たせないボタンに重ねたときの地
+  ['muted', 'chip'],
   ['onTint', 'tint'],
   ['onAccent', 'accent'],
   ['accent', 'surface'],
