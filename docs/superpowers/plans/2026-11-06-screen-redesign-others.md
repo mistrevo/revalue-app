@@ -244,20 +244,20 @@ git commit -m "はじめる前にを短くする。4 行の要約を先に出し
 **Files:**
 - Modify: `docs/specs/00-common.md`、`docs/specs/01-foundation.md`
 
-- [ ] **Step 1: Spec を直す**（いまの正しい姿だけを書く）
+- [x] **Step 1: Spec を直す**（いまの正しい姿だけを書く）
   - `00-common.md` の「画面」: 了解した人のほかの画面は、上の帯に「← トークに戻る」。カードとボタンの見た目は話す画面とそろえる。設定の画面で 6 色から選べる。common-5（どの色でも読める）に「設定の画面で 6 色から選べ、選ぶとすぐに変わる。開き直しても選んだ色のまま（保存できるブラウザで）」を足す
   - `01-foundation.md` の画面の表: 案内は「約束 3 つを題と 1 行で。ログインのボタンは下」。はじめには「4 行の要約と、『くわしく読む』の中の 5 項目の全文」。設定に「色」の欄
-- [ ] **Step 2: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、ログインしていない状態で `/` を見たあと、`http://localhost:5080/.auth/login/google?dev_user=redesign-check-2` でログインする。サーバーは終わったら止める）
+- [x] **Step 2: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、ログインしていない状態で `/` を見たあと、`http://localhost:5080/.auth/login/google?dev_user=redesign-check-2` でログインする。サーバーは終わったら止める）
   - 幅 320px、375px×667px、1280px で、案内、はじめる前に、設定、見えた力、仕事の選択肢、可能性レポート
   - 横にはみ出さない（`document.documentElement.scrollWidth <= innerWidth`）。ボタンが親指の届く下にある
   - 設定で 6 色を順に選び、話す画面に戻って色が変わっていること。`emulate_media` で暗い画面にしても読めること
   - 写真はスクラッチに置き、リポジトリに入れない。気づいた崩れは直してから次へ
-- [ ] **Step 3: 全部のテストを流す**
+- [x] **Step 3: 全部のテストを流す**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests`、`npm --prefix src/web test`、`npm --prefix src/web run build`、`node --test .claude/hooks/guard.test.mjs`
 Expected: すべて PASS
 
-- [ ] **Step 4: コミット**
+- [x] **Step 4: コミット**
 
 ```bash
 git add docs src
