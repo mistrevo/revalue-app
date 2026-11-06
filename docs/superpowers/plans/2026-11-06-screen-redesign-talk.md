@@ -214,7 +214,7 @@ git commit -m "場面の一覧に、話し終えた時刻を足す。開いた�
 **Interfaces:**
 - Produces: `DRAFT_PREFIX = 'revalue.draft.'`、`readDraft(episodeId: string): string`（なければ `''`）、`writeDraft(episodeId: string, text: string): void`（空白だけなら消す）、`clearDraft(episodeId: string): void`、`clearAllDrafts(): void`（`DRAFT_PREFIX` で始まるものだけ消す）。どれも例外を投げない
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 it('discover-11（書きかけを残す）: 場面ごとに残り、読み直せる', () => {
@@ -242,10 +242,10 @@ it('discover-11（書きかけを残す）: 保存できないブラウザでも
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: FAIL
-- [ ] **Step 3: `drafts.ts` を書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: FAIL
+- [x] **Step 3: `drafts.ts` を書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- drafts` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add src/web/src/lib/drafts.ts src/web/src/lib/drafts.test.ts
