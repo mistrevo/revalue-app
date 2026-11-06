@@ -404,7 +404,7 @@ git commit -m "話す画面を LINE のトークの形にする。選択肢の�
     - `distress` が true（この場面がつらい状態のサインに応えたところで終わっている。いまの `notice?.kind === 'distress'` と同じ見分け方）: `copy.talk.afterQuestion` もボタンも出さず、相談先の案内のあとに、目立たせない `copy.talk.anotherDay` だけ
   - いまの話す画面の下の `NextStepLink` は、この部品に置き換える（話す画面では使わない）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 it('validate の「話し終えたとき」: 区切ると、見えた力がトークの中のカードに出て、核となる行動と本人の言葉が組になっている')
@@ -421,10 +421,10 @@ it('discover-10（つらい状態のサインに応える）: つらい状態の
 //   notice が distress の話し終えた場面 → copy.talk.afterQuestion が出ない。copy.home.next.* のボタンが出ない。copy.talk.anotherDay が 1 つ
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk` / Expected: 新しいテストが FAIL
-- [ ] **Step 3: 書く。見た目はモック `talkend.html` に合わせる**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Talk` / Expected: 新しいテストが FAIL
+- [x] **Step 3: 書く。見た目はモック `talkend.html` に合わせる**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web

@@ -16,9 +16,9 @@ import {
   type Turn,
 } from '@/api'
 import { DailyLimitNotice } from '@/components/DailyLimitNotice'
-import { NextStepLink } from '@/components/NextStepLink'
 import { Insights } from '@/components/Insights'
 import { Page } from '@/components/Page'
+import { AfterTalk } from '@/components/talk/AfterTalk'
 import { AnswerBar, MAX_ANSWER_LENGTH } from '@/components/talk/AnswerBar'
 import { Bubble, DateChip, TalkCard } from '@/components/talk/Bubble'
 import { ChoiceButtons } from '@/components/talk/ChoiceButtons'
@@ -375,6 +375,7 @@ function TalkScreen({ id }: { id: string }) {
               </Bubble>
             </div>
           )}
+          {!talking && <DateChip>{copy.talk.finishedChip}</DateChip>}
         </div>
 
         {/* 失敗の言葉を先に出し、相談先は、そのあとに添える */}
@@ -424,99 +425,94 @@ function TalkScreen({ id }: { id: string }) {
           <ChoiceButtons choices={choices} onChoose={(choice) => void send(choice, 'choice')} onOther={focusInput} />
         )}
 
-        {!talking && (
-          <>
-            <p className="leading-relaxed text-muted-foreground">{copy.talk.finished}</p>
-            {episode.insights && (
-              <div>
-                <Insights insights={episode.insights} />
-
-                {correcting ? (
-                  <form
-                    className="mt-4 flex flex-col gap-2 rounded-xl bg-surface px-4 py-4"
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      void correct()
-                    }}
-                  >
-                    <label htmlFor="talk-correction" className="text-sm font-bold">
-                      {copy.insights.correctLabel}
-                    </label>
-                    <textarea
-                      id="talk-correction"
-                      value={correction}
-                      onChange={(event) => setCorrection(event.target.value)}
-                      placeholder={copy.insights.correctPlaceholder}
-                      maxLength={MAX_ANSWER_LENGTH}
-                      rows={3}
-                      className="w-full rounded-xl border-[1.5px] border-field-border bg-field px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring/30"
-                    />
-                    {correctionError !== null && (
-                      <p role="alert" className="text-sm leading-relaxed">
-                        {copy.insights.correctFailed}
-                      </p>
-                    )}
-                    {correctionError !== null && correctionNotice !== null && (
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {correctionNotice.text}{' '}
-                        <a
-                          href={correctionNotice.linkUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-bold text-primary underline underline-offset-4"
-                        >
-                          {correctionNotice.linkLabel}
-                          <span className="text-muted-foreground">{copy.talk.newTab}</span>
-                        </a>
-                      </p>
-                    )}
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button type="submit" disabled={busy || correction.trim() === ''} className="min-h-11 w-full sm:w-auto">
-                        {copy.insights.correctSend}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => {
-                          setCorrecting(false)
-                          setCorrectionError(null)
-                        }}
-                        className="min-h-11 w-full sm:w-auto"
-                      >
-                        {copy.insights.correctCancel}
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    {episode.insights.canResume && (
-                      <Button onClick={resume} disabled={busy} className="h-auto min-h-11 w-full py-2 whitespace-normal sm:w-auto">
-                        {copy.insights.resume}
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      onClick={() => setCorrecting(true)}
-                      disabled={busy}
-                      className="h-auto min-h-11 w-full py-2 whitespace-normal sm:w-auto"
-                    >
-                      {copy.insights.correct}
-                    </Button>
-                  </div>
+        {!talking && episode.insights && (
+          // 見えたことは、トークの中のカードで出す。読み取りを直す欄も、カードの中で開く（03-validate.md の「話し終えたとき」）
+          <Insights insights={episode.insights}>
+            {correcting ? (
+              <form
+                className="flex flex-col gap-2 rounded-xl bg-ground px-3 py-3"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void correct()
+                }}
+              >
+                <label htmlFor="talk-correction" className="text-sm font-bold">
+                  {copy.insights.correctLabel}
+                </label>
+                <textarea
+                  id="talk-correction"
+                  value={correction}
+                  onChange={(event) => setCorrection(event.target.value)}
+                  placeholder={copy.insights.correctPlaceholder}
+                  maxLength={MAX_ANSWER_LENGTH}
+                  rows={3}
+                  className="w-full rounded-xl border-[1.5px] border-field-border bg-field px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring/30"
+                />
+                {correctionError !== null && (
+                  <p role="alert" className="text-sm leading-relaxed">
+                    {copy.insights.correctFailed}
+                  </p>
                 )}
-
-                <div className="mt-4">
-                  <Button asChild variant="ghost" className="h-auto min-h-11 w-full py-2 whitespace-normal sm:w-auto">
-                    <Link to="/abilities">{copy.insights.seeAll}</Link>
+                {correctionError !== null && correctionNotice !== null && (
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {correctionNotice.text}{' '}
+                    <a
+                      href={correctionNotice.linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-primary underline underline-offset-4"
+                    >
+                      {correctionNotice.linkLabel}
+                      <span className="text-muted-foreground">{copy.talk.newTab}</span>
+                    </a>
+                  </p>
+                )}
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <Button type="submit" disabled={busy || correction.trim() === ''} className="min-h-11 w-full sm:w-auto">
+                    {copy.insights.correctSend}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      setCorrecting(false)
+                      setCorrectionError(null)
+                    }}
+                    className="min-h-11 w-full sm:w-auto"
+                  >
+                    {copy.insights.correctCancel}
                   </Button>
                 </div>
+              </form>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {episode.insights.canResume && (
+                  <Button onClick={resume} disabled={busy} className="h-auto min-h-12 w-full rounded-[14px] py-2 text-[15px] whitespace-normal sm:w-auto sm:flex-1">
+                    {copy.insights.resume}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setCorrecting(true)}
+                  disabled={busy}
+                  className="h-auto min-h-12 w-full rounded-[14px] border-[1.5px] border-primary py-2 text-[15px] whitespace-normal text-primary sm:w-auto sm:flex-1"
+                >
+                  {copy.insights.correct}
+                </Button>
+                {/* 文字と地の組は、色のテストで確かめている on-tint と tint にする（みかんの accent と tile は 4.5 に届かない） */}
+                <Link
+                  to="/abilities"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-[14px] bg-tint px-3 py-2 text-center text-[15px] font-bold text-on-tint outline-none hover:bg-chip focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-auto sm:flex-1"
+                >
+                  {copy.insights.seeAll}
+                </Link>
               </div>
             )}
-            {/* つらい状態のサインに応えた直後は、先へ進む道を勧めない（Claude の判断） */}
-            {notice?.kind !== 'distress' && <NextStepLink refreshKey={episode?.insights} />}
-          </>
+          </Insights>
         )}
+        {/* つらい状態のサインに応えたところで終わった場面では、先へ進む道を勧めない（Claude の判断） */}
+        {!talking && <AfterTalk distress={notice?.kind === 'distress'} refreshKey={episode.insights} />}
 
         {actionFailed && (
           <p role="alert" className="leading-relaxed">

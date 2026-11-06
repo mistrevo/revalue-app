@@ -49,7 +49,7 @@ describe('Episodes', () => {
 
     await userEvent.click(await screen.findByRole('link', { name: /公園で子どもと遊んだ/ }))
 
-    expect(await screen.findByText(copy.talk.finished)).toBeInTheDocument()
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(screen.getByText('公園で子どもと遊んだ')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
