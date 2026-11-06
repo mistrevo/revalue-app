@@ -247,6 +247,39 @@ public sealed class EpisodeTests
         Assert.Equal([false, true], list.Select(e => e.GetProperty("excludedFromValidation").GetBoolean()));
     }
 
+    [Fact(DisplayName = "discover-10（つらい状態のサインに応える）: 場面を読むときと区切ったときの応答に、力の確かめに使わない印が出る。サインのあと続けて話して区切った場面にも出る")]
+    public async Task EpisodeShowsExcludedFromValidation()
+    {
+        await using var factory = new RevalueFactory();
+        var client = await Consenting(factory, "g-1");
+        var store = factory.Services.GetRequiredService<IDataStore>();
+        var id = (await Start(client)).GetProperty("id").GetString()!;
+        Assert.False((await Json(await client.GetAsync($"/api/episodes/{id}", Ct))).GetProperty("excludedFromValidation").GetBoolean());
+
+        // サインに応えたあと、本人が「続けて話す」を選び、ふつうの返事が続いた場面
+        var at = factory.Clock.GetUtcNow();
+        await store.TryUpdateAsync<EpisodeItem>(TestUsers.Key("g-1"), id, e => e with
+        {
+            ExcludedFromValidation = true,
+            Turns =
+            [
+                .. e.Turns,
+                new Turn { Role = TurnRoles.User, Text = "架空の答え。最近ずっと眠れなくて、つらい", AnswerKind = AnswerKind.Free, At = at },
+                new Turn { Role = TurnRoles.Assistant, Text = DiscoverText.DistressText, Move = TalkStream.MoveName(MoveKind.Distress), At = at },
+                new Turn { Role = TurnRoles.User, Text = "架空の答え。少し落ち着きました", AnswerKind = AnswerKind.Free, At = at },
+                new Turn { Role = TurnRoles.Assistant, Text = "架空の返事。聞かせてくれて、ありがとうございます。", Move = "askWhatYouDid", At = at },
+            ],
+        }, Ct);
+
+        var finished = await Json(await client.PostAsync($"/api/episodes/{id}/finish", null, Ct));
+
+        Assert.Equal("finished", finished.GetProperty("status").GetString());
+        // 最後の返事はサインへの応えではないので、窓口の知らせは付かない。打ち明けた場面だと、印で分かる
+        Assert.Equal(JsonValueKind.Null, finished.GetProperty("notice").ValueKind);
+        Assert.True(finished.GetProperty("excludedFromValidation").GetBoolean());
+        Assert.True((await Json(await client.GetAsync($"/api/episodes/{id}", Ct))).GetProperty("excludedFromValidation").GetBoolean());
+    }
+
     [Fact(DisplayName = "discover-8（話した出来事が残る）: ほかの人のエピソードは読めない")]
     public async Task OtherUsersEpisodesAreNotFound()
     {

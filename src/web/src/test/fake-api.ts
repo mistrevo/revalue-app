@@ -46,6 +46,8 @@ export function fakeEpisode(overrides: Partial<Episode> = {}): Episode {
     ],
     notice: null,
     insights: null,
+    // 裏側と同じく、つらい状態のサインに応えたターンがあれば、力の確かめに使わない印を付ける
+    excludedFromValidation: (overrides.turns ?? []).some((t) => t.role === 'assistant' && t.move === 'distress'),
     ...overrides,
   }
 }
@@ -585,8 +587,8 @@ export function installFakeApi(initial: {
     userTurnCount: e.turns.filter((t) => t.role === 'user').length,
     preview: e.turns.find((t) => t.role === 'user')?.text.slice(0, 30) ?? '',
     canResume: e.status === 'finished' && (e.insights?.canResume ?? false),
-    // 裏側は場面に付けた印を返す。偽物では、つらい状態のサインに応えたターンがあるかで代わりにする
-    excludedFromValidation: e.turns.some((t) => t.role === 'assistant' && t.move === 'distress'),
+    // 裏側は場面に付けた印を返す。偽物では、印か、つらい状態のサインに応えたターンがあるかで見る（テストがターンを直接書いたときのため）
+    excludedFromValidation: e.excludedFromValidation || e.turns.some((t) => t.role === 'assistant' && t.move === 'distress'),
   })
 
   const sseResponse = (events: FakeEvent[]) =>
@@ -930,6 +932,7 @@ export function installFakeApi(initial: {
             { role: 'assistant', text: FAKE_DISTRESS_TEXT, move: 'distress', at: '2026-11-03T04:00:01Z' },
           ]
           episode.insights = null
+          episode.excludedFromValidation = true
           episode.notice = {
             kind: 'distress',
             text: FAKE_DISTRESS_TEXT,
@@ -1017,6 +1020,8 @@ export function installFakeApi(initial: {
     ]
     episode.status = done.status
     episode.notice = distress
+    // 裏側と同じく、サインに応えた場面には、力の確かめに使わない印が付き、そのあと続けて話しても外れない
+    if (distress) episode.excludedFromValidation = true
   }
 
   vi.stubGlobal('fetch', fetchMock)

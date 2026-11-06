@@ -155,6 +155,11 @@ export type Episode = {
   notice?: SupportNotice | null
   /** 話し終えた場面から見えたこと。話し終えた場面で、力の確かめに使う場面のときだけ付く。 */
   insights?: EpisodeInsights | null
+  /**
+   * つらい状態のサインで、力の確かめに使わない印が付いた場面か。サインのあと「続けて話す」を選んで区切った場面にも付く。
+   * 区切ったあとに、先へ進むことを勧めないために使う。
+   */
+  excludedFromValidation: boolean
 }
 
 // ---- 力の確かめ ----

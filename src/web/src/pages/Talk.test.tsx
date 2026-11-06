@@ -866,6 +866,59 @@ describe('Talk', () => {
     expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
   })
 
+  it('discover-10（つらい状態のサインに応える）、common-3（次にできることを一つ示す）: サインのあと「続けて話す」を選んで区切った場面（力の確かめに使わない印）でも、次の一手を勧めず、「別の日のことを話す」だけを出す', async () => {
+    const api = setup()
+    api.state.reply = distressEvents()
+    // この場面は力の確かめに使わないので、裏側は見えたことを返さない
+    api.state.finishInsights = null
+    // 裏側が先へ進む道を返す状態でも、打ち明けた直後の話す画面では出さない
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    await typeAndSend('最近ずっと眠れなくて、つらい')
+    await userEvent.click(await screen.findByRole('button', { name: FAKE_DISTRESS_ACTIONS[0] }))
+    api.state.reply = replyEvents(['受け止めました。', 'そのとき何をしましたか？'], ['段取りを考えた', '人に頼んだ', '手を動かした'])
+    await typeAndSend('少し落ち着きました')
+    await userEvent.click(await screen.findByRole('button', { name: copy.talk.finish }))
+
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
+    expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: copy.talk.nextLabel })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
+    for (const key of ['conditions', 'options', 'deepen', 'report'] as const) {
+      expect(screen.queryByText(copy.home.next[key])).not.toBeInTheDocument()
+    }
+    expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
+  })
+
+  it('discover-10（つらい状態のサインに応える）、common-3（次にできることを一つ示す）: サインのあと続けて話して区切った場面を「話したこと」から開いても、次の一手を勧めない', async () => {
+    const api = setup(
+      fakeEpisode({
+        status: 'finished',
+        finishedAt: '2026-11-03T01:10:00Z',
+        turns: [
+          ...fakeEpisode().turns,
+          { role: 'user', text: '最近ずっと眠れなくて、つらい', answerKind: 'free', at: '2026-11-03T01:01:00Z' },
+          { role: 'assistant', text: FAKE_DISTRESS_TEXT, move: 'distress', at: '2026-11-03T01:02:00Z' },
+          { role: 'user', text: '少し落ち着きました', answerKind: 'free', at: '2026-11-03T01:03:00Z' },
+          { role: 'assistant', text: '受け止めました。そのとき何をしましたか？', move: 'askWhatYouDid', at: '2026-11-03T01:04:00Z' },
+        ],
+        // 最後の返事はサインへの応えではないので、窓口の知らせは付かない。印で、打ち明けた場面だと分かる
+        notice: null,
+        insights: null,
+        excludedFromValidation: true,
+      }),
+    )
+    api.state.nextStep = { step: 'options', episodeId: null }
+
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
+    expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
+    expect(screen.queryByText(copy.home.next.options)).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
+  })
+
   it('discover-6（一場面ずつ区切り、続きから話せる）、common-4（どの画面からもトークへ戻れ、幅に収まる）: 話している途中でもメニュー板からほかの画面へ行け、トークに戻ると話していた場面の続きが出る', async () => {
     const api = setup()
 

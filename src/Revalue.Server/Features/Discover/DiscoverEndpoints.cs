@@ -13,6 +13,8 @@ namespace Revalue.Server.Features.Discover;
 /// <summary>
 /// 場面のやりとりすべて。<c>Notice</c> は、最後の返事がつらい状態のサインへの応えのときだけ付ける相談窓口の知らせ
 /// （開き直しても、窓口と続け方が出るように。Claude の判断）。
+/// <c>ExcludedFromValidation</c> は、つらい状態のサインで力の確かめに使わない印。サインのあと「続けて話す」を選んで区切った場面にも付く。
+/// 区切ったあとの話す画面が、打ち明けた場面で先へ進むことを勧めないために使う（00-common.md の「次にできること」）。
 /// </summary>
 /// <remarks><c>Insights</c> は、話し終えた場面で、力の確かめに使わない印がないときだけ入れる（03-validate.md の「話し終えたとき」）。</remarks>
 public sealed record EpisodeDto(
@@ -22,7 +24,8 @@ public sealed record EpisodeDto(
     DateTimeOffset? FinishedAt,
     IReadOnlyList<Turn> Turns,
     SupportNotice? Notice,
-    EpisodeInsightsDto? Insights)
+    EpisodeInsightsDto? Insights,
+    bool ExcludedFromValidation)
 {
     public static EpisodeDto From(EpisodeItem e) => new(
         e.Id,
@@ -33,7 +36,8 @@ public sealed record EpisodeDto(
         e.Turns.LastOrDefault() is { Role: TurnRoles.Assistant } last && last.Move == TalkStream.MoveName(MoveKind.Distress)
             ? SupportNotice.Distress
             : null,
-        EpisodeInsights.From(e));
+        EpisodeInsights.From(e),
+        e.ExcludedFromValidation);
 
     /// <summary>
     /// 聞いた行動の印と、訂正で打ち消された印のうち、辞書の話から確かめる力の行動でないもの（保存データの古い id など）を、返す前に外す。

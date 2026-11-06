@@ -165,8 +165,16 @@ function TalkScreen({ id }: { id: string }) {
             move: done.move,
             at: now,
           }
-          setEpisode((current) =>
-            current && { ...current, status: done.status, turns: [...current.turns, userTurn, reply], notice: distress },
+          setEpisode(
+            (current) =>
+              current && {
+                ...current,
+                status: done.status,
+                turns: [...current.turns, userTurn, reply],
+                notice: distress,
+                // 裏側と同じく、サインに応えた場面には力の確かめに使わない印が付き、そのあと続けて話しても外れない
+                excludedFromValidation: current.excludedFromValidation || distress !== null,
+              },
           )
           // 送れた書いた答えの書きかけは消す。選んで送ったときは、入力欄に残っている書きかけをそのまま残す
           if (kind === 'free') {
@@ -519,8 +527,11 @@ function TalkScreen({ id }: { id: string }) {
             )}
           </Insights>
         )}
-        {/* つらい状態のサインに応えたところで終わった場面では、先へ進む道を勧めない（Claude の判断） */}
-        {!talking && <AfterTalk distress={notice?.kind === 'distress'} refreshKey={episode.insights} />}
+        {/* つらい状態のサインに応えたところで終わった場面と、力の確かめに使わない印が付いた場面（サインのあと続けて話して区切った場面）では、
+            先へ進む道を勧めない。開いたときの行き先（talk-target.ts）と同じ印で見る（Claude の判断） */}
+        {!talking && (
+          <AfterTalk distress={notice?.kind === 'distress' || episode.excludedFromValidation} refreshKey={episode.insights} />
+        )}
 
         {actionFailed && (
           <p role="alert" className="leading-relaxed">
