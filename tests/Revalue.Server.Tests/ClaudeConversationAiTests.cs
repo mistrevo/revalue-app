@@ -659,6 +659,23 @@ public sealed class ClaudeConversationAiTests
         Assert.Contains("どの一手でも", line);
         Assert.Contains("選んだ人", line);
         Assert.Contains("話した人", line);
+        // 最初の問いの、うまくいかなかった側の気持ちの選択肢は、どれも同じに扱う
+        foreach (var feeling in new[] { "困った", "思いどおりにいかなかった", "迷った", "腹が立った" })
+        {
+            Assert.Contains(feeling, line);
+        }
+    }
+
+    [Fact(DisplayName = "discover-2（受け止めてから一つだけ聞く）: 返事の指示は、腹が立った出来事では、相手の人のことを聞かず、本人がしたことを聞くと書いている")]
+    public void ListenerAsksOwnActionWhenAngry()
+    {
+        var listener = PromptFiles.Read(PromptFiles.Listener);
+
+        // 腹が立った話は、相手の人（家族など）のことに向かいやすい。相手を責める話や、相手の事情を聞き出さない
+        var rules = listener[listener.IndexOf("# 守ること", StringComparison.Ordinal)..];
+        var line = rules.Split('\n').Single(l => l.Contains("腹が立った", StringComparison.Ordinal) && l.Contains("相手の人", StringComparison.Ordinal));
+        Assert.Contains("どの一手でも", line);
+        Assert.Contains("本人がしたこと", line);
     }
 
     [Fact(DisplayName = "validate-2（足りない行動だけ聞き返す）: 返事の指示は、手がかりについてだけ一つ聞き、したことを前提にせず、答えの例で誘導しないと書いている")]

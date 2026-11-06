@@ -42,7 +42,7 @@ public sealed class EpisodeTests
         }, Ct);
     }
 
-    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 新しい場面は、最近の、気持ちが動いた日を一つ尋ねる問いで始まる")]
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 新しい場面は、ここ数日で印象に残っている出来事を、気持ちの種類から一つ選んでもらう問いで始まる")]
     public async Task NewEpisodeStartsWithConcreteDayQuestion()
     {
         await using var factory = new RevalueFactory();
@@ -58,9 +58,9 @@ public sealed class EpisodeTests
         Assert.Equal("assistant", first.GetProperty("role").GetString());
         Assert.Equal(DiscoverText.Opening, first.GetProperty("text").GetString());
         Assert.DoesNotContain("強み", first.GetProperty("text").GetString());
-        Assert.Contains("気持ちが動いた日", first.GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.Contains("印象に残っている出来事", first.GetProperty("text").GetString(), StringComparison.Ordinal);
         Assert.Equal(DiscoverText.OpeningChoices, first.GetProperty("choices").EnumerateArray().Select(c => c.GetString()!).ToArray());
-        Assert.Equal(3, DiscoverText.OpeningChoices.Count);
+        Assert.Equal(9, DiscoverText.OpeningChoices.Count);
     }
 
     [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 本人が答えた話し終えた場面があれば、新しい場面は、「また」と添えた、いつもと違う最初の問いで始まる")]

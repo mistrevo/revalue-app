@@ -54,19 +54,34 @@ public sealed class DiscoverTextTests
         }
     }
 
-    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 最初の問いは、気持ちが動いた日を聞き、選択肢は「うれしかった日」「困ったことがあった日」「思いどおりにいかなかった日」")]
-    public void OpeningAsksDayWhenFeelingsMoved()
+    [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 最初の問いは、ここ数日で印象に残っている出来事を聞き、気持ちの種類の選択肢 9 つから一つ選べる")]
+    public void OpeningAsksRecentEventByKindOfFeeling()
     {
-        Assert.Equal("最近、気持ちが動いた日のことを、一つ聞かせてください。どんな日でしたか？", DiscoverText.Opening);
-        Assert.Equal(["うれしかった日", "困ったことがあった日", "思いどおりにいかなかった日"], DiscoverText.OpeningChoices);
-        Assert.Equal(3, DiscoverText.OpeningChoices.Count);
+        Assert.Equal(
+            "最近の一日を振り返ってみましょう。ここ数日の中で、印象に残っている出来事はありますか？ 話しやすいものを一つ選んでください。特別な出来事でなくても大丈夫です。",
+            DiscoverText.Opening);
+        Assert.Equal(
+            [
+                "うれしかった・楽しかったこと",
+                "できた・達成できたこと",
+                "ほっとした・安心したこと",
+                "困った・大変だったこと",
+                "思いどおりにいかなかったこと",
+                "迷った・悩んだこと",
+                "腹が立った・納得できなかったこと",
+                "気づいた・考えさせられたこと",
+                "何気ない日常の出来事",
+            ],
+            DiscoverText.OpeningChoices);
         Assert.DoesNotContain("たとえば昨日", DiscoverText.Opening, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "discover-1（具体的な一日を一つ聞く）: 2 つ目からの問いは「また」で始まり、選択肢は最初の問いと同じ")]
     public void AnotherDayStartsWithMata()
     {
-        Assert.Equal("また、最近、気持ちが動いた日のことを、一つ聞かせてください。どんな日でしたか？", DiscoverText.OpeningAnotherDay);
+        Assert.Equal(
+            "また、ここ数日の中で、印象に残っている出来事はありますか？ 話しやすいものを一つ選んでください。特別な出来事でなくても大丈夫です。",
+            DiscoverText.OpeningAnotherDay);
         Assert.StartsWith("また、", DiscoverText.OpeningAnotherDay, StringComparison.Ordinal);
         Assert.NotEqual(DiscoverText.Opening, DiscoverText.OpeningAnotherDay);
     }
@@ -98,10 +113,10 @@ public sealed class DiscoverTextTests
         Assert.All(texts, text => Assert.DoesNotContain(word, text, StringComparison.Ordinal));
     }
 
-    [Fact(DisplayName = "discover-3（選んでも書いてもよい）: 決まった選択肢と続け方は、どれも 3 つ")]
-    public void ChoicesAreThree()
+    [Fact(DisplayName = "discover-3（選んでも書いてもよい）: 決まった選択肢と続け方は、最初の問いが 9 つ、ほかはどれも 3 つ")]
+    public void ChoicesAreNineForOpeningAndThreeOtherwise()
     {
-        Assert.Equal(3, DiscoverText.OpeningChoices.Count);
+        Assert.Equal(9, DiscoverText.OpeningChoices.Count);
         Assert.Equal(3, DiscoverText.OpeningAfterDistressChoices.Count);
         Assert.Equal(3, DiscoverText.AfterSkipChoices.Count);
         Assert.Equal(["もう少しくわしく話す", "別の日の話にする", "よく覚えていない"], DiscoverText.FallbackChoices);
@@ -141,11 +156,13 @@ public sealed class DiscoverTextTests
     [InlineData("思うように")]
     [InlineData("思いどおり")]
     [InlineData("うれしかった")]
-    [InlineData("困ったこと")]
+    [InlineData("困った")]
+    [InlineData("腹が立")]
+    [InlineData("悩ん")]
     public void LightOpeningsDoNotReturnToHeavyDays(string heavy)
     {
-        // 飛ばした直後や、つらい話で区切った人に「困ったことがあった日」「思いどおりにいかなかった日」を聞くと、負担の重い日へ話を戻すことになる。
-        // 最初の問いの「困ったことがあった日」は、うまくいかなかった日も同じ重さで選べるようにするための選択肢なので、ここには入れない
+        // 飛ばした直後や、つらい話で区切った人に「困った・大変だったこと」「思いどおりにいかなかったこと」を聞くと、負担の重い日へ話を戻すことになる。
+        // 最初の問いの「困った・大変だったこと」は、うまくいかなかった日も同じ重さで選べるようにするための選択肢なので、ここには入れない
         IEnumerable<string> texts =
         [
             DiscoverText.OpeningAfterDistress,
