@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOGOUT_URL } from '@/api'
@@ -110,5 +110,26 @@ describe('Settings', () => {
     renderApp('/settings')
 
     expect(await screen.findByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
+  })
+
+  it('common-5（どの色でも読める）: 設定の画面で 6 色から選べ、選ぶとすぐに変わり、開き直しても選んだ色が選ばれている', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    const { unmount } = renderApp('/settings')
+    const group = await screen.findByRole('radiogroup', { name: copy.settings.colorTitle })
+    expect(within(group).getAllByRole('radio')).toHaveLength(6)
+    await userEvent.click(within(group).getByRole('radio', { name: 'さくら' }))
+    expect(document.documentElement.dataset.palette).toBe('rose')
+    unmount()
+    renderApp('/settings')
+    expect(await screen.findByRole('radio', { name: 'さくら' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('common-5（どの色でも読める）: 矢印キーで色を動かせる', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/settings')
+    const first = await screen.findByRole('radio', { name: 'あおみどり' })
+    await userEvent.click(first)
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'さくら' })).toHaveAttribute('aria-checked', 'true')
   })
 })

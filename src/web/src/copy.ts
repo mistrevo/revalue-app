@@ -562,6 +562,8 @@ export const copy = {
   },
   settings: {
     title: '設定',
+    colorTitle: '色',
+    colorLead: '画面の色を選べます。選んだ色は、この端末にだけ残ります。',
     deleteTitle: '全部消す',
     deleteBody: '話した内容、見立て、記録、レポートをすべて消します。消したものは戻せません。',
     deleteButton: '全部消す',

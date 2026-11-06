@@ -120,7 +120,7 @@ git commit -m "ほかの画面の上の帯を「トークに戻る」にし、�
   - `choosePalette(key: PaletteKey): void` — `writePalette(key)` のあと、いまの端末の設定（暗いか）で `applyPalette` する。`startPalette()` が購読している端末の設定の変化でも、選んだ色で当て直す（`startPalette` の当て直しが `readPalette()` を読み直すか、選んだ色を覚えておく形にする。保存できないブラウザでも、その場の選択で当て直せるように、モジュールの中にいまの色を持つ）
   - 設定の画面の「色」の欄（`全部消す` の欄より上）: 見出し `copy.settings.colorTitle`、説明 `copy.settings.colorLead`、`role="radiogroup"` に 6 つの `role="radio"`（丸い色見本と `PALETTES[key].name`。`aria-checked`、矢印キーで動ける）。押すとすぐに `choosePalette`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 // palette.test.ts
@@ -154,10 +154,10 @@ it('common-5（どの色でも読める）: 設定の画面で 6 色から選べ
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- palette Settings` / Expected: FAIL
-- [ ] **Step 3: 書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- palette Settings` / Expected: FAIL
+- [x] **Step 3: 書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web

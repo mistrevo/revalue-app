@@ -156,15 +156,35 @@ export function applyPalette(key: PaletteKey, dark: boolean): void {
   root.style.colorScheme = dark ? 'dark' : 'light'
 }
 
-/** 選んだ色を読み、端末の設定（明るい・暗い）に合わせて当てる。設定が変わったら当て直す。戻り値は解除。 */
+/** いま当てている色。保存できないブラウザでも、その場の選択で当て直せるように覚えておく。 */
+let current: PaletteKey | null = null
+let currentDark = false
+
+/** いまの色。まだ当てていなければ、保存した色。 */
+export function currentPalette(): PaletteKey {
+  return current ?? readPalette()
+}
+
+/** 色を選ぶ。残したうえで、いまの端末の設定（暗いか）で当てる。保存できなくても、その場では変わる。 */
+export function choosePalette(key: PaletteKey): void {
+  writePalette(key)
+  current = key
+  applyPalette(key, currentDark)
+}
+
+/** 選んだ色を読み、端末の設定（明るい・暗い）に合わせて当てる。設定が変わったら、選んだ色で当て直す。戻り値は解除。 */
 export function startPalette(): () => void {
-  const key = readPalette()
+  current = readPalette()
   const query = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null
   if (!query) {
-    applyPalette(key, false)
+    currentDark = false
+    applyPalette(current, false)
     return () => {}
   }
-  const apply = () => applyPalette(key, query.matches)
+  const apply = (event?: { matches: boolean }) => {
+    currentDark = event ? event.matches : query.matches
+    applyPalette(current ?? readPalette(), currentDark)
+  }
   apply()
   query.addEventListener('change', apply)
   return () => query.removeEventListener('change', apply)
