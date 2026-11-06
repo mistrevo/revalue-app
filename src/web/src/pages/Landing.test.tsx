@@ -20,17 +20,14 @@ describe('Landing', () => {
     expect(screen.getByRole('heading', { level: 1, name: copy.landing.tagline })).toBeInTheDocument()
   })
 
-  it('foundation-1（案内はログインなしで見られる）: 約束は芯に沿う。話していないことは力として書かず、仕事は選ぶ・保留する・自分の案を書くのどれもできる。進め方は最近の一日を話すことから', () => {
-    const [evidence, choice] = copy.landing.promises
-    // 芯 1（根拠のない力は出さない）
-    expect(evidence.body).toContain('話した言葉をそのまま添えます')
-    expect(evidence.body).toContain('話していないことは書きません')
-    // 芯 5（本人が選ぶ）。「選ぶ」を重ねない
-    expect(choice.body).toContain('直せます')
-    for (const word of ['選ぶ', '保留する', '自分の案を書く']) expect(choice.body).toContain(word)
-    expect(choice.body.match(/選/g)).toHaveLength(1)
-    // 芯 3（AI が聞き手になる）: 何を話すのかが前もって分かる
-    expect(copy.landing.flow[0]).toBe('最近の一日を話す')
+  it('foundation-1（案内はログインなしで見られる）: 約束と進め方は開発者が決めた言葉で、本人の言葉を根拠にすることと、本人が直し選べることを伝える', () => {
+    // 言い方は製品の芯なので、AI の判断で変えない。変えるときは開発者が決める
+    expect(copy.landing.promises.map((p) => p.body)).toEqual([
+      '見えた力には、話した言葉をそのまま添えます',
+      '見立ては直せます。仕事も自分で選べます',
+      '名前もメールアドレスも残しません',
+    ])
+    expect(copy.landing.flow).toEqual(['話す', '見えた力を確かめる', '仕事の選択肢を見て、自分で選ぶ'])
   })
 
   it('foundation-1（案内はログインなしで見られる）: ログインのボタンは組み込み認証へページごと移動するリンクで、進め方が 1 行で出る', async () => {

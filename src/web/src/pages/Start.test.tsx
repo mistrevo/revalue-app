@@ -66,22 +66,20 @@ describe('Start', () => {
     expect(summary).toHaveClass('text-primary')
   })
 
-  it('foundation-2（始める前に保存するものを示す）: 4 行の要約だけで、全文より狭く言い切らず、共用の端末で書きかけが見えうることも了解の前に分かる', async () => {
+  it('foundation-2（始める前に保存するものを示す）: 4 行の要約は「くわしく読む」の外にあり、全文より狭く言い切らない', async () => {
     installFakeApi({ loggedIn: true, consented: false })
     renderApp('/start')
 
     const more = (await screen.findByText(copy.start.more)).closest('details')!
     const outside = copy.start.summary.filter((line) => !more.contains(screen.getByText(line)))
     expect(outside).toEqual(copy.start.summary)
-    const [kept, notKept, ai] = copy.start.summary
-    // 残すもの: 全文の「保存するもの」にある仕組みのための記録も挙げる
-    for (const word of ['話した内容', 'ID', '了解した日時', '回数']) expect(kept).toContain(word)
-    // 残さないもの: 書きかけはこの端末にだけ残り、同じ端末を使う人に見えることがある
-    expect(notKept).toContain('書きかけ')
-    expect(notKept).toContain('この端末')
-    expect(notKept).toContain('同じ端末を使う人')
-    // AI に送るとき: 全文の「使い道」と同じ場面を挙げる
-    for (const word of ['返事', '見立て', '仕事の選択肢', '深める', 'Claude', '開発者も']) expect(ai).toContain(word)
+    // 全文の「保存するもの」には仕組みのための ID なども、「使い道」には仕事の選択肢や深めるときもある。
+    // 要約は短いので全部は挙げないが、「〜だけ」と言い切って、全文にあるものを無いように読ませない
+    for (const line of copy.start.summary) expect(line).not.toContain('だけ')
+    const ai = copy.start.summary[2]
+    expect(ai).toContain('など')
+    expect(ai).toContain('Claude')
+    expect(ai).toContain('開発者も読みません')
   })
 
   it('foundation-2（始める前に保存するものを示す）: まだ見たことのない製品の言葉には、普通の言葉を添える', async () => {

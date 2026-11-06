@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import forbiddenWords from '../../shared/forbidden-words.json'
 import { copy } from './copy'
+import { PALETTES, PALETTE_KEYS } from './lib/palette'
 
 /** 文言の木をたどって、文字列をすべて取り出す。 */
 function flatten(value: unknown): string[] {
@@ -11,8 +12,8 @@ function flatten(value: unknown): string[] {
 }
 
 describe('copy', () => {
-  it('common-1（使わない言葉を出さない）: copy.ts に使わない言葉がない', () => {
-    const texts = flatten(copy)
+  it('common-1（使わない言葉を出さない）: copy.ts と設定に出す色の名前に、使わない言葉がない', () => {
+    const texts = [...flatten(copy), ...PALETTE_KEYS.map((key) => PALETTES[key].name)]
     expect(texts.length).toBeGreaterThan(0)
     expect(forbiddenWords.length).toBeGreaterThan(0)
 

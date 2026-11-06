@@ -8,10 +8,6 @@ import { Button } from '@/components/ui/button'
 import { PALETTES, PALETTE_KEYS, choosePalette, currentPalette, type PaletteKey } from '@/lib/palette'
 import { copy } from '@/copy'
 
-/**
- * 設定。全部消すと、ログアウト。全部消すときは、ブラウザの確認ダイアログを使わず画面の中で確かめる。
- * 全部消したときと、ログアウトするときは、その端末に残した書きかけもすべて消す。
- */
 /** 色の選び方。丸い色見本を並べ、矢印キーで動かせる（radiogroup）。選ぶとすぐ変わり、この端末にだけ残す。 */
 function ColorPicker() {
   const [selected, setSelected] = useState<PaletteKey>(currentPalette)
@@ -69,6 +65,10 @@ function ColorPicker() {
   )
 }
 
+/**
+ * 設定。画面の色、全部消す、ログアウト。全部消すときは、ブラウザの確認ダイアログを使わず画面の中で確かめる。
+ * 全部消したときと、ログアウトするときは、その端末に残した書きかけもすべて消す。
+ */
 export function Settings() {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
