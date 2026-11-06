@@ -574,6 +574,7 @@ export function installFakeApi(initial: {
     id: e.id,
     status: e.status,
     startedAt: e.startedAt,
+    finishedAt: e.finishedAt ?? null,
     userTurnCount: e.turns.filter((t) => t.role === 'user').length,
     preview: e.turns.find((t) => t.role === 'user')?.text.slice(0, 30) ?? '',
     canResume: e.status === 'finished' && (e.insights?.canResume ?? false),

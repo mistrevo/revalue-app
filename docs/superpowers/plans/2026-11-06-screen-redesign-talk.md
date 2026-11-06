@@ -177,7 +177,7 @@ git commit -m "見た目の土台を作る。太めの丸ゴシック、6 色の
 **Interfaces:**
 - Produces: `GET /api/episodes` の各要素に `finishedAt`（話し終えていなければ `null`）。`EpisodeSummary.finishedAt?: string | null`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `EpisodeTests.cs` の一覧のテスト（`discover-8（話した出来事が残る）`、`older` を区切って `newer` を始めるもの）に足す:
 
@@ -186,19 +186,19 @@ Assert.Equal(JsonValueKind.Null, list[0].GetProperty("finishedAt").ValueKind);
 Assert.Equal(JsonValueKind.String, list[1].GetProperty("finishedAt").ValueKind);
 ```
 
-- [ ] **Step 2: 失敗するのを見る**
+- [x] **Step 2: 失敗するのを見る**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests --filter-class "*EpisodeTests"`
 Expected: FAIL（`finishedAt` がない）
 
-- [ ] **Step 3: `EpisodeSummaryDto` の最後に `DateTimeOffset? FinishedAt` を足し、`e.FinishedAt` を渡す。画面の型と偽物も合わせる**
+- [x] **Step 3: `EpisodeSummaryDto` の最後に `DateTimeOffset? FinishedAt` を足し、`e.FinishedAt` を渡す。画面の型と偽物も合わせる**
 
-- [ ] **Step 4: 通るのを見る**
+- [x] **Step 4: 通るのを見る**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests --filter-class "*EpisodeTests"` と `npm --prefix src/web test`
 Expected: PASS
 
-- [ ] **Step 5: コミット**
+- [x] **Step 5: コミット**
 
 ```bash
 git add src/Revalue.Server/Features/Discover/DiscoverEndpoints.cs tests/Revalue.Server.Tests/EpisodeTests.cs src/web/src/api.ts src/web/src/test/fake-api.ts

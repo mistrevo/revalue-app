@@ -49,8 +49,8 @@ public sealed record EpisodeDto(
     }
 }
 
-/// <summary>一覧の 1 件。<c>CanResume</c> は、続きを話せる場面か（03-validate.md の「続きを話す」）。</summary>
-public sealed record EpisodeSummaryDto(string Id, string Status, DateTimeOffset StartedAt, int UserTurnCount, string Preview, bool CanResume);
+/// <summary>一覧の 1 件。<c>CanResume</c> は、続きを話せる場面か（03-validate.md の「続きを話す」）。<c>FinishedAt</c> は話し終えた時刻（話し終えていなければ null）。</summary>
+public sealed record EpisodeSummaryDto(string Id, string Status, DateTimeOffset StartedAt, int UserTurnCount, string Preview, bool CanResume, DateTimeOffset? FinishedAt);
 
 /// <summary>/api/episodes の API。ここにあるものは AI を呼ばない（答えを送る API は別）。</summary>
 public static class DiscoverEndpoints
@@ -104,7 +104,7 @@ public static class DiscoverEndpoints
             var items = await store.ListByTypeAsync<EpisodeItem>(http.User.GetUserKey()!, EpisodeItem.ItemType, ct);
             return TypedResults.Ok(items
                 .OrderByDescending(e => e.StartedAt)
-                .Select(e => new EpisodeSummaryDto(e.Id, e.Status, e.StartedAt, e.UserTurnCount, Preview(e), EpisodeInsights.CanResume(e)))
+                .Select(e => new EpisodeSummaryDto(e.Id, e.Status, e.StartedAt, e.UserTurnCount, Preview(e), EpisodeInsights.CanResume(e), e.FinishedAt))
                 .ToList());
         });
 

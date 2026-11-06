@@ -228,6 +228,8 @@ public sealed class EpisodeTests
         Assert.Equal(1, list[1].GetProperty("userTurnCount").GetInt32());
         Assert.Equal(answer[..30], list[1].GetProperty("preview").GetString());
         Assert.True(list[1].TryGetProperty("startedAt", out _));
+        Assert.Equal(JsonValueKind.Null, list[0].GetProperty("finishedAt").ValueKind);
+        Assert.Equal(JsonValueKind.String, list[1].GetProperty("finishedAt").ValueKind);
     }
 
     [Fact(DisplayName = "discover-8（話した出来事が残る）: ほかの人のエピソードは読めない")]

@@ -212,6 +212,8 @@ export type EpisodeSummary = {
   id: string
   status: EpisodeStatus
   startedAt: string
+  /** 話し終えた時刻。話し終えていなければ null。 */
+  finishedAt?: string | null
   userTurnCount: number
   preview: string
   /** 続きを話せる場面か（話し終えていて、もう少し聞かせてほしいことがある）。 */
