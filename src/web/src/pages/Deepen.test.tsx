@@ -644,6 +644,21 @@ describe('Deepen', () => {
     expect(names.indexOf(copy.deepen.stepsTitle)).toBe(names.indexOf(copy.deepen.notWorkingTitle) - 1)
   })
 
+  it('common-5（どの色でも読める）: 押した答えの例は tint の地に onTint の文字。「それ以外」の欄は話す画面と同じ field の地と fieldBorder の枠', async () => {
+    installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent() }) })
+    renderApp('/deepen')
+
+    const questions = await screen.findByRole('region', { name: copy.deepen.questionsTitle })
+    await userEvent.click(within(questions).getByRole('button', { name: FAKE_DEEPEN_CHOICES[1] }))
+    const pressed = within(questions).getByRole('button', { name: FAKE_DEEPEN_CHOICES[1] })
+    expect(pressed).toHaveAttribute('aria-pressed', 'true')
+    // accent の文字のボタンなので、押した印の地も確かめた組にする（accent と tint は 4.5 に届かない色がある）
+    expect(pressed).toHaveClass('aria-pressed:bg-tint', 'aria-pressed:text-on-tint')
+
+    await userEvent.click(within(questions).getByRole('button', { name: copy.deepen.other }))
+    expect(within(questions).getByLabelText(copy.deepen.answerLabel)).toHaveClass('bg-field', 'border-field-border')
+  })
+
   it('deepen-6（仮の場面での考え方を聞く）: 選択肢を選んでも、「それ以外」から書いても答えられ、答えを残したことと力の見立てに使わないことを伝える', async () => {
     const api = installFakeApi({ loggedIn: true, consented: true, deepen: fakeDeepen({ content: fakeDeepenContent() }) })
     renderApp('/deepen')

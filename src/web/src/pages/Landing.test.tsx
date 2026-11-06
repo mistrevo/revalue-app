@@ -16,8 +16,21 @@ describe('Landing', () => {
 
     const titles = await screen.findAllByRole('heading', { level: 2 })
     expect(titles.map((t) => t.textContent)).toEqual(['あなたの言葉が根拠です', '決めるのはあなたです', '安心して話せます'])
-    expect(screen.getByText('見えた力には、話した言葉をそのまま添えます')).toBeInTheDocument()
+    expect(screen.getByText(copy.landing.promises[0].body)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: copy.landing.tagline })).toBeInTheDocument()
+  })
+
+  it('foundation-1（案内はログインなしで見られる）: 約束は芯に沿う。話していないことは力として書かず、仕事は選ぶ・保留する・自分の案を書くのどれもできる。進め方は最近の一日を話すことから', () => {
+    const [evidence, choice] = copy.landing.promises
+    // 芯 1（根拠のない力は出さない）
+    expect(evidence.body).toContain('話した言葉をそのまま添えます')
+    expect(evidence.body).toContain('話していないことは書きません')
+    // 芯 5（本人が選ぶ）。「選ぶ」を重ねない
+    expect(choice.body).toContain('直せます')
+    for (const word of ['選ぶ', '保留する', '自分の案を書く']) expect(choice.body).toContain(word)
+    expect(choice.body.match(/選/g)).toHaveLength(1)
+    // 芯 3（AI が聞き手になる）: 何を話すのかが前もって分かる
+    expect(copy.landing.flow[0]).toBe('最近の一日を話す')
   })
 
   it('foundation-1（案内はログインなしで見られる）: ログインのボタンは組み込み認証へページごと移動するリンクで、進め方が 1 行で出る', async () => {

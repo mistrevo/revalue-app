@@ -39,7 +39,8 @@ export function Episodes() {
         <ul className="mt-6 flex flex-col gap-3">
           {state.episodes.map((episode) => (
             <li key={episode.id}>
-              {/* マウスを載せたら枠だけ変える。行の中に accent の文字があり、accent と tint は文字の組にしない（00-common.md の「見た目」） */}
+              {/* マウスを載せたら枠だけ変える。行の中に accent の文字（続きから話せる）があり、accent と tint は文字の組にしない（00-common.md の「見た目」）。
+                  話している途中の札は、tint の地に onTint の文字（確かめた組） */}
               <Link
                 to={`/talk/${episode.id}`}
                 className="block rounded-2xl border bg-surface px-4 py-3 transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -49,7 +50,7 @@ export function Episodes() {
                   <span
                     className={
                       episode.status === 'talking'
-                        ? 'rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary'
+                        ? 'rounded-full bg-tint px-2 py-0.5 font-medium text-on-tint'
                         : 'rounded-full bg-muted px-2 py-0.5'
                     }
                   >

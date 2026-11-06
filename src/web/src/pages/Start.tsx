@@ -4,7 +4,7 @@ import { postConsent } from '@/api'
 import { LogoutLink } from '@/components/LogoutLink'
 import { useMe } from '@/components/me-context'
 import { Page } from '@/components/Page'
-import { ShieldCheck } from 'lucide-react'
+import { ChevronDown, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { copy } from '@/copy'
@@ -71,7 +71,11 @@ export function Start() {
       </Card>
 
       <details className="group mt-4 rounded-2xl border border-border bg-surface">
-        <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-bold">{copy.start.more}</summary>
+        {/* 開閉の三角は flex で消えるので、下向きの矢印を添え、開いたら向きを変える。accent の文字は surface の上（確かめた組） */}
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-4 text-base font-bold text-primary [&::-webkit-details-marker]:hidden">
+          {copy.start.more}
+          <ChevronDown aria-hidden="true" className="size-5 shrink-0 transition-transform group-open:rotate-180" />
+        </summary>
         <div className="divide-y divide-border border-t border-border">
           {copy.start.items.map((item) => (
             <section key={item.title} className="px-4 py-4">

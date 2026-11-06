@@ -29,6 +29,7 @@ import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { hasVisibleText } from '@/lib/text'
+import { FIELD_CLASS } from '@/components/field'
 
 type State = { kind: 'loading' } | { kind: 'ready'; data: OptionsData } | { kind: 'error' }
 
@@ -48,8 +49,6 @@ const MAX_OWN_JOBS = 3
 const MAX_TITLE_LENGTH = 100
 const MAX_NOTE_LENGTH = 500
 
-const FIELD_CLASS =
-  'w-full min-w-0 rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 /** 3 枚のカードと出せないカードの枠。どれも同じ部品と見た目にする（options-1（3 枚を同じ重さで示す））。 */
 const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-4 py-4'
 
@@ -383,7 +382,7 @@ function ChoiceArea({
   const own = choice?.kind === 'own' ? choice.ownJob : null
   if (chosen || own) {
     return (
-      <Section title={copy.options.chosenTitle} className={`${CARD_CLASS} border-primary/40 bg-primary/5`} headingRef={headingRef}>
+      <Section title={copy.options.chosenTitle} className={`${CARD_CLASS} border-primary`} headingRef={headingRef}>
         {chosen && (
           <>
             <p className="text-sm text-muted-foreground">{copy.options.kinds[chosen.kind].label}</p>

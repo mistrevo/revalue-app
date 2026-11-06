@@ -24,6 +24,7 @@ import { StepsEditor } from '@/components/StepsEditor'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { hasVisibleText } from '@/lib/text'
+import { FIELD_CLASS } from '@/components/field'
 
 type State = { kind: 'loading' } | { kind: 'ready'; data: DeepenData } | { kind: 'error' }
 
@@ -45,8 +46,6 @@ const MAX_TASK_DETAIL = 80
 const MAX_KNOWLEDGE = 60
 const MAX_ANSWER = 200
 
-const FIELD_CLASS =
-  'w-full min-w-0 rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 /** 部分ごとの枠（仕事の選択肢の画面のカードと同じ見た目）。 */
 const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-4 py-4'
 
@@ -309,7 +308,7 @@ function TargetSection({ target }: { target: DeepenTarget }) {
   const id = useId()
   const kind = target.kind === 'own' ? copy.deepen.ownKind : copy.options.kinds[target.kind].label
   return (
-    <section aria-labelledby={id} className={`${CARD_CLASS} border-primary/40 bg-primary/5`}>
+    <section aria-labelledby={id} className={`${CARD_CLASS} border-primary`}>
       <h2 id={id} className="text-base font-bold">
         {copy.deepen.targetTitle}
       </h2>
@@ -667,7 +666,7 @@ function QuestionItem({
             key={choice}
             variant="outline"
             // 選んだ答えは、押した印で分かるようにする（「あなたの答え」と合わせて見せる）
-            className="h-auto w-full justify-start py-2 text-left whitespace-normal aria-pressed:border-primary aria-pressed:bg-primary/10"
+            className="h-auto w-full justify-start py-2 text-left whitespace-normal aria-pressed:border-primary aria-pressed:bg-tint aria-pressed:text-on-tint"
             disabled={busy}
             aria-pressed={answer?.fromChoice === true && answer.text === choice}
             onClick={() => void onAnswer(question.id, choice, true)}

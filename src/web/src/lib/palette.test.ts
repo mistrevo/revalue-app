@@ -23,11 +23,17 @@ const TEXT_PAIRS = [
   ['muted', 'field'],
   // 日付の札（DateChip）と、目立たせないボタンに重ねたときの地
   ['muted', 'chip'],
+  // 目立たせないボタン（ghost）にマウスを載せたとき
+  ['text', 'chip'],
+  // 話している途中の札、押した答えの例。accent の文字のボタンにマウスを載せたとき
   ['onTint', 'tint'],
   ['onAccent', 'accent'],
   ['accent', 'surface'],
   // 案内の名前「RE:VALUE」
   ['accent', 'ground'],
+  // 全部消すボタンの文字と、マウスを載せたとき
+  ['danger', 'surface'],
+  ['onDanger', 'danger'],
 ] as const
 const UI_PAIRS = [
   ['fieldBorder', 'field'],

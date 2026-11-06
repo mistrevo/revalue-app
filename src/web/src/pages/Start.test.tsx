@@ -53,6 +53,37 @@ describe('Start', () => {
     expect(screen.getByText(copy.start.afterAgree)).toBeInTheDocument()
   })
 
+  it('foundation-2（始める前に保存するものを示す）: 「くわしく読む」には開く印（下向きの矢印）があり、開くと向きが変わる', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    const summary = (await screen.findByText(copy.start.more)).closest('summary')!
+    const icon = summary.querySelector('svg')
+    expect(icon).not.toBeNull()
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(icon).toHaveClass('group-open:rotate-180')
+    // ブラウザの開閉の三角は消しているので、矢印が唯一の印になる
+    expect(summary).toHaveClass('text-primary')
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 4 行の要約だけで、全文より狭く言い切らず、共用の端末で書きかけが見えうることも了解の前に分かる', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    const more = (await screen.findByText(copy.start.more)).closest('details')!
+    const outside = copy.start.summary.filter((line) => !more.contains(screen.getByText(line)))
+    expect(outside).toEqual(copy.start.summary)
+    const [kept, notKept, ai] = copy.start.summary
+    // 残すもの: 全文の「保存するもの」にある仕組みのための記録も挙げる
+    for (const word of ['話した内容', 'ID', '了解した日時', '回数']) expect(kept).toContain(word)
+    // 残さないもの: 書きかけはこの端末にだけ残り、同じ端末を使う人に見えることがある
+    expect(notKept).toContain('書きかけ')
+    expect(notKept).toContain('この端末')
+    expect(notKept).toContain('同じ端末を使う人')
+    // AI に送るとき: 全文の「使い道」と同じ場面を挙げる
+    for (const word of ['返事', '見立て', '仕事の選択肢', '深める', 'Claude', '開発者も']) expect(ai).toContain(word)
+  })
+
   it('foundation-2（始める前に保存するものを示す）: まだ見たことのない製品の言葉には、普通の言葉を添える', async () => {
     installFakeApi({ loggedIn: true, consented: false })
     renderApp('/start')

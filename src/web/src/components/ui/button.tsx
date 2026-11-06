@@ -8,15 +8,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // 文字と地は、マウスを載せたときも 00-common.md の「見た目」で確かめた組だけにする。地を薄めたり混ぜたりしない
+        // 塗りのボタンは、地を変えずに下線で示す（accent を薄めると onAccent の文字が 4.5 に届かない色がある）
+        default: "bg-primary text-primary-foreground underline-offset-4 hover:underline",
         outline:
           "border-primary bg-surface text-primary hover:bg-tint hover:text-on-tint aria-expanded:bg-tint aria-expanded:text-on-tint",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-secondary text-secondary-foreground hover:bg-muted aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
+        // 全部消すなど、取り消せない操作。どの色を選んでも同じ赤（danger）
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "border-danger bg-surface text-danger hover:bg-danger hover:text-on-danger focus-visible:border-danger focus-visible:ring-danger/30",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
