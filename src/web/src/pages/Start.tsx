@@ -4,7 +4,9 @@ import { postConsent } from '@/api'
 import { LogoutLink } from '@/components/LogoutLink'
 import { useMe } from '@/components/me-context'
 import { Page } from '@/components/Page'
+import { ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { copy } from '@/copy'
 
 /** 設定の画面で全部消したあとに来たか。履歴の state で受け取る。 */
@@ -57,14 +59,28 @@ export function Start() {
       <h1 className="text-2xl font-bold tracking-tight">{copy.start.title}</h1>
       <p className="mt-3 leading-relaxed text-muted-foreground">{copy.start.lead}</p>
 
-      <div className="mt-6 divide-y rounded-xl border">
-        {copy.start.items.map((item) => (
-          <section key={item.title} className="px-4 py-4">
-            <h2 className="text-base font-semibold">{item.title}</h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
-          </section>
-        ))}
-      </div>
+      <Card className="mt-5">
+        <ul className="space-y-3 px-4">
+          {copy.start.summary.map((line) => (
+            <li key={line} className="flex items-start gap-3 leading-relaxed">
+              <ShieldCheck aria-hidden="true" className="mt-1 size-5 shrink-0 text-primary" />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <details className="group mt-4 rounded-2xl border border-border bg-surface">
+        <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-bold">{copy.start.more}</summary>
+        <div className="divide-y divide-border border-t border-border">
+          {copy.start.items.map((item) => (
+            <section key={item.title} className="px-4 py-4">
+              <h2 className="text-base font-semibold">{item.title}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+            </section>
+          ))}
+        </div>
+      </details>
 
       {failed && (
         <p role="alert" className="mt-4 text-sm leading-relaxed">
@@ -72,12 +88,13 @@ export function Start() {
         </p>
       )}
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <Button size="lg" className="w-full sm:w-auto sm:px-6" onClick={agree} disabled={sending}>
+      <div className="mt-8 flex flex-col gap-3">
+        <Button size="lg" className="min-h-14 w-full text-base font-extrabold" onClick={agree} disabled={sending}>
           {copy.start.agree}
         </Button>
+        <p className="text-center text-sm text-muted-foreground">{copy.start.afterAgree}</p>
         {/* 了解しない人の出口。ログアウトは組み込み認証へページごと移動し、その端末の書きかけも消す */}
-        <Button asChild size="lg" variant="ghost" className="h-auto w-full py-2 whitespace-normal sm:w-auto">
+        <Button asChild size="lg" variant="ghost" className="h-auto w-full py-2 whitespace-normal text-muted-foreground">
           <LogoutLink>{copy.start.decline}</LogoutLink>
         </Button>
       </div>

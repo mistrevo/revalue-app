@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOGOUT_URL } from '@/api'
@@ -37,6 +37,20 @@ describe('Start', () => {
       { method: 'POST', url: '/api/consent', body: { version: api.currentVersion } },
       { method: 'POST', url: '/api/episodes', body: undefined },
     ])
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 4 行の要約が先に出て、5 項目の全文は「くわしく読む」の中にある', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    for (const line of copy.start.summary) expect(await screen.findByText(line)).toBeInTheDocument()
+    const more = screen.getByText(copy.start.more).closest('details')!
+    expect(more).not.toHaveAttribute('open')
+    for (const item of copy.start.items) {
+      expect(within(more).getByText(item.body)).toBeInTheDocument()
+      expect(within(more).getByRole('heading', { name: item.title })).toBeInTheDocument()
+    }
+    expect(screen.getByText(copy.start.afterAgree)).toBeInTheDocument()
   })
 
   it('foundation-2（始める前に保存するものを示す）: まだ見たことのない製品の言葉には、普通の言葉を添える', async () => {

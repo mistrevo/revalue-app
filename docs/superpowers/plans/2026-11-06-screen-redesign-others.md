@@ -173,7 +173,7 @@ git commit -m "設定の画面で、6 色から画面の色を選べるように
 **Interfaces:**
 - Produces: 案内の画面（モック `landing.html`）。上から、「RE:VALUE」と「リバリュー」、ひとこと（`copy.landing.tagline` を大見出し `h1` に）、説明 1 文（`copy.landing.lead`）、約束 3 つ（アイコンの丸、題、1 行。カードの見た目）、空き、ログインのボタン（幅いっぱい、親指の届く下。`LOGIN_URL` へページごと移動）、進め方 1 行（`copy.landing.flow` を「→」でつなぐ）。ログイン済みの人の行き先は PR 1 のまま（`/talk` か `/start` へ送る）。送るまでのあいだは、ボタンを出さないか、いままでの「続きから」を出す
 
-- [ ] **Step 1: 失敗するテストを書く**（いまの Landing のテストのうち、約束の本文や `flowTitle` を確かめている所は、新しい言葉に直す）
+- [x] **Step 1: 失敗するテストを書く**（いまの Landing のテストのうち、約束の本文や `flowTitle` を確かめている所は、新しい言葉に直す）
 
 ```ts
 it('foundation-1（案内はログインなしで見られる）: 約束 3 つが題と 1 行で出て、先頭は「あなたの言葉が根拠です」「決めるのはあなたです」', async () => {
@@ -191,10 +191,10 @@ it('foundation-1（案内はログインなしで見られる）: ログイン�
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: FAIL
-- [ ] **Step 3: 書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: FAIL
+- [x] **Step 3: 書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
@@ -210,7 +210,7 @@ git commit -m "案内を短くする。約束 3 つを題と 1 行にし、ロ�
 **Interfaces:**
 - Produces: はじめる前にの画面（モック `startshort.html`）。見出し `copy.start.title`、`copy.start.lead`、4 行の要約（`copy.start.summary`。アイコン付きの 1 枚のカード）、`<details>`（`<summary>` は `copy.start.more`）の中に、いまの 5 項目の題と全文（`copy.start.items`。言葉は変えない）、空き、「了解して始める」（幅いっぱい、下）、その下に `copy.start.afterAgree`、さらにその下に目立たせない「了解せずにやめる（ログアウト）」（いまのまま。ページごと移動）。全部消したあとの「全部消しました…」は、いまのまま一度だけ出す
 
-- [ ] **Step 1: 失敗するテストを書く**（いまの Start のテストは、5 項目の題と本文がページの中にあることを確かめ続ける。`details` が閉じていても DOM にあるので、そのまま通るはず）
+- [x] **Step 1: 失敗するテストを書く**（いまの Start のテストは、5 項目の題と本文がページの中にあることを確かめ続ける。`details` が閉じていても DOM にあるので、そのまま通るはず）
 
 ```ts
 it('foundation-2（始める前に保存するものを示す）: 4 行の要約が先に出て、5 項目の全文は「くわしく読む」の中にある', async () => {
@@ -229,10 +229,10 @@ it('foundation-2（始める前に保存するものを示す）: 了解しな�
 ```
 
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Start` / Expected: 1 つ目が FAIL
-- [ ] **Step 3: 書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Start` / Expected: 1 つ目が FAIL
+- [x] **Step 3: 書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
