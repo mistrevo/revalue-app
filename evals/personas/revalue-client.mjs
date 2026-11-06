@@ -2,7 +2,7 @@
 // 使い方は同じフォルダの README.md。Node.js 24 の fetch だけを使う。
 
 export const BASE = process.env.REVALUE_URL ?? 'http://localhost:5080';
-export const CONSENT_VERSION = '2026-11-03-2';
+export const CONSENT_VERSION = '2026-11-06';
 
 /** 偽のログイン。dev_user は英数字とハイフンで 64 文字まで。名前ごとに別の人として扱われる。 */
 export async function login(devUser) {

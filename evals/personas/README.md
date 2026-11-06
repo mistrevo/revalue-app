@@ -115,7 +115,7 @@ ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5080 dotnet 
 | 段階 | 呼び方 |
 |---|---|
 | ログイン | `GET /.auth/login/google?dev_user=<名前>` でクッキー `revalue_dev_user` を受け取る |
-| 了解（保存するものと使い道への同意） | `POST /api/consent` に `{"version":"2026-11-03-2"}` |
+| 了解（保存するものと使い道への同意） | `POST /api/consent` に `{"version":"2026-11-06"}` |
 | 話を始める | `POST /api/episodes` に `{}`。id と最初の問いが返る |
 | 答える | `POST /api/episodes/{id}/messages` に `{"text":"…","kind":"free"}`。選択肢から選ぶときは `"kind":"choice"` で選択肢の文をそのまま送る |
 | 話を区切る | `POST /api/episodes/{id}/finish` |

@@ -88,21 +88,33 @@ public sealed class ConsentTests
     [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: はじめにの中身を変えたので版を上げた。前の版で了解した人は、了解し直すまで了解の要る API を使えない")]
     public async Task PreviousVersionConsentMustBeRenewed()
     {
-        Assert.Equal("2026-11-03-2", ConsentInfo.CurrentVersion);
+        // 「保存しないもの」に、書きかけを端末のブラウザに残すことと、それが消えるときを足したので、版を上げた
+        Assert.Equal("2026-11-06", ConsentInfo.CurrentVersion);
         await using var factory = new RevalueFactory();
         var client = factory.CreateUserClient("g-1");
         var store = factory.Services.GetRequiredService<IDataStore>();
         await store.UpsertAsync(new ConsentItem
         {
             Id = ConsentItem.ItemId, UserKey = TestUsers.Key("g-1"), Type = ConsentItem.ItemType,
-            Version = "2026-11-03", At = factory.Clock.GetUtcNow(),
+            Version = "2026-11-03-2", At = factory.Clock.GetUtcNow(),
         }, Ct);
 
-        Assert.False((await GetMe(client)).GetProperty("consented").GetBoolean());
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/next-step", Ct)).StatusCode);
+        var me = await GetMe(client);
+        Assert.False(me.GetProperty("consented").GetBoolean());
+        Assert.Equal("2026-11-03-2", me.GetProperty("consentVersion").GetString());
+        foreach (var path in new[] { "/api/next-step", "/api/episodes", "/api/stats" })
+        {
+            var response = await client.GetAsync(path, Ct);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+            Assert.Equal("/problems/consent-required", problem.GetProperty("type").GetString());
+        }
 
+        // 前の版のままでは了解し直せない。いまの版で了解し直すと使える
+        Assert.Equal(HttpStatusCode.BadRequest, (await Consent(client, "2026-11-03-2")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await Consent(client, ConsentInfo.CurrentVersion)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/next-step", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/episodes", Ct)).StatusCode);
     }
 
     [Fact(DisplayName = "foundation-2（始める前に保存するものを示す）: 了解する前の要求では、その人のアイテムを作らない")]

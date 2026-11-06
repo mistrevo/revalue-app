@@ -498,6 +498,8 @@ export type FakeStream = { send: (event: string, data: unknown) => void; close: 
 export function installFakeApi(initial: {
   loggedIn: boolean
   consented: boolean
+  /** 了解していない人が、前の版で了解した記録を持っているときの、その版（「はじめに」の中身を変えて版を上げたあと）。 */
+  consentVersion?: string | null
   episodes?: Episode[]
   profile?: Profile
   options?: Options
@@ -508,6 +510,8 @@ export function installFakeApi(initial: {
   const state = {
     loggedIn: initial.loggedIn,
     consented: initial.consented,
+    /** 前の版で了解した記録の版。了解し直すか、全部消すと、なくなる。 */
+    oldConsentVersion: initial.consented ? null : (initial.consentVersion ?? null),
     episodes: [...(initial.episodes ?? [])],
     /** 次に答えを送ったときの応答。イベントの並びか、流れを始める前に断る応答。 */
     reply: replyEvents(['受け止めました。', 'そのとき何をしましたか？'], ['段取りを考えた', '人に頼んだ', '手を動かした']) as
@@ -560,7 +564,8 @@ export function installFakeApi(initial: {
   }
   const calls: FakeCall[] = []
   const streams: FakeStream[] = []
-  const currentVersion = '2026-11-02'
+  /** 了解の版。裏側の ConsentInfo.CurrentVersion にそろえる。 */
+  const currentVersion = '2026-11-06'
   let nextId = 100
 
   const json = (status: number, body: unknown) =>
@@ -614,22 +619,33 @@ export function installFakeApi(initial: {
     if (url === '/api/me' && method === 'GET') {
       return json(200, {
         consented: state.consented,
-        consentVersion: state.consented ? currentVersion : null,
+        consentVersion: state.consented ? currentVersion : state.oldConsentVersion,
         currentVersion,
       })
     }
     if (url === '/api/consent' && method === 'POST') {
+      // 裏側と同じく、いまの版でなければ了解として残さない
+      if ((body as { version?: unknown } | undefined)?.version !== currentVersion) {
+        return json(400, { type: '/problems/invalid-consent-version', status: 400 })
+      }
       state.consented = true
+      state.oldConsentVersion = null
       return new Response(null, { status: 204 })
     }
     if (url === '/api/me' && method === 'DELETE') {
       state.consented = false
+      state.oldConsentVersion = null
       state.episodes = []
       state.profile = fakeProfile()
       state.options = fakeOptions()
       state.deepen = fakeDeepen({ readiness: 'noChoice', target: null })
       state.report = fakeReport({ ready: false, content: null, current: null })
       return new Response(null, { status: 204 })
+    }
+
+    // 裏側と同じく、了解していない人（前の版で了解した人も）には、了解の要る API を使わせない
+    if (!state.consented) {
+      return json(403, { type: '/problems/consent-required', status: 403 })
     }
 
     if (url === '/api/next-step' && method === 'GET') {

@@ -80,6 +80,39 @@ describe('Start', () => {
     expect(screen.queryByText(FAKE_OPENING)).not.toBeInTheDocument()
   })
 
+  it('foundation-2（始める前に保存するものを示す）: 前の版で了解した人は、了解の要る API を使わずに「はじめに」へ進み、書きかけのことを読んでから、いまの版で了解し直す', async () => {
+    // 「保存しないもの」に書きかけのことを足して版を上げたので、前の版の了解は了解していない扱い（裏側は 403 を返す）
+    const api = installFakeApi({ loggedIn: true, consented: false, consentVersion: '2026-11-03-2' })
+    expect(api.currentVersion).not.toBe('2026-11-03-2')
+    renderApp('/talk/episode-1')
+
+    expect(await screen.findByRole('heading', { level: 1, name: copy.start.title })).toBeInTheDocument()
+    const notSaved = copy.start.items.find((item) => item.title === '保存しないもの')!
+    expect(screen.getByText(notSaved.body)).toBeInTheDocument()
+    expect(notSaved.body).toContain('書きかけ')
+    // 了解し直すまでは、了解の状態を読むだけで、了解の要る API を呼ばない
+    expect(api.calls.filter((call) => call.url !== '/api/me')).toEqual([])
+
+    await userEvent.click(screen.getByRole('button', { name: copy.start.agree }))
+
+    expect(await screen.findByText(FAKE_OPENING)).toBeInTheDocument()
+    expect(api.calls.find((call) => call.method === 'POST' && call.url === '/api/consent')?.body).toEqual({
+      version: api.currentVersion,
+    })
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 了解していない人に、了解の要る API は 403 を返す（偽物も裏側と同じ）', async () => {
+    const api = installFakeApi({ loggedIn: true, consented: false, consentVersion: '2026-11-03-2' })
+
+    const me = await fetch('/api/me').then((response) => response.json())
+    expect(me).toEqual({ consented: false, consentVersion: '2026-11-03-2', currentVersion: api.currentVersion })
+    for (const url of ['/api/episodes', '/api/next-step']) {
+      const response = await fetch(url)
+      expect(response.status).toBe(403)
+      expect(await response.json()).toMatchObject({ type: '/problems/consent-required' })
+    }
+  })
+
   it('foundation-2（始める前に保存するものを示す）: 了解済みの人がはじめにを開くと、話す画面へ進む', async () => {
     installFakeApi({ loggedIn: true, consented: true })
     renderApp('/start')
