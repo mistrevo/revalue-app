@@ -20,6 +20,7 @@ import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { hasVisibleText } from '@/lib/text'
+import { FIELD_CLASS } from '@/components/field'
 
 type State = { kind: 'loading' } | { kind: 'ready'; data: ProfileData } | { kind: 'error' }
 
@@ -50,8 +51,6 @@ const MAX_ENTRIES = 5
 const MAX_ENTRY_LENGTH = 100
 const MAX_AGENCY_LENGTH = 500
 
-const FIELD_CLASS =
-  'w-full min-w-0 rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 const WRAP_BUTTON = 'h-auto w-full justify-start py-2 text-left whitespace-normal'
 
 /**
@@ -189,12 +188,6 @@ export function Profile() {
         </div>
       )}
       {state.kind === 'ready' && <NextStepLink refreshKey={state.data} />}
-
-      <div className="mt-6">
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/talk">{copy.nav.backToTalk}</Link>
-        </Button>
-      </div>
     </Page>
   )
 }
@@ -202,7 +195,7 @@ export function Profile() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const id = useId()
   return (
-    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4">
+    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-4 py-4">
       <h2 id={id} className="text-base font-bold">
         {title}
       </h2>

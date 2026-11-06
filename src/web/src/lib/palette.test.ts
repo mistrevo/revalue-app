@@ -4,6 +4,7 @@ import {
   PALETTE_KEYS,
   PALETTE_STORAGE_KEY,
   applyPalette,
+  choosePalette,
   readPalette,
   startPalette,
   writePalette,
@@ -22,9 +23,17 @@ const TEXT_PAIRS = [
   ['muted', 'field'],
   // 日付の札（DateChip）と、目立たせないボタンに重ねたときの地
   ['muted', 'chip'],
+  // 目立たせないボタン（ghost）にマウスを載せたとき
+  ['text', 'chip'],
+  // 話している途中の札、押した答えの例。accent の文字のボタンにマウスを載せたとき
   ['onTint', 'tint'],
   ['onAccent', 'accent'],
   ['accent', 'surface'],
+  // 案内の名前「RE:VALUE」
+  ['accent', 'ground'],
+  // 全部消すボタンの文字と、マウスを載せたとき
+  ['danger', 'surface'],
+  ['onDanger', 'danger'],
 ] as const
 const UI_PAIRS = [
   ['fieldBorder', 'field'],
@@ -110,5 +119,41 @@ describe('palette', () => {
     expect(document.documentElement.dataset.scheme).toBe('light')
     stop()
     expect(listener).toBeNull()
+  })
+})
+
+describe('choosePalette', () => {
+  it('common-5（どの色でも読める）: 選んだ色は、端末を暗い画面に切り替えても選んだ色の暗い値になる', () => {
+    let listener: ((e: { matches: boolean }) => void) | null = null
+    const mql = {
+      matches: false,
+      addEventListener: (_: string, l: typeof listener) => {
+        listener = l
+      },
+      removeEventListener: () => {},
+    }
+    vi.stubGlobal('matchMedia', () => mql)
+    const stop = startPalette()
+    choosePalette('blue')
+    listener!({ matches: true })
+    expect(document.documentElement.style.getPropertyValue('--rv-accent')).toBe(PALETTES.blue.dark.accent)
+    stop()
+  })
+
+  it('common-5（どの色でも読める）: 選んだ色はこの端末に残り、開き直すと選んだ色で出る', () => {
+    choosePalette('rose')
+    expect(readPalette()).toBe('rose')
+    const stop = startPalette()
+    expect(document.documentElement.dataset.palette).toBe('rose')
+    stop()
+  })
+
+  it('common-5（どの色でも読める）: 保存できないブラウザでも、選んだ色にその場で変わる', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    expect(() => choosePalette('purple')).not.toThrow()
+    expect(document.documentElement.dataset.palette).toBe('purple')
+    spy.mockRestore()
   })
 })

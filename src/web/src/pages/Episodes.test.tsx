@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { copy } from '@/copy'
@@ -77,6 +77,32 @@ describe('Episodes', () => {
     renderApp('/episodes')
     expect(await screen.findByText(copy.episodes.empty)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: copy.nav.backToTalk })).toHaveAttribute('href', '/talk')
+  })
+
+  it('common-5（どの色でも読める）: マウスを載せても行の地は surface のまま。「続きから話せる」の accent の文字を tint の地に載せず、話している途中の札は tint の地に onTint の文字', async () => {
+    installFakeApi({
+      loggedIn: true,
+      consented: true,
+      episodes: [
+        { ...answered('episode-1', '2026-11-01T03:00:00Z', 'finished', '公園で子どもと遊んだ'), insights: fakeInsights({ canResume: true }) },
+        answered('episode-2', '2026-11-03T03:00:00Z', 'talking', '朝から予定を組み直した'),
+      ],
+    })
+    renderApp('/episodes')
+
+    const resumable = await screen.findByRole('link', { name: /公園で子どもと遊んだ/ })
+    const talking = screen.getByRole('link', { name: /朝から予定を組み直した/ })
+    // 行の中には accent の文字（続きから話せる）がある。accent と tint は 4.5 に届かない色がある（00-common.md の「見た目」）
+    expect(within(resumable).getByText(copy.episodes.canResume)).toHaveClass('text-primary')
+    for (const link of [resumable, talking]) {
+      expect(link.className).toContain('bg-surface')
+      expect(link.className).not.toMatch(/hover:bg-/)
+      expect(link.className).toContain('hover:border-primary')
+    }
+    // 話している途中の札は、確かめた組（tint の地に onTint の文字）。accent を薄めた地に accent の文字を載せない
+    const badge = within(talking).getByText(copy.episodes.talking)
+    expect(badge).toHaveClass('bg-tint', 'text-on-tint')
+    expect(badge.className).not.toMatch(/bg-primary|text-primary/)
   })
 
   it('validate-11（要確認の場面に戻れる）: 続きを話せる場面に「もう少し聞かせてほしいことがあります」と添える', async () => {

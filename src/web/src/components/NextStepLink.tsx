@@ -37,7 +37,7 @@ export function NextStepLink({ refreshKey }: { refreshKey?: unknown }) {
   if (to !== null && to.split('?')[0] === location.pathname) return null
 
   return (
-    <section aria-labelledby={titleId} className="mt-6 rounded-lg border border-border p-4">
+    <section aria-labelledby={titleId} className="mt-6 rounded-2xl border border-border bg-surface p-4">
       <h2 id={titleId} className="text-base font-bold">
         {copy.home.next.title}
       </h2>

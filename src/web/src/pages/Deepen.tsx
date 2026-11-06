@@ -24,6 +24,7 @@ import { StepsEditor } from '@/components/StepsEditor'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { hasVisibleText } from '@/lib/text'
+import { FIELD_CLASS } from '@/components/field'
 
 type State = { kind: 'loading' } | { kind: 'ready'; data: DeepenData } | { kind: 'error' }
 
@@ -45,10 +46,8 @@ const MAX_TASK_DETAIL = 80
 const MAX_KNOWLEDGE = 60
 const MAX_ANSWER = 200
 
-const FIELD_CLASS =
-  'w-full min-w-0 rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 /** 部分ごとの枠（仕事の選択肢の画面のカードと同じ見た目）。 */
-const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4'
+const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-4 py-4'
 
 function toRequest(task: DeepenTask): DeepenTaskRequest {
   // 力が辞書にない業務（ability が null）は、直す欄で力を選び直してもらう
@@ -257,9 +256,6 @@ export function Deepen() {
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link to="/report">{copy.deepen.toReport}</Link>
         </Button>
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/talk">{copy.nav.backToTalk}</Link>
-        </Button>
       </div>
     </Page>
   )
@@ -295,7 +291,7 @@ function NotReady({ readiness }: { readiness: DeepenData['readiness'] }) {
         ? { text: copy.deepen.hold, to: '/options', link: copy.deepen.toOptions }
         : { text: copy.deepen.noChoice, to: '/options', link: copy.deepen.toOptions }
   return (
-    <div className="flex flex-col gap-3 rounded-xl border px-4 py-4">
+    <div className="flex flex-col gap-3 rounded-2xl border bg-surface px-4 py-4">
       <p className="text-sm leading-relaxed">{text}</p>
       <Button asChild className="w-full sm:w-auto sm:self-start">
         <Link to={to}>{link}</Link>
@@ -312,7 +308,7 @@ function TargetSection({ target }: { target: DeepenTarget }) {
   const id = useId()
   const kind = target.kind === 'own' ? copy.deepen.ownKind : copy.options.kinds[target.kind].label
   return (
-    <section aria-labelledby={id} className={`${CARD_CLASS} border-primary/40 bg-primary/5`}>
+    <section aria-labelledby={id} className={`${CARD_CLASS} border-primary`}>
       <h2 id={id} className="text-base font-bold">
         {copy.deepen.targetTitle}
       </h2>
@@ -533,7 +529,7 @@ function TaskForm({
 
   return (
     <form
-      className="flex flex-col gap-3 rounded-lg border px-3 py-3"
+      className="flex flex-col gap-3 rounded-2xl border bg-surface px-3 py-3"
       onSubmit={(event) => {
         event.preventDefault()
         if (canSave && !busy) onSave({ name: name.trim(), detail: detail.trim(), ability, knowledge: knowledge.trim() })
@@ -670,7 +666,7 @@ function QuestionItem({
             key={choice}
             variant="outline"
             // 選んだ答えは、押した印で分かるようにする（「あなたの答え」と合わせて見せる）
-            className="h-auto w-full justify-start py-2 text-left whitespace-normal aria-pressed:border-primary aria-pressed:bg-primary/10"
+            className="h-auto w-full justify-start py-2 text-left whitespace-normal aria-pressed:border-primary aria-pressed:bg-tint aria-pressed:text-on-tint"
             disabled={busy}
             aria-pressed={answer?.fromChoice === true && answer.text === choice}
             onClick={() => void onAnswer(question.id, choice, true)}

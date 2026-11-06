@@ -3,13 +3,11 @@ import type { DeepenContent, DeepenStep } from '@/api'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { hasVisibleText } from '@/lib/text'
+import { FIELD_CLASS } from '@/components/field'
 
 const MAX_OWN_STEPS = 3
 // 入力欄の maxLength は UTF-16 の長さで数えるので、見た目の文字で数える裏側の上限より手前で止まることがある（深める画面と同じ）
 const MAX_STEP = 100
-
-const FIELD_CLASS =
-  'w-full min-w-0 rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /**
  * 最初の一歩を選ぶ・書く欄（deepen-3（最初の一歩は小さく）、deepen-4（創るの一歩には需要の確かめを入れる））。
@@ -76,7 +74,7 @@ export function StepsEditor({
               <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 pl-7 text-muted-foreground">
                 <span>{`${copy.deepen.stepHours.replace('{n}', String(step.hours))}、${copy.deepen.placeValues[step.place]}`}</span>
                 {step.demandCheck && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-foreground">{copy.deepen.demandCheck}</span>
+                  <span className="rounded-full bg-tint px-2 py-0.5 text-xs text-on-tint">{copy.deepen.demandCheck}</span>
                 )}
                 {!step.fits && <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{copy.deepen.stepOutside}</span>}
               </p>

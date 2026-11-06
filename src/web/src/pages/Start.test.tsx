@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOGOUT_URL } from '@/api'
@@ -37,6 +37,49 @@ describe('Start', () => {
       { method: 'POST', url: '/api/consent', body: { version: api.currentVersion } },
       { method: 'POST', url: '/api/episodes', body: undefined },
     ])
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 4 行の要約が先に出て、5 項目の全文は「くわしく読む」の中にある', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    for (const line of copy.start.summary) expect(await screen.findByText(line)).toBeInTheDocument()
+    const more = screen.getByText(copy.start.more).closest('details')!
+    expect(more).not.toHaveAttribute('open')
+    for (const item of copy.start.items) {
+      expect(within(more).getByText(item.body)).toBeInTheDocument()
+      expect(within(more).getByRole('heading', { name: item.title })).toBeInTheDocument()
+    }
+    expect(screen.getByText(copy.start.afterAgree)).toBeInTheDocument()
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 「くわしく読む」には開く印（下向きの矢印）があり、開くと向きが変わる', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    const summary = (await screen.findByText(copy.start.more)).closest('summary')!
+    const icon = summary.querySelector('svg')
+    expect(icon).not.toBeNull()
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(icon).toHaveClass('group-open:rotate-180')
+    // ブラウザの開閉の三角は消しているので、矢印が唯一の印になる
+    expect(summary).toHaveClass('text-primary')
+  })
+
+  it('foundation-2（始める前に保存するものを示す）: 4 行の要約は「くわしく読む」の外にあり、全文より狭く言い切らない', async () => {
+    installFakeApi({ loggedIn: true, consented: false })
+    renderApp('/start')
+
+    const more = (await screen.findByText(copy.start.more)).closest('details')!
+    const outside = copy.start.summary.filter((line) => !more.contains(screen.getByText(line)))
+    expect(outside).toEqual(copy.start.summary)
+    // 全文の「保存するもの」には仕組みのための ID なども、「使い道」には仕事の選択肢や深めるときもある。
+    // 要約は短いので全部は挙げないが、「〜だけ」と言い切って、全文にあるものを無いように読ませない
+    for (const line of copy.start.summary) expect(line).not.toContain('だけ')
+    const ai = copy.start.summary[2]
+    expect(ai).toContain('など')
+    expect(ai).toContain('Claude')
+    expect(ai).toContain('開発者も読みません')
   })
 
   it('foundation-2（始める前に保存するものを示す）: まだ見たことのない製品の言葉には、普通の言葉を添える', async () => {

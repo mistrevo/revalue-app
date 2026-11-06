@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
+import { MessageCircle, Lock, Pencil } from 'lucide-react'
 import { Navigate } from 'react-router'
 import { getMe, LOGIN_URL, type Me } from '@/api'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { copy } from '@/copy'
+
+const PROMISE_ICONS = [MessageCircle, Pencil, Lock]
 
 type LoginState = { kind: 'loading' } | { kind: 'ready'; me: Me | null }
 
@@ -31,42 +34,36 @@ export function Landing() {
 
   return (
     <Page>
-      <section className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight">{copy.landing.title}</h1>
-        <p className="text-lg leading-relaxed font-medium">{copy.landing.tagline}</p>
-        <p className="leading-relaxed text-muted-foreground">{copy.landing.lead}</p>
-      </section>
+      <div className="flex min-h-[calc(100svh-9rem)] flex-col">
+        <p className="text-base font-extrabold tracking-wide text-primary">
+          {copy.nav.appName} <span className="text-xs font-bold text-muted-foreground">リバリュー</span>
+        </p>
+        <h1 className="mt-6 text-2xl leading-snug font-extrabold">{copy.landing.tagline}</h1>
+        <p className="mt-3 leading-relaxed">{copy.landing.lead}</p>
 
-      <div className="mt-6 min-h-11">
-        <StartAction login={login} />
+        <section className="mt-6 space-y-2.5">
+          {copy.landing.promises.map((promise, index) => {
+            const Icon = PROMISE_ICONS[index]
+            return (
+              <Card key={promise.title} size="sm" className="flex-row items-center gap-3 px-3.5">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-tint text-on-tint">
+                  <Icon aria-hidden="true" className="size-5" />
+                </span>
+                <div>
+                  <h2 className="text-base font-bold">{promise.title}</h2>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{promise.body}</p>
+                </div>
+              </Card>
+            )
+          })}
+        </section>
+
+        <div className="min-h-6 flex-1" />
+        <div className="min-h-14">
+          <StartAction login={login} />
+        </div>
+        <p className="mt-3 text-center text-sm text-muted-foreground">{copy.landing.flow.join(' → ')}</p>
       </div>
-
-      <section className="mt-8 space-y-3">
-        {copy.landing.promises.map((promise) => (
-          <Card key={promise.title} size="sm">
-            <CardHeader>
-              <h2 className="text-base font-semibold">{promise.title}</h2>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-relaxed text-muted-foreground">{promise.body}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-base font-semibold">{copy.landing.flowTitle}</h2>
-        <ol className="mt-3 space-y-2">
-          {copy.landing.flow.map((step, index) => (
-            <li key={step} className="flex items-baseline gap-3 text-sm leading-relaxed">
-              <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                {index + 1}
-              </span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
     </Page>
   )
 }
@@ -77,7 +74,7 @@ function StartAction({ login }: { login: LoginState }) {
   }
   // ログインは組み込み認証へページごと移動する。画面の切り替え（Link）で横取りしない
   return (
-    <Button asChild size="lg" className="w-full sm:w-auto sm:px-6">
+    <Button asChild size="lg" className="min-h-14 w-full text-base font-extrabold">
       <a href={LOGIN_URL}>{copy.landing.login}</a>
     </Button>
   )

@@ -81,7 +81,7 @@
   - `Button`: 高さ 44px 以上、文字 700。`default` は `bg-primary`、`outline` は accent の枠と文字。角丸 14px 前後
   - 各画面の手書きの囲み（次にできることの欄、確かめの欄など）は、`Card` と同じ地・角丸にそろえる
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 了解した人の画面では、上の帯から「トークに戻る」で /talk へ行ける', async () => {
@@ -98,10 +98,10 @@ it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 案
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Page` / Expected: 1 つ目が FAIL
-- [ ] **Step 3: 書く。各画面の中身の並びと言葉は変えない（既存のテストが通ることで確かめる）**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Page` / Expected: 1 つ目が FAIL
+- [x] **Step 3: 書く。各画面の中身の並びと言葉は変えない（既存のテストが通ることで確かめる）**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
@@ -120,7 +120,7 @@ git commit -m "ほかの画面の上の帯を「トークに戻る」にし、�
   - `choosePalette(key: PaletteKey): void` — `writePalette(key)` のあと、いまの端末の設定（暗いか）で `applyPalette` する。`startPalette()` が購読している端末の設定の変化でも、選んだ色で当て直す（`startPalette` の当て直しが `readPalette()` を読み直すか、選んだ色を覚えておく形にする。保存できないブラウザでも、その場の選択で当て直せるように、モジュールの中にいまの色を持つ）
   - 設定の画面の「色」の欄（`全部消す` の欄より上）: 見出し `copy.settings.colorTitle`、説明 `copy.settings.colorLead`、`role="radiogroup"` に 6 つの `role="radio"`（丸い色見本と `PALETTES[key].name`。`aria-checked`、矢印キーで動ける）。押すとすぐに `choosePalette`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 // palette.test.ts
@@ -154,10 +154,10 @@ it('common-5（どの色でも読める）: 設定の画面で 6 色から選べ
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- palette Settings` / Expected: FAIL
-- [ ] **Step 3: 書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- palette Settings` / Expected: FAIL
+- [x] **Step 3: 書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
@@ -173,7 +173,7 @@ git commit -m "設定の画面で、6 色から画面の色を選べるように
 **Interfaces:**
 - Produces: 案内の画面（モック `landing.html`）。上から、「RE:VALUE」と「リバリュー」、ひとこと（`copy.landing.tagline` を大見出し `h1` に）、説明 1 文（`copy.landing.lead`）、約束 3 つ（アイコンの丸、題、1 行。カードの見た目）、空き、ログインのボタン（幅いっぱい、親指の届く下。`LOGIN_URL` へページごと移動）、進め方 1 行（`copy.landing.flow` を「→」でつなぐ）。ログイン済みの人の行き先は PR 1 のまま（`/talk` か `/start` へ送る）。送るまでのあいだは、ボタンを出さないか、いままでの「続きから」を出す
 
-- [ ] **Step 1: 失敗するテストを書く**（いまの Landing のテストのうち、約束の本文や `flowTitle` を確かめている所は、新しい言葉に直す）
+- [x] **Step 1: 失敗するテストを書く**（いまの Landing のテストのうち、約束の本文や `flowTitle` を確かめている所は、新しい言葉に直す）
 
 ```ts
 it('foundation-1（案内はログインなしで見られる）: 約束 3 つが題と 1 行で出て、先頭は「あなたの言葉が根拠です」「決めるのはあなたです」', async () => {
@@ -191,10 +191,10 @@ it('foundation-1（案内はログインなしで見られる）: ログイン�
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: FAIL
-- [ ] **Step 3: 書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: FAIL
+- [x] **Step 3: 書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test -- Landing` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
@@ -210,7 +210,7 @@ git commit -m "案内を短くする。約束 3 つを題と 1 行にし、ロ�
 **Interfaces:**
 - Produces: はじめる前にの画面（モック `startshort.html`）。見出し `copy.start.title`、`copy.start.lead`、4 行の要約（`copy.start.summary`。アイコン付きの 1 枚のカード）、`<details>`（`<summary>` は `copy.start.more`）の中に、いまの 5 項目の題と全文（`copy.start.items`。言葉は変えない）、空き、「了解して始める」（幅いっぱい、下）、その下に `copy.start.afterAgree`、さらにその下に目立たせない「了解せずにやめる（ログアウト）」（いまのまま。ページごと移動）。全部消したあとの「全部消しました…」は、いまのまま一度だけ出す
 
-- [ ] **Step 1: 失敗するテストを書く**（いまの Start のテストは、5 項目の題と本文がページの中にあることを確かめ続ける。`details` が閉じていても DOM にあるので、そのまま通るはず）
+- [x] **Step 1: 失敗するテストを書く**（いまの Start のテストは、5 項目の題と本文がページの中にあることを確かめ続ける。`details` が閉じていても DOM にあるので、そのまま通るはず）
 
 ```ts
 it('foundation-2（始める前に保存するものを示す）: 4 行の要約が先に出て、5 項目の全文は「くわしく読む」の中にある', async () => {
@@ -229,10 +229,10 @@ it('foundation-2（始める前に保存するものを示す）: 了解しな�
 ```
 
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Start` / Expected: 1 つ目が FAIL
-- [ ] **Step 3: 書く**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Start` / Expected: 1 つ目が FAIL
+- [x] **Step 3: 書く**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web
@@ -244,20 +244,20 @@ git commit -m "はじめる前にを短くする。4 行の要約を先に出し
 **Files:**
 - Modify: `docs/specs/00-common.md`、`docs/specs/01-foundation.md`
 
-- [ ] **Step 1: Spec を直す**（いまの正しい姿だけを書く）
+- [x] **Step 1: Spec を直す**（いまの正しい姿だけを書く）
   - `00-common.md` の「画面」: 了解した人のほかの画面は、上の帯に「← トークに戻る」。カードとボタンの見た目は話す画面とそろえる。設定の画面で 6 色から選べる。common-5（どの色でも読める）に「設定の画面で 6 色から選べ、選ぶとすぐに変わる。開き直しても選んだ色のまま（保存できるブラウザで）」を足す
   - `01-foundation.md` の画面の表: 案内は「約束 3 つを題と 1 行で。ログインのボタンは下」。はじめには「4 行の要約と、『くわしく読む』の中の 5 項目の全文」。設定に「色」の欄
-- [ ] **Step 2: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、ログインしていない状態で `/` を見たあと、`http://localhost:5080/.auth/login/google?dev_user=redesign-check-2` でログインする。サーバーは終わったら止める）
+- [x] **Step 2: 実際のブラウザで確かめる**（Playwright の MCP。画面をビルドしてから `node evals/personas/driver/serve.mjs` で手元のサーバーを立て、ログインしていない状態で `/` を見たあと、`http://localhost:5080/.auth/login/google?dev_user=redesign-check-2` でログインする。サーバーは終わったら止める）
   - 幅 320px、375px×667px、1280px で、案内、はじめる前に、設定、見えた力、仕事の選択肢、可能性レポート
   - 横にはみ出さない（`document.documentElement.scrollWidth <= innerWidth`）。ボタンが親指の届く下にある
   - 設定で 6 色を順に選び、話す画面に戻って色が変わっていること。`emulate_media` で暗い画面にしても読めること
   - 写真はスクラッチに置き、リポジトリに入れない。気づいた崩れは直してから次へ
-- [ ] **Step 3: 全部のテストを流す**
+- [x] **Step 3: 全部のテストを流す**
 
 Run: `dotnet test --project tests/Revalue.Server.Tests`、`npm --prefix src/web test`、`npm --prefix src/web run build`、`node --test .claude/hooks/guard.test.mjs`
 Expected: すべて PASS
 
-- [ ] **Step 4: コミット**
+- [x] **Step 4: コミット**
 
 ```bash
 git add docs src
