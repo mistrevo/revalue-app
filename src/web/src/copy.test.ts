@@ -29,9 +29,9 @@ describe('copy', () => {
     expect(copy.talk.refusal).toContain(`「${copy.talk.skip}」`)
   })
 
-  it('discover-10（つらい状態のサインに応える）: サインに応えたところで終わったあとに開いたときの一言は、また話すことを前提にしない', () => {
-    // PRD の revisit-7（つらい話を持ち出さない）: このときは、また話せるという一言を出さない
-    expect(copy.talk.rest).not.toContain('また')
+  it('discover-10（つらい状態のサインに応える）: サインの場面のあとの一言は、開発者が決めた言い方にし、前の話を続けることや戻ることを勧めない', () => {
+    // PRD の revisit-7（つらい話を持ち出さない）: また話せるという一言は、区切ったときと開いたときのこの一言だけにする
+    expect(copy.talk.rest).toBe('また話したくなったときに、いつでも始められます。')
     expect(copy.talk.rest).not.toMatch(/続け|戻/)
   })
 

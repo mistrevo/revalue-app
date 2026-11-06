@@ -23,8 +23,8 @@ type ShownStep = 'conditions' | 'options' | 'deepen' | 'report'
  * 答えの例と同じ形のボタンで並べる。answered（本人が一度でも答えた場面）でなければ、話してくれたことへのお礼は言わない。
  * 次にできることを読めなかったときは、残りの 2 つだけ出す。「今日はここまで」は何も送らず、何も保存しない。
  * distress（この場面がつらい状態のサインに応えたところで終わっているか、力の確かめに使わない印が付いている）のときは、
- * 問いもボタンも出さず、先へ進むことを勧めない。サインのあと「続けて話す」を選んで区切った場面も、打ち明けた直後なので同じにする。
- * 目立たせない「別の日のことを話す」だけを置く（discover-10（つらい状態のサインに応える））。
+ * 問いも次の一手も出さず、先へ進むことを勧めない。サインのあと「続けて話す」を選んで区切った場面も、打ち明けた直後なので同じにする。
+ * 聞き手の一言（copy.talk.rest）と、目立たせない「別の日のことを話す」だけを置く（discover-10（つらい状態のサインに応える））。
  * refreshKey が変わったら（読み取りを直したときなど）、次にできることを読み直す。
  */
 export function AfterTalk({
@@ -45,8 +45,10 @@ export function AfterTalk({
   )
 
   if (distress) {
+    // 先へ進むことは勧めないが、聞き手の一言は出す。開いたときの休む形（TalkEntry の Rest）とそろえる（Claude の判断）
     return (
       <div className="flex flex-col gap-2">
+        <Bubble role="assistant">{copy.talk.rest}</Bubble>
         <div>
           <button type="button" className={QUIET_BUTTON} onClick={start} disabled={starting}>
             {copy.talk.anotherDay}

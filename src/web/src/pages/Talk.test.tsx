@@ -264,6 +264,8 @@ describe('Talk', () => {
     expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
     expect(screen.queryByText(copy.home.next.options)).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 先へ進むことは勧めないが、聞き手の一言は出す（開いたときの休む形とそろえる）
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
     expect(api.calls.filter((c) => c.url === '/api/next-step')).toHaveLength(0)
   })
 
@@ -893,6 +895,8 @@ describe('Talk', () => {
 
     expect(await screen.findByRole('link', { name: new RegExp(FAKE_SUPPORT_LABEL) })).toBeInTheDocument()
     expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 打ち明けた人ほど受け止めの言葉がなくならないよう、聞き手の一言は出す
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
     expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
     for (const key of ['conditions', 'options', 'deepen', 'report'] as const) {
@@ -917,6 +921,8 @@ describe('Talk', () => {
 
     expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 打ち明けた人ほど受け止めの言葉がなくならないよう、聞き手の一言は出す
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
     expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: copy.talk.nextLabel })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
@@ -948,6 +954,8 @@ describe('Talk', () => {
 
     expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
     expect(await screen.findAllByRole('button', { name: copy.talk.anotherDay })).toHaveLength(1)
+    // 打ち明けた人ほど受け止めの言葉がなくならないよう、聞き手の一言は出す
+    expect(screen.getByText(copy.talk.rest)).toBeInTheDocument()
     expect(screen.queryByText(copy.talk.afterQuestion)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: copy.talk.doneForToday })).not.toBeInTheDocument()
     expect(screen.queryByText(copy.home.next.options)).not.toBeInTheDocument()
