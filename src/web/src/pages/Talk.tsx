@@ -176,11 +176,14 @@ function TalkScreen({ id }: { id: string }) {
                 excludedFromValidation: current.excludedFromValidation || distress !== null,
               },
           )
-          // 送れた書いた答えの書きかけは消す。選んで送ったときは、入力欄に残っている書きかけをそのまま残す
-          if (kind === 'free') {
+          // 送れた書いた答えの書きかけは消す。選んで送ったときは、場面が続いていれば入力欄の書きかけをそのまま残す。
+          // 締めの返事で区切られたら、どちらで送っても書きかけを消す（区切ったときに消す決まりにそろえる）
+          const finished = done.status === 'finished'
+          if (kind === 'free' || finished) {
             clearDraft(id)
             setDraftKept(false)
           }
+          if (finished) setInput('')
           setNotice(distress)
           // 締めの返事で話し終えたら、見えたことを読み直す
           if (done.status === 'finished') reloadEpisode()
@@ -220,7 +223,10 @@ function TalkScreen({ id }: { id: string }) {
     try {
       // 区切ったあとは、ほかの画面へ移らず、この画面で見えたことを出す
       const finished = await finishEpisode(id)
+      // ブラウザの書きかけと一緒に、画面の入力欄も空にする。続きを話したときに、消えた文を戻さないため
       clearDraft(id)
+      setInput('')
+      setDraftKept(false)
       setEpisode(finished)
       setNotice(finished.notice ?? null)
       setConfirmingSkip(false)

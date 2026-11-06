@@ -1159,6 +1159,29 @@ describe('Talk', () => {
     expect(readDraft('episode-1')).toBe('')
   })
 
+  it('discover-11（書きかけを残す）: 区切ったあと同じ画面で続きを話しても、消えた書きかけを入力欄に戻さず、「書きかけは残っています」と言わない', async () => {
+    setup()
+
+    await userEvent.type(await screen.findByRole('textbox', { name: copy.talk.inputLabel }), '書きかけの架空の文')
+    await userEvent.click(screen.getByRole('button', { name: copy.talk.finish }))
+    await userEvent.click(await screen.findByRole('button', { name: copy.insights.resume }))
+
+    expect(await screen.findByRole('textbox', { name: copy.talk.inputLabel })).toHaveValue('')
+    expect(screen.queryByText(copy.talk.draftKept)).not.toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+  })
+
+  it('discover-11（書きかけを残す）: 書きかけがあるまま選んで送り、締めの返事で区切られたら、書きかけは消える', async () => {
+    const api = setup()
+    api.state.reply = replyEvents(['たくさん聞かせてくれて', 'ありがとうございました。'], [], 'finished')
+
+    await userEvent.type(await screen.findByRole('textbox', { name: copy.talk.inputLabel }), '書きかけY')
+    await userEvent.click(screen.getByRole('button', { name: FAKE_OPENING_CHOICES[1] }))
+
+    expect(await screen.findByText(copy.talk.finishedChip)).toBeInTheDocument()
+    expect(readDraft('episode-1')).toBe('')
+  })
+
   it('discover-11（書きかけを残す）: 飛ばしたら、飛ばした場面の書きかけは消える', async () => {
     setup()
 
