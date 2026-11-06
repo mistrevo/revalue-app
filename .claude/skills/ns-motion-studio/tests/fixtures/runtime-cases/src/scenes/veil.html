@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>c10</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+  body { background: #111827; color: #ffffff; font-family: sans-serif; }
+  /* 明るい画面の見本の上に、操作箇所の外を白く飛ばす面（pointer-events: none、穴あき）を重ねる */
+  .page { position: absolute; left: 100px; top: 100px; width: 1200px; height: 600px; background: #f5f5f3; }
+  .page div { position: absolute; left: 60px; font-size: 40px; color: #1d1d1f; }
+  .under { top: 100px; }   /* 面の下: 文字の色は濃いが、面を重ねると地との差が小さい */
+  .lit { top: 400px; }     /* 穴（面のない場所）の中 */
+  .hidden { top: 250px; left: 700px !important; } /* 不透明な板の下に隠れた文字（見えないので、読みにくさは問わない） */
+  .late { top: 400px; left: 400px !important; } /* 最初の 1 秒だけ不透明な板の下に隠れ、そのあと見える文字（指摘しない） */
+  .cover { position: absolute; left: 480px; top: 490px; width: 280px; height: 80px; background: #1c1f23; }
+  .board { position: absolute; left: 760px; top: 320px; width: 520px; height: 120px; background: #1c1f23; }
+  .veil { position: absolute; inset: 0; background: rgba(255, 255, 255, .7); pointer-events: none;
+    clip-path: polygon(0 0,100% 0,100% 100%,0 100%,0 0,140px 480px,140px 580px,900px 580px,900px 480px,140px 480px); }
+</style>
+</head>
+<body>
+  <div class="page"><div class="under" data-ms-text="t24"></div><div class="lit" data-ms-text="t25"></div><div class="hidden" data-ms-text="t26"></div><div class="late" data-ms-text="t27"></div></div>
+  <div class="board"></div>
+  <div class="cover"></div>
+  <div class="veil"></div>
+<script>
+  const cover = document.querySelector('.cover');
+  ms.scene((t) => { cover.style.display = t < 1 ? 'block' : 'none'; });
+</script>
+</body>
+</html>

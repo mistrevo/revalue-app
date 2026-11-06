@@ -1,0 +1,14 @@
+{
+  "name": "ns-motion-studio",
+  "description": "コードで描くモーショングラフィックス動画の制作（ブリーフィングから完成 MP4 まで。紹介・解説・ロゴ・告知など種類を問わず、お試し・サンプル・本番の3コースで工程の長さを選べる）",
+  "version": "0.3.0",
+  "license": "MIT",
+  "author": {
+    "name": "株式会社ネクストスケープ"
+  },
+  "keywords": [
+    "video",
+    "motion-graphics",
+    "動画"
+  ]
+}
