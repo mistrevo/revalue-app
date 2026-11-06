@@ -51,7 +51,7 @@ const MAX_NOTE_LENGTH = 500
 const FIELD_CLASS =
   'w-full min-w-0 rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 /** 3 枚のカードと出せないカードの枠。どれも同じ部品と見た目にする（options-1（3 枚を同じ重さで示す））。 */
-const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4'
+const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-4 py-4'
 
 /**
  * いま選んでいる案が、見えているこのカードか。選んだ案はカードの写しなので、種類と、名前と業務が同じかで見る
@@ -283,12 +283,6 @@ export function Options() {
           {ready && <SourceSection source={data.source} />}
         </div>
       )}
-
-      <div className="mt-6">
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/talk">{copy.nav.backToTalk}</Link>
-        </Button>
-      </div>
     </Page>
   )
 }
@@ -327,7 +321,7 @@ function NotReady({ readiness }: { readiness: OptionsData['readiness'] }) {
           ? { text: copy.options.onlyExcluded, to: '/abilities', link: copy.options.toAbilities }
           : { text: copy.options.needsAbility, to: '/talk', link: copy.options.toTalk }
   return (
-    <div className="flex flex-col gap-3 rounded-xl border px-4 py-4">
+    <div className="flex flex-col gap-3 rounded-2xl border bg-surface px-4 py-4">
       <p className="text-sm leading-relaxed">{text}</p>
       <Button asChild className="w-full sm:w-auto sm:self-start">
         <Link to={to}>{link}</Link>

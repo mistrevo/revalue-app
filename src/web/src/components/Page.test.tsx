@@ -9,12 +9,18 @@ afterEach(() => {
 })
 
 describe('Page', () => {
-  it('common-4（どの画面からもトークへ戻れ、幅に収まる）: ログインして了解した人の画面では、見出しの「RE:VALUE」がトークへ行く', async () => {
+  it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 了解した人の画面では、上の帯から「トークに戻る」で /talk へ行ける', async () => {
     installFakeApi({ loggedIn: true, consented: true, episodes: [fakeEpisode()] })
-    renderApp('/episodes')
+    renderApp('/abilities')
+    const back = await screen.findByRole('link', { name: copy.nav.backToTalk })
+    expect(back).toHaveAttribute('href', '/talk')
+    expect(screen.queryByRole('link', { name: copy.nav.appName })).not.toBeInTheDocument()
+  })
 
-    await screen.findByRole('heading', { level: 1, name: copy.episodes.title })
-    expect(screen.getByRole('link', { name: copy.nav.appName })).toHaveAttribute('href', '/talk')
+  it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 案内では、上の帯は「RE:VALUE」で案内へ行く', async () => {
+    installFakeApi({ loggedIn: false, consented: false })
+    renderApp('/')
+    expect(await screen.findByRole('link', { name: copy.nav.appName })).toHaveAttribute('href', '/')
   })
 
   it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 案内とはじめにでは、見出しの「RE:VALUE」は案内へ行く', async () => {

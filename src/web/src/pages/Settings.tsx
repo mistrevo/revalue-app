@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { deleteMe } from '@/api'
 import { LogoutLink } from '@/components/LogoutLink'
-import { useMe } from '@/components/me-context'
 import { clearAllDrafts } from '@/lib/drafts'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/button'
@@ -13,7 +12,6 @@ import { copy } from '@/copy'
  * 全部消したときと、ログアウトするときは、その端末に残した書きかけもすべて消す。
  */
 export function Settings() {
-  const me = useMe()
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -37,7 +35,7 @@ export function Settings() {
     <Page>
       <h1 className="text-2xl font-bold tracking-tight">{copy.settings.title}</h1>
 
-      <section className="mt-6 rounded-xl border px-4 py-4">
+      <section className="mt-6 rounded-2xl border bg-surface px-4 py-4">
         <h2 className="text-base font-semibold">{copy.settings.deleteTitle}</h2>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{copy.settings.deleteBody}</p>
 
@@ -75,11 +73,6 @@ export function Settings() {
       </section>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        {me.consented && (
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link to="/talk">{copy.nav.backToTalk}</Link>
-          </Button>
-        )}
         {/* ログアウトは組み込み認証へページごと移動し、その端末の書きかけも消す */}
         <Button asChild variant="ghost" className="w-full sm:w-auto">
           <LogoutLink>{copy.settings.logout}</LogoutLink>

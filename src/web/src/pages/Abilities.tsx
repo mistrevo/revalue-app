@@ -75,12 +75,6 @@ export function Abilities() {
           <NextStepLink refreshKey={state.data} />
         </>
       )}
-
-      <div className="mt-6">
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/talk">{copy.nav.backToTalk}</Link>
-        </Button>
-      </div>
     </Page>
   )
 }
@@ -88,7 +82,7 @@ export function Abilities() {
 function AbilityCard({ ability, busy, onToggle }: { ability: AbilityView; busy: boolean; onToggle: () => void }) {
   const id = useId()
   return (
-    <section aria-labelledby={id} className="rounded-xl border px-4 py-4">
+    <section aria-labelledby={id} className="rounded-2xl border bg-surface px-4 py-4">
       <h2 id={id} className="text-base font-bold">
         {ability.name}
       </h2>

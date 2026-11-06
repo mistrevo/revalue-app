@@ -81,7 +81,7 @@
   - `Button`: 高さ 44px 以上、文字 700。`default` は `bg-primary`、`outline` は accent の枠と文字。角丸 14px 前後
   - 各画面の手書きの囲み（次にできることの欄、確かめの欄など）は、`Card` と同じ地・角丸にそろえる
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 了解した人の画面では、上の帯から「トークに戻る」で /talk へ行ける', async () => {
@@ -98,10 +98,10 @@ it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 案
 })
 ```
 
-- [ ] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Page` / Expected: 1 つ目が FAIL
-- [ ] **Step 3: 書く。各画面の中身の並びと言葉は変えない（既存のテストが通ることで確かめる）**
-- [ ] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
-- [ ] **Step 5: コミット**
+- [x] **Step 2: 失敗するのを見る** — Run: `npm --prefix src/web test -- Page` / Expected: 1 つ目が FAIL
+- [x] **Step 3: 書く。各画面の中身の並びと言葉は変えない（既存のテストが通ることで確かめる）**
+- [x] **Step 4: 通るのを見る** — Run: `npm --prefix src/web test` と `npm --prefix src/web run build` / Expected: PASS
+- [x] **Step 5: コミット**
 
 ```bash
 git add -A src/web

@@ -67,7 +67,8 @@ describe('Report', () => {
     expect(links[0]).toHaveTextContent(copy.report.toTalk)
     expect(links[0]).toHaveAttribute('href', '/talk')
     expect(screen.queryAllByRole('region')).toHaveLength(0)
-    expect(screen.queryByRole('link', { name: copy.nav.backToTalk })).not.toBeInTheDocument()
+    // 上の帯の「トークに戻る」は画面の中身の外にあり、中身の道は一つだけ
+    expect(screen.getAllByRole('link', { name: copy.nav.backToTalk })).toHaveLength(1)
   })
 
   it('report-1（一つにまとめて示す）: 6 つの欄を決めた順に並べ、根拠の言葉と（選んだ答え）を出し、状態の呼び名を出さない', async () => {

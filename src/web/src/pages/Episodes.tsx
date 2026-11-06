@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { listEpisodes, type EpisodeSummary } from '@/api'
 import { Page } from '@/components/Page'
-import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { formatDay } from '@/lib/jst'
 
@@ -42,7 +41,7 @@ export function Episodes() {
             <li key={episode.id}>
               <Link
                 to={`/talk/${episode.id}`}
-                className="block rounded-xl border px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                className="block rounded-2xl border bg-surface px-4 py-3 transition-colors hover:bg-tint focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
               >
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>{formatDay(episode.startedAt)}</span>
@@ -65,12 +64,6 @@ export function Episodes() {
           ))}
         </ul>
       )}
-
-      <div className="mt-6">
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/talk">{copy.nav.backToTalk}</Link>
-        </Button>
-      </div>
     </Page>
   )
 }

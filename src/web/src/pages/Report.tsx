@@ -30,7 +30,7 @@ import { formatDateTime } from '@/lib/jst'
 type State = { kind: 'loading' } | { kind: 'ready'; data: ReportData } | { kind: 'error' }
 
 const SECTIONS: ReportSection[] = ['abilities', 'notYet', 'records', 'choice', 'thinking', 'steps']
-const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4'
+const CARD_CLASS = 'flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-4 py-4'
 const LINK_BUTTON = 'w-full sm:w-auto sm:self-start'
 
 function versionTitle(version: ReportVersion) {
@@ -120,7 +120,7 @@ export function Report() {
       )}
 
       {data && !data.ready && (
-        <div className="mt-6 flex flex-col gap-3 rounded-xl border px-4 py-4">
+        <div className="mt-6 flex flex-col gap-3 rounded-2xl border bg-surface px-4 py-4">
           <p className="text-sm leading-relaxed">{copy.report.notReady}</p>
           <Button asChild className={LINK_BUTTON}>
             <Link to="/talk">{copy.report.toTalk}</Link>
@@ -160,14 +160,6 @@ export function Report() {
             {data.previous.length > 0 && <PreviousVersions versions={data.previous} />}
           </div>
         </>
-      )}
-
-      {(data?.ready || state.kind === 'error') && (
-        <div className="mt-6">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link to="/talk">{copy.nav.backToTalk}</Link>
-          </Button>
-        </div>
       )}
     </Page>
   )
@@ -698,7 +690,7 @@ function Snapshot({ snapshot }: { snapshot: ReportSnapshot }) {
 function VersionCard({ version }: { version: ReportVersion }) {
   const id = useId()
   return (
-    <article aria-labelledby={id} className="flex min-w-0 flex-col gap-3 rounded-lg border px-3 py-3">
+    <article aria-labelledby={id} className="flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-3 py-3">
       <div className="text-sm leading-relaxed">
         <h3 id={id} className="font-semibold">
           {versionTitle(version)}

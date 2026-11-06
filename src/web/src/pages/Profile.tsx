@@ -189,12 +189,6 @@ export function Profile() {
         </div>
       )}
       {state.kind === 'ready' && <NextStepLink refreshKey={state.data} />}
-
-      <div className="mt-6">
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link to="/talk">{copy.nav.backToTalk}</Link>
-        </Button>
-      </div>
     </Page>
   )
 }
@@ -202,7 +196,7 @@ export function Profile() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const id = useId()
   return (
-    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3 rounded-xl border px-4 py-4">
+    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3 rounded-2xl border bg-surface px-4 py-4">
       <h2 id={id} className="text-base font-bold">
         {title}
       </h2>
