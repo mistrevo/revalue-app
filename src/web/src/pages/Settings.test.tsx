@@ -127,6 +127,16 @@ describe('Settings', () => {
     expect(await screen.findByRole('radio', { name: 'さくら' })).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('common-4（どの画面からもトークへ戻れ、幅に収まる）: 色の札は、幅 360px 未満では 2 列、それ以上では 3 列に並べ、色の名前を途中で折り返さない', async () => {
+    installFakeApi({ loggedIn: true, consented: true })
+    renderApp('/settings')
+
+    const group = await screen.findByRole('radiogroup', { name: copy.settings.colorTitle })
+    // 「あおみどり」は札の中に 69px ほど要る。6 列（PC）と、幅 320px の 3 列では 58〜59px しかなく、「あおみど／り」と折り返す
+    expect(group).toHaveClass('grid-cols-2', 'min-[360px]:grid-cols-3')
+    expect(group.className).not.toMatch(/grid-cols-6/)
+  })
+
   it('common-5（どの色でも読める）: 矢印キーで色を動かせる', async () => {
     installFakeApi({ loggedIn: true, consented: true })
     renderApp('/settings')

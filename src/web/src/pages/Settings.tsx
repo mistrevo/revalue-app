@@ -34,7 +34,7 @@ function ColorPicker() {
         {copy.settings.colorTitle}
       </h2>
       <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{copy.settings.colorLead}</p>
-      <div role="radiogroup" aria-labelledby={titleId} className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <div role="radiogroup" aria-labelledby={titleId} className="mt-4 grid grid-cols-2 gap-2 min-[360px]:grid-cols-3">
         {PALETTE_KEYS.map((key, index) => {
           const checked = key === selected
           return (
