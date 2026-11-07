@@ -1,0 +1,22 @@
+# ns-motion-studio が作った。作り直せる中間データと、大きい動画・音声は git に入れない
+out/.scenes/
+out/.lock
+out/progress.log
+out/*.partial*
+out/*.list.txt
+out/*.mp4
+reviews/.check-cache/
+reviews/frames/
+reviews/strip-*.png
+reviews/checks-*.json
+reviews/feedback-in.txt
+audio/.narration-partial/
+audio/master.json
+audio/**/*.wav
+*.tmp
+*.partial
+
+# 書体は fonts.mjs で取り直せる（node <プラグイン>/scripts/fonts.mjs <制作> "BIZ UDPGothic" 400,700）
+assets/fonts/*.woff2
+out/scenes/
+reviews/contact-*.png

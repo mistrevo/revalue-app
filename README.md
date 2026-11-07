@@ -130,5 +130,6 @@ Claude Code を中心に、ほぼ自動で開発しています。何を作る�
 | `tests/` | 裏側のテスト |
 | `evals/` | 架空エピソード集と、AI の振る舞いの評価 |
 | `infra/` | Azure のリソースの定義 |
+| `video/` | 提出動画の台本、説明の部分、実画面を記録して切る道具 |
 | `.github/workflows/` | テストとデプロイ（GitHub Actions） |
 | `.claude/` | Claude Code のスキル・エージェント・フック・Workflow |

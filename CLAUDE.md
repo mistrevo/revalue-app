@@ -113,6 +113,7 @@ src/
 tests/               裏側のテスト
 evals/               架空エピソード集（episodes/）、合格基準（criteria.md）、結果（results/）
 infra/               Azure のリソースの定義
+video/               提出動画の台本（script.md）、説明の部分（motion/）、実画面の記録の道具（demo/）
 .github/workflows/   テストとデプロイ
 .claude/             Claude Code のスキル・エージェント・フック・Workflow。skills/ns-motion-studio は持ち込んだプラグイン（出どころとライセンスは skills/brought-in-plugins.md）
 ```

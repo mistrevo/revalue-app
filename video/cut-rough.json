@@ -1,0 +1,51 @@
+{
+  "take": "spike1",
+  "parts": [
+    { "scene": "s01", "name": "課題", "voice": 1 },
+    { "scene": "s02", "name": "何をするものか", "voice": 2 },
+    {
+      "name": "話す", "voice": 3,
+      "demo": [
+        { "name": "最初の問い", "from": 6.9, "to": 7.3, "hold": 1.8 },
+        { "name": "選ぶ", "from": 7.3, "to": 12.0, "maxGap": 0.4 },
+        { "name": "答え 1", "from": 17.7, "to": 22.8, "speed": 1.6 },
+        { "name": "返事 1", "from": 22.8, "to": 33.0, "maxGap": 0.8, "hold": 3.0 },
+        { "name": "答え 2", "from": 47.0, "to": 54.9, "speed": 3 },
+        { "name": "返事 2", "from": 54.9, "to": 70.6, "maxGap": 0.5, "hold": 1.5 },
+        { "name": "答え 3", "from": 78.6, "to": 88.4, "speed": 3 },
+        { "name": "返事 3", "from": 88.4, "to": 107.0, "maxGap": 0.5, "hold": 1.5 },
+        { "name": "区切る", "from": 147.3, "to": 153.6, "maxGap": 0.6 },
+        { "name": "見えた力", "from": 153.6, "to": 154.7, "hold": 14.0 }
+      ],
+      "overlays": [
+        { "id": "note", "from": 0, "x": 1290, "y": 985 },
+        { "id": "ask-one", "from": 8.5, "to": 15.5, "x": 1290, "y": 620 },
+        { "id": "own-words", "from": 27.5, "to": 36.5, "x": 1290, "y": 620 },
+        { "id": "only-missing", "from": 36.5, "x": 1290, "y": 620 }
+      ]
+    },
+    {
+      "name": "仕事の選択肢", "voice": 4,
+      "demo": [
+        { "name": "条件", "from": 182.9, "to": 193.3, "speed": 2.5, "hold": 1.0 },
+        { "name": "案を出す", "from": 194.6, "to": 228.4, "maxGap": 1.0, "hold": 1.5 },
+        { "name": "カード", "from": 233.6, "to": 235.3, "hold": 2.5 },
+        { "name": "カード 3", "from": 235.3, "to": 236.5, "hold": 3.0 },
+        { "name": "選ぶ", "from": 236.5, "to": 238.8, "hold": 1.0 },
+        { "name": "深める", "from": 243.5, "to": 268.2, "maxGap": 0.8, "hold": 3.0 },
+        { "name": "一歩", "from": 275.8, "to": 278.0, "hold": 1.5 },
+        { "name": "レポート", "from": 279.4, "to": 286.5, "speed": 1.3, "hold": 1.0 }
+      ],
+      "overlays": [
+        { "id": "note", "from": 0, "x": 1385, "y": 985 },
+        { "id": "conditions", "from": 0.3, "to": 5.0, "x": 1400, "y": 300 },
+        { "id": "three-ways", "from": 7.5, "to": 18.0, "x": 1400, "y": 300 },
+        { "id": "not-yet", "from": 22.0, "to": 28.0, "x": 1400, "y": 300 },
+        { "id": "own-step", "from": 28.5, "x": 1400, "y": 300 }
+      ]
+    },
+    { "scene": "s05", "name": "違い", "voice": 5 },
+    { "scene": "s06", "name": "作り方", "voice": 6 },
+    { "scene": "s07", "name": "締め", "voice": 7 }
+  ]
+}

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>s01 課題</title>
+<link rel="stylesheet" href="../../assets/fonts/fonts.css">
+<link rel="stylesheet" href="../../assets/base.css">
+<style>
+  .lead { position: absolute; left: 96px; top: 84px; width: 1728px; font-size: 44px; line-height: 1.5; }
+  .row { position: absolute; left: 96px; width: 1728px; }
+  #r1 { top: 262px; }
+  #r2 { top: 566px; }
+  .who { font-size: 32px; color: var(--muted); height: 44px; }
+  .big { font-size: 96px; font-weight: 700; color: var(--accent); line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .track { margin-top: 14px; width: 1728px; height: 64px; border-radius: 16px; background: var(--accent); overflow: hidden; }
+  .keep { height: 100%; width: 100%; background: var(--chip); display: flex; align-items: center; padding-left: 28px; white-space: nowrap; }
+  .keep > div { font-size: 30px; color: var(--text); }
+  .src { position: absolute; left: 96px; top: 880px; font-size: 28px; color: var(--muted); }
+
+  .b-lead { position: absolute; left: 96px; top: 200px; font-size: 56px; }
+  .void { position: absolute; left: 0; width: 1920px; top: 368px; text-align: center; font-size: 140px; font-weight: 700; color: var(--text); }
+  .line { position: absolute; top: 610px; height: 6px; background: var(--accent); border-radius: 3px; }
+  #l1 { left: 96px; width: 584px; transform-origin: left center; }
+  #l2 { left: 1240px; width: 584px; transform-origin: left center; }
+  #gap { position: absolute; left: 704px; width: 512px; top: 610px; height: 6px;
+         background-image: repeating-linear-gradient(90deg, var(--muted) 0 18px, transparent 18px 36px); }
+  .after { position: absolute; left: 96px; top: 690px; font-size: 56px; }
+</style>
+</head>
+<body>
+  <div class="layer" id="a">
+    <div class="lead" data-ms-text="t01"></div>
+    <div class="row" id="r1">
+      <div class="who" data-ms-text="t02"></div>
+      <div class="big" data-ms-text="t03"></div>
+      <div class="track"><div class="keep" id="k1"><div data-ms-text="t04"></div></div></div>
+    </div>
+    <div class="row" id="r2">
+      <div class="who" data-ms-text="t05"></div>
+      <div class="big" data-ms-text="t06"></div>
+      <div class="track"><div class="keep" id="k2"><div data-ms-text="t07"></div></div></div>
+    </div>
+    <div class="src" data-ms-text="t09"></div>
+  </div>
+  <div class="layer" id="b">
+    <div class="b-lead" data-ms-text="t10"></div>
+    <div class="void" data-ms-text="t11"></div>
+    <div class="line" id="l1"></div>
+    <div id="gap"></div>
+    <div class="line" id="l2"></div>
+    <div class="after" data-ms-text="t12"></div>
+  </div>
+<script>
+  const $ = (s) => document.querySelector(s);
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const prog = (t, t0, dur, e = ms.ease.outExpo) => e(clamp01((t - t0) / dur));
+  const lerp = (a, b, p) => a + (b - a) * p;
+  const T = (id) => $(`[data-ms-text="${id}"]`);
+  const fade = (el, t, t0, dur, dy = 0) => {
+    const p = prog(t, t0, dur);
+    el.style.opacity = String(p);
+    el.style.transform = dy ? `translateY(${lerp(dy, 0, p)}px)` : '';
+  };
+
+  ms.scene((t) => {
+    // 前半: 数字と帯
+    const out = prog(t, ms.time('t01').end - 0.05, 0.3, ms.ease.inQuart);
+    $('#a').style.opacity = String(1 - out);
+    $('#a').style.visibility = out >= 1 ? 'hidden' : 'visible';
+
+    fade(T('t01'), t, ms.time('t01').start - 0.25, 0.5);
+    fade(T('t09'), t, ms.time('t09').start, 0.3);
+
+    fade(T('t02'), t, ms.time('t02').start, 0.25);
+    fade(T('t03'), t, ms.time('t03').start, 0.7, 18);
+    $('#r1 .track').style.opacity = String(prog(t, ms.time('t03').start, 0.3));
+    $('#k1').style.width = `${lerp(100, 80.5, prog(t, ms.time('t04').start - 0.5, 0.8, ms.ease.inOutCubic))}%`;
+    fade(T('t04'), t, ms.time('t04').start, 0.25);
+
+    fade(T('t05'), t, ms.time('t05').start, 0.25);
+    fade(T('t06'), t, ms.time('t06').start, 0.7, 18);
+    $('#r2 .track').style.opacity = String(prog(t, ms.time('t06').start, 0.3));
+    $('#k2').style.width = `${lerp(100, 56, prog(t, ms.time('t07').start - 0.5, 0.8, ms.ease.inOutCubic))}%`;
+    fade(T('t07'), t, ms.time('t07').start, 0.25);
+
+    // 後半: 空白
+    const bStart = ms.time('t10').start;
+    $('#b').style.visibility = t < bStart - 0.2 ? 'hidden' : 'visible';
+    fade(T('t10'), t, bStart - 0.1, 0.5);
+    $('#l1').style.transform = `scaleX(${prog(t, bStart, 0.7, ms.ease.outQuint)})`;
+    const g = prog(t, bStart + 0.55, 0.5);
+    $('#gap').style.opacity = String(g);
+    $('#l2').style.transform = `scaleX(${prog(t, bStart + 0.9, 0.6, ms.ease.outQuint)})`;
+    fade(T('t11'), t, ms.time('t11').start, 0.8, 14);
+    fade(T('t12'), t, ms.time('t12').start, 0.5, 10);
+  });
+</script>
+</body>
+</html>

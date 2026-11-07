@@ -1,0 +1,55 @@
+{
+  "runs": [
+    {
+      "at": "2026-11-07T00:32:51.573Z",
+      "stage": "build",
+      "ratios": [
+        "16:9"
+      ],
+      "keys": [
+        "16:9|determinism|3",
+        "16:9|contrast|4|t60",
+        "16:9|contrast|4|t61",
+        "16:9|contrast|4|t62",
+        "16:9|contrast|4|t63"
+      ]
+    },
+    {
+      "at": "2026-11-07T00:33:57.668Z",
+      "stage": "build",
+      "ratios": [
+        "16:9"
+      ],
+      "keys": []
+    },
+    {
+      "at": "2026-11-07T00:35:09.694Z",
+      "stage": "build",
+      "ratios": [
+        "16:9"
+      ],
+      "keys": []
+    },
+    {
+      "at": "2026-11-07T00:38:55.534Z",
+      "stage": "final",
+      "ratios": [
+        "16:9"
+      ],
+      "keys": []
+    },
+    {
+      "at": "2026-11-07T00:39:39.157Z",
+      "stage": "build",
+      "ratios": [
+        "16:9"
+      ],
+      "keys": []
+    }
+  ],
+  "last": {
+    "at": "2026-11-07T00:39:39.157Z",
+    "stage": "build",
+    "findings": []
+  }
+}
