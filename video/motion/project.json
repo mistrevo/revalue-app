@@ -1,0 +1,38 @@
+{
+  "title": "revalue-motion",
+  "createdAt": "2026-11-07T00:19:34.144Z",
+  "stage": "deliver",
+  "gates": {
+    "briefing": {
+      "skipped": true,
+      "at": "2026-11-07T00:19:34.264Z"
+    },
+    "style": {
+      "skipped": true,
+      "at": "2026-11-07T00:19:34.264Z"
+    },
+    "storyboard": {
+      "skipped": true,
+      "at": "2026-11-07T00:19:34.264Z"
+    },
+    "rough": {
+      "skipped": true,
+      "at": "2026-11-07T00:19:34.264Z"
+    }
+  },
+  "settings": {
+    "kind": "",
+    "course": "trial",
+    "fps": 30,
+    "ratios": [
+      "16:9"
+    ],
+    "loop": false,
+    "audio": {
+      "narration": "none",
+      "bgm": "none",
+      "sfx": false
+    }
+  },
+  "models": []
+}

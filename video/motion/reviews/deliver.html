@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>revalue-motion　納品の確認</title>
+<style>
+:root{color-scheme:light dark;--bg:#f5f5f3;--surface:#fff;--surface-2:#efefec;--text:#1d1d1f;--muted:#5c5f63;--line:#dcdcd6;
+--accent:#2d5b87;--accent-text:#fff;--accent-soft:#e6eef6;--warn-bg:#fdf3e1;--warn-line:#d9a24a;--warn-text:#6e4600;
+--ok:#2b7149;--ok-bg:#e5f2ea;--wait:#7a5a00;--wait-bg:#f7ecd0;--video:#0e0e0f;--shadow:0 1px 2px rgba(0,0,0,.05)}
+@media (prefers-color-scheme: dark){:root{--bg:#141415;--surface:#1d1d1f;--surface-2:#26262a;--text:#ececec;--muted:#a6a6ab;--line:#35353a;
+--accent:#93b6dc;--accent-text:#0f1720;--accent-soft:#22303e;--warn-bg:#33291a;--warn-line:#a87b30;--warn-text:#f1d39f;
+--ok:#86c9a0;--ok-bg:#1f3428;--wait:#e8c977;--wait-bg:#3a3120;--video:#000;--shadow:none}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.7 system-ui,-apple-system,"Segoe UI","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo","Noto Sans JP",sans-serif;padding-bottom:96px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 16px}
+@media (min-width:720px){.wrap{padding:0 32px}}
+header.top{padding:32px 0 20px}
+.eyebrow{margin:0;color:var(--muted);font-size:14px;letter-spacing:.04em}
+h1{margin:4px 0 8px;font-size:clamp(24px,3vw,32px);line-height:1.3;font-weight:700}
+.lead{margin:0;max-width:52em}
+.howto{margin:6px 0 0;max-width:52em;color:var(--muted);font-size:14px}
+h2{font-size:19px;line-height:1.4;margin:0 0 12px}
+h3{font-size:16px;margin:20px 0 8px}
+.section-h{margin:4px 0 12px}
+.muted{color:var(--muted)}
+main{display:grid;gap:24px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+@media (min-width:720px){.card{padding:24px 28px}}
+.prev summary{cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.prev summary h2{margin:0;display:inline}
+.prev summary .muted{font-size:14px}
+.prev[open] summary{margin-bottom:12px}
+.prev-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.prev-list li{border-top:1px solid var(--line);padding-top:12px}
+.prev-list p{margin:0}
+.said{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.where{font-weight:700}
+.gate{color:var(--muted);font-size:13px}
+.how{margin-top:4px!important;color:var(--muted);font-size:14px}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:1px 10px;margin-right:8px}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.wait{background:var(--wait-bg);color:var(--wait)}
+.missing{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn-text)}
+.missing ul{margin:8px 0 0;padding-left:1.4em;font-weight:700}
+.doc>:last-child{margin-bottom:0}
+.doc p,.doc ul,.doc ol{max-width:52em}
+code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:.92em;background:var(--surface-2);border-radius:4px;padding:1px 5px}
+pre{background:var(--surface-2);border-radius:8px;padding:12px;overflow:auto}
+.sw{display:inline-block;width:.9em;height:.9em;border-radius:3px;border:1px solid var(--line);vertical-align:-.1em;margin-right:4px}
+.table{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px}
+.assets{list-style:none;margin:0;padding:0;display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.asset-media{aspect-ratio:4/3;background:repeating-conic-gradient(#8a8f98 0% 25%,#a3a8b0 0% 50%) 50%/16px 16px;border-radius:8px;display:grid;place-items:center;overflow:hidden;gap:6px;padding:6px}
+.asset-media img,.asset-media video{width:100%;height:100%;object-fit:contain}
+.asset-media audio{width:100%}
+.file-ext{font-weight:700;color:var(--muted);letter-spacing:.06em}
+.asset-name{margin:8px 0 0;font-size:14px;word-break:break-all}
+.asset p.muted{margin:0;font-size:13px}
+.options{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.option{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:12px}
+.option:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.option-media{display:grid;gap:8px}
+.option-media img{width:100%;border-radius:6px;display:block;background:var(--surface-2)}
+.choose{display:flex;gap:8px;align-items:center;font-weight:700;cursor:pointer}
+.choose input{width:18px;height:18px;accent-color:var(--accent)}
+.stage{display:grid;gap:24px}
+@media (min-width:1080px){.stage{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);align-items:start}
+.stage-media{position:sticky;top:16px}}
+.players{display:grid;gap:16px}
+.players.multi{display:flex;flex-wrap:wrap;align-items:flex-start}
+.players.multi .now{flex-basis:100%}
+.players.multi .player{min-width:0}
+.player{margin:0}
+.frame{background:var(--video);border-radius:10px;overflow:hidden;aspect-ratio:var(--ar);max-height:72vh;margin:0 auto;display:grid}
+.frame video{width:100%;height:100%;display:block;background:var(--video)}
+.placeholder{display:grid;place-content:center;text-align:center;padding:16px;color:#e6e6e6}
+.placeholder p{margin:0}
+.placeholder .muted{color:#a9a9ad;font-size:14px}
+.player figcaption{color:var(--muted);font-size:13px;margin-top:6px;text-align:center}
+.now:empty{display:none}
+.now{margin:0;color:var(--muted);font-size:14px;text-align:center}
+.cuts{display:grid;gap:12px}
+.cut{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;scroll-margin-top:16px;transition:border-color .2s}
+.cut.is-now{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.cut-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-bottom:10px}
+.jump{display:inline-flex;align-items:baseline;gap:10px;font:inherit;color:inherit;background:none;border:0;padding:4px 8px;margin:-4px -8px;border-radius:8px}
+button.jump{cursor:pointer}
+button.jump:hover{background:var(--accent-soft)}
+button.jump:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.no{font-weight:700;font-size:17px}
+.time{color:var(--muted);font-variant-numeric:tabular-nums;font-size:14px}
+.len{margin-left:2px}
+.play{color:var(--accent);font-size:12px}
+.purpose{margin:0;color:var(--muted);font-size:14px}
+.cut-body{display:grid;gap:12px}
+.cuts.wide .cut-body{grid-template-columns:minmax(0,1fr)}
+@media (min-width:860px){.cuts.wide .cut-body{grid-template-columns:260px minmax(0,1fr) minmax(0,1fr);align-items:start}}
+@media (min-width:860px){.cuts.wide .cut-body:has(.thumbs){grid-template-columns:420px minmax(0,1fr) minmax(0,1fr)}}
+.words .board{margin-top:10px;font-size:14px;line-height:1.7}
+.words .board ul{margin:0;padding-left:1.2em}
+.words dl+dl{margin-top:8px}
+.thumb{margin:0;border-radius:8px;overflow:hidden;background:var(--surface-2)}
+.thumb img{display:block;width:100%}
+.thumbs{display:flex;gap:8px;align-items:flex-start}
+.thumbs .thumb{min-width:0}
+.thumb figcaption{font-size:12px;color:var(--muted);padding:2px 6px}
+.thumb.empty{aspect-ratio:16/9;display:grid;place-items:center;color:var(--muted);font-size:13px}
+.stage-cuts .thumb{max-width:320px}
+dl{margin:0;display:grid;gap:2px}
+dt{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin-top:6px}
+dt:first-child{margin-top:0}
+dd{margin:0;display:flex;flex-wrap:wrap;gap:0 10px;align-items:baseline}
+.say{font-size:16px;white-space:pre-line}
+.at{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.tag{color:var(--muted);font-size:12px;border:1px solid var(--line);border-radius:999px;padding:0 8px;font-variant-numeric:tabular-nums}
+.notes{margin-top:10px;background:var(--warn-bg);border-radius:8px;padding:8px 12px;color:var(--warn-text);font-size:14px}
+.notes p{margin:0;font-weight:700;font-size:13px}
+.notes ul{margin:4px 0 0;padding-left:1.2em}
+.notes.meant{background:var(--ok-bg);color:var(--ok)}
+.waivers li p{margin:0}
+.waivers li+li{margin-top:8px}
+.comment{display:grid;gap:4px}
+.comment label{font-size:13px;color:var(--muted);font-weight:600}
+textarea{width:100%;font:inherit;font-size:15px;line-height:1.6;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical;min-height:4.6em}
+textarea:focus{border-color:var(--accent)}
+.sheet{width:100%;display:block;border-radius:8px;background:var(--surface-2)}
+.files{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.files li{display:flex;gap:12px;flex-wrap:wrap;align-items:baseline}
+.files a{color:var(--accent);word-break:break-all}
+.posters{display:flex;gap:12px;flex-wrap:wrap}
+.posters img{max-width:min(100%,360px);max-height:360px;border-radius:8px;border:1px solid var(--line)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:5}
+.bar-in{display:flex;align-items:center;gap:8px 16px;padding-top:12px;padding-bottom:12px;flex-wrap:wrap}
+.bar-info{flex:1 1 200px;min-width:0;font-size:14px;color:var(--muted)}
+#status{color:var(--text)}
+#status.ok::before{content:"✓ ";color:var(--ok);font-weight:700}
+.bar button{font:inherit;font-size:15px;border-radius:8px;padding:9px 18px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--text)}
+.bar button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:700}
+.bar button.primary:hover{filter:brightness(1.08)}
+#manual{padding-bottom:12px}
+#manual p{margin:0 0 6px;font-size:14px}
+@media (max-width:520px){.bar button.quiet{display:none}.bar-in{flex-wrap:nowrap}.bar-info{flex:1 1 0;font-size:13px;line-height:1.5}
+.bar button.primary{padding:9px 14px;white-space:nowrap}body{padding-bottom:120px}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+<p class="eyebrow">納品の確認</p>
+<h1>revalue-motion</h1>
+<p class="lead">完成版です。動画、ポスター画像、使った素材と権利の一覧を、最後に確かめてください。</p>
+<p class="howto">書いた内容はこのブラウザに自動で保存されます。書き終えたら「指摘をまとめてコピー」を押し、チャットに貼り付けてください。直すところがなければ、チャットで「OK」とだけ伝えてください。</p>
+</div></header>
+<main class="wrap">
+
+<div class="stage">
+<div class="stage-media"><div class="players"><figure class="player" style="--ar:16/9;flex:1.7777777777777777 1 0"><div class="frame"><video controls preload="metadata" playsinline src="../out/revalue-motion_16x9.mp4"></video></div></figure><p class="now" id="now" aria-live="polite"></p></div></div>
+<section class="stage-cuts" aria-labelledby="cuts-h"><h2 id="cuts-h" class="section-h">カットごとの確認（5カット）</h2>
+<div class="cuts"><article class="cut" data-cut="1" id="cut-1">
+<div class="cut-head"><button type="button" class="jump" data-jump="0" aria-label="カット1（0:00〜0:20）から再生"><span class="no">カット 1</span><span class="time">0:00〜0:20<span class="len">（20秒）</span></span><span class="play" aria-hidden="true">▶</span></button><p class="purpose">課題: 離れた人の規模と、その期間が空白と見られること</p></div>
+<div class="cut-body"><figure class="thumb" style="flex:1.7777777777777777 1 0"><img src="frames/16x9/t-0016.00.png" alt="カット1の静止画（16:9）" loading="lazy"></figure><div class="words"><dl><dt>テロップ</dt><dd><span class="say">第 1 子の妊娠がわかったときに働いていた人のうち、子どもが 1 歳のときには働いていない人</span><span class="at">0:00.2〜0:13.4</span></dd><dd><span class="say">全体</span><span class="at">0:00.7〜0:13.4</span></dd><dd><span class="say">約 5 人に 1 人</span><span class="at">0:01〜0:13.4</span></dd><dd><span class="say">1 歳のときも働いていた 80.5%</span><span class="at">0:02〜0:13.4</span></dd><dd><span class="say">パート・派遣等</span><span class="at">0:06.8〜0:13.4</span></dd><dd><span class="say">4 割以上</span><span class="at">0:07.1〜0:13.4</span></dd><dd><span class="say">1 歳のときも働いていた 56.0%</span><span class="at">0:08.1〜0:13.4</span></dd><dd><span class="say">第 17 回出生動向基本調査（国立社会保障・人口問題研究所）。第 1 子の生まれ年 2020〜24 年</span><span class="at">0:00.4〜0:13.4</span></dd><dd><span class="say">その間の暮らしは、履歴書では</span><span class="at">0:13.7〜0:19.9</span></dd><dd><span class="say">空白</span><span class="at">0:14.3〜0:19.9</span></dd><dd><span class="say">力として説明できず、相談にも行きにくい</span><span class="at">0:15.4〜0:19.9</span></dd></dl></div>
+<div class="comment"><label for="c-1">カット1への指摘</label><textarea id="c-1" data-key="1" rows="3" placeholder="例：テロップの文字をもう少し大きく"></textarea></div></div>
+</article>
+<article class="cut" data-cut="2" id="cut-2">
+<div class="cut-head"><button type="button" class="jump" data-jump="20" aria-label="カット2（0:20〜0:30）から再生"><span class="no">カット 2</span><span class="time">0:20〜0:30<span class="len">（10秒）</span></span><span class="play" aria-hidden="true">▶</span></button><p class="purpose">何をするものか: 話す、確かめる、広げる、本人が選ぶ</p></div>
+<div class="cut-body"><figure class="thumb" style="flex:1.7777777777777777 1 0"><img src="frames/16x9/t-0027.00.png" alt="カット2の静止画（16:9）" loading="lazy"></figure><div class="words"><dl><dt>テロップ</dt><dd><span class="say">RE:VALUE</span><span class="at">0:20.1〜0:29.9</span></dd><dd><span class="say">AI が聞き手になり、どの仕事に進むかは本人が選ぶ</span><span class="at">0:20.4〜0:29.9</span></dd><dd><span class="say">話す</span><span class="at">0:21.2〜0:29.9</span></dd><dd><span class="say">AI が聞き手になる</span><span class="at">0:21.4〜0:29.9</span></dd><dd><span class="say">確かめる</span><span class="at">0:22.8〜0:29.9</span></dd><dd><span class="say">本人の言葉を根拠に</span><span class="at">0:23〜0:29.9</span></dd><dd><span class="say">選択肢を広げる</span><span class="at">0:24.4〜0:29.9</span></dd><dd><span class="say">使える時間と場所の中で</span><span class="at">0:24.6〜0:29.9</span></dd><dd><span class="say">本人が選ぶ</span><span class="at">0:26〜0:29.9</span></dd><dd><span class="say">直す・保留する・自分で書く</span><span class="at">0:26.2〜0:29.9</span></dd></dl></div>
+<div class="comment"><label for="c-2">カット2への指摘</label><textarea id="c-2" data-key="2" rows="3" placeholder="例：テロップの文字をもう少し大きく"></textarea></div></div>
+</article>
+<article class="cut" data-cut="3" id="cut-3">
+<div class="cut-head"><button type="button" class="jump" data-jump="30" aria-label="カット3（0:30〜0:55）から再生"><span class="no">カット 3</span><span class="time">0:30〜0:55<span class="len">（25秒）</span></span><span class="play" aria-hidden="true">▶</span></button><p class="purpose">違い: 汎用の AI との比較と、コードが決めて AI が言葉にする仕組み</p></div>
+<div class="cut-body"><figure class="thumb" style="flex:1.7777777777777777 1 0"><img src="frames/16x9/t-0050.00.png" alt="カット3の静止画（16:9）" loading="lazy"></figure><div class="words"><dl><dt>テロップ</dt><dd><span class="say">根拠のそろっていない 109 の力のうち、強みとして挙げた数</span><span class="at">0:30.2〜0:41.4</span></dd><dd><span class="say">汎用の AI（特別な指示なし）</span><span class="at">0:30.6〜0:41.4</span></dd><dd><span class="say">22 件</span><span class="at">0:32.3〜0:41.4</span></dd><dd><span class="say">RE:VALUE</span><span class="at">0:33.4〜0:41.4</span></dd><dd><span class="say">0 件</span><span class="at">0:34.2〜0:41.4</span></dd><dd><span class="say">架空のエピソードで評価（2026-11-05）</span><span class="at">0:30.8〜0:41.4</span></dd><dd><span class="say">コードが決めて、AI が言葉にする</span><span class="at">0:41.7〜0:54.9</span></dd><dd><span class="say">AI が読み取る</span><span class="at">0:42.7〜0:54.9</span></dd><dd><span class="say">答えの種類と、根拠の候補</span><span class="at">0:42.9〜0:54.9</span></dd><dd><span class="say">コードが照らし合わせ、次の一手を決める</span><span class="at">0:44.6〜0:54.9</span></dd><dd><span class="say">本人の発言と一字一句同じか</span><span class="at">0:44.9〜0:54.9</span></dd><dd><span class="say">AI が言葉にする</span><span class="at">0:47〜0:54.9</span></dd><dd><span class="say">決まった次の一手だけを受け取る</span><span class="at">0:47.2〜0:54.9</span></dd><dd><span class="say">「先に実家の母に電話して、空いている時間を聞きました」</span><span class="at">0:49〜0:54.9</span></dd><dd><span class="say">合わなければ、使わない</span><span class="at">0:49.6〜0:54.9</span></dd></dl></div>
+<div class="comment"><label for="c-3">カット3への指摘</label><textarea id="c-3" data-key="3" rows="3" placeholder="例：テロップの文字をもう少し大きく"></textarea></div></div>
+</article>
+<article class="cut" data-cut="4" id="cut-4">
+<div class="cut-head"><button type="button" class="jump" data-jump="55" aria-label="カット4（0:55〜1:25）から再生"><span class="no">カット 4</span><span class="time">0:55〜1:25<span class="len">（30秒）</span></span><span class="play" aria-hidden="true">▶</span></button><p class="purpose">作り方: Claude Code を中心にした開発を実物で見せる</p></div>
+<div class="cut-body"><figure class="thumb" style="flex:1.7777777777777777 1 0"><img src="frames/16x9/t-0078.00.png" alt="カット4の静止画（16:9）" loading="lazy"></figure><div class="words"><dl><dt>テロップ</dt><dd><span class="say">Claude Code を中心に作る</span><span class="at">0:55.1〜1:24.9</span></dd><dd><span class="say">人が決める</span><span class="at">0:55.3〜1:24.9</span></dd><dd><span class="say">AI が仕様と実装</span><span class="at">0:55.4〜1:24.9</span></dd><dd><span class="say">別の AI がレビュー</span><span class="at">0:55.4〜1:24.9</span></dd><dd><span class="say">結論を壊しにいく</span><span class="at">0:55.5〜1:24.9</span></dd><dd><span class="say">直す</span><span class="at">0:55.5〜1:24.9</span></dd><dd><span class="say">架空の 6 人で通す</span><span class="at">0:55.6〜1:24.9</span></dd><dd><span class="say">何を作るかは、人が PRD で決める</span><span class="at">0:55.7〜1:01.4</span></dd><dd><span class="say">Workflow が、決まった順にエージェントを動かす</span><span class="at">1:01.6〜1:10</span></dd><dd><span class="say">不合格にして、直して、流し直す</span><span class="at">1:10.2〜1:17</span></dd><dd><span class="say">1 回目（2026-11-03 05:58）</span><span class="at">1:10.4〜1:17</span></dd><dd><span class="say">褒めすぎ 1 件（27 中）</span><span class="at">1:10.5〜1:17</span></dd><dd><span class="say">2 回目（2026-11-03 06:29）</span><span class="at">1:12.6〜1:17</span></dd><dd><span class="say">褒めすぎ 0 件（27 中）</span><span class="at">1:12.7〜1:17</span></dd><dd><span class="say">架空の 6 人を AI が演じ、画面を最後まで通す</span><span class="at">1:17.2〜1:24.9</span></dd><dd><span class="say">main に入れた PR 30 本</span><span class="at">1:17.6〜1:24.9</span></dd><dd><span class="say">評価の記録 23 件</span><span class="at">1:17.7〜1:24.9</span></dd><dd><span class="say">架空のエピソード 47 件</span><span class="at">1:17.7〜1:24.9</span></dd></dl></div>
+<div class="comment"><label for="c-4">カット4への指摘</label><textarea id="c-4" data-key="4" rows="3" placeholder="例：テロップの文字をもう少し大きく"></textarea></div></div>
+</article>
+<article class="cut" data-cut="5" id="cut-5">
+<div class="cut-head"><button type="button" class="jump" data-jump="85" aria-label="カット5（1:25〜1:35）から再生"><span class="no">カット 5</span><span class="time">1:25〜1:35<span class="len">（10秒）</span></span><span class="play" aria-hidden="true">▶</span></button><p class="purpose">締め: この先と、一番覚えてほしい一文</p></div>
+<div class="cut-body"><figure class="thumb" style="flex:1.7777777777777777 1 0"><img src="frames/16x9/t-0092.00.png" alt="カット5の静止画（16:9）" loading="lazy"></figure><div class="words"><dl><dt>テロップ</dt><dd><span class="say">初めは育児で、次は介護などで中断した人へ</span><span class="at">1:25.1〜1:29.6</span></dd><dd><span class="say">キャリアには空白があっても、人生に空白はない。</span><span class="at">1:29.7〜1:34.9</span></dd><dd><span class="say">RE:VALUE</span><span class="at">1:31.6〜1:34.9</span></dd></dl></div>
+<div class="comment"><label for="c-5">カット5への指摘</label><textarea id="c-5" data-key="5" rows="3" placeholder="例：テロップの文字をもう少し大きく"></textarea></div></div>
+</article></div></section>
+</div>
+<section class="card" aria-labelledby="files-h"><h2 id="files-h">納品するファイル</h2>
+<ul class="files"><li><a href="../out/revalue-motion_16x9.mp4">revalue-motion_16x9.mp4</a><span class="muted">3.6 MB</span></li><li><a href="../out/revalue-motion_16x9_poster.png">revalue-motion_16x9_poster.png</a><span class="muted">51 KB</span></li></ul>
+<h3>ポスター画像</h3><div class="posters"><img src="../out/revalue-motion_16x9_poster.png" alt="ポスター画像" loading="lazy"></div></section>
+<section class="card doc" aria-labelledby="rights-h"><h2 id="rights-h">使った素材と権利</h2><div class="table"><table><thead><tr><th>種類</th><th>素材</th><th>出どころ</th><th>条件・クレジット</th></tr></thead><tbody><tr><td>実物の画面</td><td><code>assets/real-*.png</code>（9 点）</td><td>このリポジトリの公開ページを GitHub で撮影（<code>tools/capture-github.mjs</code>）</td><td>開発者が作った文書とコード。GitHub の画面の枠が映る</td></tr><tr><td>書体</td><td>BIZ UDP ゴシック（400、700）</td><td>Google Fonts</td><td>OFL</td></tr><tr><td>図</td><td>帯、丸、線、矢印、チェックの印</td><td>シーンの中で描いた</td><td>権利の確認は不要</td></tr><tr><td>声、BGM、効果音</td><td>なし</td><td>あとで開発者本人の声を載せる</td><td>—</td></tr></tbody></table></div></section>
+<section class="card missing" aria-labelledby="prov-h"><h2 id="prov-h">仮に決めたこと</h2>
+<p>聞かずに仮に決めたことです。違っていれば、チャットで伝えてください。</p><ul><li>開発者が「返事を待って止まらないで」と言ったので、コースは trial（お試し）で、開発者の確認を待たずに進める</li><li>構成は課題 → 解決 → 証拠。見せ場は s05 の比較</li><li>ナレーションは入れない。開発者本人の声をあとで載せる。BGM と効果音もなし</li><li>字幕の帯は作らず、短い字だけにする</li><li>色と書体は製品の画面と同じにする（<code>src/web/src/index.css</code> の色、BIZ UDP ゴシック）</li><li>秒数は仮。声を収録したあとで <code>timeline.json</code> の時刻を合わせ直す</li></ul></section>
+<section class="card doc" aria-labelledby="req-h"><h2 id="req-h">要件のまとめ</h2>
+<h3>ブリーフィング: revalue-motion</h3>
+<p>提出動画（3 分以内、日本語）のうち、実画面以外の説明の部分。実画面は <code>video/demo/</code> で記録し、ここで作るシーンとつないで 1 本にする。全体の設計は <code>docs/superpowers/specs/2026-11-07-submission-video-design.md</code>、原稿は <code>video/script.md</code>。</p>
+<ul><li><strong>見る人</strong>: ハッカソンの審査員。作品を触らずに動画で判断する。前提知識はない
+</li><li><strong>見た後にどうなってほしいか</strong>: 誰の、どんな困りごとを、どう解くのかが分かり、もっと見たいと思う
+</li><li><strong>一番覚えてほしい一文</strong>: 「キャリアには空白があっても、人生に空白はない。」
+</li><li><strong>比率</strong>: 16:9、1920×1080、30fps
+</li><li><strong>素材</strong>: 自作の図と、このリポジトリを公開 GitHub で撮った実物の画面（<code>assets/real-*.png</code>。撮り方は <code>tools/capture-github.mjs</code>）
+</li></ul>
+<h4>使う事実と出典</h4>
+<div class="table"><table><thead><tr><th>事実</th><th>出典と時点</th></tr></thead><tbody><tr><td>第 1 子の妊娠がわかったときに働いていた妻のうち、第 1 子 1 歳時も働いていた割合 80.5%、パート・派遣等 56.0%（第 1 子の生まれ年 2020〜24 年）</td><td>第 17 回出生動向基本調査（国立社会保障・人口問題研究所。2025 年 6 月調査）</td></tr><tr><td>根拠のそろっていない 109 の力のうち強みとして挙げた数。汎用の AI 22 件、RE:VALUE 0 件</td><td><code>evals/results/2026-11-05-validate-5.md</code></td></tr><tr><td>1 回目 2026-11-03 05:58 に褒めすぎ 1 件（27 中）で不合格、2 回目 06:29 に 0 件（27 中）で合格</td><td><code>evals/results/2026-11-03-validate.md</code>、<code>2026-11-03-validate-2.md</code></td></tr><tr><td>main に入れた PR 30 本、評価の記録 23 件、架空のエピソード 47 件</td><td>2026-11-07 09:20 ごろに <code>gh pr list</code>、<code>evals/results/*.md</code>、<code>evals/episodes/</code> を数えた。書き出す前に数え直す</td></tr></tbody></table></div></section>
+<section class="card doc" aria-labelledby="style-h"><h2 id="style-h">色・書体・動きの説明</h2><h3>スタイル: revalue-motion</h3>
+<p>製品の画面と地続きに見せる。落ち着いて、誠実で、派手でない。数字と本人の言葉を見せる場面で、動きが前に出ないようにする。</p>
+<h4>パレット（製品の <code>src/web/src/index.css</code> から）</h4>
+<div class="table"><table><thead><tr><th>役割</th><th>色</th></tr></thead><tbody><tr><td>地</td><td><code><span class="sw" style="background:#F2F4F1"></span>#F2F4F1</code></td></tr><tr><td>面（カード）</td><td><code><span class="sw" style="background:#FFFFFF"></span>#FFFFFF</code></td></tr><tr><td>文字</td><td><code><span class="sw" style="background:#262A2B"></span>#262A2B</code></td></tr><tr><td>控えめな文字</td><td><code><span class="sw" style="background:#5B6265"></span>#5B6265</code></td></tr><tr><td>枠線</td><td><code><span class="sw" style="background:#E1E5E2"></span>#E1E5E2</code></td></tr><tr><td>強調（製品の緑）</td><td><code><span class="sw" style="background:#1F7A6E"></span>#1F7A6E</code></td></tr><tr><td>強調の上の文字</td><td><code><span class="sw" style="background:#FFFFFF"></span>#FFFFFF</code></td></tr><tr><td>薄い強調</td><td><code><span class="sw" style="background:#DCEFEA"></span>#DCEFEA</code>（文字は <code><span class="sw" style="background:#1B3B36"></span>#1B3B36</code>）</td></tr></tbody></table></div>
+<h4>書体</h4>
+<p>BIZ UDP ゴシック（<code>BIZ UDPGothic</code>、400 と 700。OFL）。製品の画面と同じ。</p>
+<h4>動きの性格</h4>
+<ul><li>入場は <code>outExpo</code>、大きな面は <code>outQuint</code>、中の移動は <code>inOutCubic</code>、退場は <code>inQuart</code>
+</li><li>文字は短いフェードで出す。見出しだけ少し動かす（14〜18px）
+</li><li>跳ねは s05 のチェックの印 1 回だけ（<code>outBack</code>）
+</li><li>点滅なし。常時の寄りなし
+</li></ul>
+<h4>構図</h4>
+<p>左揃えの格子を基本にする。中央揃えは s01 の「空白」と s07 の締めだけ。角丸のカードは製品の画面と同じ大きさ（24px）。</p>
+<h4>モチーフ</h4>
+<p>途切れた 1 本の線。s01 では点線の「空白」で、s07 で本人の言葉のあとにつながる。</p>
+<h4>禁止</h4>
+<ul><li>「診断」「判定」「スコア」「適職」「不得意」「根拠なし」
+</li><li>汎用アイコン、絵文字、外から持ってきた絵
+</li><li>紫のグラデーション、グロー、粒子
+</li></ul></section>
+<section class="card doc" aria-labelledby="board-h"><h2 id="board-h">カットごとの流れ（絵コンテ）</h2><h3>絵コンテ: revalue-motion</h3>
+<p>一番覚えてほしい一文: 「キャリアには空白があっても、人生に空白はない。」 総尺: 約 95 秒（説明の部分だけ。実画面は別に記録してつなぐ） / fps: 30 / 比率: 16:9</p>
+<p>文字と時刻の正本は <code>timeline.json</code>。秒数は仮で、声を収録したあとで合わせ直す。</p>
+<h4>カット1（0:00〜0:20）s01 課題</h4>
+<ul><li>存在理由: 誰が、どれくらい困っているかを最初に伝える
+</li><li>入口: 地の上に説明の 1 文
+</li><li>出口: 途切れた線と「空白」の字
+</li><li>画: 帯が縮んで、離れた人の割合が緑で現れる。全体（80.5%）、パート・派遣等（56.0%）の順。そのあと、線の途中が点線になり「空白」が出る
+</li><li>ナレーションの狙い: <code>video/script.md</code> の 1
+</li></ul>
+<h4>カット2（0:20〜0:30）s02 何をするものか</h4>
+<ul><li>存在理由: 何をする製品かを一息で伝える。本人が選ぶことを最後に置く
+</li><li>入口: RE:VALUE の名前
+</li><li>出口: 4 枚のカード。最後の「本人が選ぶ」だけ緑
+</li><li>画: カードが左から順に出る
+</li><li>ナレーションの狙い: <code>video/script.md</code> の 2
+</li></ul>
+<p>（ここに実画面が入る。<code>video/script.md</code> の 3 と 4）</p>
+<h4>カット3（0:30〜0:55）s05 違い</h4>
+<ul><li>存在理由: 褒めすぎない証拠と、その仕組みを見せる
+</li><li>入口: 説明の 1 文と 2 つのパネル
+</li><li>出口: 3 つの箱と、本人の言葉の例
+</li><li>画: 109 の丸のうち 22 が埋まる（汎用の AI）。もう片方は一つも埋まらない（RE:VALUE）。後半は「コードが決めて、AI が言葉にする」の 3 段階。真ん中の箱だけ緑
+</li><li>ナレーションの狙い: <code>video/script.md</code> の 5
+</li></ul>
+<h4>カット4（0:55〜1:25）s06 作り方</h4>
+<ul><li>存在理由: Claude Code を中心にどう作ったかを、実物で見せる
+</li><li>入口: 見出しと 6 段階の一覧
+</li><li>出口: ペルソナ評価の結果の実物と、数えた数字
+</li><li>画: 左の一覧でいまの段階が動き、右に実物の画面。PRD → Workflow の定義 → 不合格と合格の 2 回 → ペルソナ評価の結果
+</li><li>ナレーションの狙い: <code>video/script.md</code> の 6
+</li></ul>
+<h4>カット5（1:25〜1:35）s07 締め</h4>
+<ul><li>存在理由: 一番覚えてほしい一文で終える
+</li><li>入口: 途切れた線と、この先の話
+</li><li>出口: つながった線、一文、RE:VALUE の名前
+</li><li>画: 点線が緑でつながる。最後の 2 秒以上は止めて読ませる
+</li><li>ナレーションの狙い: <code>video/script.md</code> の 7
+</li></ul></section>
+<section class="card doc" aria-labelledby="intent-h"><h2 id="intent-h">この動画で既定から外していること</h2>
+<p class="muted">何も言われなければ避けることのうち、この動画では演出の意図があって使っているものです。自動点検は、これに当たる指摘を「意図どおり」として数えません。</p>
+<h3>スタイルで決めたこと</h3><ul><li>なし</li></ul>
+
+</section>
+<section class="card doc" aria-labelledby="comp-h"><h2 id="comp-h">残った妥協点</h2>
+<p class="muted">ありません。</p></section>
+<section class="card" aria-labelledby="up-h"><h2 id="up-h">本番の工程で作り込む</h2>
+<p>この動画を本番用に仕上げたいときは、チャットで「本番用に仕上げたい」と伝えてください。省いた確認を順に行い、作ったものはそのまま引き継ぎます。</p></section>
+<section class="card overall" aria-labelledby="overall-h"><h2 id="overall-h">全体へのコメント</h2>
+<div class="comment"><label for="c-overall">全体への指摘や感想</label><textarea id="c-overall" data-key="overall" rows="3" placeholder="例：BGM をもう少し静かに"></textarea></div></section>
+</main>
+<div class="bar" role="region" aria-label="指摘のまとめ"><div class="wrap">
+<div id="manual" hidden><p>次の文を選んでコピーし、チャットに貼り付けてください。</p><textarea readonly rows="4" aria-label="コピーする文"></textarea></div>
+<div class="bar-in">
+<p class="bar-info"><span id="count"></span>　<span id="status" role="status" aria-live="polite"></span></p>
+<button type="button" id="clear" class="quiet">書いた内容を消す</button>
+<button type="button" id="copy" class="primary">指摘をまとめてコピー</button>
+</div></div></div>
+<script>
+'use strict';
+const CFG = {"key":"ns-motion-studio:C:\\repos\\revalue\\wt-video\\video\\motion:deliver","build":"mw5oen51-6d854933","title":"revalue-motion","gate":"deliver","cuts":[{"cut":1,"start":0,"end":20},{"cut":2,"start":20,"end":30},{"cut":3,"start":30,"end":55},{"cut":4,"start":55,"end":85},{"cut":5,"start":85,"end":95}]};
+function formatClock(t) {
+  const tenths = Math.round(Math.max(t, 0) * 10);
+  const m = Math.floor(tenths / 600);
+  const rest = tenths % 600;
+  const s = String(Math.floor(rest / 10)).padStart(2, '0');
+  return m + ':' + s + (rest % 10 ? '.' + (rest % 10) : '');
+}
+function copyText(title, gate, items) {
+  const oneLine = (s) => s.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join(' / ');
+  const lines = ['[ns-motion-studio 指摘] ' + title + ' / ' + gate];
+  for (const it of items) {
+    let where = '全体';
+    if (it.cut != null) {
+      where = 'カット' + it.cut;
+      if (it.start != null && it.end != null) where += '（' + formatClock(it.start) + '〜' + formatClock(it.end) + '）';
+    }
+    lines.push(where + '：' + oneLine(it.text));
+  }
+  return lines.join('\n');
+}
+
+const fields = Array.from(document.querySelectorAll('textarea[data-key]'));
+const choices = Array.from(document.querySelectorAll('input[name="choice"]'));
+const videos = Array.from(document.querySelectorAll('.player video'));
+const cards = Array.from(document.querySelectorAll('article.cut'));
+const statusEl = document.getElementById('status');
+const countEl = document.getElementById('count');
+const manual = document.getElementById('manual');
+let timer = 0;
+
+function say(text, ok) {
+  statusEl.textContent = text;
+  statusEl.className = ok ? 'ok' : '';
+  clearTimeout(timer);
+  if (ok) timer = setTimeout(function () { statusEl.textContent = ''; statusEl.className = ''; }, 4000);
+}
+
+function collect() {
+  const state = {};
+  fields.forEach(function (f) { if (f.value.trim()) state[f.dataset.key] = f.value; });
+  const picked = choices.find(function (c) { return c.checked; });
+  if (picked) state.choice = picked.value;
+  return state;
+}
+
+function items(state) {
+  const out = [];
+  CFG.cuts.forEach(function (c) {
+    const text = state[String(c.cut)];
+    if (text && text.trim()) out.push({ cut: c.cut, start: c.start, end: c.end, text: text });
+  });
+  if (state.choice) out.push({ cut: null, text: '選んだ案：' + state.choice });
+  if (state.overall && state.overall.trim()) out.push({ cut: null, text: state.overall });
+  return out;
+}
+
+function updateCount() {
+  const n = items(collect()).length;
+  countEl.textContent = n ? '指摘 ' + n + '件' : 'まだ何も書かれていません';
+}
+
+// 保存の形: { state: 欄の中身, sent: コピーしたときの中身, sentBuild: そのときのページの版 }
+let sent = null;
+let sentBuild = null;
+
+function store() {
+  const data = JSON.stringify({ state: collect(), sent: sent, sentBuild: sentBuild });
+  try { localStorage.setItem(CFG.key, data); return true; } catch (e) { return false; }
+}
+
+function save() {
+  const ok = store();
+  updateCount();
+  if (ok) say('保存しました', true);
+  else say('このブラウザでは一時保存ができません。ページを閉じる前にコピーしてください。', false);
+}
+
+let raw = null;
+try { raw = localStorage.getItem(CFG.key); } catch (e) { raw = null; }
+let stored = {};
+if (raw) { try { stored = JSON.parse(raw) || {}; } catch (e) { stored = {}; } }
+// 前の形（欄の中身だけ）で残っていれば、そのまま書きかけとして戻す
+let saved = (stored.state !== undefined ? stored.state : stored) || {};
+let dropped = false;
+if (stored.sent && stored.sentBuild && stored.sentBuild !== CFG.build) {
+  // 作り直したページでは、コピー済みの指摘を欄に戻さない（同じ指摘を二度送らないため）。コピーの後に書いた分は戻す
+  const keep = {};
+  Object.keys(saved).forEach(function (k) { if (stored.sent[k] === saved[k]) dropped = true; else keep[k] = saved[k]; });
+  saved = keep;
+} else if (stored.sent) {
+  sent = stored.sent;
+  sentBuild = stored.sentBuild;
+}
+fields.forEach(function (f) {
+  if (typeof saved[f.dataset.key] === 'string') f.value = saved[f.dataset.key];
+  f.addEventListener('input', save);
+});
+choices.forEach(function (c) {
+  c.checked = saved.choice === c.value;
+  c.addEventListener('change', save);
+});
+updateCount();
+if (dropped) { store(); say('前回コピーした指摘は欄から外しました。対応は「前回の指摘と対応」で見られます', false); }
+else if (items(saved).length) say('前に書いた内容を戻しました', false);
+
+function legacyCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+document.getElementById('copy').addEventListener('click', async function () {
+  const list = items(collect());
+  if (!list.length) { say('まだ何も書かれていません。気になるところを欄に書いてから押してください。', false); return; }
+  const text = copyText(CFG.title, CFG.gate, list);
+  // コピーした中身と版を覚える（作り直したページでは欄に戻さない）。クリップボードを待つ前に残す
+  sent = collect();
+  sentBuild = CFG.build;
+  store();
+  let ok = false;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { ok = false; }
+  }
+  if (!ok) ok = legacyCopy(text);
+  if (ok) {
+    manual.hidden = true;
+    say('コピーしました。チャットに貼り付けてください。', true);
+  } else {
+    manual.hidden = false;
+    const box = manual.querySelector('textarea');
+    box.value = text;
+    box.focus();
+    box.select();
+    say('自動でコピーできませんでした。下の文を選んでコピーしてください。', false);
+  }
+});
+
+document.getElementById('clear').addEventListener('click', function () {
+  if (!confirm('このページに書いた内容をすべて消します。よろしいですか？')) return;
+  fields.forEach(function (f) { f.value = ''; });
+  choices.forEach(function (c) { c.checked = false; });
+  sent = null;
+  sentBuild = null;
+  try { localStorage.removeItem(CFG.key); } catch (e) { /* 保存できない環境では消すものもない */ }
+  updateCount();
+  say('消しました', true);
+});
+
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-jump]');
+  if (!btn || !videos.length) return;
+  const t = Number(btn.dataset.jump);
+  videos.forEach(function (v, i) {
+    const go = function () { v.currentTime = t; if (i === 0) { const p = v.play(); if (p && p.catch) p.catch(function () {}); } };
+    if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, { once: true });
+  });
+  const r = videos[0].getBoundingClientRect();
+  if (r.top < 0 || r.bottom > window.innerHeight) videos[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+if (videos.length) {
+  const nowEl = document.getElementById('now');
+  const mark = function () {
+    const t = videos[0].currentTime;
+    let idx = CFG.cuts.findIndex(function (c) { return t >= c.start && t < c.end; });
+    if (idx < 0) idx = CFG.cuts.length - 1;
+    cards.forEach(function (card, i) { card.classList.toggle('is-now', i === idx); });
+    nowEl.textContent = '再生中：カット ' + CFG.cuts[idx].cut + '（' + formatClock(t) + '）';
+  };
+  // 再生しなくても、移動しただけで今のカットを示す
+  videos[0].addEventListener('timeupdate', mark);
+  videos[0].addEventListener('seeked', mark);
+}
+
+</script>
+</body>
+</html>

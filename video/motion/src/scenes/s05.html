@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>s05 違い</title>
+<link rel="stylesheet" href="../../assets/fonts/fonts.css">
+<link rel="stylesheet" href="../../assets/base.css">
+<style>
+  .lead { position: absolute; left: 96px; top: 84px; font-size: 48px; }
+  .panels { position: absolute; left: 96px; top: 190px; width: 1728px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  .panel { height: 640px; padding: 44px 48px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; }
+  .panel .name { font-size: 36px; color: var(--muted); }
+  .panel .num { font-size: 120px; font-weight: 700; line-height: 1.25; font-variant-numeric: tabular-nums; }
+  #p1 .num { color: var(--text); }
+  #p2 .num { color: var(--accent); }
+  #p2 .name { color: var(--accent); font-weight: 700; }
+  .dots { margin-top: 28px; display: grid; grid-template-columns: repeat(16, 34px); gap: 10px; }
+  .dot { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #A8B0AD; background: transparent; }
+  #p2 .dot { border-color: #7FB5AB; }
+  .note { position: absolute; left: 96px; top: 860px; font-size: 28px; color: var(--muted); }
+
+  .b-title { position: absolute; left: 96px; top: 84px; font-size: 80px; font-weight: 700; }
+  .nodes { position: absolute; left: 96px; top: 250px; width: 1728px; display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 72px; }
+  .node { position: relative; height: 320px; padding: 44px 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; }
+  .node .h { font-size: 44px; font-weight: 700; line-height: 1.35; min-height: 130px; }
+  .node .d { font-size: 32px; color: var(--muted); margin-top: 18px; }
+  .node.code { background: var(--accent); border-color: var(--accent); }
+  .node.code .h, .node.code .d { color: var(--on-accent); }
+  .arrow { position: absolute; right: -56px; top: 136px; width: 40px; height: 40px; }
+  .proof { position: absolute; left: 96px; top: 640px; width: 1728px; height: 240px; padding: 36px 48px; background: var(--tile); border-radius: 24px; }
+  .quote { display: flex; align-items: center; gap: 22px; }
+  .quote svg { flex: none; width: 48px; height: 48px; }
+  .quote div { font-size: 40px; color: var(--on-tint); }
+  .rule { margin-top: 28px; font-size: 44px; font-weight: 700; color: var(--on-tint); padding-left: 70px; }
+</style>
+</head>
+<body>
+  <div class="layer" id="a">
+    <div class="lead" data-ms-text="t30"></div>
+    <div class="panels">
+      <div class="panel" id="p1">
+        <div class="name" data-ms-text="t31"></div>
+        <div class="num" data-ms-text="t32"></div>
+        <div class="dots" id="d1"></div>
+      </div>
+      <div class="panel" id="p2">
+        <div class="name" data-ms-text="t33"></div>
+        <div class="num" data-ms-text="t34"></div>
+        <div class="dots" id="d2"></div>
+      </div>
+    </div>
+    <div class="note" data-ms-text="t35"></div>
+  </div>
+  <div class="layer" id="b">
+    <div class="b-title" data-ms-text="t36"></div>
+    <div class="nodes">
+      <div class="node" id="n1">
+        <div class="h" data-ms-text="t37"></div><div class="d" data-ms-text="t38"></div>
+        <svg class="arrow" viewBox="0 0 40 40"><path d="M13 6l14 14-14 14" fill="none" stroke="#5B6265" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="node code" id="n2">
+        <div class="h" data-ms-text="t39"></div><div class="d" data-ms-text="t40"></div>
+        <svg class="arrow" viewBox="0 0 40 40"><path d="M13 6l14 14-14 14" fill="none" stroke="#5B6265" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="node" id="n3">
+        <div class="h" data-ms-text="t41"></div><div class="d" data-ms-text="t42"></div>
+      </div>
+    </div>
+    <div class="proof" id="proof">
+      <div class="quote">
+        <svg id="check" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#1F7A6E"/><path d="M14 25l7 7 13-15" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div data-ms-text="t43"></div>
+      </div>
+      <div class="rule" data-ms-text="t44"></div>
+    </div>
+  </div>
+<script>
+  const $ = (s) => document.querySelector(s);
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const prog = (t, t0, dur, e = ms.ease.outExpo) => e(clamp01((t - t0) / dur));
+  const lerp = (a, b, p) => a + (b - a) * p;
+  const T = (id) => $(`[data-ms-text="${id}"]`);
+  const TOTAL = 109;
+  const FLAGGED = 22; // evals/results/2026-11-05-validate-5.md の数字
+  const makeDots = (host) => {
+    for (let i = 0; i < TOTAL; i += 1) {
+      const d = document.createElement('div');
+      d.className = 'dot';
+      host.appendChild(d);
+    }
+    return [...host.children];
+  };
+  const dots1 = makeDots($('#d1'));
+  const dots2 = makeDots($('#d2'));
+
+  ms.scene((t) => {
+    // 前半: 比較
+    const aEnd = ms.time('t30').end;
+    const out = prog(t, aEnd - 0.05, 0.3, ms.ease.inQuart);
+    $('#a').style.opacity = String(1 - out);
+    $('#a').style.visibility = out >= 1 ? 'hidden' : 'visible';
+    $('.lead').style.opacity = String(prog(t, -0.05, 0.5));
+    $('#p1').style.opacity = String(prog(t, ms.time('t31').start - 0.2, 0.45));
+    $('.note').style.opacity = String(prog(t, ms.time('t35').start, 0.3));
+
+    const fillStart = ms.time('t32').start - 1.1;
+    dots1.forEach((d, i) => {
+      if (i < FLAGGED) {
+        const on = t >= fillStart + i * 0.045;
+        d.style.background = on ? '#3B4345' : 'transparent';
+        d.style.borderColor = on ? '#3B4345' : '#A8B0AD';
+      }
+    });
+    const n1 = prog(t, ms.time('t32').start, 0.6);
+    T('t32').style.opacity = String(n1);
+
+    $('#p2').style.opacity = String(prog(t, ms.time('t33').start - 0.2, 0.45));
+    const n2 = prog(t, ms.time('t34').start, 0.7);
+    T('t34').style.opacity = String(n2);
+    T('t34').style.transform = `translateY(${lerp(14, 0, n2)}px)`;
+
+    // 後半: 仕組み
+    const bStart = ms.time('t36').start;
+    $('#b').style.visibility = t < bStart - 0.1 ? 'hidden' : 'visible';
+    const h = prog(t, bStart - 0.05, 0.7);
+    $('.b-title').style.opacity = String(h);
+    $('.b-title').style.transform = `translateY(${lerp(16, 0, h)}px)`;
+    const node = (sel, id) => {
+      const p = prog(t, ms.time(id).start - 0.1, 0.45);
+      $(sel).style.opacity = String(p);
+      $(sel).style.transform = `translateY(${lerp(12, 0, p)}px)`;
+    };
+    node('#n1', 't37');
+    node('#n2', 't39');
+    node('#n3', 't41');
+    $('#proof').style.opacity = String(prog(t, ms.time('t43').start - 0.1, 0.4));
+    const c = prog(t, ms.time('t43').start + 0.1, 0.35, ms.ease.outBack);
+    $('#check').style.transform = `scale(${c})`;
+    T('t44').style.opacity = String(prog(t, ms.time('t44').start, 0.35));
+  });
+</script>
+</body>
+</html>

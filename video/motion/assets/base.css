@@ -1,0 +1,34 @@
+/* 製品の画面（src/web/src/index.css の --rv-*）と同じ色と書体 */
+:root {
+  --ground: #F2F4F1;
+  --surface: #FFFFFF;
+  --text: #262A2B;
+  --muted: #5B6265;
+  --border: #E1E5E2;
+  --accent: #1F7A6E;
+  --on-accent: #FFFFFF;
+  --tint: #DCEFEA;
+  --on-tint: #1B3B36;
+  --tile: #EEF5F2;
+  --chip: #E4E9E6;
+}
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: 'BIZ UDPGothic', sans-serif;
+  font-feature-settings: 'palt';
+  line-height: 1.4;
+  word-break: auto-phrase;
+  text-wrap: pretty;
+}
+* { box-sizing: border-box; }
+.layer { position: absolute; inset: 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+}
+.label { font-size: 32px; color: var(--muted); }
+.caption { font-size: 44px; }
+.title { font-size: 96px; font-weight: 700; letter-spacing: 0.01em; }
