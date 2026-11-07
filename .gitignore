@@ -53,3 +53,4 @@ evals/personas/.run/
 
 # 提出動画の実画面の記録（重いので入れない）
 video/demo/.run/
+video/voice/
