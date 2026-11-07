@@ -1,10 +1,15 @@
 [
-  { "id": "note", "kind": "note", "text": "架空の人物で実演しています。\nAI の返事を待つ時間は縮めています" },
+  { "id": "note", "kind": "note", "text": "架空の人物で実演しています。\n入力と AI の返事を待つ時間は縮めています" },
   { "id": "ask-one", "text": "褒めずに、\n一つだけ聞く" },
   { "id": "own-words", "text": "本人の言葉が、\n一字一句そのまま根拠に" },
   { "id": "only-missing", "text": "足りない行動だけを\n聞き返す" },
   { "id": "conditions", "text": "使える時間と\n場所の中で" },
   { "id": "three-ways", "text": "3 つの道に、\n順位はありません" },
+  { "id": "own-power", "text": "自分の力から、\n仕事を考える" },
   { "id": "not-yet", "text": "まだ確かめていない\nことも示す" },
-  { "id": "own-step", "text": "最初の一歩も、\n本人が選ぶ" }
+  { "id": "own-step", "text": "最初の一歩も、\n本人が選ぶ" },
+  { "id": "step-talk", "kind": "steps", "active": 0, "labels": ["話す", "確かめる", "選択肢を広げる", "本人が選ぶ"] },
+  { "id": "step-check", "kind": "steps", "active": 1, "labels": ["話す", "確かめる", "選択肢を広げる", "本人が選ぶ"] },
+  { "id": "step-options", "kind": "steps", "active": 2, "labels": ["話す", "確かめる", "選択肢を広げる", "本人が選ぶ"] },
+  { "id": "step-choose", "kind": "steps", "active": 3, "labels": ["話す", "確かめる", "選択肢を広げる", "本人が選ぶ"] }
 ]

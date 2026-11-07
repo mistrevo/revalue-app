@@ -21,10 +21,10 @@
   .shot > img { position: absolute; }
   #sPrd > img { width: 1568px; left: -403px; top: -75px; }
   #sFlow > img { width: 1960px; left: -462px; top: -266px; }
-  #sPer > img { width: 1568px; left: -403px; top: -140px; }
+  #sPer > img { width: 1080px; left: 20px; top: 16px; }
   .mark { position: absolute; border: 4px solid var(--accent); border-radius: 12px; }
   #mFlow { left: 119px; top: 354px; width: 985px; height: 180px; }
-  #mPer { left: 39px; top: 380px; width: 1070px; height: 67px; }
+  .when2 { position: absolute; right: 96px; top: 136px; font-size: 30px; color: var(--muted); }
   #sFix { padding: 34px 40px; background: #fff; }
   .try { position: absolute; left: 40px; width: 1040px; }
   #try1 { top: 26px; }
@@ -72,8 +72,9 @@
         <img src="../../assets/real-pass-row.png" alt="">
       </div>
     </div>
-    <div class="shot" id="sPer"><img src="../../assets/real-persona.png" alt=""><div class="mark" id="mPer"></div></div>
+    <div class="shot" id="sPer"><img src="../../assets/real-persona-table.png" alt=""></div>
   </div>
+  <div class="when2" data-ms-text="t68"></div>
   <div class="cap" data-ms-text="t57"></div>
   <div class="cap" data-ms-text="t58"></div>
   <div class="cap" data-ms-text="t59"></div>
@@ -153,8 +154,8 @@
 
     // 印
     $('#mFlow').style.opacity = String(prog(t, B + 0.6, 0.25));
-    $('#mPer').style.opacity = String(prog(t, D + 0.8, 0.25));
     $('#stats').style.opacity = String(prog(t, ms.time('t65').start, 0.35));
+    T('t68').style.opacity = String(prog(t, ms.time('t68').start, 0.35));
   });
 </script>
 </body>

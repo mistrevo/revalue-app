@@ -2,10 +2,21 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>s01 課題</title>
+<title>s01 なぜ要るか</title>
 <link rel="stylesheet" href="../../assets/fonts/fonts.css">
 <link rel="stylesheet" href="../../assets/base.css">
 <style>
+  .quote { position: absolute; left: 0; width: 1920px; top: 452px; text-align: center; font-size: 96px; font-weight: 700; }
+
+  .b-lead { position: absolute; left: 96px; top: 200px; font-size: 56px; }
+  .void { position: absolute; left: 0; width: 1920px; top: 368px; text-align: center; font-size: 140px; font-weight: 700; color: var(--text); }
+  .power { position: absolute; left: 0; width: 1920px; top: 400px; text-align: center; font-size: 96px; font-weight: 700; color: var(--accent); }
+  .line { position: absolute; top: 610px; height: 6px; background: var(--accent); border-radius: 3px; transform-origin: left center; }
+  #l1 { left: 96px; width: 584px; }
+  #l2 { left: 1240px; width: 584px; }
+  #gap { position: absolute; left: 704px; width: 512px; top: 610px; height: 6px;
+         background-image: repeating-linear-gradient(90deg, var(--muted) 0 18px, transparent 18px 36px); }
+
   .lead { position: absolute; left: 96px; top: 84px; width: 1728px; font-size: 44px; line-height: 1.5; }
   .row { position: absolute; left: 96px; width: 1728px; }
   #r1 { top: 262px; }
@@ -17,17 +28,25 @@
   .keep > div { font-size: 30px; color: var(--text); }
   .src { position: absolute; left: 96px; top: 880px; font-size: 28px; color: var(--muted); }
 
-  .b-lead { position: absolute; left: 96px; top: 200px; font-size: 56px; }
-  .void { position: absolute; left: 0; width: 1920px; top: 368px; text-align: center; font-size: 140px; font-weight: 700; color: var(--text); }
-  .line { position: absolute; top: 610px; height: 6px; background: var(--accent); border-radius: 3px; }
-  #l1 { left: 96px; width: 584px; transform-origin: left center; }
-  #l2 { left: 1240px; width: 584px; transform-origin: left center; }
-  #gap { position: absolute; left: 704px; width: 512px; top: 610px; height: 6px;
-         background-image: repeating-linear-gradient(90deg, var(--muted) 0 18px, transparent 18px 36px); }
-  .after { position: absolute; left: 96px; top: 690px; font-size: 56px; }
+  .w-lead { position: absolute; left: 96px; top: 230px; font-size: 72px; font-weight: 700; }
+  .walls { position: absolute; left: 96px; top: 420px; width: 1728px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; }
+  .wall { height: 320px; padding: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; display: flex; align-items: center; }
+  .wall > div { font-size: 46px; font-weight: 700; line-height: 1.45; }
+  #w3 > div { max-width: 400px; }
 </style>
 </head>
 <body>
+  <div class="layer" id="q">
+    <div class="quote" data-ms-text="t80"></div>
+  </div>
+  <div class="layer" id="b">
+    <div class="b-lead" data-ms-text="t10"></div>
+    <div class="void" data-ms-text="t11"></div>
+    <div class="power" data-ms-text="t81"></div>
+    <div class="line" id="l1"></div>
+    <div id="gap"></div>
+    <div class="line" id="l2"></div>
+  </div>
   <div class="layer" id="a">
     <div class="lead" data-ms-text="t01"></div>
     <div class="row" id="r1">
@@ -42,13 +61,13 @@
     </div>
     <div class="src" data-ms-text="t09"></div>
   </div>
-  <div class="layer" id="b">
-    <div class="b-lead" data-ms-text="t10"></div>
-    <div class="void" data-ms-text="t11"></div>
-    <div class="line" id="l1"></div>
-    <div id="gap"></div>
-    <div class="line" id="l2"></div>
-    <div class="after" data-ms-text="t12"></div>
+  <div class="layer" id="w">
+    <div class="w-lead" data-ms-text="t82"></div>
+    <div class="walls">
+      <div class="wall" id="w1"><div data-ms-text="t83"></div></div>
+      <div class="wall" id="w2"><div data-ms-text="t84"></div></div>
+      <div class="wall" id="w3"><div data-ms-text="t85"></div></div>
+    </div>
   </div>
 <script>
   const $ = (s) => document.querySelector(s);
@@ -61,38 +80,64 @@
     el.style.opacity = String(p);
     el.style.transform = dy ? `translateY(${lerp(dy, 0, p)}px)` : '';
   };
+  const hideAfter = (sel, t, tOut) => {
+    const out = prog(t, tOut, 0.25, ms.ease.inQuart);
+    $(sel).style.opacity = String(1 - out);
+    return out;
+  };
 
   ms.scene((t) => {
-    // 前半: 数字と帯
-    const out = prog(t, ms.time('t01').end - 0.05, 0.3, ms.ease.inQuart);
-    $('#a').style.opacity = String(1 - out);
-    $('#a').style.visibility = out >= 1 ? 'hidden' : 'visible';
+    // 本人の一言
+    const qEnd = ms.time('t80').end;
+    fade(T('t80'), t, ms.time('t80').start - 0.2, 0.7, 14);
+    const qOut = hideAfter('#q', t, qEnd);
+    $('#q').style.visibility = qOut >= 1 ? 'hidden' : 'visible';
 
-    fade(T('t01'), t, ms.time('t01').start - 0.25, 0.5);
+    // 空白。あとで同じ場所に「職歴には載らない力」が出るので、線は残す
+    const bStart = ms.time('t10').start;
+    const vEnd = ms.time('t11').end;
+    const pStart = ms.time('t81').start;
+    const pEnd = ms.time('t81').end;
+    const bVisible = (t >= bStart - 0.2 && t < vEnd + 0.3) || (t >= pStart - 0.2 && t < pEnd + 0.3);
+    $('#b').style.visibility = bVisible ? 'visible' : 'hidden';
+    const inFirst = t < vEnd + 0.3;
+    fade(T('t10'), t, bStart - 0.1, 0.5);
+    T('t10').style.visibility = inFirst ? 'visible' : 'hidden';
+    const lineStart = inFirst ? bStart : pStart - 0.2;
+    $('#l1').style.transform = `scaleX(${prog(t, lineStart, 0.7, ms.ease.outQuint)})`;
+    $('#gap').style.opacity = String(prog(t, lineStart + 0.55, 0.5));
+    $('#l2').style.transform = `scaleX(${prog(t, lineStart + 0.9, 0.6, ms.ease.outQuint)})`;
+    fade(T('t11'), t, ms.time('t11').start, 0.8, 14);
+    T('t11').style.visibility = inFirst ? 'visible' : 'hidden';
+    fade(T('t81'), t, pStart, 0.8, 14);
+    const bOut = inFirst ? prog(t, vEnd, 0.25, ms.ease.inQuart) : prog(t, pEnd, 0.25, ms.ease.inQuart);
+    $('#b').style.opacity = String(1 - bOut);
+
+    // 数字と帯
+    const aStart = ms.time('t01').start;
+    const aEnd = ms.time('t01').end;
+    $('#a').style.visibility = t >= aStart - 0.3 && t < aEnd + 0.3 ? 'visible' : 'hidden';
+    $('#a').style.opacity = String(1 - prog(t, aEnd, 0.25, ms.ease.inQuart));
+    fade(T('t01'), t, aStart, 0.5);
     fade(T('t09'), t, ms.time('t09').start, 0.3);
-
     fade(T('t02'), t, ms.time('t02').start, 0.25);
     fade(T('t03'), t, ms.time('t03').start, 0.7, 18);
     $('#r1 .track').style.opacity = String(prog(t, ms.time('t03').start, 0.3));
     $('#k1').style.width = `${lerp(100, 80.5, prog(t, ms.time('t04').start - 0.5, 0.8, ms.ease.inOutCubic))}%`;
     fade(T('t04'), t, ms.time('t04').start, 0.25);
-
     fade(T('t05'), t, ms.time('t05').start, 0.25);
     fade(T('t06'), t, ms.time('t06').start, 0.7, 18);
     $('#r2 .track').style.opacity = String(prog(t, ms.time('t06').start, 0.3));
     $('#k2').style.width = `${lerp(100, 56, prog(t, ms.time('t07').start - 0.5, 0.8, ms.ease.inOutCubic))}%`;
     fade(T('t07'), t, ms.time('t07').start, 0.25);
 
-    // 後半: 空白
-    const bStart = ms.time('t10').start;
-    $('#b').style.visibility = t < bStart - 0.2 ? 'hidden' : 'visible';
-    fade(T('t10'), t, bStart - 0.1, 0.5);
-    $('#l1').style.transform = `scaleX(${prog(t, bStart, 0.7, ms.ease.outQuint)})`;
-    const g = prog(t, bStart + 0.55, 0.5);
-    $('#gap').style.opacity = String(g);
-    $('#l2').style.transform = `scaleX(${prog(t, bStart + 0.9, 0.6, ms.ease.outQuint)})`;
-    fade(T('t11'), t, ms.time('t11').start, 0.8, 14);
-    fade(T('t12'), t, ms.time('t12').start, 0.5, 10);
+    // 言葉にならない壁
+    const wStart = ms.time('t82').start;
+    $('#w').style.visibility = t >= wStart - 0.2 ? 'visible' : 'hidden';
+    fade(T('t82'), t, wStart + 0.05, 0.6, 14);
+    fade($('#w1'), t, ms.time('t83').start - 0.1, 0.5, 14);
+    fade($('#w2'), t, ms.time('t84').start - 0.1, 0.5, 14);
+    fade($('#w3'), t, ms.time('t85').start - 0.1, 0.5, 14);
   });
 </script>
 </body>

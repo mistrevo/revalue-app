@@ -2,7 +2,7 @@
 
 | 種類 | 素材 | 出どころ | 条件・クレジット |
 |---|---|---|---|
-| 実物の画面 | `assets/real-*.png`（9 点） | このリポジトリの公開ページを GitHub で撮影（`tools/capture-github.mjs`） | 開発者が作った文書とコード。GitHub の画面の枠が映る |
+| 実物の画面 | `assets/real-*.png`（9 点。PRD、Workflow の定義、評価の結果、6 人の結果の表） | このリポジトリの公開ページを GitHub で撮影（`tools/capture-github.mjs`） | 開発者が作った文書とコード。GitHub の画面の枠が映る |
 | 書体 | BIZ UDP ゴシック（400、700） | Google Fonts | OFL |
 | 図 | 帯、丸、線、矢印、チェックの印 | シーンの中で描いた | 権利の確認は不要 |
 | 声、BGM、効果音 | なし | あとで開発者本人の声を載せる | — |

@@ -1,5 +1,5 @@
 // 公開リポジトリの実物の画面を撮って assets/ に置く（ログインなしで見えるページだけ）。
-// 使い方: node video/motion/tools/capture-github.mjs
+// 使い方: node video/motion/tools/capture-github.mjs [撮るページの名前]
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '../../../evals/personas/driver/node_modules/playwright/index.mjs';
@@ -30,14 +30,20 @@ const PAGES = [
       { name: 'real-pass-row', selector: '.markdown-body tr', text: '褒めすぎ（根拠ありにしてはいけない力を根拠ありにした）' },
     ],
   },
-  { name: 'real-persona', url: `${REPO}/evals/results/2026-11-06-persona.md`, heading: 'h1', mark: { selector: '.markdown-body li', text: '根拠の読み取りは' } },
+  {
+    name: 'real-persona',
+    url: `${REPO}/evals/results/2026-11-06-persona.md`,
+    heading: 'h1',
+    crops: [{ name: 'real-persona-table', selector: '.markdown-body table', text: 'B ふみ' }],
+  },
   { name: 'real-workflow', url: `${REPO}/.claude/workflows/run-plan.js`, heading: null },
 ];
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: 2, locale: 'ja-JP', colorScheme: 'light' });
 const page = await context.newPage();
-for (const p of PAGES) {
+const only = process.argv[2];
+for (const p of PAGES.filter(x => !only || x.name === only)) {
   await page.goto(p.url, { waitUntil: 'load', timeout: 60_000 });
   await page.waitForTimeout(4000);
   if (p.heading) {

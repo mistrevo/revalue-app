@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>s08 締め</title>
+<link rel="stylesheet" href="../../assets/fonts/fonts.css">
+<link rel="stylesheet" href="../../assets/base.css">
+<style>
+  .copy { position: absolute; left: 0; width: 1920px; top: 330px; text-align: center; font-size: 72px; font-weight: 700; }
+  .line { position: absolute; top: 500px; height: 6px; background: var(--accent); }
+  #l1 { left: 96px; width: 584px; }
+  #l2 { left: 1240px; width: 584px; }
+  #gap { position: absolute; left: 704px; width: 512px; top: 500px; height: 6px;
+         background-image: repeating-linear-gradient(90deg, var(--muted) 0 18px, transparent 18px 36px); }
+  #fill { position: absolute; left: 680px; width: 560px; top: 500px; height: 6px; background: var(--accent); transform-origin: left center; }
+  .name { position: absolute; left: 0; width: 1920px; top: 590px; text-align: center; font-size: 140px; font-weight: 700; color: var(--accent); letter-spacing: 0.02em; }
+</style>
+</head>
+<body>
+  <div class="copy" data-ms-text="t71"></div>
+  <div class="line" id="l1"></div>
+  <div id="gap"></div>
+  <div id="fill"></div>
+  <div class="line" id="l2"></div>
+  <div class="name" data-ms-text="t72"></div>
+<script>
+  const $ = (s) => document.querySelector(s);
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const prog = (t, t0, dur, e = ms.ease.outExpo) => e(clamp01((t - t0) / dur));
+  const lerp = (a, b, p) => a + (b - a) * p;
+  const T = (id) => $(`[data-ms-text="${id}"]`);
+
+  ms.scene((t) => {
+    const c = ms.time('t71').start;
+    const p = prog(t, c, 0.8);
+    T('t71').style.opacity = String(p);
+    T('t71').style.transform = `translateY(${lerp(16, 0, p)}px)`;
+    // 空白だった線が、言葉のあとにつながる
+    $('#fill').style.transform = `scaleX(${prog(t, c + 1.6, 1.0, ms.ease.inOutCubic)})`;
+    const lines = prog(t, -0.05, 0.5);
+    $('#l1').style.opacity = String(lines);
+    $('#l2').style.opacity = String(lines);
+    $('#gap').style.opacity = String(lines);
+
+    const r = prog(t, ms.time('t72').start, 0.8);
+    T('t72').style.opacity = String(r);
+    T('t72').style.transform = `translateY(${lerp(14, 0, r)}px)`;
+  });
+</script>
+</body>
+</html>

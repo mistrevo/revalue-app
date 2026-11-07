@@ -19,19 +19,14 @@
   #p2 .dot { border-color: #7FB5AB; }
   .note { position: absolute; left: 96px; top: 860px; font-size: 28px; color: var(--muted); }
 
-  .b-title { position: absolute; left: 96px; top: 84px; font-size: 80px; font-weight: 700; }
-  .nodes { position: absolute; left: 96px; top: 250px; width: 1728px; display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 72px; }
+  .b-title { position: absolute; left: 96px; top: 170px; font-size: 80px; font-weight: 700; }
+  .nodes { position: absolute; left: 96px; top: 360px; width: 1728px; display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 72px; }
   .node { position: relative; height: 320px; padding: 44px 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; }
   .node .h { font-size: 44px; font-weight: 700; line-height: 1.35; min-height: 130px; }
   .node .d { font-size: 32px; color: var(--muted); margin-top: 18px; }
   .node.code { background: var(--accent); border-color: var(--accent); }
   .node.code .h, .node.code .d { color: var(--on-accent); }
   .arrow { position: absolute; right: -56px; top: 136px; width: 40px; height: 40px; }
-  .proof { position: absolute; left: 96px; top: 640px; width: 1728px; height: 240px; padding: 36px 48px; background: var(--tile); border-radius: 24px; }
-  .quote { display: flex; align-items: center; gap: 22px; }
-  .quote svg { flex: none; width: 48px; height: 48px; }
-  .quote div { font-size: 40px; color: var(--on-tint); }
-  .rule { margin-top: 28px; font-size: 44px; font-weight: 700; color: var(--on-tint); padding-left: 70px; }
 </style>
 </head>
 <body>
@@ -65,13 +60,6 @@
       <div class="node" id="n3">
         <div class="h" data-ms-text="t41"></div><div class="d" data-ms-text="t42"></div>
       </div>
-    </div>
-    <div class="proof" id="proof">
-      <div class="quote">
-        <svg id="check" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#1F7A6E"/><path d="M14 25l7 7 13-15" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div data-ms-text="t43"></div>
-      </div>
-      <div class="rule" data-ms-text="t44"></div>
     </div>
   </div>
 <script>
@@ -133,10 +121,6 @@
     node('#n1', 't37');
     node('#n2', 't39');
     node('#n3', 't41');
-    $('#proof').style.opacity = String(prog(t, ms.time('t43').start - 0.1, 0.4));
-    const c = prog(t, ms.time('t43').start + 0.1, 0.35, ms.ease.outBack);
-    $('#check').style.transform = `scale(${c})`;
-    T('t44').style.opacity = String(prog(t, ms.time('t44').start, 0.35));
   });
 </script>
 </body>
