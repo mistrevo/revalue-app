@@ -2,56 +2,105 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>s07 締め</title>
+<title>s07 これから</title>
 <link rel="stylesheet" href="../../assets/fonts/fonts.css">
 <link rel="stylesheet" href="../../assets/base.css">
 <style>
-  .next { position: absolute; left: 0; width: 1920px; top: 345px; text-align: center; font-size: 48px; color: var(--text); }
-  .copy { position: absolute; left: 0; width: 1920px; top: 330px; text-align: center; font-size: 72px; font-weight: 700; }
-  .line { position: absolute; top: 500px; height: 6px; background: var(--accent); }
-  #l1 { left: 96px; width: 584px; }
-  #l2 { left: 1240px; width: 584px; }
-  #gap { position: absolute; left: 704px; width: 512px; top: 500px; height: 6px;
-         background-image: repeating-linear-gradient(90deg, var(--muted) 0 18px, transparent 18px 36px); }
-  #fill { position: absolute; left: 680px; width: 560px; top: 500px; height: 6px; background: var(--accent); transform-origin: left center; }
-  .name { position: absolute; left: 0; width: 1920px; top: 590px; text-align: center; font-size: 140px; font-weight: 700; color: var(--accent); letter-spacing: 0.02em; }
+  .head { position: absolute; left: 96px; top: 40px; font-size: 64px; font-weight: 700; }
+  .group { position: absolute; top: 142px; font-size: 28px; font-weight: 700; padding-bottom: 8px; border-bottom: 3px solid currentColor; }
+  #gNow { left: 96px; width: 1144px; color: var(--accent); }
+  #gNext { left: 1264px; width: 560px; color: var(--muted); }
+  .map { position: absolute; left: 96px; top: 208px; width: 1728px; display: grid; grid-template-columns: repeat(6, 1fr); column-gap: 24px; }
+  .node { height: 84px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); }
+  .node > div { font-size: 32px; font-weight: 700; color: var(--muted); }
+  .node.next { background: transparent; border: 3px dashed #A8B0AD; }
+  .node.next { position: relative; }
+  .node.next > .fillbox { position: absolute; inset: -3px; border-radius: 18px; background: var(--accent); }
+  .node.next > [data-ms-text] { position: relative; }
+  svg.loop { position: absolute; left: 96px; top: 292px; width: 1728px; height: 58px; overflow: visible; }
+
+  .cards { position: absolute; left: 96px; top: 362px; width: 1728px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  .card2 { height: 218px; padding: 26px 34px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; }
+  .card2 .h { font-size: 44px; font-weight: 700; color: var(--accent); line-height: 1.3; }
+  .card2 .d { font-size: 34px; color: var(--text); margin-top: 8px; line-height: 1.35; }
+
+  .big { position: absolute; left: 96px; top: 606px; width: 1728px; height: 136px; padding: 0 48px; display: flex; align-items: center; background: var(--accent); border-radius: 24px; }
+  .big > div { font-size: 52px; font-weight: 700; color: var(--on-accent); }
+
+  .wider { position: absolute; left: 96px; top: 772px; font-size: 48px; font-weight: 700; }
+  .fund { position: absolute; left: 96px; top: 850px; font-size: 34px; color: var(--muted); }
 </style>
 </head>
 <body>
-  <div class="next" data-ms-text="t70"></div>
-  <div class="copy" data-ms-text="t71"></div>
-  <div class="line" id="l1"></div>
-  <div id="gap"></div>
-  <div id="fill"></div>
-  <div class="line" id="l2"></div>
-  <div class="name" data-ms-text="t72"></div>
+  <div class="head" data-ms-text="t90"></div>
+  <div class="group" id="gNow"><span data-ms-text="t97"></span></div>
+  <div class="group" id="gNext"><span data-ms-text="t98"></span></div>
+  <div class="map">
+    <div class="node"><div data-ms-text="t91"></div></div>
+    <div class="node"><div data-ms-text="t92"></div></div>
+    <div class="node"><div data-ms-text="t93"></div></div>
+    <div class="node"><div data-ms-text="t94"></div></div>
+    <div class="node next" id="n5"><div class="fillbox" id="f5"></div><div data-ms-text="t95"></div></div>
+    <div class="node next" id="n6"><div class="fillbox" id="f6"></div><div data-ms-text="t96"></div></div>
+  </div>
+  <!-- 話を重ねる: 「本人が選ぶ」から「話す」へ戻る矢印 -->
+  <svg class="loop" viewBox="0 0 1728 58">
+    <path id="loop" d="M 1012 0 L 1012 22 Q 1012 44 990 44 L 164 44 Q 138 44 138 22 L 138 8" fill="none" stroke="#1F7A6E" stroke-width="4" stroke-linecap="round"/>
+    <path id="head" d="M 126 18 L 138 4 L 150 18" fill="none" stroke="#1F7A6E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div class="cards">
+    <div class="card2" id="c1"><div class="h" data-ms-text="t100"></div><div class="d" data-ms-text="t101"></div></div>
+    <div class="card2" id="c2"><div class="h" data-ms-text="t102"></div><div class="d" data-ms-text="t103"></div></div>
+    <div class="card2" id="c3"><div class="h" data-ms-text="t104"></div><div class="d" data-ms-text="t105"></div></div>
+  </div>
+  <div class="big" id="big"><div data-ms-text="t106"></div></div>
+  <div class="wider" data-ms-text="t107"></div>
+  <div class="fund" data-ms-text="t108"></div>
 <script>
   const $ = (s) => document.querySelector(s);
   const clamp01 = (x) => Math.min(1, Math.max(0, x));
   const prog = (t, t0, dur, e = ms.ease.outExpo) => e(clamp01((t - t0) / dur));
   const lerp = (a, b, p) => a + (b - a) * p;
   const T = (id) => $(`[data-ms-text="${id}"]`);
+  const fade = (el, t, t0, dur, dy = 0) => {
+    const p = prog(t, t0, dur);
+    el.style.opacity = String(p);
+    el.style.transform = dy ? `translateY(${lerp(dy, 0, p)}px)` : '';
+  };
+  const loop = $('#loop');
+  const LEN = loop.getTotalLength();
+  loop.style.strokeDasharray = String(LEN);
 
   ms.scene((t) => {
-    const n = ms.time('t70');
-    const nIn = prog(t, n.start - 0.25, 0.5);
-    const nOut = prog(t, n.end - 0.3, 0.3, ms.ease.inQuart);
-    T('t70').style.opacity = String(nIn * (1 - nOut));
+    // 地図は前のシーンから引き継ぐので、最初のコマから出しておく
+    $('.map').style.opacity = String(prog(t, -0.05, 0.3));
+    $('#gNow').style.opacity = String(prog(t, -0.05, 0.3));
+    fade(T('t90'), t, ms.time('t90').start - 0.1, 0.6, 14);
+    $('#gNext').style.opacity = String(prog(t, ms.time('t98').start, 0.4));
 
-    const c = ms.time('t71').start;
-    const p = prog(t, c, 0.8);
-    T('t71').style.opacity = String(p);
-    T('t71').style.transform = `translateY(${lerp(16, 0, p)}px)`;
-    // 空白だった線が、言葉のあとにつながる
-    $('#fill').style.transform = `scaleX(${prog(t, c + 0.9, 0.9, ms.ease.inOutCubic)})`;
-    const lines = prog(t, -0.05, 0.5);
-    $('#l1').style.opacity = String(lines);
-    $('#l2').style.opacity = String(lines);
-    $('#gap').style.opacity = String(lines);
+    // 話を重ねる: 矢印が戻る
+    const c1 = ms.time('t100').start;
+    fade($('#c1'), t, c1 - 0.1, 0.5, 12);
+    const d = prog(t, c1, 0.9, ms.ease.inOutCubic);
+    loop.style.strokeDashoffset = String(LEN * (1 - d));
+    $('#head').style.opacity = String(prog(t, c1 + 0.85, 0.2));
 
-    const r = prog(t, ms.time('t72').start, 0.8);
-    T('t72').style.opacity = String(r);
-    T('t72').style.transform = `translateY(${lerp(14, 0, r)}px)`;
+    fade($('#c2'), t, ms.time('t102').start - 0.1, 0.5, 12);
+
+    // つなぐ: 地図の「つながる」が灯る
+    const c3 = ms.time('t104').start;
+    fade($('#c3'), t, c3 - 0.1, 0.5, 12);
+    $('#f5').style.opacity = String(prog(t, c3, 0.5));
+    T('t95').style.color = t >= c3 + 0.15 ? 'var(--on-accent)' : 'var(--muted)';
+
+    // 次の人を支える: 最後の 1 つが灯る
+    const b = ms.time('t106').start;
+    fade($('#big'), t, b - 0.1, 0.6, 12);
+    $('#f6').style.opacity = String(prog(t, b, 0.5));
+    T('t96').style.color = t >= b + 0.15 ? 'var(--on-accent)' : 'var(--muted)';
+
+    fade(T('t107'), t, ms.time('t107').start, 0.5, 10);
+    fade(T('t108'), t, ms.time('t108').start, 0.5);
   });
 </script>
 </body>

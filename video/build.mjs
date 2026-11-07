@@ -4,7 +4,7 @@
 //   { "take": "撮りの名前", "parts": [ { "scene": "s01" }, { "demo": [ { "name": "...", "from": 0, "to": 1, "speed": 2, "maxGap": 0.5, "hold": 1 } ],
 //       "overlays": [ { "id": "ask-one", "from": 3, "to": 8, "x": 1290, "y": 620 } ] } ] }
 //   overlays の from と to は、その部分の先頭からの秒
-// 声: video/voice/1.wav〜7.wav のように、部分の順の番号で置く（git に入れない）。parts の "voice": 1 で結びつける。部分の先頭から重ねる
+// 声: video/voice/1.wav〜8.wav のように、部分の順の番号で置く（git に入れない）。parts の "voice": 1 で結びつける。部分の先頭から重ねる
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
