@@ -114,12 +114,12 @@ const args = ['-f', 'concat', '-safe', '0', '-i', listFile];
 if (voices.length) {
   for (const v of voices) args.push('-i', v.wav);
   const delays = voices.map((v, i) => `[${i + 1}:a]aresample=48000,adelay=${Math.round(v.at * 1000)}:all=1[a${i}]`);
-  const mix = `${voices.map((_, i) => `[a${i}]`).join('')}amix=inputs=${voices.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11[a]`;
-  args.push('-filter_complex', [...delays, mix].join(';'), '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '192k');
+  const mix = `${voices.map((_, i) => `[a${i}]`).join('')}amix=inputs=${voices.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]`;
+  args.push('-filter_complex', [...delays, mix].join(';'), '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', process.env.AUDIO_BITRATE ?? '192k');
 } else {
   args.push('-map', '0:v', '-an');
 }
-args.push('-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', '-t', clock.toFixed(3), outFile);
+args.push('-c:v', 'libx264', '-preset', process.env.X264_PRESET ?? 'medium', '-crf', process.env.X264_CRF ?? '17', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', '-t', clock.toFixed(3), outFile);
 run(args);
 const seconds = probeSeconds(outFile);
 console.log(`書き出しました: ${outFile}（${Math.floor(seconds / 60)} 分 ${(seconds % 60).toFixed(1)} 秒、声 ${voices.length} 本）`);
