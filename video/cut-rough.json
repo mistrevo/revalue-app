@@ -14,8 +14,8 @@
         { "name": "返事 2", "from": 54.9, "to": 70.6, "maxGap": 0.12, "hold": 0.4 },
         { "name": "答え 3", "from": 78.6, "to": 88.4, "speed": 6 },
         { "name": "返事 3", "from": 88.4, "to": 107.0, "maxGap": 0.12, "hold": 0.4 },
-        { "name": "区切る", "from": 147.3, "to": 153.6, "maxGap": 0.2 },
-        { "name": "見えた力", "from": 153.6, "to": 154.7, "hold": 15.0 }
+        { "name": "区切る", "from": 147.3, "to": 149.1, "maxGap": 0.2, "hold": 2.8 },
+        { "name": "見えた力", "from": 149.1, "to": 154.7, "maxGap": 0.2, "hold": 12.0 }
       ],
       "overlays": [
         { "id": "note", "from": 0, "x": 1290, "y": 985 },

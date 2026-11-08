@@ -76,7 +76,7 @@
     { "id": "t62", "scene": "s06", "kind": "label", "text": "2 回目（2026-11-03 06:29）", "start": 81.0, "end": 84.4 },
     { "id": "t63", "scene": "s06", "kind": "caption", "text": "褒めすぎ 0 件（27 中）", "start": 81.1, "end": 84.4 },
     { "id": "t64", "scene": "s06", "kind": "caption", "text": "架空の 6 人を AI が演じ、画面を最後まで通す", "start": 84.6, "end": 94.4 },
-    { "id": "t65", "scene": "s06", "kind": "label", "text": "main に入れた PR 31 本", "start": 85.0, "end": 94.4 },
+    { "id": "t65", "scene": "s06", "kind": "label", "text": "main に入れた PR 32 本", "start": 85.0, "end": 94.4 },
     { "id": "t66", "scene": "s06", "kind": "label", "text": "評価の記録 23 件", "start": 85.06, "end": 94.4 },
     { "id": "t67", "scene": "s06", "kind": "label", "text": "架空のエピソード 47 件", "start": 85.12, "end": 94.4 },
     { "id": "t68", "scene": "s06", "kind": "label", "text": "2026-11-06 の評価", "start": 85.0, "end": 94.4 },
@@ -101,7 +101,8 @@
     { "id": "t108", "scene": "s07", "kind": "label", "text": "利用者は無料で、自治体や企業と届ける（仮説）", "start": 113.0, "end": 117.4 },
 
     { "id": "t71", "scene": "s08", "kind": "title", "text": "キャリアには空白があっても、人生に空白はない。", "start": 117.7, "end": 124.6 },
-    { "id": "t72", "scene": "s08", "kind": "title", "text": "RE:VALUE", "start": 121.2, "end": 124.6 }
+    { "id": "t72", "scene": "s08", "kind": "title", "text": "RE:VALUE", "start": 121.2, "end": 124.6 },
+    { "id": "t73", "scene": "s08", "kind": "label", "text": "声: VOICEVOX:冥鳴ひまり", "start": 121.2, "end": 124.6 }
   ],
   "narration": [],
   "sfx": [],
