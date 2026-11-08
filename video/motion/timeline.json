@@ -6,7 +6,7 @@
   "loop": false,
   "seed": 1,
   "scenes": [
-    { "id": "s01", "start": 0, "end": 35, "purpose": "なぜ要るか: 3 つの困りごと、規模、空白、職歴に載らない力", "file": "src/scenes/s01.html" },
+    { "id": "s01", "start": 0, "end": 35, "purpose": "なぜ要るか: もう一度働こうとしたときの迷い、規模、空白に見える時間、職歴に載らない力", "file": "src/scenes/s01.html" },
     { "id": "s02", "start": 35, "end": 50, "purpose": "何を作ったか: 全体の地図と、今回作った範囲", "file": "src/scenes/s02.html" },
     { "id": "s05", "start": 50, "end": 65.5, "purpose": "何が違うか: 汎用の AI との比較と、コードが決めて AI が言葉にする仕組み", "file": "src/scenes/s05.html" },
     { "id": "s06", "start": 65.5, "end": 94.5, "purpose": "どう作ったか: Claude Code を中心にした開発を実物で見せる", "file": "src/scenes/s06.html" },
@@ -14,23 +14,23 @@
     { "id": "s08", "start": 117.5, "end": 124.7, "purpose": "締め: 一番覚えてほしい一文", "file": "src/scenes/s08.html" }
   ],
   "texts": [
-    { "id": "t82", "scene": "s01", "kind": "caption", "text": "一度仕事を離れた女性は", "start": 0.15, "end": 13.4 },
-    { "id": "t83", "scene": "s01", "kind": "caption", "text": "どこに相談すればいいか、分からない", "start": 2.4, "end": 13.4 },
-    { "id": "t84", "scene": "s01", "kind": "caption", "text": "自分にどんな仕事ができるか、分からない", "start": 6.0, "end": 13.4 },
-    { "id": "t85", "scene": "s01", "kind": "caption", "text": "希望を言える場所がない", "start": 10.0, "end": 13.4 },
+    { "id": "t82", "scene": "s01", "kind": "caption", "text": "また働きたいと思ったとき", "start": 0.15, "end": 13.4 },
+    { "id": "t83", "scene": "s01", "kind": "caption", "text": "何から相談すればいいのだろう", "start": 3.0, "end": 13.4 },
+    { "id": "t84", "scene": "s01", "kind": "caption", "text": "自分にどんな仕事ができるのだろう", "start": 5.9, "end": 13.4 },
+    { "id": "t85", "scene": "s01", "kind": "caption", "text": "希望は、どこで話せばいいのだろう", "start": 9.2, "end": 13.4 },
 
-    { "id": "t01", "scene": "s01", "kind": "caption", "text": "第 1 子の妊娠がわかったときに働いていた女性のうち、子どもが 1 歳のときには働いていない人", "start": 13.7, "end": 24.9 },
+    { "id": "t01", "scene": "s01", "kind": "caption", "text": "第 1 子の妊娠がわかったときに働いていた既婚女性のうち、子どもが 1 歳のときには仕事を離れていた人", "start": 13.7, "end": 24.9 },
     { "id": "t02", "scene": "s01", "kind": "label", "text": "全体", "start": 14.2, "end": 24.9 },
     { "id": "t03", "scene": "s01", "kind": "title", "text": "約 5 人に 1 人", "start": 14.5, "end": 24.9 },
-    { "id": "t04", "scene": "s01", "kind": "label", "text": "1 歳のときも働いていた 80.5%", "start": 15.5, "end": 24.9 },
+    { "id": "t04", "scene": "s01", "kind": "label", "text": "1 歳のときも仕事を続けていた 80.5%", "start": 15.5, "end": 24.9 },
     { "id": "t05", "scene": "s01", "kind": "label", "text": "パート・派遣等", "start": 18.3, "end": 24.9 },
     { "id": "t06", "scene": "s01", "kind": "title", "text": "4 割以上", "start": 18.6, "end": 24.9 },
-    { "id": "t07", "scene": "s01", "kind": "label", "text": "1 歳のときも働いていた 56.0%", "start": 19.6, "end": 24.9 },
-    { "id": "t09", "scene": "s01", "kind": "label", "text": "第 17 回出生動向基本調査（国立社会保障・人口問題研究所）。第 1 子の生まれ年 2020〜24 年", "start": 13.9, "end": 24.9 },
+    { "id": "t07", "scene": "s01", "kind": "label", "text": "1 歳のときも仕事を続けていた 56.0%", "start": 19.6, "end": 24.9 },
+    { "id": "t09", "scene": "s01", "kind": "label", "text": "第 17 回出生動向基本調査（国立社会保障・人口問題研究所）。第 1 子の生まれ年 2020〜24 年。育休中は続けていた側", "start": 13.9, "end": 24.9 },
 
-    { "id": "t10", "scene": "s01", "kind": "caption", "text": "仕事を離れた時間は、履歴書では", "start": 25.1, "end": 28.9 },
-    { "id": "t11", "scene": "s01", "kind": "title", "text": "空白", "start": 26.0, "end": 28.9 },
-    { "id": "t81", "scene": "s01", "kind": "title", "text": "職歴には載らない力", "start": 29.2, "end": 34.9 },
+    { "id": "t10", "scene": "s01", "kind": "caption", "text": "仕事を離れた時間は、履歴書では", "start": 25.0, "end": 29.2 },
+    { "id": "t11", "scene": "s01", "kind": "title", "text": "空白に見られることも", "start": 25.9, "end": 29.2 },
+    { "id": "t81", "scene": "s01", "kind": "title", "text": "職歴には載らない力", "start": 29.5, "end": 34.9 },
 
     { "id": "t20", "scene": "s02", "kind": "title", "text": "RE:VALUE", "start": 35.05, "end": 49.9 },
     { "id": "t21", "scene": "s02", "kind": "caption", "text": "キャリアを中断した人のための Web アプリ", "start": 35.4, "end": 49.9 },
@@ -96,7 +96,7 @@
     { "id": "t103", "scene": "s07", "kind": "label", "text": "確かめた力を、履歴書や面接で使う言葉に", "start": 99.8, "end": 117.4 },
     { "id": "t104", "scene": "s07", "kind": "caption", "text": "つなぐ", "start": 102.3, "end": 117.4 },
     { "id": "t105", "scene": "s07", "kind": "label", "text": "先輩やキャリアコンサルタントへ", "start": 102.4, "end": 117.4 },
-    { "id": "t106", "scene": "s07", "kind": "caption", "text": "相談先が分からなかった人が、自分の経験で次の人の相談にのる。", "start": 106.4, "end": 117.4 },
+    { "id": "t106", "scene": "s07", "kind": "caption", "text": "迷っていた人が、自分の経験で次の人の相談にのる。", "start": 106.4, "end": 117.4 },
     { "id": "t107", "scene": "s07", "kind": "caption", "text": "介護や病気療養で中断した人へも", "start": 113.0, "end": 117.4 },
     { "id": "t108", "scene": "s07", "kind": "label", "text": "利用者は無料で、自治体や企業と届ける（仮説）", "start": 113.0, "end": 117.4 },
 
